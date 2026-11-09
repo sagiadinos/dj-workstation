@@ -1,6 +1,6 @@
 # DJ-Workstation (djw): Feature Specification
 
-Rewrite of the DJ-Workstation from 2002. The goal is lean, high-performance DJ software for touchscreens and controllers, cross-platform, without any cloud.
+Rewrite of the DJ-Workstation from 1998. The goal is lean, high-performance DJ software for touchscreens and controllers, cross-platform, without any cloud.
 
 License: **AGPLv3**
 
