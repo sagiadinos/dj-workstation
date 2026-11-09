@@ -3,6 +3,8 @@
 
 include(FetchContent)
 
+find_package(Threads REQUIRED)
+
 # doctest: taken from vcpkg or the system if available, otherwise downloaded
 set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
 set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
