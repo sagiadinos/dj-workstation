@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.25)
 project(djw
     VERSION 0.1.0
     DESCRIPTION "DJ-Workstation: lean, touch-first DJ software"
-    LANGUAGES CXX
+    LANGUAGES C CXX # C for miniaudio
 )
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")

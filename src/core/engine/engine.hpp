@@ -56,7 +56,7 @@ namespace djw::core::engine
         private:
             struct DeckSlot
             {
-                    DeckSlot(api::DeckId id, AudioSource &source);
+                    DeckSlot(api::DeckId id, AudioSource &source, std::size_t pause_fade_frames);
 
                     Deck                    deck;
                     MixerChannel            channel;

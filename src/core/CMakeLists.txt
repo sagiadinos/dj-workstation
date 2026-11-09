@@ -4,9 +4,12 @@
 # libdjw-core: every module is a static library, djw::core bundles them for the frontends.
 # The core never links SDL or anything from src/player-ui.
 
+include(DjwMiniaudio)
+
 add_subdirectory(api)
 add_subdirectory(engine)
+add_subdirectory(decode)
 
 add_library(djw_core INTERFACE)
 add_library(djw::core ALIAS djw_core)
-target_link_libraries(djw_core INTERFACE djw::core::api djw::core::engine)
+target_link_libraries(djw_core INTERFACE djw::core::api djw::core::engine djw::core::decode)

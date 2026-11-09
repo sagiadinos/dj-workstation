@@ -32,7 +32,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 ### Dependencies
 - Only use libraries listed in FEATURES.md section 6.
 - Ask before adding any new dependency.
-- Dependencies are declared via CMake `FetchContent` with pinned versions (tag or commit hash) and `FIND_PACKAGE_ARGS`: an installed system or vcpkg package is used if found, otherwise the pinned version is downloaded. Single-header libraries may be vendored in `third_party/` with their license file.
+- Dependencies are declared via CMake `FetchContent` with pinned versions (tag or commit hash) and `FIND_PACKAGE_ARGS`: an installed system or vcpkg package is used if found, otherwise the pinned version is downloaded. Exception: libraries without a CMake package config (miniaudio) are always downloaded and built from their sources by our own CMake target. Single-header libraries may be vendored in `third_party/` with their license file.
 - Every dependency must be compatible with AGPLv3.
 
 ### Licensing

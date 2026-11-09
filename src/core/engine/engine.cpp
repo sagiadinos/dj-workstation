@@ -10,14 +10,17 @@ namespace djw::core::engine
 {
     namespace
     {
+        // Long enough to avoid a click, short enough to feel instant
+        constexpr double pause_fade_seconds = 0.005;
+
         template <typename... Ts> struct Overloaded : Ts...
         {
                 using Ts::operator()...;
         };
     } // namespace
 
-    Engine::DeckSlot::DeckSlot(api::DeckId id, AudioSource &source)
-        : deck{id, source}, snapshot{api::DeckSnapshot{.deck = id}}
+    Engine::DeckSlot::DeckSlot(api::DeckId id, AudioSource &source, std::size_t pause_fade_frames)
+        : deck{id, source, pause_fade_frames}, snapshot{api::DeckSnapshot{.deck = id}}
     {
     }
 
@@ -32,7 +35,8 @@ namespace djw::core::engine
     api::DeckId Engine::addDeck(AudioSource &source)
     {
         const api::DeckId id{next_deck_id++};
-        decks.push_back(std::make_unique<DeckSlot>(id, source));
+        const auto        pause_fade_frames = static_cast<std::size_t>(pause_fade_seconds * config.sample_rate);
+        decks.push_back(std::make_unique<DeckSlot>(id, source, pause_fade_frames));
         return id;
     }
 
