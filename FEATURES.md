@@ -79,6 +79,8 @@ djw/
       control/          MIDI/HID transport, mapping (TOML + Lua), feedback
       automix/          autoplay, autofade, queue
       api/              command definitions, state snapshots
+      audio_io/         audio devices (miniaudio) behind an interface
+      runtime/          implements the core API on top of engine, decode and audio_io
     player-ui/          frontends on top of the core
       sdl/              SDL3 player (custom widget layer)
     platform/           platform-specific code (Android, iOS, Web)
