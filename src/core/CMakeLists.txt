@@ -5,7 +5,8 @@
 # The core never links SDL or anything from src/player-ui.
 
 add_subdirectory(api)
+add_subdirectory(engine)
 
 add_library(djw_core INTERFACE)
 add_library(djw::core ALIAS djw_core)
-target_link_libraries(djw_core INTERFACE djw::core::api)
+target_link_libraries(djw_core INTERFACE djw::core::api djw::core::engine)

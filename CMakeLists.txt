@@ -11,6 +11,7 @@ project(djw
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(DjwOptions)
+include(DjwSanitizers)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(_djw_tests_default ON)

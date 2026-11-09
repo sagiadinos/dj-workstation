@@ -22,5 +22,7 @@ FetchContent_MakeAvailable(doctest)
 unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # One test executable per module, mirroring src/
+add_subdirectory(support)
 add_subdirectory(core/api)
+add_subdirectory(core/engine)
 add_subdirectory(architecture)

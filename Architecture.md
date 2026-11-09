@@ -102,13 +102,15 @@ cmake --build --preset linux-debug
 ctest --preset linux-debug
 ```
 
-Presets to provide (create them in M0): `linux-debug`, `linux-release`, `linux-arm64-release`, `windows-debug`, `windows-release`, `macos-debug`, `macos-release`. Android, iOS and Web presets come with their milestones.
+Presets to provide (create them in M0): `linux-debug`, `linux-release`, `linux-arm64-release`, `windows-debug`, `windows-release`, `macos-debug`, `macos-release`. Sanitizer presets: `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan` (TSan), each with configure, build and test preset; the test presets set the sanitizer options (leak detection on, abort on the first error). Android, iOS and Web presets come with their milestones.
 
 Build options:
 - `DJW_PLAYER_SDL` (default ON): build the SDL3 player in `src/player-ui/sdl`
 - `DJW_BUILD_TESTS` (default ON in debug)
 - `DJW_WITH_FFMPEG` (default OFF)
 - `DJW_WITH_DVS` (default OFF until M3)
+- `DJW_WARNINGS_AS_ERRORS` (default OFF, ON in CI)
+- `DJW_SANITIZE`: empty, `address` (ASan + LeakSanitizer + UBSan) or `thread` (TSan). Applies to the whole build including fetched dependencies.
 
 ## Tests
 

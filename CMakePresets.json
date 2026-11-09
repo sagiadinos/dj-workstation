@@ -108,6 +108,28 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
+        },
+        {
+            "name": "linux-asan",
+            "displayName": "linux-asan",
+            "description": "Linux, debug with ASan, LeakSanitizer and UBSan",
+            "inherits": "linux-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "DJW_BUILD_TESTS": "ON",
+                "DJW_SANITIZE": "address"
+            }
+        },
+        {
+            "name": "linux-tsan",
+            "displayName": "linux-tsan",
+            "description": "Linux, debug with TSan",
+            "inherits": "linux-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "DJW_BUILD_TESTS": "ON",
+                "DJW_SANITIZE": "thread"
+            }
         }
     ],
     "buildPresets": [
@@ -138,6 +160,14 @@
         {
             "name": "macos-release",
             "configurePreset": "macos-release"
+        },
+        {
+            "name": "linux-asan",
+            "configurePreset": "linux-asan"
+        },
+        {
+            "name": "linux-tsan",
+            "configurePreset": "linux-tsan"
         }
     ],
     "testPresets": [
@@ -188,6 +218,27 @@
             "configurePreset": "macos-release",
             "output": {
                 "outputOnFailure": true
+            }
+        },
+        {
+            "name": "linux-asan",
+            "configurePreset": "linux-asan",
+            "output": {
+                "outputOnFailure": true
+            },
+            "environment": {
+                "ASAN_OPTIONS": "detect_leaks=1:abort_on_error=1:strict_string_checks=1",
+                "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+            }
+        },
+        {
+            "name": "linux-tsan",
+            "configurePreset": "linux-tsan",
+            "output": {
+                "outputOnFailure": true
+            },
+            "environment": {
+                "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1"
             }
         }
     ]
