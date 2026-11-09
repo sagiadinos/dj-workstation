@@ -1,6 +1,6 @@
 # DJ-Workstation (djw): Feature Specification
 
-Rewrite of the DJ-Workstation from 1998. The goal is lean, high-performance DJ software for touchscreens and controllers, cross-platform, without any cloud.
+Rewrite of the original DJ-Workstation, developed from 1998 to 2002. The goal is lean, high-performance DJ software for touchscreens and controllers, cross-platform, without any cloud.
 
 License: **AGPLv3**
 
@@ -113,7 +113,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 
 | Feature | Prio | Description |
 |---|---|---|
-| Variable number of decks | M | 1 to 8, add/remove at runtime. The audio thread uses a preallocated array, active state via flag. |
+| Variable number of decks | M | No fixed upper limit, add/remove at runtime. The practical limit is the CPU. The control thread builds a new deck list and publishes it via an atomic pointer swap, the old list is freed outside the audio thread. |
 | Loading | M | Via drag and drop, double tap in library, load button, controller. Smart load: into a free deck. |
 | Play/pause | M | |
 | Cue | M | Classic CDJ behavior: when stopped sets cue, while playing jumps back and stops, when held plays from cue. |
@@ -251,8 +251,8 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 |---|---|---|
 | Multitouch | M | Several fingers at once, each finger captures a widget on touch down. |
 | Custom widget layer | M | Fader, knob, button, jog, waveform, list with kinetic scrolling, text field. |
-| Scalable deck panels | M | Core idea of the original version: resizable player units. Grid layout, enlarge a deck or switch it to fullscreen via gesture. |
-| Saved layouts | M | Save and load panel arrangement and sizes per screen size. |
+| Player windows | M | Core idea of the original version: every player unit is its own OS window, any number can be opened and closed, freely movable and resizable, also across several monitors. On platforms with only one window (KMSDRM kiosk, Android, iOS, Web) the player units are arranged inside the main window. |
+| Saved layouts | M | Save and load position and size of all player windows per monitor setup. |
 | HiDPI | M | Resolution-independent scaling. |
 | Fullscreen/kiosk | M | Borderless, for touch terminals. |
 | On-screen keyboard | M | For search on touch-only devices (SDL3 text input). |

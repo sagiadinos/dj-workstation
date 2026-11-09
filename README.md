@@ -6,7 +6,7 @@ Lean, touch-first DJ software with controller and timecode vinyl support. Runs o
 
 ## What it is
 
-- Any number of decks (1 to 8), resizable for touchscreen use
+- Any number of decks, each in its own player window, freely movable and resizable for touchscreen use
 - Mixer with crossfader, headphone cue, keylock
 - Music library with fast search, tag editor, playlists and automix
 - MIDI controllers with simple TOML mappings and optional Lua scripts
@@ -19,7 +19,7 @@ The full feature list and roadmap are in [FEATURES.md](FEATURES.md).
 
 ## History
 
-The original DJ-Workstation was written in 1998 - 2002 as a Win32 application for Windows 9x, with resizable player units designed for touchscreen monitors from day one. It supported MP3, Ogg Vorbis and WAV, multiple sound cards for pre-listening and automix.
+The original DJ-Workstation was developed from 1998 to 2002 as a Win32 application for Windows 9x, with resizable player units designed for touchscreen monitors from day one. It supported MP3, Ogg Vorbis and WAV, multiple sound cards for pre-listening and automix.
 
 The original version and its history are still available at [dj-workstation.de](https://dj-workstation.de).
 

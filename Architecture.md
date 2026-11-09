@@ -4,7 +4,7 @@ Rules for everyone working on this repository.
 
 ## Project
 
-djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a complete rewrite of the original Win32 DJ-Workstation from 1998. No code from the original is reused.
+djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a complete rewrite of the original Win32 DJ-Workstation, developed from 1998 to 2002. No code from the original is reused.
 
 **`FEATURES.md` is the specification.** Read it before starting any task. Do not implement features that are not listed there, and never implement anything from its non-goals list. If a task seems to require something outside the spec, ask first.
 
