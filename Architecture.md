@@ -133,16 +133,23 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 ### Mutation tests
 - Planned for later, once the core modules have solid unit test coverage. They check that the tests actually detect changed behavior, not just execute the code. The tool is chosen then and must be approved like any other dependency.
 
+### Memory leaks
+- Avoid leaks by construction: every resource has an owner (RAII). Heap memory through `std::unique_ptr` or containers, C library handles (miniaudio, SQLite, SDL, ...) in a small RAII wrapper with a deleter, never with manual `free`/`close` calls spread over the code.
+- Leaks are checked, not assumed: LeakSanitizer runs with every ASan test run (`ASAN_OPTIONS=detect_leaks=1` set explicitly in the test environment). A reported leak fails the test.
+- LeakSanitizer is only reliable on Linux (macOS on Apple Silicon and MSVC do not support it), so the Linux ASan run in CI is the authoritative leak check.
+- Leaks inside third-party libraries are suppressed in a suppression file with a comment naming the library and the reason, never by disabling the check.
+- Long-running paths (deck load/unload, adding/removing decks, library scans) get tests that repeat the operation many times, so a leak per operation shows up even if it is small.
+
 ### General
-- Run tests before declaring a task done.
-- Debug builds should be able to run with ASan and UBSan, TSan for threading code.
+- Run tests before declaring a task done, including the sanitizer runs (ASan with LeakSanitizer, UBSan, TSan for threading code) before a milestone is closed.
+- Debug builds must be able to run with ASan, UBSan and TSan.
 
 ## Static analysis and CI
 
 - `.clang-tidy` in the repository root with `bugprone-*`, `modernize-*`, `performance-*`, `cppcoreguidelines-*`, `readability-identifier-naming` (enforces the naming rules above) and selected `misc-*` checks. Noisy checks are disabled there with a reason, not suppressed in code.
 - clang-tidy runs on project targets only, not on `third_party/` or fetched dependencies. Locally optional, in CI warnings are errors.
 - Duplicated code is caught in review, there is no separate duplicate detection tool.
-- CI runs for every push and pull request: build with warnings as errors, `ctest`, ASan/UBSan and TSan runs, clang-format check, clang-tidy, and test coverage.
+- CI runs for every push and pull request: build with warnings as errors, `ctest`, ASan/UBSan with LeakSanitizer and TSan runs, clang-format check, clang-tidy, and test coverage.
 
 ## Workflow
 
