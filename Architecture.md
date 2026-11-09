@@ -44,6 +44,16 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
   ```
 - Files taken from third parties (e.g. xwax timecoder) keep their original headers and license unchanged.
 
+## Design principles
+
+- Single responsibility: one class has one reason to change. If a description needs "and", split it.
+- Dependencies on the outside world (clock, audio device, file system, MIDI, database) are interfaces passed in through the constructor. This keeps modules testable with fakes and replaceable per platform.
+- Depend on interfaces, not on concrete implementations, across module boundaries. Inside a module, concrete types are fine.
+- Composition over inheritance. Inheritance only for implementing an interface.
+- Keep interfaces small. A consumer must not depend on methods it does not use.
+- No duplicated logic: extract it when it appears a second time. Code that only looks alike but changes for different reasons stays separate.
+- Exception: the audio path. Real-time safety and performance come before abstraction there, so no virtual calls per sample and no indirection inside inner loops.
+
 ## Code conventions
 
 - C++23, no compiler extensions. Minimum toolchains: GCC 13, Clang 17 (libc++ 17), Apple Clang 15 (Xcode 15), MSVC 19.38 (VS 2022 17.8).
@@ -102,10 +112,37 @@ Build options:
 
 ## Tests
 
+Tests live in `tests/<module>`, one doctest executable per module, so every module can be built and tested alone. All tests run with `ctest`.
+
+### Unit tests
 - Core logic gets unit tests (doctest).
-- Engine changes need an offline render test: run a command sequence against the engine without an audio device, render to a buffer, compare against expected output.
+- No mocking framework. Use hand-written fakes (`FakeClock`, `FakeAudioDevice`, `FakeMidiInput`, `MemoryFileSystem`, ...) and check the end state, not call sequences that break with every internal change.
+
+### Integration tests
+- Engine changes need an offline render test: run a command sequence through the command queue against the engine without an audio device, render to a buffer, compare against a golden file.
+- Golden comparison uses a per-sample tolerance (maximum absolute deviation on normalized float samples, default `1e-5`, overridable per test), not bit-exact comparison, because float results differ between x86-64/ARM and between compilers.
+- Golden files are generated on the reference platform (Linux x86-64, GCC) and committed together with the change that alters the output.
+- Library tests run against a real SQLite database in a temporary directory.
+- Controller mapping tests feed fake MIDI events through a TOML mapping and check the resulting commands.
+
+### Architecture tests
+- Target separation: core targets must not link SDL or any UI target. This is the hard boundary.
+- An include check runs as a CTest test (CMake script, no extra dependency): `core/` must not include `ui/` or SDL headers, `ui/` may include from the core only `core/api/`.
+- Real-time safety: in test builds `malloc`/`new` are replaced by counting versions. A test drives the audio callback with a typical command sequence and requires zero allocations inside it. Locks in the audio path are covered by TSan.
+
+### Mutation tests
+- Planned for later, once the core modules have solid unit test coverage. They check that the tests actually detect changed behavior, not just execute the code. The tool is chosen then and must be approved like any other dependency.
+
+### General
 - Run tests before declaring a task done.
 - Debug builds should be able to run with ASan and UBSan, TSan for threading code.
+
+## Static analysis and CI
+
+- `.clang-tidy` in the repository root with `bugprone-*`, `modernize-*`, `performance-*`, `cppcoreguidelines-*`, `readability-identifier-naming` (enforces the naming rules above) and selected `misc-*` checks. Noisy checks are disabled there with a reason, not suppressed in code.
+- clang-tidy runs on project targets only, not on `third_party/` or fetched dependencies. Locally optional, in CI warnings are errors.
+- Duplicated code is caught in review, there is no separate duplicate detection tool.
+- CI runs for every push and pull request: build with warnings as errors, `ctest`, ASan/UBSan and TSan runs, clang-format check, clang-tidy, and test coverage.
 
 ## Workflow
 
