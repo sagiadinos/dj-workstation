@@ -1,12 +1,40 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Niko Sagiadinos
 
-# SDL3 player. Talks to the core only through djw::core (src/core/api).
-# SDL3 itself is added with the first window (M0, step 6).
+# SDL3 player. Talks to the core only through src/core/api (checked by tests/architecture).
+
+include(FetchContent)
+
+# SDL3: taken from vcpkg or the system if available, otherwise downloaded
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(SDL3
+    GIT_REPOSITORY    https://github.com/libsdl-org/SDL.git
+    GIT_TAG           release-3.4.18
+    GIT_SHALLOW       TRUE
+    SYSTEM
+    FIND_PACKAGE_ARGS 3.4 CONFIG
+)
+FetchContent_MakeAvailable(SDL3)
+
+# Everything except main(), so the tests can link it. Only the sdl_* files use SDL; the widgets draw on a Canvas.
+add_library(djw_player_sdl_ui STATIC
+    pointer_router.cpp
+    fader.cpp
+    play_button.cpp
+    time_format.cpp
+    deck_view.cpp
+    sdl_events.cpp
+    sdl_canvas.cpp
+    sdl_app.cpp
+)
+djw_set_options(djw_player_sdl_ui)
+target_include_directories(djw_player_sdl_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(djw_player_sdl_ui PUBLIC djw::core SDL3::SDL3)
 
 add_executable(djw_player_sdl
     main.cpp
 )
 set_target_properties(djw_player_sdl PROPERTIES OUTPUT_NAME djw)
 djw_set_options(djw_player_sdl)
-target_link_libraries(djw_player_sdl PRIVATE djw::core)
+target_link_libraries(djw_player_sdl PRIVATE djw_player_sdl_ui)

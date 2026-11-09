@@ -2,16 +2,16 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "api/core.hpp"
-#include "api/version.hpp"
+#include "sdl_app.hpp"
+
+#include <SDL3/SDL_main.h>
 
 #include <chrono>
 #include <iostream>
-#include <string>
 #include <thread>
 
 namespace api = djw::core::api;
 
-// Console player until the SDL3 window comes (M0, step 6)
 int main(int argc, char *argv[])
 {
     if (argc != 2)
@@ -34,16 +34,19 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    (*core)->commandQueue().tryPush(api::DeckPlay{*deck});
     if (auto started = (*core)->start(); !started)
     {
         std::cerr << "djw: " << started.error() << '\n';
         return 1;
     }
 
-    std::cout << "djw " << api::version() << ": playing " << argv[1] << ", press Enter to quit\n";
-    std::string line;
-    std::getline(std::cin, line);
+    auto app = djw::player_ui::sdl::SdlApp::create(**core, *deck);
+    if (!app)
+    {
+        std::cerr << "djw: " << app.error() << '\n';
+        return 1;
+    }
+    (*app)->run();
 
     // Let the pause fade out instead of cutting the sound
     (*core)->commandQueue().tryPush(api::DeckPause{*deck});
