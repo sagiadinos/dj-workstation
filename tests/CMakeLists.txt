@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Niko Sagiadinos
+
+include(FetchContent)
+
+# doctest: taken from vcpkg or the system if available, otherwise downloaded
+set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
+set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(doctest
+    GIT_REPOSITORY    https://github.com/doctest/doctest.git
+    GIT_TAG           v2.4.12
+    GIT_SHALLOW       TRUE
+    SYSTEM            # warnings of doctest itself are not ours
+    FIND_PACKAGE_ARGS CONFIG
+)
+# doctest 2.4.12 asks for an old CMake, which CMake 4 warns about; only for doctest
+set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
+FetchContent_MakeAvailable(doctest)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
+
+# One test executable per module, mirroring src/
+add_subdirectory(core/api)
+add_subdirectory(architecture)

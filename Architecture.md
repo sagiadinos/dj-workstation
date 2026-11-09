@@ -40,7 +40,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - Every new source file starts with:
   ```cpp
   // SPDX-License-Identifier: AGPL-3.0-or-later
-  // Copyright (C) 2026 Nikolaos Saghiadinos
+  // Copyright (C) 2026 Niko Sagiadinos
   ```
 - Files taken from third parties (e.g. xwax timecoder) keep their original headers and license unchanged.
 
