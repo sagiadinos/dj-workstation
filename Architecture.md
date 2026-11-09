@@ -15,8 +15,8 @@ djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a com
 ## Hard rules
 
 ### Architecture
-- `core/` must never include anything from `ui/` or SDL. The core builds and runs headless.
-- The UI talks to the core only through the command queue and state snapshots in `core/api/`. No direct calls into engine internals.
+- `core/` must never include anything from `player-ui/` or SDL. The core builds and runs headless.
+- The frontends in `player-ui/` talk to the core only through the command queue and state snapshots in `core/api/`. No direct calls into engine internals.
 - Platform-specific code lives in `platform/` or behind an interface, never scattered with `#ifdef` across the core.
 
 ### Audio thread
@@ -32,7 +32,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 ### Dependencies
 - Only use libraries listed in FEATURES.md section 6.
 - Ask before adding any new dependency.
-- Dependencies are pulled via CMake `FetchContent` with pinned versions (tag or commit hash). Single-header libraries may be vendored in `third_party/` with their license file.
+- Dependencies are declared via CMake `FetchContent` with pinned versions (tag or commit hash) and `FIND_PACKAGE_ARGS`: an installed system or vcpkg package is used if found, otherwise the pinned version is downloaded. Single-header libraries may be vendored in `third_party/` with their license file.
 - Every dependency must be compatible with AGPLv3.
 
 ### Licensing
@@ -70,7 +70,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - Variables, parameters and members: `snake_case`. Members have no prefix (no `m_`).
 - Constants: `constexpr` in `snake_case`, no `UPPER_CASE`. `UPPER_CASE` only for macros.
 - Files: `snake_case` with `.hpp` and `.cpp`, e.g. `deck_transport.hpp`.
-- Namespaces follow the directory: `djw::core::engine`, `djw::ui`, ... File-local helpers go into an anonymous namespace.
+- Namespaces follow the directory: `djw::core::engine`, `djw::player_ui::sdl`, ... (`-` in directory names becomes `_`). File-local helpers go into an anonymous namespace.
 
 ### Headers
 - Include guards instead of `#pragma once`, built from the path: `DJW_CORE_ENGINE_DECK_HPP`, closed with `#endif // DJW_CORE_ENGINE_DECK_HPP`.
@@ -105,7 +105,7 @@ ctest --preset linux-debug
 Presets to provide (create them in M0): `linux-debug`, `linux-release`, `linux-arm64-release`, `windows-debug`, `windows-release`, `macos-debug`, `macos-release`. Android, iOS and Web presets come with their milestones.
 
 Build options:
-- `DJW_BUILD_UI` (default ON): build the SDL3 frontend
+- `DJW_PLAYER_SDL` (default ON): build the SDL3 player in `src/player-ui/sdl`
 - `DJW_BUILD_TESTS` (default ON in debug)
 - `DJW_WITH_FFMPEG` (default OFF)
 - `DJW_WITH_DVS` (default OFF until M3)
@@ -127,7 +127,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 
 ### Architecture tests
 - Target separation: core targets must not link SDL or any UI target. This is the hard boundary.
-- An include check runs as a CTest test (CMake script, no extra dependency): `core/` must not include `ui/` or SDL headers, `ui/` may include from the core only `core/api/`.
+- An include check runs as a CTest test (CMake script, no extra dependency): `core/` must not include `player-ui/` or SDL headers, `player-ui/` may include from the core only `core/api/`.
 - Real-time safety: in test builds `malloc`/`new` are replaced by counting versions. A test drives the audio callback with a typical command sequence and requires zero allocations inside it. Locks in the audio path are covered by TSan.
 
 ### Mutation tests

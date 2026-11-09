@@ -69,17 +69,19 @@ License: **AGPLv3**
 
 ```
 djw/
-  core/                 libdjw-core (C++23, no UI dependency)
-    engine/             decks, buses, mixer, resampler, keylock
-    transport/          per-deck transport sources: internal | jog | timecode
-    decode/             decoder interface and implementations
-    analysis/           BPM, beatgrid, waveform, loudness (worker threads)
-    library/            SQLite, scanner, tags, playlists
-    control/            MIDI/HID transport, mapping (TOML + Lua), feedback
-    automix/            autoplay, autofade, queue
-    api/                command definitions, state snapshots
-  ui/                   djw-ui (SDL3, custom widget layer)
-  platform/             platform-specific code (Android, iOS, Web)
+  src/
+    core/               libdjw-core (C++23, no UI dependency)
+      engine/           decks, buses, mixer, resampler, keylock
+      transport/        per-deck transport sources: internal | jog | timecode
+      decode/           decoder interface and implementations
+      analysis/         BPM, beatgrid, waveform, loudness (worker threads)
+      library/          SQLite, scanner, tags, playlists
+      control/          MIDI/HID transport, mapping (TOML + Lua), feedback
+      automix/          autoplay, autofade, queue
+      api/              command definitions, state snapshots
+    player-ui/          frontends on top of the core
+      sdl/              SDL3 player (custom widget layer)
+    platform/           platform-specific code (Android, iOS, Web)
   mappings/             controller mappings (TOML + Lua)
   i18n/                 language files
   tests/                unit and offline render tests
