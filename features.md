@@ -69,7 +69,7 @@ License: **AGPLv3**
 
 ```
 djw/
-  core/                 libdjw-core (C++20, no UI dependency)
+  core/                 libdjw-core (C++23, no UI dependency)
     engine/             decks, buses, mixer, resampler, keylock
     transport/          per-deck transport sources: internal | jog | timecode
     decode/             decoder interface and implementations
@@ -292,7 +292,7 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 
 | Area | Library | License |
 |---|---|---|
-| Language | C++20 | |
+| Language | C++23 (without modules) | |
 | Build | CMake with presets per platform | |
 | Audio I/O, decoding MP3/FLAC/WAV | miniaudio | Public domain / MIT-0 |
 | Ogg Vorbis | stb_vorbis | Public domain / MIT |
