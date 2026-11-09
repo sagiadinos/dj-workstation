@@ -4,7 +4,7 @@ Rules for everyone working on this repository.
 
 ## Project
 
-djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a complete rewrite of the original Win32 DJ-Workstation from 2002. No code from the original is reused.
+djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a complete rewrite of the original Win32 DJ-Workstation from 1998. No code from the original is reused.
 
 **`FEATURES.md` is the specification.** Read it before starting any task. Do not implement features that are not listed there, and never implement anything from its non-goals list. If a task seems to require something outside the spec, ask first.
 
@@ -52,8 +52,35 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - No exceptions across the core API boundary. Return `std::expected`.
 - Allowed C++23 library features: `std::expected`, `std::to_underlying`, `std::unreachable`, `std::byteswap`, `std::ranges` additions supported by all minimum toolchains.
 - Do not use: C++ modules, `std::flat_map`, `std::mdspan`, `std::generator`, `std::stacktrace`, `std::print` (uneven standard library support).
-- Naming: `PascalCase` for types, `camelCase` for functions and variables, `m_` prefix for members, `UPPER_CASE` for constants and macros.
-- Headers use `#pragma once`.
+- Error type in `std::expected` is `std::string` or a dedicated error type.
+
+### Naming
+- Types (classes, structs, enums, aliases): `PascalCase`. Enumerators: `PascalCase`, use `enum class`.
+- Functions and methods: `camelCase`.
+- Variables, parameters and members: `snake_case`. Members have no prefix (no `m_`).
+- Constants: `constexpr` in `snake_case`, no `UPPER_CASE`. `UPPER_CASE` only for macros.
+- Files: `snake_case` with `.hpp` and `.cpp`, e.g. `deck_transport.hpp`.
+- Namespaces follow the directory: `djw::core::engine`, `djw::ui`, ... File-local helpers go into an anonymous namespace.
+
+### Headers
+- Include guards instead of `#pragma once`, built from the path: `DJW_CORE_ENGINE_DECK_HPP`, closed with `#endif // DJW_CORE_ENGINE_DECK_HPP`.
+- Includes in this order, separated by a blank line: own header (in `.cpp`), project headers with path relative to the module root (`"engine/deck.hpp"`), then standard and third-party headers in `<>`.
+
+### Formatting
+Enforced by `.clang-format` (clang-format 19 or newer):
+- Based on LLVM style, 4 spaces indentation, no tabs, column limit 120.
+- Allman braces (opening brace on its own line), also for namespaces, classes and functions.
+- Namespace contents and access modifiers are indented; members below `public:`/`private:` are indented again.
+- Consecutive assignments and declarations are aligned.
+- Short functions on one line only when defined inline in the class. No single-line `if`.
+- `&` and `*` bind to the name: `const Deck &deck`, `char *buffer`.
+
+### Documentation
+- Classes get a `/** ... */` block explaining purpose and behavior.
+- Methods get a `///` line when the name alone is not enough.
+- Comments explain why, not what.
+
+### Structure
 - Keep files small and focused. One class per file pair as a rule.
 - No commented-out code in commits.
 
