@@ -27,9 +27,10 @@ namespace djw::tests
     class FakeAudioDevice final : public core::audio_io::AudioDevice
     {
         public:
-            explicit FakeAudioDevice(std::uint32_t              sample_rate = 48'000,
-                                     std::optional<std::string> start_error = std::nullopt)
-                : sample_rate{sample_rate}, start_error{std::move(start_error)}
+            explicit FakeAudioDevice(std::uint32_t              sample_rate   = 48'000,
+                                     std::optional<std::string> start_error   = std::nullopt,
+                                     std::uint32_t              channel_count = 2)
+                : sample_rate{sample_rate}, channel_count{channel_count}, start_error{std::move(start_error)}
             {
             }
 
@@ -51,11 +52,13 @@ namespace djw::tests
             }
 
             std::uint32_t sampleRate() const noexcept override { return sample_rate; }
+            std::uint32_t channels() const noexcept override { return channel_count; }
 
-            /// Calls the callback for frames frames, like the audio thread would; silence while not started.
+            /// Calls the callback for frames frames of channels() channels, like the audio thread would; silence while
+            /// not started.
             std::vector<float> pull(std::size_t frames)
             {
-                std::vector<float> output(frames * 2, 0.0F);
+                std::vector<float> output(frames * channel_count, 0.0F);
                 if (callback != nullptr)
                 {
                     callback->process(output);
@@ -67,6 +70,7 @@ namespace djw::tests
 
         private:
             std::uint32_t                       sample_rate;
+            std::uint32_t                       channel_count;
             std::optional<std::string>          start_error;
             core::audio_io::AudioCallback      *callback = nullptr;
             std::shared_ptr<FakeAudioDeviceLog> log      = std::make_shared<FakeAudioDeviceLog>();

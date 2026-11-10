@@ -19,7 +19,7 @@ namespace djw::core::audio_io
             AudioCallback &operator=(AudioCallback &&)      = delete;
             virtual ~AudioCallback()                        = default;
 
-            /// Fills output completely with interleaved stereo float32.
+            /// Fills output completely with interleaved float32 in the device's channel count (AudioDevice::channels).
             virtual void process(std::span<float> output) noexcept = 0; // [audio-thread]
     };
 } // namespace djw::core::audio_io

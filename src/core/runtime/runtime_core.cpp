@@ -24,7 +24,9 @@ namespace djw::core::runtime
                        .memory_limit_frames =
                            std::uint64_t{config.memory_track_limit_seconds} * audio_device->sampleRate(),
                        .stream_buffer_frames = std::size_t{stream_buffer_seconds} * audio_device->sampleRate()},
-          engine{{.sample_rate = audio_device->sampleRate(), .max_block_frames = config.buffer_frames}},
+          engine{{.sample_rate      = audio_device->sampleRate(),
+                  .max_block_frames = config.buffer_frames,
+                  .output_channels  = audio_device->channels()}},
           frontend_queue{engine.addCommandQueue()}, callback{engine}, device{std::move(audio_device)}
     {
     }

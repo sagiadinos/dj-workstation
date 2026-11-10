@@ -4,7 +4,14 @@
 add_executable(djw_core_engine_tests
     main.cpp
     test_deck.cpp
+    test_gain_ramp.cpp
+    test_crossfader.cpp
+    test_peak_meter.cpp
+    test_limiter.cpp
     test_mixer_channel.cpp
+    test_master_bus.cpp
+    test_headphone_bus.cpp
+    test_output_routing.cpp
     test_engine.cpp
     test_reclaimer.cpp
     test_resampler.cpp

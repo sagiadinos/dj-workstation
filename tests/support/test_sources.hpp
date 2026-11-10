@@ -110,13 +110,14 @@ namespace djw::tests
             std::size_t        position = 0;
     };
 
-    /// frames frames where frame n has the value n on both channels
-    inline std::vector<float> ramp(std::size_t frames)
+    /// frames frames where frame n has the value n * step on both channels. With a power of two as step the values
+    /// stay exact; a step below 1 / frames keeps them below full scale, so the master limiter leaves them alone.
+    inline std::vector<float> ramp(std::size_t frames, float step = 1.0F)
     {
         std::vector<float> samples(frames * core::engine::stereo_channels);
         for (std::size_t i = 0; i < samples.size(); ++i)
         {
-            samples[i] = static_cast<float>(i / core::engine::stereo_channels);
+            samples[i] = static_cast<float>(i / core::engine::stereo_channels) * step;
         }
         return samples;
     }

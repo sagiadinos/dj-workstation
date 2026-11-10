@@ -23,6 +23,12 @@ namespace djw::core::api
             std::uint32_t buffer_frames = 256;
             /// No sound output, the core still runs in real time (tests, headless runs)
             bool silent_output = false;
+            /**
+             * Master on channels 1/2 and headphones on 3/4 of the output device (e.g. Hercules DJControl Starlight).
+             * The device is opened with its own channel count; with fewer than 4 channels the output falls back to
+             * master only (MixerSnapshot::headphones_available). Off: stereo master only.
+             */
+            bool headphone_output = false;
             /// Tracks up to this length are held in memory, longer ones are streamed (Architecture.md, Track loading)
             std::uint32_t memory_track_limit_seconds = 300;
     };
@@ -31,8 +37,8 @@ namespace djw::core::api
      * The core as the frontends see it.
      *
      * Decks are added, removed and loaded through the methods here, also while audio is running. Everything else
-     * goes through the frontend's command queue, and deck state comes back through deck snapshots. All methods are
-     * called from one thread, the frontend's. The implementation lives in core/runtime; frontends only include this
+     * goes through the frontend's command queue, and state comes back through the deck and mixer snapshots. All methods
+     * are called from one thread, the frontend's. The implementation lives in core/runtime; frontends only include this
      * header.
      */
     class Core
@@ -63,6 +69,9 @@ namespace djw::core::api
 
             /// Snapshot of a deck for the frontend (single reader), nullptr for an unknown deck
             virtual DeckSnapshotBuffer *deckSnapshot(DeckId deck) noexcept = 0;
+
+            /// Snapshot of the mixer master section for the frontend (single reader)
+            virtual MixerSnapshotBuffer &mixerSnapshot() noexcept = 0;
     };
 
     /// Creates the core with the system's audio output. Implemented in core/runtime.

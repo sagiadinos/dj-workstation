@@ -35,9 +35,10 @@ namespace
     {
             Fixture() : Fixture{api::CoreConfig{}} {}
 
-            explicit Fixture(const api::CoreConfig &config, std::uint32_t device_rate = 48'000)
+            explicit Fixture(const api::CoreConfig &config, std::uint32_t device_rate = 48'000,
+                             std::uint32_t device_channels = 2)
             {
-                auto owner = std::make_unique<FakeAudioDevice>(device_rate);
+                auto owner = std::make_unique<FakeAudioDevice>(device_rate, std::nullopt, device_channels);
                 device     = owner.get();
                 core       = std::make_unique<runtime::RuntimeCore>(config, std::move(owner));
                 REQUIRE(core->start().has_value());
@@ -110,6 +111,41 @@ TEST_CASE("RuntimeCore: loading into a playing deck stops it at the start of the
     const api::DeckSnapshot state = fixture.core->deckSnapshot(deck)->read();
     CHECK(state.play_state == api::PlayState::Stopped);
     CHECK(state.position_seconds == 0.0);
+}
+
+TEST_CASE("RuntimeCore: mixer commands reach the engine and come back in the mixer snapshot")
+{
+    Fixture fixture;
+    REQUIRE(fixture.core->commandQueue().tryPush(api::MixerSetCrossfader{0.5F}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::MixerSetMasterVolume{0.25F}));
+    fixture.pull(250);
+
+    const api::MixerSnapshot mixer = fixture.core->mixerSnapshot().read();
+    CHECK(mixer.crossfader_position == 0.5F);
+    CHECK(mixer.master_volume == 0.25F);
+}
+
+TEST_CASE("RuntimeCore: a 4-channel device gets the master on 1/2 and the headphones on 3/4")
+{
+    Fixture           fixture{{}, 48'000, 4};
+    const api::DeckId deck = fixture.core->addDeck();
+    REQUIRE(fixture.core->loadTrack(deck, wav_file).has_value());
+    REQUIRE(fixture.core->commandQueue().tryPush(api::MixerSetChannelVolume{deck, 0.0F}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::MixerSetHeadphoneCue{deck, true}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{deck}));
+    fixture.pull(250); // faders ramp
+
+    const auto output   = fixture.pull(1'000);
+    const auto expected = decodeFile(wav_file, 1'250);
+    REQUIRE(output.size() == 1'000 * 4);
+    for (std::size_t frame = 0; frame < 1'000; ++frame)
+    {
+        CHECK(output[frame * 4] == 0.0F);
+        CHECK(output[(frame * 4) + 1] == 0.0F);
+        CHECK(output[(frame * 4) + 2] == expected[(250 + frame) * 2]);
+        CHECK(output[(frame * 4) + 3] == expected[((250 + frame) * 2) + 1]);
+    }
+    CHECK(fixture.core->mixerSnapshot().read().headphones_available);
 }
 
 TEST_CASE("RuntimeCore: the engine runs at the sample rate of the device")

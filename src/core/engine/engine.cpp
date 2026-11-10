@@ -16,18 +16,26 @@ namespace djw::core::engine
         constexpr double pause_fade_seconds = 0.005;
 
         // Engine::apply handles every command; a new command must be added there
-        static_assert(std::variant_size_v<api::Command> == 7, "handle the new command in Engine::apply");
+        static_assert(std::variant_size_v<api::Command> == 15, "handle the new command in Engine::apply");
     } // namespace
 
-    Engine::DeckSlot::DeckSlot(api::DeckId id, std::size_t pause_fade_frames)
-        : deck{id, pause_fade_frames}, snapshot{api::DeckSnapshot{.deck = id}}
+    Engine::DeckSlot::DeckSlot(api::DeckId id, std::uint32_t sample_rate)
+        : deck{id, static_cast<std::size_t>(pause_fade_seconds * sample_rate)}, channel{sample_rate},
+          snapshot{api::DeckSnapshot{.deck = id}}
     {
     }
 
     Engine::Engine(EngineConfig config)
         : config{config}, deck_buffer(config.max_block_frames * stereo_channels),
+          master_buffer(config.max_block_frames * stereo_channels),
+          cue_buffer(config.max_block_frames * stereo_channels),
+          headphone_buffer(config.max_block_frames * stereo_channels), master{config.sample_rate},
+          headphones{config.sample_rate},
+          mixer_snapshot{
+              api::MixerSnapshot{.headphones_available = config.output_channels >= headphone_output_channels}},
           current_list{std::make_unique<DeckList>()}
     {
+        this->config.output_channels = std::max<std::size_t>(this->config.output_channels, stereo_channels);
         published_list.store(current_list.get(), std::memory_order_seq_cst);
     }
 
@@ -43,8 +51,7 @@ namespace djw::core::engine
     api::DeckId Engine::addDeck()
     {
         const api::DeckId id{next_deck_id++};
-        const auto        pause_fade_frames = static_cast<std::size_t>(pause_fade_seconds * config.sample_rate);
-        slots.push_back(std::make_unique<DeckSlot>(id, pause_fade_frames));
+        slots.push_back(std::make_unique<DeckSlot>(id, config.sample_rate));
         publishDeckList();
         return id;
     }
@@ -119,10 +126,15 @@ namespace djw::core::engine
 
         applyCommands(list);
 
-        const std::size_t block_samples = config.max_block_frames * stereo_channels;
-        for (std::size_t offset = 0; offset < output.size(); offset += block_samples)
+        const std::size_t channels = config.output_channels;
+        const std::size_t frames   = output.size() / channels;
+        for (std::size_t done = 0; done < frames; done += config.max_block_frames)
         {
-            renderBlock(list, output.subspan(offset, std::min(block_samples, output.size() - offset)));
+            const std::size_t block = std::min(config.max_block_frames, frames - done);
+            renderBlock(list, block);
+            routeOutput({.master     = std::span{master_buffer}.first(block * stereo_channels),
+                         .headphones = std::span{headphone_buffer}.first(block * stereo_channels)},
+                        output.subspan(done * channels, block * channels), channels);
         }
 
         publishSnapshots(list);
@@ -152,69 +164,99 @@ namespace djw::core::engine
         }
     }
 
+    template <typename DeckCommand, typename Action>
+    bool Engine::applyToDeck(const DeckList &list, const api::Command &command,
+                             Action action) noexcept // [audio-thread]
+    {
+        const auto *deck_command = std::get_if<DeckCommand>(&command);
+        if (deck_command == nullptr)
+        {
+            return false;
+        }
+        if (DeckSlot *slot = findDeck(list, deck_command->deck))
+        {
+            action(*slot, *deck_command);
+        }
+        return true;
+    }
+
     void Engine::apply(const DeckList &list, const api::Command &command) noexcept // [audio-thread]
     {
         // std::get_if instead of std::visit: std::visit may throw, which the audio thread must not
-        if (const auto *play = std::get_if<api::DeckPlay>(&command))
+        const bool deck_command =
+            applyToDeck<api::DeckPlay>(list, command, [](DeckSlot &slot, const auto &) { slot.deck.play(); }) ||
+            applyToDeck<api::DeckPause>(list, command, [](DeckSlot &slot, const auto &) { slot.deck.pause(); }) ||
+            applyToDeck<api::DeckCue>(list, command,
+                                      [](DeckSlot &slot, const api::DeckCue &cue) { slot.deck.cue(cue.pressed); }) ||
+            applyToDeck<api::DeckSetPitch>(list, command, [](DeckSlot &slot, const api::DeckSetPitch &pitch)
+                                           { slot.deck.setPitch(pitch.percent); }) ||
+            applyToDeck<api::DeckPitchBend>(list, command, [](DeckSlot &slot, const api::DeckPitchBend &bend)
+                                            { slot.deck.setPitchBend(bend.direction); }) ||
+            applyToDeck<api::DeckSeek>(list, command,
+                                       [rate = config.sample_rate](DeckSlot &slot, const api::DeckSeek &seek)
+                                       {
+                                           const double frame = std::max(0.0, seek.position_seconds) * rate;
+                                           slot.deck.seek(static_cast<std::uint64_t>(std::llround(frame)));
+                                       }) ||
+            applyToDeck<api::MixerSetChannelVolume>(list, command,
+                                                    [](DeckSlot &slot, const api::MixerSetChannelVolume &volume)
+                                                    { slot.channel.setVolume(volume.value); }) ||
+            applyToDeck<api::MixerAssignCrossfader>(list, command,
+                                                    [](DeckSlot &slot, const api::MixerAssignCrossfader &assign)
+                                                    { slot.channel.setCrossfaderSide(assign.side); }) ||
+            applyToDeck<api::MixerSetHeadphoneCue>(list, command,
+                                                   [](DeckSlot &slot, const api::MixerSetHeadphoneCue &cue)
+                                                   { slot.channel.setHeadphoneCue(cue.enabled); }) ||
+            applyToDeck<api::MixerSetHeadphoneLevel>(list, command,
+                                                     [](DeckSlot &slot, const api::MixerSetHeadphoneLevel &level)
+                                                     { slot.channel.setHeadphoneLevel(level.value); });
+        if (!deck_command)
         {
-            if (DeckSlot *slot = findDeck(list, play->deck))
-            {
-                slot->deck.play();
-            }
-        }
-        else if (const auto *pause = std::get_if<api::DeckPause>(&command))
-        {
-            if (DeckSlot *slot = findDeck(list, pause->deck))
-            {
-                slot->deck.pause();
-            }
-        }
-        else if (const auto *cue = std::get_if<api::DeckCue>(&command))
-        {
-            if (DeckSlot *slot = findDeck(list, cue->deck))
-            {
-                slot->deck.cue(cue->pressed);
-            }
-        }
-        else if (const auto *pitch = std::get_if<api::DeckSetPitch>(&command))
-        {
-            if (DeckSlot *slot = findDeck(list, pitch->deck))
-            {
-                slot->deck.setPitch(pitch->percent);
-            }
-        }
-        else if (const auto *bend = std::get_if<api::DeckPitchBend>(&command))
-        {
-            if (DeckSlot *slot = findDeck(list, bend->deck))
-            {
-                slot->deck.setPitchBend(bend->direction);
-            }
-        }
-        else if (const auto *seek = std::get_if<api::DeckSeek>(&command))
-        {
-            if (DeckSlot *slot = findDeck(list, seek->deck))
-            {
-                const double frame = std::max(0.0, seek->position_seconds) * config.sample_rate;
-                slot->deck.seek(static_cast<std::uint64_t>(std::llround(frame)));
-            }
-        }
-        else if (const auto *volume = std::get_if<api::MixerSetChannelVolume>(&command))
-        {
-            if (DeckSlot *slot = findDeck(list, volume->deck))
-            {
-                slot->channel.setVolume(volume->value);
-            }
+            applyMixer(command);
         }
     }
 
-    void Engine::renderBlock(const DeckList &list, std::span<float> output) noexcept // [audio-thread]
+    void Engine::applyMixer(const api::Command &command) noexcept // [audio-thread]
     {
-        std::ranges::fill(output, 0.0F);
-        const std::span<float> deck_output = std::span{deck_buffer}.first(output.size());
+        if (const auto *position = std::get_if<api::MixerSetCrossfader>(&command))
+        {
+            crossfader.setPosition(position->position);
+        }
+        else if (const auto *momentary = std::get_if<api::MixerCrossfaderMomentary>(&command))
+        {
+            crossfader.setMomentary(momentary->side);
+        }
+        else if (const auto *volume = std::get_if<api::MixerSetMasterVolume>(&command))
+        {
+            master.setVolume(volume->value);
+        }
+        else if (const auto *cue_mix = std::get_if<api::MixerSetCueMix>(&command))
+        {
+            headphones.setCueMix(cue_mix->value);
+        }
+        else if (const auto *headphone_volume = std::get_if<api::MixerSetHeadphoneVolume>(&command))
+        {
+            headphones.setVolume(headphone_volume->value);
+        }
+    }
+
+    void Engine::renderBlock(const DeckList &list, std::size_t frames) noexcept // [audio-thread]
+    {
+        const std::size_t      samples     = frames * stereo_channels;
+        const std::span<float> deck_output = std::span{deck_buffer}.first(samples);
+        const std::span<float> master_sum  = std::span{master_buffer}.first(samples);
+        const std::span<float> cue_sum     = std::span{cue_buffer}.first(samples);
+        std::ranges::fill(master_sum, 0.0F);
+        std::ranges::fill(cue_sum, 0.0F);
         for (DeckSlot *slot : list.slots)
         {
             slot->deck.render(deck_output);
-            slot->channel.mixInto(deck_output, output);
+            slot->channel.mixInto(deck_output, {.master = master_sum, .cue = cue_sum}, crossfader);
+        }
+        master.process(master_sum);
+        if (headphonesAvailable())
+        {
+            headphones.process({.cue = cue_sum, .master = master_sum}, std::span{headphone_buffer}.first(samples));
         }
     }
 
@@ -233,7 +275,21 @@ namespace djw::core::engine
                 .duration_seconds = static_cast<double>(deck.lengthFrames()) / rate,
                 .cue_seconds      = static_cast<double>(deck.cueFrame()) / rate,
                 .pitch_percent    = deck.pitchPercent(),
+                .crossfader_side  = slot->channel.crossfaderSide(),
+                .level            = slot->channel.level(),
+                .headphone_cue    = slot->channel.headphoneCue(),
+                .headphone_level  = slot->channel.headphoneLevel(),
             });
         }
+        mixer_snapshot.write(api::MixerSnapshot{
+            .crossfader_position  = crossfader.position(),
+            .crossfader_momentary = crossfader.momentary(),
+            .master_volume        = master.volume(),
+            .master_level         = master.level(),
+            .limiter_gain         = master.limiterGain(),
+            .headphones_available = headphonesAvailable(),
+            .cue_mix              = headphones.cueMix(),
+            .headphone_volume     = headphones.volume(),
+        });
     }
 } // namespace djw::core::engine

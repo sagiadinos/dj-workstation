@@ -22,17 +22,20 @@ namespace
             {
                 std::ranges::fill(output, 0.25F);
                 samples.fetch_add(output.size(), std::memory_order_relaxed);
-                odd_size = odd_size.load(std::memory_order_relaxed) || output.size() % 2 != 0;
+                partial_frame = partial_frame.load(std::memory_order_relaxed) || output.size() % channels != 0;
             }
 
+            std::size_t              channels = 2;
             std::atomic<std::size_t> samples{0};
-            std::atomic<bool>        odd_size{false};
+            std::atomic<bool>        partial_frame{false};
     };
 
-    std::unique_ptr<MiniaudioDevice> openNullDevice()
+    std::unique_ptr<MiniaudioDevice> openNullDevice(bool headphone_output = false)
     {
-        auto device =
-            MiniaudioDevice::open({.sample_rate = 48'000, .buffer_frames = 256, .backend = AudioBackend::Null});
+        auto device = MiniaudioDevice::open({.sample_rate      = 48'000,
+                                             .buffer_frames    = 256,
+                                             .backend          = AudioBackend::Null,
+                                             .headphone_output = headphone_output});
         REQUIRE_MESSAGE(device.has_value(), device.error());
         return std::move(*device);
     }
@@ -63,7 +66,24 @@ TEST_CASE("MiniaudioDevice: calls the callback with whole stereo frames while st
     device->stop();
 
     CHECK(callback.samples.load() > 0);
-    CHECK_FALSE(callback.odd_size.load());
+    CHECK_FALSE(callback.partial_frame.load());
+}
+
+TEST_CASE("MiniaudioDevice: stereo by default, 4 channels with headphone output")
+{
+    CHECK(openNullDevice()->channels() == 2);
+
+    auto             device = openNullDevice(true);
+    CountingCallback callback;
+    callback.channels = 4;
+    CHECK(device->channels() == 4);
+
+    REQUIRE(device->start(callback).has_value());
+    waitForCallbacks(callback);
+    device->stop();
+
+    CHECK(callback.samples.load() > 0);
+    CHECK_FALSE(callback.partial_frame.load());
 }
 
 TEST_CASE("MiniaudioDevice: after stop the callback is no longer called")

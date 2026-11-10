@@ -314,6 +314,7 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Database | SQLite (FTS5) | Public domain |
 | Tags | TagLib | LGPL-2.1 / MPL-1.1 |
 | UI, windowing, touch | SDL3 | zlib |
+| Font rendering | SDL3_ttf (FreeType, HarfBuzz) | zlib (FreeType: FTL, HarfBuzz: MIT) |
 | Vector graphics (optional) | NanoVG | zlib |
 | MIDI | RtMidi (+ custom backends for Android/Web) | MIT-style |
 | HID (optional) | hidapi | BSD |

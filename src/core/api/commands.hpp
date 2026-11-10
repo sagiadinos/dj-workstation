@@ -4,6 +4,7 @@
 #ifndef DJW_CORE_API_COMMANDS_HPP
 #define DJW_CORE_API_COMMANDS_HPP
 
+#include "api/crossfader_side.hpp"
 #include "api/deck_id.hpp"
 #include "api/spsc_queue.hpp"
 
@@ -63,6 +64,63 @@ namespace djw::core::api
             float  value;
     };
 
+    /// Puts a deck on crossfader side A, B or none
+    struct MixerAssignCrossfader
+    {
+            DeckId         deck;
+            CrossfaderSide side;
+    };
+
+    /**
+     * Crossfader position from -1.0 (side A only) over 0.0 (center, both sides) to +1.0 (side B only). Values outside
+     * are clamped by the engine. Crossfader zero is position 0.0, latch A/B is -1.0 / +1.0.
+     */
+    struct MixerSetCrossfader
+    {
+            float position;
+    };
+
+    /**
+     * Momentary A/B: while held, the crossfader acts as if it were at the end of the side; on release (side None) it
+     * goes back to its position. The position itself is not changed.
+     */
+    struct MixerCrossfaderMomentary
+    {
+            CrossfaderSide side;
+    };
+
+    /// Master volume, 0.0 (silent) to 1.0 (full). Values outside are clamped by the engine.
+    struct MixerSetMasterVolume
+    {
+            float value;
+    };
+
+    /// Headphone cue button of a deck: the deck is heard on the headphones, taken before the channel fader
+    struct MixerSetHeadphoneCue
+    {
+            DeckId deck;
+            bool   enabled;
+    };
+
+    /// How loud a cued deck is on the headphones, 0.0 ... 1.0. Values outside are clamped by the engine.
+    struct MixerSetHeadphoneLevel
+    {
+            DeckId deck;
+            float  value;
+    };
+
+    /// Headphone mix: 0.0 only the cued decks, 1.0 only the master. Values outside are clamped by the engine.
+    struct MixerSetCueMix
+    {
+            float value;
+    };
+
+    /// Headphone volume, 0.0 ... 1.0. Values outside are clamped by the engine.
+    struct MixerSetHeadphoneVolume
+    {
+            float value;
+    };
+
     /**
      * Everything a frontend or controller can ask the core to do.
      *
@@ -71,7 +129,9 @@ namespace djw::core::api
      * the audio thread.
      */
     using Command =
-        std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckSetPitch, DeckPitchBend, MixerSetChannelVolume>;
+        std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckSetPitch, DeckPitchBend, MixerSetChannelVolume,
+                     MixerAssignCrossfader, MixerSetCrossfader, MixerCrossfaderMomentary, MixerSetMasterVolume,
+                     MixerSetHeadphoneCue, MixerSetHeadphoneLevel, MixerSetCueMix, MixerSetHeadphoneVolume>;
 
     static_assert(std::is_trivially_copyable_v<Command>);
 

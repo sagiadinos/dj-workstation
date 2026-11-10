@@ -230,13 +230,14 @@ TEST_CASE("Engine: DeckSeek jumps to the position in seconds")
 {
     engine::Engine     engine{smallBlocks()};
     api::CommandQueue &queue = engine.addCommandQueue();
-    const api::DeckId  deck  = playingDeck(engine, queue, std::make_unique<BufferSource>(ramp(sample_rate)));
+    constexpr float    step  = 1.0F / 65'536; // below full scale and exact
+    const api::DeckId  deck  = playingDeck(engine, queue, std::make_unique<BufferSource>(ramp(sample_rate, step)));
 
     REQUIRE(queue.tryPush(api::DeckSeek{deck, 0.5}));
     std::vector<float> output(4);
     engine.render(output);
 
-    CHECK(output == std::vector<float>{24'000.0F, 24'000.0F, 24'001.0F, 24'001.0F});
+    CHECK(output == std::vector<float>{24'000 * step, 24'000 * step, 24'001 * step, 24'001 * step});
     CHECK(engine.deckSnapshot(deck)->read().position_seconds == doctest::Approx(24'002.0 / sample_rate));
 }
 
@@ -259,6 +260,160 @@ TEST_CASE("Engine: CUE, pitch and pitch bend arrive at the deck and show in the 
     CHECK(state.cue_seconds == doctest::Approx(0.5));
     CHECK(state.pitch_percent == doctest::Approx(-6.5F));
     CHECK(state.play_state == api::PlayState::Stopped);
+}
+
+TEST_CASE("Engine: the crossfader fades between the decks on side A and B, decks on no side stay")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue  = engine.addCommandQueue();
+    const api::DeckId  deck_a = playingDeck(engine, queue, constant(100, 0.25F));
+    const api::DeckId  deck_b = playingDeck(engine, queue, constant(100, 0.125F));
+    playingDeck(engine, queue, constant(100, 0.5F)); // on no side
+    REQUIRE(queue.tryPush(api::MixerAssignCrossfader{deck_a, api::CrossfaderSide::A}));
+    REQUIRE(queue.tryPush(api::MixerAssignCrossfader{deck_b, api::CrossfaderSide::B}));
+    REQUIRE(queue.tryPush(api::MixerSetCrossfader{-1.0F}));
+    std::vector<float> output(4);
+    engine.render(output); // ramps to the new gains
+
+    engine.render(output);
+    CHECK(output == std::vector<float>(4, 0.75F));
+
+    REQUIRE(queue.tryPush(api::MixerSetCrossfader{1.0F}));
+    engine.render(output);
+    engine.render(output);
+    CHECK(output == std::vector<float>(4, 0.625F));
+
+    CHECK(engine.deckSnapshot(deck_a)->read().crossfader_side == api::CrossfaderSide::A);
+    CHECK(engine.deckSnapshot(deck_b)->read().crossfader_side == api::CrossfaderSide::B);
+    CHECK(engine.mixerSnapshot().read().crossfader_position == 1.0F);
+}
+
+TEST_CASE("Engine: momentary A/B holds a side and returns to the crossfader position on release")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue  = engine.addCommandQueue();
+    const api::DeckId  deck_a = playingDeck(engine, queue, constant(100, 0.25F));
+    const api::DeckId  deck_b = playingDeck(engine, queue, constant(100, 0.125F));
+    REQUIRE(queue.tryPush(api::MixerAssignCrossfader{deck_a, api::CrossfaderSide::A}));
+    REQUIRE(queue.tryPush(api::MixerAssignCrossfader{deck_b, api::CrossfaderSide::B}));
+    REQUIRE(queue.tryPush(api::MixerSetCrossfader{-1.0F}));
+    std::vector<float> output(4);
+    engine.render(output);
+
+    REQUIRE(queue.tryPush(api::MixerCrossfaderMomentary{api::CrossfaderSide::B}));
+    engine.render(output);
+    engine.render(output);
+    CHECK(output == std::vector<float>(4, 0.125F));
+    CHECK(engine.mixerSnapshot().read().crossfader_momentary == api::CrossfaderSide::B);
+    CHECK(engine.mixerSnapshot().read().crossfader_position == -1.0F);
+
+    REQUIRE(queue.tryPush(api::MixerCrossfaderMomentary{api::CrossfaderSide::None}));
+    engine.render(output);
+    engine.render(output);
+    CHECK(output == std::vector<float>(4, 0.25F));
+}
+
+TEST_CASE("Engine: master volume and limiter work on the sum and show in the mixer snapshot")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    playingDeck(engine, queue, constant(100, 0.75F));
+    playingDeck(engine, queue, constant(100, 0.75F));
+    std::vector<float> output(4);
+
+    engine.render(output); // 1.5: the limiter takes it down to full scale
+    CHECK(output == std::vector<float>(4, 1.0F));
+    CHECK(engine.mixerSnapshot().read().limiter_gain == doctest::Approx(1.0F / 1.5F));
+
+    REQUIRE(queue.tryPush(api::MixerSetMasterVolume{0.5F}));
+    engine.render(output);
+    engine.render(output);
+    engine.render(output); // 0.75 now; the limiter gain needs a while to come back up
+    CHECK(output[0] < 0.75F);
+    const api::MixerSnapshot mixer = engine.mixerSnapshot().read();
+    CHECK(mixer.master_volume == 0.5F);
+    CHECK(mixer.master_level.left == doctest::Approx(1.0F).epsilon(1e-3)); // the first block's peak, falling
+}
+
+TEST_CASE("Engine: VU levels per deck before the fader and for the master")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    const api::DeckId  deck  = playingDeck(engine, queue, constant(100, 0.5F));
+    REQUIRE(queue.tryPush(api::MixerSetChannelVolume{deck, 0.0F}));
+    std::vector<float> output(4);
+    engine.render(output);
+    engine.render(output);
+
+    CHECK(engine.deckSnapshot(deck)->read().level.left == 0.5F);
+    CHECK(engine.deckSnapshot(deck)->read().level.right == 0.5F);
+    CHECK(engine.mixerSnapshot().read().master_level.left < 0.5F); // the ramp down from the first block, falling
+}
+
+TEST_CASE("Engine: with stereo output there are no headphones, cued decks are still on the master")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    const api::DeckId  deck  = playingDeck(engine, queue, constant(100, 0.5F));
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneCue{deck, true}));
+    std::vector<float> output(4);
+
+    engine.render(output);
+
+    CHECK(output == std::vector<float>(4, 0.5F));
+    CHECK_FALSE(engine.headphonesAvailable());
+    CHECK_FALSE(engine.mixerSnapshot().read().headphones_available);
+    CHECK(engine.deckSnapshot(deck)->read().headphone_cue);
+}
+
+TEST_CASE("Engine: with 4 channels the master is on 1/2 and the cued decks are on the headphones on 3/4")
+{
+    engine::Engine     engine{{.sample_rate = sample_rate, .max_block_frames = 4, .output_channels = 4}};
+    api::CommandQueue &queue  = engine.addCommandQueue();
+    const api::DeckId  master = playingDeck(engine, queue, constant(100, 0.25F));
+    const api::DeckId  cued   = playingDeck(engine, queue, constant(100, 0.5F));
+    REQUIRE(queue.tryPush(api::MixerSetChannelVolume{cued, 0.0F}));
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneCue{cued, true}));
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneLevel{cued, 0.5F}));
+    std::vector<float> output(4 * 4);
+    CHECK(engine.mixerSnapshot().read().headphones_available); // known before the first render
+    engine.render(output);                                     // faders ramp
+
+    engine.render(output);
+
+    CHECK(output == std::vector<float>{0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F, //
+                                       0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F});
+    CHECK(engine.headphonesAvailable());
+    CHECK(engine.mixerSnapshot().read().headphones_available);
+    CHECK(engine.deckSnapshot(cued)->read().headphone_level == 0.5F);
+    CHECK_FALSE(engine.deckSnapshot(master)->read().headphone_cue);
+}
+
+TEST_CASE("Engine: cue mix and headphone volume shape the headphones and show in the snapshot")
+{
+    engine::Engine     engine{{.sample_rate = sample_rate, .max_block_frames = 4, .output_channels = 4}};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    const api::DeckId  deck  = playingDeck(engine, queue, constant(100, 0.5F));
+    REQUIRE(queue.tryPush(api::MixerSetChannelVolume{deck, 0.5F})); // master 0.25, cue 0.5
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneCue{deck, true}));
+    REQUIRE(queue.tryPush(api::MixerSetCueMix{0.5F}));
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneVolume{0.5F}));
+    std::vector<float> output(2 * 4);
+    engine.render(output);
+
+    engine.render(output);
+
+    // (0.5 * 0.5 + 0.25 * 0.5) * 0.5
+    CHECK(output == std::vector<float>{0.25F, 0.25F, 0.1875F, 0.1875F, 0.25F, 0.25F, 0.1875F, 0.1875F});
+    const api::MixerSnapshot mixer = engine.mixerSnapshot().read();
+    CHECK(mixer.cue_mix == 0.5F);
+    CHECK(mixer.headphone_volume == 0.5F);
+}
+
+TEST_CASE("Engine: output channels are at least stereo")
+{
+    const engine::Engine engine{{.sample_rate = sample_rate, .output_channels = 1}};
+    CHECK(engine.outputChannels() == 2);
 }
 
 TEST_CASE("Engine: a deck stops at the end of its track")
@@ -322,11 +477,11 @@ TEST_CASE("Engine: decks and tracks can change while another thread renders")
 
 TEST_CASE("Engine: render does not allocate or free memory")
 {
-    engine::Engine     engine{{.sample_rate = sample_rate, .max_block_frames = 256}};
+    engine::Engine     engine{{.sample_rate = sample_rate, .max_block_frames = 256, .output_channels = 4}};
     api::CommandQueue &queue  = engine.addCommandQueue();
     const api::DeckId  deck_a = playingDeck(engine, queue, std::make_unique<SineSource>(440.0, sample_rate, 0.5F));
     const api::DeckId  deck_b = playingDeck(engine, queue, std::make_unique<BufferSource>(ramp(sample_rate)));
-    std::vector<float> output(1'000 * 2); // not a multiple of the block size
+    std::vector<float> output(1'000 * 4); // not a multiple of the block size
     REQUIRE(queue.tryPush(api::MixerSetChannelVolume{deck_a, 0.5F}));
     REQUIRE(queue.tryPush(api::DeckSeek{deck_b, 0.5}));
     REQUIRE(queue.tryPush(api::DeckSetPitch{deck_a, 7.5F}));
@@ -334,12 +489,21 @@ TEST_CASE("Engine: render does not allocate or free memory")
     REQUIRE(queue.tryPush(api::DeckCue{deck_b, true}));
     REQUIRE(queue.tryPush(api::DeckCue{deck_b, false}));
     REQUIRE(queue.tryPush(api::DeckPause{deck_b}));
+    REQUIRE(queue.tryPush(api::MixerAssignCrossfader{deck_a, api::CrossfaderSide::A}));
+    REQUIRE(queue.tryPush(api::MixerSetCrossfader{0.3F}));
+    REQUIRE(queue.tryPush(api::MixerCrossfaderMomentary{api::CrossfaderSide::B}));
+    REQUIRE(queue.tryPush(api::MixerSetMasterVolume{0.8F}));
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneCue{deck_a, true}));
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneLevel{deck_a, 0.7F}));
+    REQUIRE(queue.tryPush(api::MixerSetCueMix{0.4F}));
+    REQUIRE(queue.tryPush(api::MixerSetHeadphoneVolume{0.9F}));
 
     const AllocationCounter counter;
     for (int i = 0; i < 100; ++i)
     {
         engine.render(output);
         static_cast<void>(engine.deckSnapshot(deck_a)->read());
+        static_cast<void>(engine.mixerSnapshot().read());
     }
 
     CHECK(counter.allocations() == 0);

@@ -8,19 +8,25 @@
 
 #include <chrono>
 #include <iostream>
+#include <span>
+#include <string_view>
 #include <thread>
 
 namespace api = djw::core::api;
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2)
+    const std::span<char *> args{argv, static_cast<std::size_t>(argc)};
+    const bool              headphones = args.size() == 3 && std::string_view{args[1]} == "--headphones";
+    if (args.size() != 2 && !headphones)
     {
-        std::cerr << "usage: djw <audio file>\n";
+        std::cerr << "usage: djw [--headphones] <audio file>\n"
+                     "  --headphones  master on output channels 1/2, headphones on 3/4 (needs a 4-channel device)\n";
         return 2;
     }
+    const char *file = args.back();
 
-    auto core = api::createCore({});
+    auto core = api::createCore({.headphone_output = headphones});
     if (!core)
     {
         std::cerr << "djw: " << core.error() << '\n';
@@ -28,10 +34,15 @@ int main(int argc, char *argv[])
     }
 
     const api::DeckId deck = (*core)->addDeck();
-    if (auto loaded = (*core)->loadTrack(deck, argv[1]); !loaded)
+    if (auto loaded = (*core)->loadTrack(deck, file); !loaded)
     {
         std::cerr << "djw: " << loaded.error() << '\n';
         return 1;
+    }
+
+    if (headphones && !(*core)->mixerSnapshot().read().headphones_available)
+    {
+        std::cerr << "djw: the audio device has fewer than 4 channels, playing the master only\n";
     }
 
     if (auto started = (*core)->start(); !started)

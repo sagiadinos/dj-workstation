@@ -3,36 +3,27 @@
 
 #include "engine/mixer_channel.hpp"
 
-#include "engine/audio_source.hpp"
-
 #include <algorithm>
-#include <cstddef>
 
 namespace djw::core::engine
 {
     void MixerChannel::setVolume(float value) noexcept // [audio-thread]
     {
-        target_volume = std::clamp(value, 0.0F, 1.0F);
+        channel_volume = std::clamp(value, 0.0F, 1.0F);
     }
 
-    void MixerChannel::mixInto(std::span<const float> input, std::span<float> output) noexcept // [audio-thread]
+    void MixerChannel::setHeadphoneLevel(float value) noexcept // [audio-thread]
     {
-        const std::size_t frames = std::min(input.size(), output.size()) / stereo_channels;
-        if (frames == 0)
-        {
-            return;
-        }
+        cue_level = std::clamp(value, 0.0F, 1.0F);
+    }
 
-        const float step = (target_volume - current_volume) / static_cast<float>(frames);
-        for (std::size_t frame = 0; frame < frames; ++frame)
-        {
-            const float gain = current_volume + step * static_cast<float>(frame + 1);
-            for (std::size_t channel = 0; channel < stereo_channels; ++channel)
-            {
-                const std::size_t index = frame * stereo_channels + channel;
-                output[index] += input[index] * gain;
-            }
-        }
-        current_volume = target_volume;
+    void MixerChannel::mixInto(std::span<const float> input, MixTargets targets,
+                               const Crossfader &crossfader) noexcept // [audio-thread]
+    {
+        meter.process(input);
+        gain.setTarget(channel_volume * crossfader.gain(crossfader_side));
+        gain.addTo(input, targets.master);
+        cue_gain.setTarget(cue_enabled ? cue_level : 0.0F);
+        cue_gain.addTo(input, targets.cue);
     }
 } // namespace djw::core::engine

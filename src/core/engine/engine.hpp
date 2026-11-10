@@ -8,7 +8,11 @@
 #include "api/deck_id.hpp"
 #include "api/snapshot.hpp"
 #include "engine/audio_source.hpp"
+#include "engine/crossfader.hpp"
 #include "engine/deck.hpp"
+#include "engine/headphone_bus.hpp"
+#include "engine/master_bus.hpp"
+#include "engine/output_routing.hpp"
 #include "engine/mixer_channel.hpp"
 #include "engine/reclaimer.hpp"
 
@@ -26,13 +30,16 @@ namespace djw::core::engine
             std::uint32_t sample_rate = 48'000;
             /// Largest block rendered in one piece; larger requests are split. Sizes the internal buffers.
             std::size_t max_block_frames = 1'024;
+            /// Channels of the output, at least 2: master on 1/2, headphones on 3/4 when there are 4 or more
+            std::size_t output_channels = 2;
     };
 
     /**
-     * The audio engine: decks, their mixer channels and the master sum.
+     * The audio engine: decks, their mixer channels, crossfader, master and headphone section.
      *
      * render() is the audio callback. It runs without an audio device too, which is what the offline render tests
-     * use. Commands come in through command queues, deck state goes out through one snapshot buffer per deck.
+     * use. Commands come in through command queues, state goes out through one snapshot buffer per deck and one for
+     * the mixer.
      *
      * Decks and tracks change while rendering: the control thread (the one calling addDeck, removeDeck, setTrack)
      * publishes a new deck list or track through an atomic pointer, the audio thread picks it up at the start of
@@ -64,17 +71,25 @@ namespace djw::core::engine
 
             /// Control thread: snapshot buffer of a deck for the reader side, nullptr for an unknown deck
             api::DeckSnapshotBuffer *deckSnapshot(api::DeckId deck) noexcept;
+            /// Mixer snapshot buffer for the reader side
+            api::MixerSnapshotBuffer &mixerSnapshot() noexcept { return mixer_snapshot; }
 
             [[nodiscard]] std::uint32_t sampleRate() const noexcept { return config.sample_rate; }
+            [[nodiscard]] std::size_t   outputChannels() const noexcept { return config.output_channels; }
+            /// True with 4 or more output channels
+            [[nodiscard]] bool headphonesAvailable() const noexcept
+            {
+                return config.output_channels >= headphone_output_channels;
+            }
 
-            /// Applies pending commands, renders output.size() / 2 frames of interleaved stereo and publishes the
-            /// deck snapshots.
+            /// Applies pending commands, renders output.size() / output_channels frames of interleaved audio (see
+            /// routeOutput) and publishes the snapshots.
             void render(std::span<float> output) noexcept; // [audio-thread]
 
         private:
             struct DeckSlot
             {
-                    DeckSlot(api::DeckId id, std::size_t pause_fade_frames);
+                    DeckSlot(api::DeckId id, std::uint32_t sample_rate);
 
                     Deck                    deck;
                     MixerChannel            channel;
@@ -94,16 +109,29 @@ namespace djw::core::engine
             DeckSlot *findOwned(api::DeckId deck) noexcept;
             void      publishDeckList();
 
-            static DeckSlot *findDeck(const DeckList &list, api::DeckId deck) noexcept;           // [audio-thread]
-            void             applyCommands(const DeckList &list) noexcept;                        // [audio-thread]
-            void             apply(const DeckList &list, const api::Command &command) noexcept;   // [audio-thread]
-            void             renderBlock(const DeckList &list, std::span<float> output) noexcept; // [audio-thread]
-            void             publishSnapshots(const DeckList &list) noexcept;                     // [audio-thread]
+            static DeckSlot *findDeck(const DeckList &list, api::DeckId deck) noexcept;         // [audio-thread]
+            void             applyCommands(const DeckList &list) noexcept;                      // [audio-thread]
+            void             apply(const DeckList &list, const api::Command &command) noexcept; // [audio-thread]
+            void             applyMixer(const api::Command &command) noexcept;                  // [audio-thread]
+            /// If command is a DeckCommand: runs action on its deck (if the deck exists) and returns true
+            template <typename DeckCommand, typename Action>
+            static bool applyToDeck(const DeckList &list, const api::Command &command,
+                                    Action action) noexcept;                            // [audio-thread]
+            void        renderBlock(const DeckList &list, std::size_t frames) noexcept; // [audio-thread]
+            void        publishSnapshots(const DeckList &list) noexcept;                // [audio-thread]
 
             EngineConfig                                    config;
             std::vector<std::unique_ptr<api::CommandQueue>> command_queues;
-            std::vector<float>                              deck_buffer;
-            Reclaimer                                       reclaimer;
+            // Interleaved stereo, max_block_frames each
+            std::vector<float>       deck_buffer;
+            std::vector<float>       master_buffer;
+            std::vector<float>       cue_buffer;
+            std::vector<float>       headphone_buffer;
+            Crossfader               crossfader;
+            MasterBus                master;
+            HeadphoneBus             headphones;
+            api::MixerSnapshotBuffer mixer_snapshot;
+            Reclaimer                reclaimer;
             // Control thread: all decks and the owner of the published list
             std::vector<std::unique_ptr<DeckSlot>> slots;
             std::unique_ptr<DeckList>              current_list;

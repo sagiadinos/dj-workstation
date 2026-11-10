@@ -13,7 +13,7 @@
 namespace djw::core::audio_io
 {
     /**
-     * An audio output that pulls stereo float32 from a callback at a fixed sample rate.
+     * An audio output that pulls interleaved float32 from a callback at a fixed sample rate and channel count.
      *
      * Behind this interface so the core can be tested with a fake device that is driven by the test.
      */
@@ -33,6 +33,8 @@ namespace djw::core::audio_io
             virtual void stop() noexcept = 0;
 
             [[nodiscard]] virtual std::uint32_t sampleRate() const noexcept = 0;
+            /// Interleaved channels the callback fills, at least 2
+            [[nodiscard]] virtual std::uint32_t channels() const noexcept = 0;
     };
 } // namespace djw::core::audio_io
 

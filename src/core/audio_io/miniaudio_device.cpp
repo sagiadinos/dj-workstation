@@ -14,7 +14,9 @@ namespace djw::core::audio_io
 {
     namespace
     {
-        constexpr ma_uint32 output_channels = 2;
+        constexpr ma_uint32 stereo_channels = 2;
+        // Master on 1/2, headphones on 3/4
+        constexpr ma_uint32 headphone_channels = 4;
 
         std::string describe(const char *what, ma_result result)
         {
@@ -32,21 +34,45 @@ namespace djw::core::audio_io
             State &operator=(State &&)      = delete;
             ~State()
             {
-                if (device_initialized)
-                {
-                    ma_device_uninit(&device);
-                }
+                uninitDevice();
                 if (context_initialized)
                 {
                     ma_context_uninit(&context);
                 }
             }
 
+            /// channels 0: the device's own channel count
+            ma_result initDevice(const AudioDeviceConfig &config, ma_uint32 channels)
+            {
+                ma_device_config device_config          = ma_device_config_init(ma_device_type_playback);
+                device_config.playback.format           = ma_format_f32;
+                device_config.playback.channels         = channels;
+                device_config.sampleRate                = config.sample_rate;
+                device_config.periodSizeInFrames        = config.buffer_frames;
+                device_config.performanceProfile        = ma_performance_profile_low_latency;
+                device_config.noPreSilencedOutputBuffer = MA_TRUE; // the callback always writes every sample
+                device_config.dataCallback              = &State::dataCallback;
+                device_config.pUserData                 = this;
+
+                const ma_result result = ma_device_init(&context, &device_config, &device);
+                device_initialized     = result == MA_SUCCESS;
+                return result;
+            }
+
+            void uninitDevice() noexcept
+            {
+                if (device_initialized)
+                {
+                    ma_device_uninit(&device);
+                    device_initialized = false;
+                }
+            }
+
             static void dataCallback(ma_device *device, void *output, const void *, ma_uint32 frames) // [audio-thread]
             {
-                const auto *state = static_cast<const State *>(device->pUserData);
-                const auto  samples =
-                    std::span{static_cast<float *>(output), static_cast<std::size_t>(frames) * output_channels};
+                const auto *state   = static_cast<const State *>(device->pUserData);
+                const auto  samples = std::span{static_cast<float *>(output),
+                                                static_cast<std::size_t>(frames) * device->playback.channels};
                 if (AudioCallback *callback = state->callback.load(std::memory_order_acquire))
                 {
                     callback->process(samples);
@@ -78,22 +104,25 @@ namespace djw::core::audio_io
         }
         state->context_initialized = true;
 
-        ma_device_config device_config          = ma_device_config_init(ma_device_type_playback);
-        device_config.playback.format           = ma_format_f32;
-        device_config.playback.channels         = output_channels;
-        device_config.sampleRate                = config.sample_rate;
-        device_config.periodSizeInFrames        = config.buffer_frames;
-        device_config.performanceProfile        = ma_performance_profile_low_latency;
-        device_config.noPreSilencedOutputBuffer = MA_TRUE; // the callback always writes every sample
-        device_config.dataCallback              = &State::dataCallback;
-        device_config.pUserData                 = state.get();
-
-        result = ma_device_init(&state->context, &device_config, &state->device);
-        if (result != MA_SUCCESS)
+        if (config.headphone_output)
         {
-            return std::unexpected{describe("cannot open audio output", result)};
+            // The device's own channel count, so miniaudio passes every channel through unmixed. The Null backend
+            // has no channel count of its own, it stands in for a 4-channel device.
+            const ma_uint32 channels = config.backend == AudioBackend::Null ? headphone_channels : 0;
+            if (state->initDevice(config, channels) == MA_SUCCESS &&
+                state->device.playback.channels < headphone_channels)
+            {
+                state->uninitDevice(); // too few channels for headphones: stereo below
+            }
         }
-        state->device_initialized = true;
+        if (!state->device_initialized)
+        {
+            result = state->initDevice(config, stereo_channels);
+            if (result != MA_SUCCESS)
+            {
+                return std::unexpected{describe("cannot open audio output", result)};
+            }
+        }
 
         return std::unique_ptr<MiniaudioDevice>{new MiniaudioDevice{std::move(state)}};
     }
@@ -130,5 +159,10 @@ namespace djw::core::audio_io
     std::uint32_t MiniaudioDevice::sampleRate() const noexcept
     {
         return state->device.sampleRate;
+    }
+
+    std::uint32_t MiniaudioDevice::channels() const noexcept
+    {
+        return state->device.playback.channels;
     }
 } // namespace djw::core::audio_io

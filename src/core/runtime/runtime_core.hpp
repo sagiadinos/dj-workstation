@@ -15,7 +15,9 @@
 namespace djw::core::runtime
 {
     /**
-     * Implementation of api::Core: wires engine, track loading and the audio device together.
+     * Implementation of api::Core: wires engine, track loading and the audio device together. The engine renders
+     * in the device's sample rate and channel count, so headphones are there exactly when the device has 4 or more
+     * channels.
      *
      * The device is injected, so tests can drive the core with a fake device. It is stopped before anything it
      * calls into is destroyed. Every call frees what the engine retired since the last call (unloaded tracks,
@@ -37,6 +39,7 @@ namespace djw::core::runtime
             std::expected<void, std::string> start() override;
             api::CommandQueue               &commandQueue() noexcept override { return frontend_queue; }
             api::DeckSnapshotBuffer         *deckSnapshot(api::DeckId deck) noexcept override;
+            api::MixerSnapshotBuffer        &mixerSnapshot() noexcept override { return engine.mixerSnapshot(); }
 
         private:
             /// Lets the audio device call the engine
