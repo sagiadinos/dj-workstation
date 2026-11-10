@@ -68,6 +68,8 @@ namespace djw::core::api
             std::size_t missing_total = 0;
             /// Tag edits and playlist changes waiting to be written
             std::size_t pending_writes = 0;
+            /// Tracks waiting for their analysis (tempo, waveform), including the one being analyzed
+            std::size_t analysis_pending = 0;
             /// Goes up whenever stored tracks change outside a scan (tag edits, removals) and when a scan ends; a view
             /// searches again when it changes
             std::uint64_t revision = 0;
@@ -129,6 +131,27 @@ namespace djw::core::api
              * It changes only the database, not the file.
              */
             virtual void setCuePoint(std::int64_t track_id, std::optional<double> seconds) = 0;
+
+            /**
+             * Analyzes a track (tempo and overview waveform) on the analysis thread, ahead of what analyzeAll() queued,
+             * unless it was analyzed before; returns at once. Decodes the whole file, so it takes seconds. The
+             * revision goes up when the result is stored. A track that was analyzed stays so until its file changes.
+             */
+            virtual void analyze(std::int64_t track_id) = 0;
+
+            /// Queues every track that is not analyzed yet, after what analyze() asked for. Same thread as analyze().
+            virtual void analyzeAll() = 0;
+
+            /**
+             * Reads the track's file again: tags and duration into the database, and analyzes it anew. For a file that
+             * was changed outside of djw, or an analysis that went wrong. On the library thread; the revision goes
+             * up when it is stored.
+             */
+            virtual void rescanTrack(std::int64_t track_id) = 0;
+
+            /// The overview waveform of an analyzed track (values 0 to 255, evenly spread over the track), empty if
+            /// it is not analyzed
+            [[nodiscard]] virtual std::vector<std::uint8_t> waveform(std::int64_t track_id) const = 0;
 
             /**
              * Removes the tracks whose file is missing from the library (not from the disk, they are gone already), on

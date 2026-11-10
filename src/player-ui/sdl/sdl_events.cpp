@@ -83,6 +83,16 @@ namespace djw::player_ui::sdl
         }
     }
 
+    std::optional<Point> toSecondaryClick(const SDL_Event &event)
+    {
+        if (event.type != SDL_EVENT_MOUSE_BUTTON_DOWN || event.button.button != SDL_BUTTON_RIGHT ||
+            event.button.which == SDL_TOUCH_MOUSEID)
+        {
+            return std::nullopt;
+        }
+        return Point{event.button.x, event.button.y};
+    }
+
     std::optional<WheelEvent> toWheelEvent(const SDL_Event &event)
     {
         if (event.type != SDL_EVENT_MOUSE_WHEEL)

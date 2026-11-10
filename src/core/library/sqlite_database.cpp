@@ -46,6 +46,19 @@ namespace djw::core::library
         return *this;
     }
 
+    Statement &Statement::bind(int index, std::span<const std::uint8_t> bytes)
+    {
+        if (bytes.empty())
+        {
+            sqlite3_bind_zeroblob(statement.get(), index, 0); // an empty value, not NULL
+        }
+        else
+        {
+            sqlite3_bind_blob(statement.get(), index, bytes.data(), static_cast<int>(bytes.size()), SQLITE_TRANSIENT);
+        }
+        return *this;
+    }
+
     Statement &Statement::bindNull(int index)
     {
         sqlite3_bind_null(statement.get(), index);
@@ -96,6 +109,18 @@ namespace djw::core::library
         const int   length = sqlite3_column_bytes(statement.get(), column);
         return bytes != nullptr ? std::string{static_cast<const char *>(bytes), static_cast<std::size_t>(length)}
                                 : std::string{};
+    }
+
+    std::vector<std::uint8_t> Statement::blob(int column) const
+    {
+        const void *bytes  = sqlite3_column_blob(statement.get(), column);
+        const int   length = sqlite3_column_bytes(statement.get(), column);
+        if (bytes == nullptr)
+        {
+            return {};
+        }
+        const auto *begin = static_cast<const std::uint8_t *>(bytes);
+        return {begin, begin + length};
     }
 
     std::int64_t Statement::integer(int column) const

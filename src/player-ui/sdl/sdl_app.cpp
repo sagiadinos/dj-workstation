@@ -291,6 +291,10 @@ namespace djw::player_ui::sdl
         }
         target.loaded_file = track.path;
         target.track_id    = track.id;
+        if (library != nullptr && track.id != 0)
+        {
+            library->analyze(track.id); // tempo and waveform, unless the track was analyzed before
+        }
         // A file without tags shows its name
         const std::string title = track.title.empty() ? track.path.stem().string() : track.title;
         target.view->setTrack(track.artist, title);

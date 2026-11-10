@@ -9,6 +9,7 @@
 #include "column_header.hpp"
 #include "file_dialogs.hpp"
 #include "i18n/translator.hpp"
+#include "context_menu.hpp"
 #include "menu_bar.hpp"
 #include "text_button.hpp"
 #include "text_field.hpp"
@@ -42,6 +43,12 @@ namespace djw::player_ui::sdl
      * playlist commands, which the owner carries out in the playlist window (opening it if needed); the language,
      * which takes effect at once; new player (Ctrl+N is handled by the app), clear the search, show only missing tracks,
      * show or hide the playlist and crossfader windows. All texts come from the translator on every update.
+     *
+     * Context menu: the right mouse button on a track selects it and opens a menu with "Edit tags" (the artist cell
+     * of the track opens in the editor) and "Scan again" (the library reads the file anew and analyzes it again).
+     *
+     * Analysis: the Database menu has "Analyze all tracks", which has the library work through the tracks that were not
+     * analyzed (tempo, waveform) in the background; the status line shows how many are left.
      *
      * Dead links: when tracks are missing, the status line shows a "Missing" button that lists only those; there a
      * "Remove" button takes them out of the library after a second tap within confirm_time. With setAddToPlaylist,
@@ -94,6 +101,7 @@ namespace djw::player_ui::sdl
             [[nodiscard]] bool wantsTextInput() const override;
             void               keyboard(const KeyboardInput &input) override;
             void               wheel(Point position, float dy) override;
+            void               secondaryClick(Point position) override;
 
             [[nodiscard]] const TextField &searchField() const noexcept { return search_field; }
             /// The filter field of filter_columns[index]
@@ -109,6 +117,7 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
             [[nodiscard]] const TextButton              &addButton() const noexcept { return add_button; }
             [[nodiscard]] const MenuBar                 &menuBar() const noexcept { return menu; }
+            [[nodiscard]] const ContextMenu             &contextMenu() const noexcept { return context_menu; }
 
             /// Shows an "Add to playlist" button for the selected track, which hands the track to add
             void setAddToPlaylist(Add add) { add_to_playlist = std::move(add); }
@@ -155,6 +164,7 @@ namespace djw::player_ui::sdl
             void updateMenu(const core::api::LibraryStatus &status);
             void chooseMenuEntry(int id);
             void startEdit(const TrackList::Cell &cell);
+            void updateContextMenu();
             void commitEdit();
             void cancelEdit();
             void placeEditor();
@@ -173,6 +183,8 @@ namespace djw::player_ui::sdl
             InUse                    in_use;
             Clock                    clock;
             MenuBar                  menu;
+            ContextMenu              context_menu;
+            std::int64_t             context_track = 0; // the track the context menu is about
             TextField                search_field;
             std::array<TextField, 4> filters;
             ColumnHeader             header;

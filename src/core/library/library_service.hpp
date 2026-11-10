@@ -19,6 +19,7 @@
 #include <functional>
 #include <mutex>
 #include <optional>
+#include <vector>
 #include <thread>
 
 namespace djw::core::library
@@ -51,7 +52,11 @@ namespace djw::core::library
             void                             rescan() override;
             void                             updateTags(std::int64_t track_id, api::LibraryTagChange change) override;
             void                             setCuePoint(std::int64_t track_id, std::optional<double> seconds) override;
-            void                             removeMissing() override;
+            void                             analyze(std::int64_t track_id) override;
+            void                             analyzeAll() override;
+            void                             rescanTrack(std::int64_t track_id) override;
+            [[nodiscard]] std::vector<std::uint8_t> waveform(std::int64_t track_id) const override;
+            void                                    removeMissing() override;
             [[nodiscard]] api::Playlists    &playlists() noexcept override { return *this; }
             [[nodiscard]] std::vector<std::filesystem::path> folders() const override;
             [[nodiscard]] api::LibraryStatus                 status() const override;
@@ -84,6 +89,18 @@ namespace djw::core::library
             static std::expected<Connection, std::string> connect(const std::filesystem::path &database_file);
 
             LibraryService(Connection reader, Connection writer, TagReader read_tags, TagWriter write_tags);
+
+            struct AnalysisRequest
+            {
+                    std::int64_t          track_id = 0;
+                    std::filesystem::path path;
+            };
+
+            /// Puts a track in the analysis queue (in front for a track the user waits for), unless it is in already
+            void requestAnalysis(AnalysisRequest request, bool in_front);
+            /// Tracks queued for analysis plus the one being analyzed
+            [[nodiscard]] std::size_t analysisPending() const;
+            void analysisLoop(); // analysis thread
 
             void queue(Job job);
             /// A change of a playlist's entries: reads them, lets change edit the list and writes it back
@@ -122,8 +139,15 @@ namespace djw::core::library
             std::string                        write_error;
             std::optional<api::PlaylistImport> last_import;
 
-            // Last, so it starts after everything it uses exists
+            // Guarded by analysis_mutex
+            mutable std::mutex      analysis_mutex;
+            std::condition_variable analysis_wake;
+            std::deque<AnalysisRequest> analysis_queue;
+            std::int64_t                analysis_running = 0; // the track being analyzed, 0 if none
+
+            // Last, so they start after everything they use exists
             std::thread thread;
+            std::thread analysis_thread;
     };
 } // namespace djw::core::library
 

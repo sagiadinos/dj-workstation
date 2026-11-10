@@ -57,6 +57,7 @@ add_library(djw_player_sdl_ui STATIC
     stepper.cpp
     drop_down.cpp
     menu_bar.cpp
+    context_menu.cpp
     track_columns.cpp
     column_header.cpp
     track_list.cpp

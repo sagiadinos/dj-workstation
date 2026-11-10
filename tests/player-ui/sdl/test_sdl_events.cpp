@@ -135,3 +135,15 @@ TEST_CASE("toWheelEvent: position and direction, flipped wheels turned back")
 
     CHECK_FALSE(toWheelEvent(SDL_Event{}).has_value());
 }
+
+TEST_CASE("toSecondaryClick: the right mouse button going down gives its position, nothing else does")
+{
+    const auto click = toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_DOWN, 1, SDL_BUTTON_RIGHT, 12, 34));
+    REQUIRE(click.has_value());
+    CHECK(click->x == 12.0F);
+    CHECK(click->y == 34.0F);
+
+    CHECK_FALSE(toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_UP, 1, SDL_BUTTON_RIGHT, 12, 34)));
+    CHECK_FALSE(toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_DOWN, 1, SDL_BUTTON_LEFT, 12, 34)));
+    CHECK_FALSE(toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_TOUCH_MOUSEID, SDL_BUTTON_RIGHT, 12, 34)));
+}

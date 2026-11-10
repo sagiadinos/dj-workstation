@@ -26,6 +26,10 @@ namespace djw::core::api
             bool missing = false;
             /// The cue point the user set last, in seconds; a deck jumps there when the track is loaded (Cue-Load)
             std::optional<double> cue_seconds{};
+            /// The tempo from the analysis; empty if the track is not analyzed yet or has no beat the analysis found
+            std::optional<double> bpm{};
+            /// The analysis has run (its result may still be "no tempo"); it runs again when the file changes
+            bool analyzed = false;
     };
 } // namespace djw::core::api
 

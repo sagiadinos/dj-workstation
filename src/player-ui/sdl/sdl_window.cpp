@@ -102,6 +102,10 @@ namespace djw::player_ui::sdl
         {
             view->wheel(wheel->position, wheel->dy);
         }
+        else if (const auto secondary = toSecondaryClick(event))
+        {
+            view->secondaryClick(*secondary);
+        }
     }
 
     void SdlWindow::syncTextInput()

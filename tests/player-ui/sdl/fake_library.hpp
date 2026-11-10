@@ -39,6 +39,11 @@ namespace djw::tests
 
             void removeMissing() override { ++removals; }
 
+            void analyze(std::int64_t track_id) override { analyzed.push_back(track_id); }
+            void analyzeAll() override { ++analyze_all_requests; }
+            void rescanTrack(std::int64_t track_id) override { rescanned.push_back(track_id); }
+            std::vector<std::uint8_t> waveform(std::int64_t) const override { return {}; }
+
             void setCuePoint(std::int64_t track_id, std::optional<double> seconds) override
             {
                 cue_points.emplace_back(track_id, seconds);
@@ -174,6 +179,9 @@ namespace djw::tests
             core::api::LibraryStatus                                          library_status;
             std::vector<std::pair<std::int64_t, core::api::LibraryTagChange>> edits;
             int                                                               removals = 0;
+            std::vector<std::int64_t>                                         analyzed;
+            std::vector<std::int64_t>                                         rescanned;
+            int                                                               analyze_all_requests = 0;
             bool                                                              fail     = false;
             mutable int                                                       searches = 0;
             mutable core::api::LibraryQuery                                   last_query;

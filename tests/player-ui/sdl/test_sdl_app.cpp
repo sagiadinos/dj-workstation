@@ -436,3 +436,23 @@ TEST_CASE("SdlApp: a file from outside the library has no track to store a cue p
     }
     CHECK(library.cue_points.empty());
 }
+
+TEST_CASE("SdlApp: a track loaded from the library is analyzed, a file from outside is not")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = gapWav(folder);
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library);
+
+    api::LibraryTrack track = trackOf(file);
+    track.id                = 7;
+    app->load(track);
+    CHECK(library.analyzed == std::vector<std::int64_t>{7});
+
+    api::LibraryTrack outside = trackOf(file); // id 0: not in the library
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, true));
+    app->load(outside);
+    CHECK(library.analyzed == std::vector<std::int64_t>{7});
+}

@@ -62,6 +62,9 @@ namespace djw::player_ui::sdl
             /// True once after the list was touched, e.g. to end an edit elsewhere
             [[nodiscard]] bool takeTouched() noexcept { return std::exchange(touched, false); }
 
+            /// The row under position, std::nullopt outside the rows
+            [[nodiscard]] std::optional<std::size_t> rowAt(Point position) const noexcept;
+
             /// Replaces one row, e.g. with edited tags; ignored for a row that does not exist
             void replaceTrack(std::size_t row, core::api::LibraryTrack track);
             /// Where a cell is on screen, std::nullopt when it is scrolled out of view
@@ -79,7 +82,6 @@ namespace djw::player_ui::sdl
 
         private:
             [[nodiscard]] float                      maxOffset() const noexcept;
-            [[nodiscard]] std::optional<std::size_t> rowAt(Point position) const noexcept;
             [[nodiscard]] std::optional<Cell>        cellAt(Point position) const noexcept;
             void                                     tap(Point position);
 

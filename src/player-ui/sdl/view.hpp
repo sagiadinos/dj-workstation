@@ -33,6 +33,8 @@ namespace djw::player_ui::sdl
             virtual void               keyboard(const KeyboardInput               &/*input*/) {}
             /// Mouse wheel over position; positive dy scrolls up
             virtual void wheel(Point /*position*/, float /*dy*/) {}
+            /// The right mouse button went down at position (touch has no such button)
+            virtual void secondaryClick(Point /*position*/) {}
     };
 } // namespace djw::player_ui::sdl
 

@@ -3,6 +3,7 @@
 
 #include "library/library_service.hpp"
 
+#include "analysis/track_analysis.hpp"
 #include "library/missing_files.hpp"
 #include "library/playlist_files.hpp"
 #include "library/utf8_path.hpp"
@@ -53,7 +54,8 @@ namespace djw::core::library
     {
         tracks_total  = this->reader.tracks.trackCount().value_or(0);
         missing_total = this->reader.tracks.missingCount().value_or(0);
-        thread        = std::thread{[this] { run(); }};
+        thread          = std::thread{[this] { run(); }};
+        analysis_thread = std::thread{[this] { analysisLoop(); }};
     }
 
     LibraryService::~LibraryService()
@@ -64,6 +66,12 @@ namespace djw::core::library
             scan_requested = false;
         }
         wake.notify_all();
+        {
+            // Lock and unlock, so an analysis thread between its check and its wait cannot miss the notification
+            const std::scoped_lock lock{analysis_mutex};
+        }
+        analysis_wake.notify_all();
+        analysis_thread.join(); // before the library thread: its results are jobs for that thread
         thread.join();
     }
 
@@ -111,6 +119,135 @@ namespace djw::core::library
         queue([this, track_id, seconds] { return writer.tracks.setCue(track_id, seconds); });
     }
 
+    void LibraryService::requestAnalysis(AnalysisRequest request, bool in_front)
+    {
+        {
+            const std::scoped_lock lock{analysis_mutex};
+            const auto             queued = std::ranges::find(analysis_queue, request.track_id, &AnalysisRequest::track_id);
+            if (queued != analysis_queue.end())
+            {
+                if (in_front && queued != analysis_queue.begin())
+                {
+                    std::rotate(analysis_queue.begin(), queued, queued + 1);
+                }
+                return;
+            }
+            if (analysis_running == request.track_id)
+            {
+                return;
+            }
+            if (in_front)
+            {
+                analysis_queue.push_front(std::move(request));
+            }
+            else
+            {
+                analysis_queue.push_back(std::move(request));
+            }
+        }
+        analysis_wake.notify_all();
+    }
+
+    std::size_t LibraryService::analysisPending() const
+    {
+        const std::scoped_lock lock{analysis_mutex};
+        return analysis_queue.size() + (analysis_running != 0 ? 1 : 0);
+    }
+
+    void LibraryService::analyze(std::int64_t track_id)
+    {
+        const auto analyzed = reader.tracks.isAnalyzed(track_id);
+        if (!analyzed || *analyzed)
+        {
+            return;
+        }
+        const auto path = reader.tracks.trackPath(track_id);
+        if (path && *path)
+        {
+            requestAnalysis({track_id, **path}, true);
+        }
+    }
+
+    void LibraryService::analyzeAll()
+    {
+        const auto files = reader.tracks.unanalyzed();
+        if (!files)
+        {
+            return;
+        }
+        for (const StoredFile &file : *files)
+        {
+            requestAnalysis({file.track_id, file.path}, false);
+        }
+    }
+
+    void LibraryService::rescanTrack(std::int64_t track_id)
+    {
+        queue(
+            [this, track_id]() -> std::expected<void, std::string>
+            {
+                const auto path = writer.tracks.trackPath(track_id);
+                if (!path)
+                {
+                    return std::unexpected{path.error()};
+                }
+                if (!*path)
+                {
+                    return std::unexpected{"cannot scan again: track " + std::to_string(track_id) +
+                                           " is no longer in the library"};
+                }
+                const auto stamp = fileStamp(**path);
+                if (!stamp)
+                {
+                    return std::unexpected{stamp.error()};
+                }
+                if (auto stored = writer.tracks.store(**path, *stamp, read_tags(**path)); !stored)
+                {
+                    return stored;
+                }
+                requestAnalysis({track_id, **path}, true);
+                return {};
+            });
+    }
+
+    std::vector<std::uint8_t> LibraryService::waveform(std::int64_t track_id) const
+    {
+        return reader.tracks.waveform(track_id).value_or(std::vector<std::uint8_t>{});
+    }
+
+    void LibraryService::analysisLoop() // analysis thread
+    {
+        while (true)
+        {
+            AnalysisRequest request;
+            {
+                std::unique_lock lock{analysis_mutex};
+                analysis_wake.wait(lock, [this] { return !analysis_queue.empty() || stopping.load(); });
+                if (stopping.load())
+                {
+                    return;
+                }
+                request          = std::move(analysis_queue.front());
+                analysis_queue.pop_front();
+                analysis_running = request.track_id;
+            }
+            // 48 kHz: the rate the engine plays at; the analysis does not depend on it
+            auto analysis = analysis::analyzeFile(request.path, 48'000, stopping);
+            if (analysis)
+            {
+                queue([this, id = request.track_id, result = std::move(*analysis)]
+                      { return writer.tracks.setAnalysis(id, result.bpm, result.waveform); });
+            }
+            else if (!stopping.load())
+            {
+                // A file that cannot be decoded is not tried again and again: marked analyzed, without tempo
+                queue([this, id = request.track_id] { return writer.tracks.setAnalysis(id, std::nullopt, {}); });
+            }
+            const std::scoped_lock lock{analysis_mutex};
+            analysis_running = 0;
+        }
+    }
+
     void LibraryService::removeMissing()
     {
         queue([this] { return writer.tracks.removeMissing(); });
@@ -131,6 +268,7 @@ namespace djw::core::library
             .tracks_total   = tracks_total,
             .missing_total  = missing_total,
             .pending_writes = jobs.size() + jobs_running,
+            .analysis_pending = analysisPending(),
             .revision       = revision,
             .scan_error     = scan_error,
             .write_error    = write_error,
@@ -437,6 +575,7 @@ namespace djw::core::library
         {
             return std::unexpected{stamp.error()};
         }
-        return writer.tracks.store(**path, *stamp, read_tags(**path));
+        // Only tags changed, the audio and so its analysis stay
+        return writer.tracks.store(**path, *stamp, read_tags(**path), true);
     }
 } // namespace djw::core::library

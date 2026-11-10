@@ -8,6 +8,7 @@
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -36,6 +37,7 @@ namespace djw::core::library
             Statement &bind(int index, std::string_view text);
             Statement &bind(int index, std::int64_t value);
             Statement &bind(int index, double value);
+            Statement &bind(int index, std::span<const std::uint8_t> bytes);
             /// Binds NULL
             Statement &bindNull(int index);
 
@@ -49,6 +51,7 @@ namespace djw::core::library
             [[nodiscard]] std::string  text(int column) const;
             [[nodiscard]] std::int64_t integer(int column) const;
             [[nodiscard]] double       real(int column) const;
+            [[nodiscard]] std::vector<std::uint8_t> blob(int column) const;
             /// The column of the current row is NULL
             [[nodiscard]] bool isNull(int column) const;
 

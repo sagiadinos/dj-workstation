@@ -51,5 +51,5 @@ djw_set_options(djw_core_library)
 target_include_directories(djw_core_library PUBLIC ${PROJECT_SOURCE_DIR}/src/core)
 target_link_libraries(djw_core_library
     PUBLIC  djw::core::api
-    PRIVATE djw::sqlite TagLib::tag Threads::Threads
+    PRIVATE djw::core::analysis djw::sqlite TagLib::tag Threads::Threads
 )

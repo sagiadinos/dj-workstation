@@ -7,10 +7,12 @@
 include(DjwMiniaudio)
 include(DjwSqlite)
 include(DjwSoundTouch)
+include(DjwQmDsp)
 
 add_subdirectory(api)
 add_subdirectory(engine)
 add_subdirectory(decode)
+add_subdirectory(analysis)
 add_subdirectory(audio_io)
 add_subdirectory(library)
 add_subdirectory(runtime)

@@ -751,3 +751,90 @@ TEST_CASE("LibraryView: a notice shows in the status line for a while")
     fixture.view.update();
     CHECK(fixture.view.statusText().find("all players are playing") == std::string::npos);
 }
+
+namespace
+{
+    /// Right click on a row of the list
+    void rightClick(Fixture &fixture, std::size_t row)
+    {
+        const Rect &list = fixture.view.trackList().bounds();
+        fixture.view.secondaryClick({list.x + 20, list.y + (TrackList::row_height * static_cast<float>(row)) + 10});
+        fixture.view.update();
+    }
+
+    void chooseContext(Fixture &fixture, std::size_t item)
+    {
+        const Rect area = fixture.view.contextMenu().itemArea(item);
+        fixture.tap({area.x + 10, area.y + 10});
+        fixture.view.update();
+    }
+} // namespace
+
+TEST_CASE("LibraryView: the right mouse button on a track selects it and opens the context menu")
+{
+    Fixture fixture;
+    rightClick(fixture, 1);
+
+    CHECK(fixture.view.contextMenu().isOpen());
+    CHECK(fixture.view.trackList().selected() == 1U);
+    CHECK(fixture.loaded.empty());
+
+    djw::tests::RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Edit tags"));
+    CHECK(canvas.drew("Scan again"));
+}
+
+TEST_CASE("LibraryView: the right mouse button outside the rows or with a menu open opens no context menu")
+{
+    Fixture fixture;
+    fixture.view.secondaryClick({5, fixture.view.searchField().bounds().y + 5});
+    CHECK_FALSE(fixture.view.contextMenu().isOpen());
+
+    const Rect title = fixture.view.menuBar().titleArea(0);
+    fixture.tap({title.x + 10, title.y + 10});
+    REQUIRE(fixture.view.menuBar().isOpen());
+    rightClick(fixture, 0);
+    CHECK_FALSE(fixture.view.contextMenu().isOpen());
+}
+
+TEST_CASE("LibraryView: Edit tags in the context menu opens the artist cell of the track in the editor")
+{
+    Fixture fixture; // the second track is in use in a player and cannot be edited
+    rightClick(fixture, 0);
+    chooseContext(fixture, 0);
+
+    CHECK_FALSE(fixture.view.contextMenu().isOpen());
+    REQUIRE(fixture.view.editing());
+    CHECK(fixture.view.cellEditor().text() == fixture.view.trackList().tracks()[0].artist);
+    fixture.view.keyboard(std::string{"x"});
+    press(fixture, EditKey::Enter);
+    REQUIRE(fixture.library.edits.size() == 1);
+    CHECK(fixture.library.edits.front().first == fixture.view.trackList().tracks()[0].id);
+}
+
+TEST_CASE("LibraryView: Scan again in the context menu has the library read that track anew")
+{
+    Fixture fixture;
+    rightClick(fixture, 2);
+    chooseContext(fixture, 1);
+
+    CHECK_FALSE(fixture.view.contextMenu().isOpen());
+    CHECK(fixture.library.rescanned == std::vector<std::int64_t>{fixture.view.trackList().tracks()[2].id});
+    CHECK(fixture.library.rescans == 0); // not the whole library
+}
+
+TEST_CASE("LibraryView: Analyze all tracks in the Database menu queues the analysis, the status line counts down")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 0, 2);
+    CHECK(fixture.library.analyze_all_requests == 1);
+
+    fixture.library.library_status.analysis_pending = 3;
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("analyzing 3 tracks") != std::string::npos);
+
+    fixture.library.library_status.analysis_pending = 0;
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("analyzing") == std::string::npos);
+}

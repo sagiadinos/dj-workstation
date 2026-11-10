@@ -35,6 +35,9 @@ namespace djw::player_ui::sdl
     };
 
     std::optional<WheelEvent> toWheelEvent(const SDL_Event &event);
+
+    /// Where the right mouse button went down, std::nullopt for all other events (and for touch)
+    std::optional<Point> toSecondaryClick(const SDL_Event &event);
 } // namespace djw::player_ui::sdl
 
 #endif // DJW_PLAYER_UI_SDL_SDL_EVENTS_HPP

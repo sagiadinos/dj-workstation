@@ -342,3 +342,75 @@ TEST_CASE("TrackStore: a version 4 database gets the cue column, its tracks have
     REQUIRE(fixture.store.setCue(found.front().id, 5.0).has_value());
     CHECK(fixture.store.search({}).value().front().cue_seconds == 5.0);
 }
+
+TEST_CASE("TrackStore: a track is not analyzed at first, the analysis comes back with tempo and waveform")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    fixture.add("b.mp3", {.title = "b"});
+    auto tracks = fixture.store.search({.sort_by = api::LibraryColumn::Title}).value();
+    CHECK_FALSE(tracks[0].analyzed);
+    CHECK_FALSE(tracks[0].bpm.has_value());
+    CHECK(fixture.store.waveform(tracks[0].id).value().empty());
+    CHECK(fixture.store.unanalyzed().value().size() == 2);
+
+    const std::vector<std::uint8_t> waveform{0, 10, 255, 3};
+    REQUIRE(fixture.store.setAnalysis(tracks[0].id, 127.5, waveform).has_value());
+
+    tracks = fixture.store.search({.sort_by = api::LibraryColumn::Title}).value();
+    CHECK(tracks[0].analyzed);
+    REQUIRE(tracks[0].bpm.has_value());
+    CHECK(*tracks[0].bpm == doctest::Approx(127.5));
+    CHECK_FALSE(tracks[1].analyzed); // only that track
+    CHECK(fixture.store.waveform(tracks[0].id).value() == waveform);
+    CHECK(fixture.store.isAnalyzed(tracks[0].id).value());
+    CHECK_FALSE(fixture.store.isAnalyzed(tracks[1].id).value());
+    CHECK(fixture.store.unanalyzed().value().size() == 1);
+
+    // No tempo found is a result too: analyzed, without tempo and with an empty waveform
+    REQUIRE(fixture.store.setAnalysis(tracks[1].id, std::nullopt, {}).has_value());
+    tracks = fixture.store.search({.sort_by = api::LibraryColumn::Title}).value();
+    CHECK(tracks[1].analyzed);
+    CHECK_FALSE(tracks[1].bpm.has_value());
+    CHECK(fixture.store.unanalyzed().value().empty());
+}
+
+TEST_CASE("TrackStore: a changed file loses its analysis, a tag edit keeps it")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    const auto id = fixture.store.search({}).value().front().id;
+    REQUIRE(fixture.store.setAnalysis(id, 120.0, std::vector<std::uint8_t>{1, 2, 3}).has_value());
+
+    REQUIRE(fixture.store.store(fixture.folder.path() / "a.mp3", {.modified = 1, .size = 2}, {.title = "a, retagged"}, true)
+                .has_value());
+    auto found = fixture.store.search({}).value();
+    CHECK(found.front().title == "a, retagged");
+    CHECK(found.front().analyzed);
+    CHECK(found.front().bpm == 120.0);
+    CHECK(fixture.store.waveform(id).value().size() == 3);
+
+    fixture.add("a.mp3", {.title = "a, other file"}); // the scan found a changed file
+    found = fixture.store.search({}).value();
+    CHECK_FALSE(found.front().analyzed);
+    CHECK_FALSE(found.front().bpm.has_value());
+    CHECK(fixture.store.waveform(id).value().empty());
+}
+
+TEST_CASE("TrackStore: a version 5 database gets the analysis columns, its tracks are not analyzed")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "Kept"});
+    djw::tests::downgradeLibrary(fixture.database(), 5);
+
+    auto migrated = TrackStore::open(fixture.database());
+    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
+    fixture.store = std::move(*migrated);
+
+    const auto tracks = fixture.store.search({}).value();
+    REQUIRE(tracks.size() == 1);
+    CHECK(tracks.front().title == "Kept");
+    CHECK_FALSE(tracks.front().analyzed);
+    CHECK_FALSE(tracks.front().bpm.has_value());
+    CHECK(fixture.store.unanalyzed().value().size() == 1);
+}

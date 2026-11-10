@@ -75,8 +75,8 @@ namespace djw::core::library
         constexpr std::string_view migration_to_3 =
             "ALTER TABLE tracks ADD COLUMN missing INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 3;";
 
-        constexpr std::string_view track_columns =
-            "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, t.duration, t.missing, t.cue";
+        constexpr std::string_view track_columns = "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, "
+                                                   "t.duration, t.missing, t.cue, t.bpm, t.analyzed";
 
         // Version 3 had no playlists
         constexpr std::string_view migration_to_4 = R"sql(
@@ -96,6 +96,18 @@ namespace djw::core::library
 
         // Version 4 had no cue points; NULL is none
         constexpr std::string_view migration_to_5 = "ALTER TABLE tracks ADD COLUMN cue REAL; PRAGMA user_version = 5;";
+
+        // Version 5 had no analysis: tempo (NULL: none), whether it ran, and the overview waveform in its own table
+        // so that reading tracks never loads it
+        constexpr std::string_view migration_to_6 = R"sql(
+            ALTER TABLE tracks ADD COLUMN bpm REAL;
+            ALTER TABLE tracks ADD COLUMN analyzed INTEGER NOT NULL DEFAULT 0;
+            CREATE TABLE waveforms (
+                track_id INTEGER PRIMARY KEY REFERENCES tracks (id) ON DELETE CASCADE,
+                peaks    BLOB    NOT NULL
+            );
+            PRAGMA user_version = 6;
+        )sql";
 
         constexpr std::string_view update_keys =
             "UPDATE tracks SET artist_key = ?, title_key = ?, genre_key = ?, any_key = ? WHERE id = ?";
@@ -160,6 +172,8 @@ namespace djw::core::library
             .duration_seconds = row.real(7),
             .missing          = row.integer(8) != 0,
             .cue_seconds      = row.isNull(9) ? std::nullopt : std::optional{row.real(9)},
+            .bpm              = row.isNull(10) ? std::nullopt : std::optional{row.real(10)},
+            .analyzed         = row.integer(11) != 0,
         };
     }
 
@@ -252,7 +266,14 @@ namespace djw::core::library
                 return migrated;
             }
         }
-        return database.execute(migration_to_5);
+        if (from_version < 5)
+        {
+            if (auto migrated = database.execute(migration_to_5); !migrated)
+            {
+                return migrated;
+            }
+        }
+        return database.execute(migration_to_6);
     }
 
     std::expected<void, std::string> TrackStore::migrateToVersion2(SqliteDatabase &database)
@@ -305,12 +326,14 @@ namespace djw::core::library
         auto store          = database.prepare(R"sql(
             INSERT INTO tracks (path, file_name, modified, size, artist, title, album, genre, year, duration,
                                 artist_key, title_key, genre_key, any_key)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
             ON CONFLICT (path) DO UPDATE SET
                 file_name = excluded.file_name, modified = excluded.modified, size = excluded.size,
                 artist = excluded.artist, title = excluded.title, album = excluded.album, genre = excluded.genre,
                 year = excluded.year, duration = excluded.duration, artist_key = excluded.artist_key,
-                title_key = excluded.title_key, genre_key = excluded.genre_key, any_key = excluded.any_key
+                title_key = excluded.title_key, genre_key = excluded.genre_key, any_key = excluded.any_key,
+                bpm = CASE WHEN ?15 THEN bpm ELSE NULL END,
+                analyzed = CASE WHEN ?15 THEN analyzed ELSE 0 END
         )sql");
         auto count          = database.prepare("SELECT count(*) FROM tracks");
         auto path           = database.prepare("SELECT path FROM tracks WHERE id = ?");
@@ -320,9 +343,18 @@ namespace djw::core::library
         auto remove_missing = database.prepare("DELETE FROM tracks WHERE missing = 1");
         auto id_of_path     = database.prepare("SELECT id FROM tracks WHERE path = ?");
         auto set_cue        = database.prepare("UPDATE tracks SET cue = ? WHERE id = ?");
+        auto set_analysis   = database.prepare("UPDATE tracks SET bpm = ?, analyzed = 1 WHERE id = ?");
+        auto set_waveform   = database.prepare("INSERT OR REPLACE INTO waveforms (track_id, peaks) VALUES (?, ?)");
+        auto drop_waveform  = database.prepare(
+            "DELETE FROM waveforms WHERE track_id IN (SELECT id FROM tracks WHERE path = ?)");
+        auto waveform       = database.prepare("SELECT peaks FROM waveforms WHERE track_id = ?");
+        auto is_analyzed    = database.prepare("SELECT analyzed FROM tracks WHERE id = ?");
+        auto unanalyzed     = database.prepare("SELECT id, path, missing FROM tracks WHERE analyzed = 0 AND missing = 0");
 
         for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count, &path, &files, &set_missing,
-                                      &missing_count, &remove_missing, &id_of_path, &set_cue})
+                                      &missing_count, &remove_missing, &id_of_path, &set_cue,
+                                      &set_analysis, &set_waveform, &drop_waveform, &waveform, &is_analyzed,
+                                      &unanalyzed})
         {
             if (!*statement)
             {
@@ -342,6 +374,12 @@ namespace djw::core::library
             .remove_missing = std::move(*remove_missing),
             .id_of_path     = std::move(*id_of_path),
             .set_cue        = std::move(*set_cue),
+            .set_analysis   = std::move(*set_analysis),
+            .set_waveform   = std::move(*set_waveform),
+            .drop_waveform  = std::move(*drop_waveform),
+            .waveform       = std::move(*waveform),
+            .is_analyzed    = std::move(*is_analyzed),
+            .unanalyzed     = std::move(*unanalyzed),
         };
     }
 
@@ -373,10 +411,18 @@ namespace djw::core::library
     }
 
     std::expected<void, std::string> TrackStore::store(const std::filesystem::path &file, const FileStamp &stamp,
-                                                       const TrackTags &tags)
+                                                       const TrackTags &tags, bool keep_analysis)
     {
         const std::string file_name = toUtf8(file.filename());
         const TrackKeys   keys      = keysOf(tags, file_name);
+        if (!keep_analysis)
+        {
+            // The waveform goes with the analysis it belongs to
+            if (auto dropped = statements.drop_waveform.bind(1, toUtf8(file)).run(); !dropped)
+            {
+                return dropped;
+            }
+        }
         return statements.store.bind(1, toUtf8(file))
             .bind(2, file_name)
             .bind(3, stamp.modified)
@@ -391,6 +437,7 @@ namespace djw::core::library
             .bind(12, keys.title)
             .bind(13, keys.genre)
             .bind(14, keys.any)
+            .bind(15, std::int64_t{keep_analysis ? 1 : 0})
             .run();
     }
 
@@ -444,6 +491,53 @@ namespace djw::core::library
             update.bindNull(1);
         }
         return update.bind(2, track_id).run();
+    }
+
+    std::expected<void, std::string> TrackStore::setAnalysis(std::int64_t track_id, std::optional<double> bpm,
+                                                             std::span<const std::uint8_t> waveform)
+    {
+        Statement &update = statements.set_analysis;
+        if (bpm)
+        {
+            update.bind(1, *bpm);
+        }
+        else
+        {
+            update.bindNull(1);
+        }
+        if (auto updated = update.bind(2, track_id).run(); !updated)
+        {
+            return updated;
+        }
+        return statements.set_waveform.bind(1, track_id).bind(2, waveform).run();
+    }
+
+    std::expected<std::vector<std::uint8_t>, std::string> TrackStore::waveform(std::int64_t track_id)
+    {
+        auto rows = collectRows(statements.waveform.bind(1, track_id),
+                                [](const Statement &row) { return row.blob(0); });
+        if (!rows)
+        {
+            return std::unexpected{rows.error()};
+        }
+        return rows->empty() ? std::vector<std::uint8_t>{} : std::move(rows->front());
+    }
+
+    std::expected<bool, std::string> TrackStore::isAnalyzed(std::int64_t track_id)
+    {
+        auto rows = collectRows(statements.is_analyzed.bind(1, track_id),
+                                [](const Statement &row) { return row.integer(0) != 0; });
+        if (!rows)
+        {
+            return std::unexpected{rows.error()};
+        }
+        return !rows->empty() && rows->front();
+    }
+
+    std::expected<std::vector<StoredFile>, std::string> TrackStore::unanalyzed()
+    {
+        return collectRows(statements.unanalyzed, [](const Statement &row)
+                           { return StoredFile{row.integer(0), fromUtf8(row.text(1)), row.integer(2) != 0}; });
     }
 
     std::expected<void, std::string> TrackStore::removeMissing()

@@ -21,6 +21,10 @@ namespace djw::tests
     inline void downgradeLibrary(const std::filesystem::path &database_file, int version)
     {
         std::string sql;
+        if (version < 6) // analysis
+        {
+            sql += "DROP TABLE waveforms; ALTER TABLE tracks DROP COLUMN bpm; ALTER TABLE tracks DROP COLUMN analyzed;";
+        }
         if (version < 5) // cue points
         {
             sql += "ALTER TABLE tracks DROP COLUMN cue;";

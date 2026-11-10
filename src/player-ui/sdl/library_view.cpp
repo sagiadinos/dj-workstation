@@ -23,6 +23,9 @@ namespace djw::player_ui::sdl
         {
             AddFolder = 1,
             Rescan,
+            AnalyzeAll,
+            ContextEditTags,
+            ContextRescanTrack,
             PlaylistNew,
             PlaylistImport,
             PlaylistExport,
@@ -95,6 +98,7 @@ namespace djw::player_ui::sdl
     {
         const float bar_height = std::min(MenuBar::bar_height, area.height);
         menu.place({area.x, area.y, area.width, bar_height}, area);
+        context_menu.place(area);
         const Rect below{area.x, area.y + bar_height, area.width, area.height - bar_height};
         const Rect inner = below.inset(margin);
         search_field.setBounds({inner.x, inner.y, inner.width, std::min(search_height, inner.height)});
@@ -131,6 +135,7 @@ namespace djw::player_ui::sdl
         router.add(remove_button);
         router.add(add_button);
         router.add(cell_editor); // on top of the list; without an edit it has no area and catches nothing
+        router.add(context_menu); // covers the window while open
         router.add(menu);        // on top of everything: an open menu covers the window
     }
 
@@ -357,6 +362,7 @@ namespace djw::player_ui::sdl
         const core::api::LibraryStatus status = library->status();
         updateMissingButtons(status);
         updateMenu(status);
+        updateContextMenu();
 
         const core::api::LibraryQuery query            = currentQuery();
         const bool                    query_changed    = !has_searched || query != searched;
@@ -463,6 +469,10 @@ namespace djw::player_ui::sdl
         {
             status_text += " - " + translator->tr("library.saving_tags");
         }
+        if (status.analysis_pending > 0)
+        {
+            status_text += " - " + translator->tr("library.analyzing", {{"count", status.analysis_pending}});
+        }
         if (!notice_key.empty() && clock() < notice_until)
         {
             status_text += " - " + translator->tr(notice_key);
@@ -514,7 +524,8 @@ namespace djw::player_ui::sdl
         std::vector<Menu> menus;
         menus.push_back({tr("menu.database"),
                          {{.id = AddFolder, .label = tr("menu.database.add_folder")},
-                          {.id = Rescan, .label = tr("menu.database.rescan")}}});
+                          {.id = Rescan, .label = tr("menu.database.rescan")},
+                          {.id = AnalyzeAll, .label = tr("menu.database.analyze_all")}}});
         menus.push_back({tr("menu.playlist"),
                          {{.id = PlaylistNew, .label = tr("menu.playlist.new"), .enabled = has_playlists},
                           {.id = PlaylistImport, .label = tr("menu.playlist.import"), .enabled = has_playlists},
@@ -574,6 +585,9 @@ namespace djw::player_ui::sdl
             case Rescan:
                 library->rescan();
                 break;
+            case AnalyzeAll:
+                library->analyzeAll();
+                break;
             case ToggleMixerWindow:
                 if (mixer_toggle)
                 {
@@ -625,6 +639,44 @@ namespace djw::player_ui::sdl
         }
     }
 
+    void LibraryView::secondaryClick(Point position)
+    {
+        if (menu.isOpen() || edit)
+        {
+            return;
+        }
+        const auto row = list.rowAt(position);
+        if (!row)
+        {
+            context_menu.close();
+            return;
+        }
+        list.select(*row);
+        context_track = list.tracks()[*row].id;
+        updateContextMenu();
+        context_menu.open(position);
+    }
+
+    void LibraryView::updateContextMenu()
+    {
+        context_menu.setItems({{.id = ContextEditTags, .label = translator->tr("context.edit_tags")},
+                               {.id = ContextRescanTrack, .label = translator->tr("context.rescan_track")}});
+        if (const auto chosen = context_menu.takeChosen())
+        {
+            if (*chosen == ContextEditTags)
+            {
+                if (const auto row = rowOf(context_track))
+                {
+                    startEdit({.row = *row, .column = core::api::LibraryColumn::Artist});
+                }
+            }
+            else if (*chosen == ContextRescanTrack)
+            {
+                library->rescanTrack(context_track);
+            }
+        }
+    }
+
     void LibraryView::setNotice(std::string_view key)
     {
         notice_key   = key;
@@ -658,6 +710,7 @@ namespace djw::player_ui::sdl
         missing_button.draw(canvas);
         remove_button.draw(canvas);
         add_button.draw(canvas);
+        context_menu.draw(canvas);
         menu.draw(canvas); // last, so an open menu lies over everything
     }
 

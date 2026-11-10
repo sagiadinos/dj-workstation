@@ -432,3 +432,117 @@ TEST_CASE("Library: a cue point is stored in the database, the revision goes up,
     static_cast<void>(waitForEdits(*library));
     CHECK_FALSE(library->search({}).value().front().cue_seconds.has_value());
 }
+
+namespace
+{
+    /// Waits until the analysis queue is empty and everything it produced is written, at most 20 seconds
+    api::LibraryStatus waitForAnalysis(const api::Library &library)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{20};
+        while ((library.status().analysis_pending > 0 || library.status().pending_writes > 0) &&
+               std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{5});
+        }
+        return library.status();
+    }
+} // namespace
+
+TEST_CASE("Library: analyze stores the waveform, a track is analyzed once, analyzeAll takes the rest")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::filesystem::copy_file(audio_dir / "sine_440hz_48k_stereo.wav", music.path() / "a.wav");
+    std::filesystem::copy_file(audio_dir / "sine_440hz_44k1_mono.wav", music.path() / "b.wav");
+    auto library = openLibrary(data.path() / "library.db");
+    REQUIRE(library->addFolder(music.path()).has_value());
+    waitForScan(*library);
+    auto tracks = library->search({.sort_by = api::LibraryColumn::Title}).value();
+    REQUIRE(tracks.size() == 2);
+    CHECK_FALSE(tracks[0].analyzed);
+    CHECK(library->waveform(tracks[0].id).empty());
+
+    const std::uint64_t before = library->status().revision;
+    library->analyze(tracks[0].id);
+    const api::LibraryStatus done = waitForAnalysis(*library);
+
+    CHECK(done.write_error.empty());
+    CHECK(done.revision > before);
+    tracks = library->search({.sort_by = api::LibraryColumn::Title}).value();
+    CHECK(tracks[0].analyzed);
+    CHECK_FALSE(tracks[0].bpm.has_value()); // a sine has no beat
+    CHECK_FALSE(library->waveform(tracks[0].id).empty());
+    CHECK_FALSE(tracks[1].analyzed);
+
+    // Analyzed once: asking again does nothing
+    const std::uint64_t analyzed_revision = library->status().revision;
+    library->analyze(tracks[0].id);
+    CHECK(library->status().analysis_pending == 0);
+    CHECK(library->status().revision == analyzed_revision);
+
+    library->analyzeAll();
+    waitForAnalysis(*library);
+    tracks = library->search({.sort_by = api::LibraryColumn::Title}).value();
+    CHECK(tracks[0].analyzed);
+    CHECK(tracks[1].analyzed);
+}
+
+TEST_CASE("Library: a file that cannot be decoded is marked analyzed and not tried again")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::ofstream{music.path() / "Broken - Song.mp3"} << "this is no audio";
+    auto library = openLibrary(data.path() / "library.db");
+    REQUIRE(library->addFolder(music.path()).has_value());
+    waitForScan(*library);
+
+    library->analyzeAll();
+    waitForAnalysis(*library);
+
+    const auto tracks = library->search({}).value();
+    REQUIRE(tracks.size() == 1);
+    CHECK(tracks.front().analyzed);
+    CHECK_FALSE(tracks.front().bpm.has_value());
+    CHECK(library->waveform(tracks.front().id).empty());
+    library->analyzeAll();
+    CHECK(library->status().analysis_pending == 0);
+}
+
+TEST_CASE("Library: a tag edit keeps the analysis, scanning a track again reads it and analyzes it anew")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::filesystem::copy_file(audio_dir / "tagged_vorbis.flac", music.path() / "a.flac");
+    auto library = openLibrary(data.path() / "library.db");
+    REQUIRE(library->addFolder(music.path()).has_value());
+    waitForScan(*library);
+    const auto id = library->search({}).value().front().id;
+    library->analyze(id);
+    waitForAnalysis(*library);
+    REQUIRE(library->search({}).value().front().analyzed);
+
+    library->updateTags(id, {.title = "New Title"});
+    waitForAnalysis(*library);
+    auto track = library->search({}).value().front();
+    CHECK(track.title == "New Title");
+    CHECK(track.analyzed);
+
+    // Change a tag behind djw's back, then scan the track again
+    library->rescanTrack(id);
+    const api::LibraryStatus status = waitForAnalysis(*library);
+    CHECK(status.write_error.empty());
+    track = library->search({}).value().front();
+    CHECK(track.analyzed); // analyzed again after the rescan
+    CHECK_FALSE(library->waveform(id).empty());
+}
+
+TEST_CASE("Library: scanning an unknown track again is an error")
+{
+    const djw::tests::TempDir data;
+    auto                      library = openLibrary(data.path() / "library.db");
+
+    library->rescanTrack(4711);
+    const api::LibraryStatus status = waitForAnalysis(*library);
+
+    CHECK(status.write_error.find("4711") != std::string::npos);
+}
