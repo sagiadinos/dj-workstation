@@ -123,7 +123,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Cue | M | Classic CDJ behavior: when stopped sets cue, while playing jumps back and stops, when held plays from cue. |
 | Stored cue point | M | Cue point per track in the database. "Cue load" option: track starts at the stored point when loaded. |
 | Time display | M | Toggle elapsed/remaining. |
-| Pitch | M | Fader with range ±8 / ±16 / ±50 %, display in percent. |
+| Pitch | M | Fader with range ±12 %, display in percent. Formant correction comes later. |
 | Pitch bend | M | +/- buttons for temporary nudging. |
 | Pitch zero | M | Reset fader to 0. |
 | Keylock (master tempo) | M | Tempo change without pitch change via SoundTouch. |
@@ -264,6 +264,12 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 | Multilingual | M | Language files, starting with German, English and French (like the original version). |
 | Always on top | L | Desktop option from the original version. |
 
+Layout reference: the original version, see [djw.gif](https://dj-workstation.de/bilder/djw.gif). The new UI keeps its structure, adapted for touch:
+- Player window: load button, pitch bend -/+, vertical pitch fader, large time display with elapsed/remaining toggle, pitch in percent and pitch zero, position slider, state (loaded/cued/playing), large CUE and play/pause buttons, channel volume and headphone level faders with headphone cue button, artist and title, cue load option.
+- Crossfader window: deck selection for side A and B, zero, momentary A/B buttons, fade now, autoplay start before the end (s), fade time (s), autoplay and autofade switches.
+- Playlist window: numbered list, next track highlighted.
+- Library window: search fields directly above the columns (artist, title, genre, year), sortable list.
+
 ### 4.9 Recording
 
 | Feature | Prio | Description |
@@ -288,7 +294,7 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 | UI | 60 fps on Pi 5, GPU-accelerated waveform rendering |
 | Library search | < 50 ms with 100,000 tracks |
 | Binary (desktop, static, without FFmpeg) | single-digit MB |
-| RAM | < 200 MB with 4 loaded decks and 100,000 tracks |
+| RAM | No target. Decoded tracks up to the configured length are held in memory (about 23 MB per minute at 48 kHz); this is audio, not video. |
 
 ---
 
