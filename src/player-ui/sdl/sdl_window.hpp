@@ -50,6 +50,10 @@ namespace djw::player_ui::sdl
 
             /// Moves this window next to other, to its right, with the same top edge
             void placeRightOf(const SdlWindow &other);
+            /// Moves this window a little down and to the right of other, so both can be told apart
+            void cascadeFrom(const SdlWindow &other);
+            /// Makes this window the one that waits for the display (vsync) or not
+            void setPaced(bool paced);
 
             /// An input event of this window
             void handle(const SDL_Event &event);

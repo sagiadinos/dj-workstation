@@ -30,6 +30,7 @@ namespace djw::player_ui::sdl
             ClearFilters,
             MissingOnly,
             TogglePlaylistWindow,
+            NewDeckEntry,
             language_base = 100
         };
 
@@ -509,7 +510,11 @@ namespace djw::player_ui::sdl
         menus.push_back({tr("menu.settings"), {{.id = 0, .label = tr("menu.settings.none"), .enabled = false}}});
         menus.push_back({tr("menu.language"), std::move(language_items)});
         menus.push_back({tr("menu.view"),
-                         {{.id      = TogglePlaylistWindow,
+                         {{.id       = NewDeckEntry,
+                           .label    = tr("menu.view.new_deck"),
+                           .enabled  = static_cast<bool>(new_deck_requested),
+                           .shortcut = "Ctrl+N"},
+                          {.id      = TogglePlaylistWindow,
                            .label   = tr("menu.view.playlist_window"),
                            .enabled = has_playlists,
                            .checked = playlist_shown && playlist_shown()},
@@ -550,6 +555,12 @@ namespace djw::player_ui::sdl
                 break;
             case Rescan:
                 library->rescan();
+                break;
+            case NewDeckEntry:
+                if (new_deck_requested)
+                {
+                    new_deck_requested();
+                }
                 break;
             case TogglePlaylistWindow:
                 if (playlist_action)

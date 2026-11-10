@@ -162,3 +162,32 @@ TEST_CASE("MenuBar: the drop-down stays inside the window")
     CHECK(dropdown.x >= 0.0F);
     CHECK(dropdown.x + dropdown.width <= 260.0F);
 }
+
+TEST_CASE("MenuBar: an entry shows its shortcut at the end, at the start in right-to-left layout")
+{
+    for (const bool right_to_left : {false, true})
+    {
+        MenuBar bar;
+        bar.setRightToLeft(right_to_left);
+        bar.setMenus({{"File", {{.id = 1, .label = "New", .shortcut = "Ctrl+N"}}}});
+        bar.place({0, 0, 600, MenuBar::bar_height}, {0, 0, 600, 400});
+        PointerRouter router;
+        router.add(bar);
+        const Rect title = bar.titleArea(0);
+        router.handle({{1, 1}, PointerPhase::Down, {title.x + 10, title.y + 10}});
+        router.handle({{1, 1}, PointerPhase::Up, {title.x + 10, title.y + 10}});
+
+        RecordingCanvas canvas;
+        bar.draw(canvas);
+        float shortcut_x = -1;
+        float label_x    = -1;
+        for (const auto &drawn : canvas.texts)
+        {
+            shortcut_x = drawn.text == "Ctrl+N" ? drawn.position.x : shortcut_x;
+            label_x    = drawn.text == "New" ? drawn.position.x : label_x;
+        }
+        REQUIRE(shortcut_x >= 0);
+        REQUIRE(label_x >= 0);
+        CHECK((right_to_left ? shortcut_x < label_x : shortcut_x > label_x));
+    }
+}

@@ -9,6 +9,7 @@ namespace djw::player_ui::sdl::catalogs
     {
         constexpr CatalogEntry entries[] = {
             {"window.library", "djw - Βιβλιοθήκη"},
+            {"window.deck", "djw - Deck {number}"},
             {"window.playlist", "djw - Λίστα"},
             {"menu.database", "Βάση δεδομένων"},
             {"menu.playlist", "Λίστα"},
@@ -24,6 +25,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.add_track", "Προσθήκη επιλεγμένου κομματιού"},
             {"menu.view.clear_filters", "Εκκαθάριση αναζήτησης και φίλτρων"},
             {"menu.view.missing_only", "Εμφάνιση μόνο των κομματιών που λείπουν"},
+            {"menu.view.new_deck", "Νέο deck"},
             {"menu.view.playlist_window", "Παράθυρο λίστας"},
             {"search.placeholder", "Αναζήτηση"},
             {"column.artist", "Καλλιτέχνης"},

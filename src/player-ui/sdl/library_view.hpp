@@ -40,7 +40,8 @@ namespace djw::player_ui::sdl
      *
      * Menu bar on top (Database, Playlist, Settings, Language, View): add a music folder (folder dialog) and rescan; the
      * playlist commands, which the owner carries out in the playlist window (opening it if needed); the language,
-     * which takes effect at once; clear the search, show only missing tracks, show or hide the playlist window. All texts come from the translator on every update.
+     * which takes effect at once; new deck (Ctrl+N is handled by the app), clear the search, show only missing tracks,
+     * show or hide the playlist window. All texts come from the translator on every update.
      *
      * Dead links: when tracks are missing, the status line shows a "Missing" button that lists only those; there a
      * "Remove" button takes them out of the library after a second tap within confirm_time. With setAddToPlaylist,
@@ -65,6 +66,7 @@ namespace djw::player_ui::sdl
             using PlaylistAction  = std::function<void(PlaylistCommand command)>;
             using PlaylistShown   = std::function<bool()>;
             using LanguageChosen = std::function<void(Language language)>;
+            using NewDeck        = std::function<void()>;
 
             /// Most tracks listed at once; the search narrows it down
             static constexpr std::size_t               result_limit = 1'000;
@@ -112,7 +114,9 @@ namespace djw::player_ui::sdl
                 playlist_action = std::move(action);
                 playlist_shown  = std::move(shown);
             }
-            /// Called when the user picks a language in the Settings menu
+            /// Enables View > New deck, which calls new_deck
+            void setOnNewDeck(NewDeck new_deck) { new_deck_requested = std::move(new_deck); }
+            /// Called when the user picks a language in the Language menu
             void setOnLanguage(LanguageChosen chosen) { language_chosen = std::move(chosen); }
 
         private:
@@ -161,6 +165,7 @@ namespace djw::player_ui::sdl
             Add                      add_to_playlist;
             PlaylistAction           playlist_action;
             PlaylistShown            playlist_shown;
+            NewDeck                  new_deck_requested;
             LanguageChosen           language_chosen;
             bool                     only_missing = false;
             std::optional<std::chrono::steady_clock::time_point> confirm_remove_until;

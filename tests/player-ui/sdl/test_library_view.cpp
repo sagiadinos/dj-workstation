@@ -576,17 +576,17 @@ TEST_CASE("LibraryView: View clears the search and the filters, and shows only m
     fixture.view.keyboard(std::string{"abc"});
     fixture.view.update();
     CHECK(fixture.view.query().text == "abc");
-    chooseEntry(fixture, 4, 1);
+    chooseEntry(fixture, 4, 2);
     fixture.view.update();
     CHECK(fixture.view.query().text.empty());
 
     // Missing tracks only: disabled without missing tracks
-    chooseEntry(fixture, 4, 2);
+    chooseEntry(fixture, 4, 3);
     CHECK_FALSE(fixture.view.query().only_missing);
     fixture.view.keyboard(EditKey::Escape); // closes the menu
     fixture.library.library_status.missing_total = 2;
     fixture.view.update();
-    chooseEntry(fixture, 4, 2);
+    chooseEntry(fixture, 4, 3);
     fixture.view.update();
     CHECK(fixture.view.query().only_missing);
 }
@@ -645,7 +645,7 @@ TEST_CASE("LibraryView: Settings has nothing to choose yet, the language has its
 TEST_CASE("LibraryView: View shows or hides the playlist window and tells whether it is shown")
 {
     Fixture fixture;
-    chooseEntry(fixture, 4, 0);
+    chooseEntry(fixture, 4, 1);
     CHECK(fixture.view.menuBar().isOpen()); // off without a playlist window
     fixture.view.keyboard(EditKey::Escape);
 
@@ -654,7 +654,7 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
     fixture.view.setPlaylistCommands([&commands](LibraryView::PlaylistCommand command) { commands.push_back(command); },
                                      [&shown] { return shown; });
     fixture.view.update();
-    chooseEntry(fixture, 4, 0);
+    chooseEntry(fixture, 4, 1);
     CHECK(commands == std::vector{LibraryView::PlaylistCommand::ToggleWindow});
 
     shown = true;
@@ -664,4 +664,25 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
     fixture.tap({title.x + 10, title.y + 10});
     fixture.view.draw(canvas);
     CHECK(canvas.drew("Playlist window"));
+}
+
+TEST_CASE("LibraryView: View > New deck calls the app and shows its shortcut")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 4, 0);
+    CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
+    fixture.view.keyboard(EditKey::Escape);
+
+    int decks = 0;
+    fixture.view.setOnNewDeck([&decks] { ++decks; });
+    fixture.view.update();
+    chooseEntry(fixture, 4, 0);
+    CHECK(decks == 1);
+
+    const Rect title = fixture.view.menuBar().titleArea(4);
+    fixture.tap({title.x + 10, title.y + 10});
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Ctrl+N"));
+    CHECK(canvas.drew("New deck"));
 }

@@ -9,6 +9,7 @@ namespace djw::player_ui::sdl::catalogs
     {
         constexpr CatalogEntry entries[] = {
             {"window.library", "djw - Bibliothek"},
+            {"window.deck", "djw - Deck {number}"},
             {"window.playlist", "djw - Playlist"},
             {"menu.database", "Datenbank"},
             {"menu.playlist", "Playlist"},
@@ -24,6 +25,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.add_track", "Gewählten Titel hinzufügen"},
             {"menu.view.clear_filters", "Suche und Filter zurücksetzen"},
             {"menu.view.missing_only", "Nur fehlende Titel anzeigen"},
+            {"menu.view.new_deck", "Neues Deck"},
             {"menu.view.playlist_window", "Playlist-Fenster"},
             {"search.placeholder", "Suche"},
             {"column.artist", "Interpret"},

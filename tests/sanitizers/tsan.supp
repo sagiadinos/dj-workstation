@@ -8,3 +8,8 @@
 race:walIndexWriteHdr
 race:walIndexTryHdr
 race:walTryBeginRead
+
+# libdbus, used by SDL (screensaver and portal handling) in SDL_Init and SDL_Quit. The app tests (player-ui) start and
+# stop SDL several times in one process; dbus takes its connection lock and the global lock in different orders in
+# dbus_connection_close and the first use of a new connection. Inside the system library, not in djw code.
+deadlock:libdbus-1.so

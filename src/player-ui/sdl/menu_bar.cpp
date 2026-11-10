@@ -173,11 +173,19 @@ namespace djw::player_ui::sdl
             {
                 canvas.fillRect(area, open_background);
             }
-            const float available = area.width - (2 * padding);
-            const float width     = std::min(canvas.textWidth(entry.label), available);
-            const float x         = rtl ? area.x + area.width - padding - width : area.x + padding;
-            canvas.textElided({x, area.y + ((area.height - canvas.textHeight()) / 2)}, entry.label,
-                              entry.enabled ? text_color : dim_color, available);
+            const float text_y    = area.y + ((area.height - canvas.textHeight()) / 2);
+            float       available = area.width - (2 * padding);
+            if (!entry.shortcut.empty())
+            {
+                // At the end of the entry: right in left-to-right layout, left in right-to-left
+                const float shortcut_width = canvas.textWidth(entry.shortcut);
+                const float shortcut_x = rtl ? area.x + padding : area.x + area.width - padding - shortcut_width;
+                canvas.text({shortcut_x, text_y}, entry.shortcut, dim_color);
+                available = std::max(0.0F, available - shortcut_width - padding);
+            }
+            const float width = std::min(canvas.textWidth(entry.label), available);
+            const float x     = rtl ? area.x + area.width - padding - width : area.x + padding;
+            canvas.textElided({x, text_y}, entry.label, entry.enabled ? text_color : dim_color, available);
         }
         canvas.fillRect({box.x, box.y + box.height, box.width, 1.0F}, separator);
     }

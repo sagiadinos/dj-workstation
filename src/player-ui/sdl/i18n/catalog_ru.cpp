@@ -9,6 +9,7 @@ namespace djw::player_ui::sdl::catalogs
     {
         constexpr CatalogEntry entries[] = {
             {"window.library", "djw - Библиотека"},
+            {"window.deck", "djw - Дека {number}"},
             {"window.playlist", "djw - Плейлист"},
             {"menu.database", "База данных"},
             {"menu.playlist", "Плейлист"},
@@ -24,6 +25,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.add_track", "Добавить выбранный трек"},
             {"menu.view.clear_filters", "Сбросить поиск и фильтры"},
             {"menu.view.missing_only", "Показать только отсутствующие треки"},
+            {"menu.view.new_deck", "Новая дека"},
             {"menu.view.playlist_window", "Окно плейлиста"},
             {"search.placeholder", "Поиск"},
             {"column.artist", "Исполнитель"},

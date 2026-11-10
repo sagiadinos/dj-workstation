@@ -341,9 +341,10 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Milestone | Scope |
 |---|---|
 | M0 Skeleton | CMake, core/UI separation, miniaudio output, one deck plays a file, SDL3 window with fader and button (multitouch capture) |
-| M1 MVP | N decks, mixer with crossfader and headphone cue, keylock, library with scan and fast search, tag editor, playlist, autoplay/autofade, Starlight via TOML mapping, desktop + Pi |
-| M2 Controllers | Lua scripting, LED feedback, MIDI learn, hotplug, jog/scratch |
+| M1 MVP | N decks, mixer with crossfader and headphone cue, keylock, library with scan and fast search, tag editor, playlist, desktop |
+| M2 Controllers | Starlight via TOML mapping, Lua scripting, LED feedback, MIDI learn, hotplug, jog/scratch |
 | M3 DVS | xwax timecoder, duplex audio, absolute/relative/internal modes, signal display |
 | M4 Analysis | Beatgrid, scrolling waveform, sync, hot cues, loops, EQ, filter |
 | M5 Mobile | Android, iOS |
 | M6 Web | WebAssembly build |
+| Later (not scheduled) | Autoplay/autofade with the crossfader window, Raspberry Pi build and its performance targets |

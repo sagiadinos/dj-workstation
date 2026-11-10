@@ -23,6 +23,8 @@ namespace djw::player_ui::sdl
             bool enabled = true;
             /// Shown highlighted, e.g. the language in use
             bool checked = false;
+            /// The keys that do the same, e.g. "Ctrl+N"; shown at the end of the entry
+            std::string shortcut{};
     };
 
     struct Menu
