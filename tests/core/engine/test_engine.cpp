@@ -240,6 +240,27 @@ TEST_CASE("Engine: DeckSeek jumps to the position in seconds")
     CHECK(engine.deckSnapshot(deck)->read().position_seconds == doctest::Approx(24'002.0 / sample_rate));
 }
 
+TEST_CASE("Engine: CUE, pitch and pitch bend arrive at the deck and show in the snapshot")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    const api::DeckId  deck  = engine.addDeck();
+    REQUIRE(engine.setTrack(deck, std::make_unique<BufferSource>(ramp(sample_rate))));
+    std::vector<float> output(4);
+
+    REQUIRE(queue.tryPush(api::DeckSeek{deck, 0.5}));
+    REQUIRE(queue.tryPush(api::DeckCue{deck, true}));
+    REQUIRE(queue.tryPush(api::DeckCue{deck, false}));
+    REQUIRE(queue.tryPush(api::DeckSetPitch{deck, -6.5F}));
+    REQUIRE(queue.tryPush(api::DeckPitchBend{deck, 1}));
+    engine.render(output);
+
+    const api::DeckSnapshot state = engine.deckSnapshot(deck)->read();
+    CHECK(state.cue_seconds == doctest::Approx(0.5));
+    CHECK(state.pitch_percent == doctest::Approx(-6.5F));
+    CHECK(state.play_state == api::PlayState::Stopped);
+}
+
 TEST_CASE("Engine: a deck stops at the end of its track")
 {
     engine::Engine     engine{smallBlocks()};
@@ -308,6 +329,10 @@ TEST_CASE("Engine: render does not allocate or free memory")
     std::vector<float> output(1'000 * 2); // not a multiple of the block size
     REQUIRE(queue.tryPush(api::MixerSetChannelVolume{deck_a, 0.5F}));
     REQUIRE(queue.tryPush(api::DeckSeek{deck_b, 0.5}));
+    REQUIRE(queue.tryPush(api::DeckSetPitch{deck_a, 7.5F}));
+    REQUIRE(queue.tryPush(api::DeckPitchBend{deck_a, -1}));
+    REQUIRE(queue.tryPush(api::DeckCue{deck_b, true}));
+    REQUIRE(queue.tryPush(api::DeckCue{deck_b, false}));
     REQUIRE(queue.tryPush(api::DeckPause{deck_b}));
 
     const AllocationCounter counter;

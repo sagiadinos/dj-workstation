@@ -58,3 +58,26 @@ TEST_CASE("Render: play, lower the channel volume, pause")
     INFO(result.message);
     CHECK(result.matches);
 }
+
+TEST_CASE("Render: pitch +8 %, pitch bend, CUE back to the cue point")
+{
+    engine::Engine     engine{{.sample_rate = sample_rate, .max_block_frames = block_frames}};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    const api::DeckId  deck  = engine.addDeck();
+    REQUIRE(engine.setTrack(deck, std::make_unique<djw::tests::SineSource>(440.0, sample_rate, 0.5F)));
+
+    // Blocks 0-11 at +8 %, 12-19 with bend up as well (+8 % and +4 %), 20 CUE: fade out, back to the start
+    const auto audio = renderScenario(engine, queue, 24,
+                                      {
+                                          {0, api::DeckSetPitch{deck, 8.0F}},
+                                          {0, api::DeckPlay{deck}},
+                                          {12, api::DeckPitchBend{deck, 1}},
+                                          {20, api::DeckPitchBend{deck, 0}},
+                                          {20, api::DeckCue{deck, true}},
+                                      });
+
+    const auto result = djw::tests::compareWithGolden(audio, golden_dir / "engine" / "pitch_bend_cue.wav");
+    INFO(result.message);
+    CHECK(result.matches);
+    CHECK(engine.deckSnapshot(deck)->read().position_seconds == 0.0);
+}

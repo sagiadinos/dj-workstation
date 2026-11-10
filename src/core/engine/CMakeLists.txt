@@ -4,6 +4,7 @@
 add_library(djw_core_engine STATIC
     deck.cpp
     mixer_channel.cpp
+    resampler.cpp
     engine.cpp
     reclaimer.cpp
 )

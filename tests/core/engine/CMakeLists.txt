@@ -7,6 +7,7 @@ add_executable(djw_core_engine_tests
     test_mixer_channel.cpp
     test_engine.cpp
     test_reclaimer.cpp
+    test_resampler.cpp
     test_render_golden.cpp
 )
 djw_set_options(djw_core_engine_tests TEST)

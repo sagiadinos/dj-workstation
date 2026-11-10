@@ -4,13 +4,12 @@
 #include "engine/deck.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 namespace djw::core::engine
 {
-    Deck::Deck(api::DeckId id, std::size_t pause_fade_frames) noexcept
-        : deck_id{id}, pause_fade_frames{pause_fade_frames}
-    {
-    }
+    Deck::Deck(api::DeckId id, std::size_t pause_fade_frames) : deck_id{id}, pause_fade_frames{pause_fade_frames} {}
 
     void Deck::attach(AudioSource *track) noexcept // [audio-thread]
     {
@@ -18,10 +17,13 @@ namespace djw::core::engine
         {
             return;
         }
-        source          = track;
-        state           = State::Stopped;
-        fade_remaining  = 0;
-        position_frames = 0;
+        source         = track;
+        state          = State::Stopped;
+        fade_remaining = 0;
+        cue_frame      = 0;
+        cue_preview    = false;
+        return_to_cue  = false;
+        resampler.reset(0);
     }
 
     std::uint64_t Deck::lengthFrames() const noexcept
@@ -29,22 +31,85 @@ namespace djw::core::engine
         return source != nullptr ? source->lengthFrames() : 0;
     }
 
+    double Deck::speed() const noexcept
+    {
+        return (1.0 + pitch_percent / 100.0) * (1.0 + bend_direction * pitch_bend_percent / 100.0);
+    }
+
     void Deck::play() noexcept // [audio-thread]
     {
-        if (source != nullptr)
+        if (source == nullptr)
         {
-            state = State::Playing;
+            return;
         }
+        // Play while CUE is held: the deck keeps playing after CUE is released
+        cue_preview   = false;
+        return_to_cue = false;
+        state         = State::Playing;
     }
 
     void Deck::pause() noexcept // [audio-thread]
     {
+        cue_preview = false;
         if (state != State::Playing)
         {
             return;
         }
         state          = pause_fade_frames > 0 ? State::FadingOut : State::Stopped;
         fade_remaining = pause_fade_frames;
+    }
+
+    void Deck::cue(bool pressed) noexcept // [audio-thread]
+    {
+        if (source == nullptr)
+        {
+            return;
+        }
+        if (!pressed)
+        {
+            if (cue_preview)
+            {
+                cue_preview = false;
+                stopAtCue();
+            }
+            return;
+        }
+        if (state != State::Stopped)
+        {
+            stopAtCue();
+        }
+        else if (!atCue())
+        {
+            cue_frame = static_cast<std::uint64_t>(std::llround(resampler.position()));
+        }
+        else
+        {
+            cue_preview = true;
+            state       = State::Playing;
+        }
+    }
+
+    void Deck::stopAtCue() noexcept // [audio-thread]
+    {
+        if (state == State::Playing && pause_fade_frames > 0)
+        {
+            state          = State::FadingOut;
+            fade_remaining = pause_fade_frames;
+            return_to_cue  = true;
+            return;
+        }
+        if (state == State::FadingOut)
+        {
+            return_to_cue = true;
+            return;
+        }
+        state = State::Stopped;
+        seek(cue_frame);
+    }
+
+    bool Deck::atCue() const noexcept
+    {
+        return std::llround(resampler.position()) == static_cast<long long>(cue_frame);
     }
 
     void Deck::seek(std::uint64_t frame) noexcept // [audio-thread]
@@ -54,36 +119,47 @@ namespace djw::core::engine
             return;
         }
         const std::uint64_t length = source->lengthFrames();
-        position_frames            = length > 0 ? std::min(frame, length) : frame;
-        source->seek(position_frames);
+        const std::uint64_t target = length > 0 ? std::min(frame, length) : frame;
+        source->seek(target);
+        resampler.reset(target);
+    }
+
+    void Deck::setPitch(float percent) noexcept // [audio-thread]
+    {
+        pitch_percent = std::clamp(percent, -max_pitch_percent, max_pitch_percent);
+    }
+
+    void Deck::setPitchBend(int direction) noexcept // [audio-thread]
+    {
+        bend_direction = std::clamp(direction, -1, 1);
     }
 
     void Deck::render(std::span<float> output) noexcept // [audio-thread]
     {
-        std::size_t frames_read = 0;
+        std::size_t produced = 0;
         if (state == State::Playing)
         {
-            frames_read = source->read(output);
-            if (frames_read * stereo_channels < output.size() && source->atEnd())
+            produced = resampler.process(*source, speed(), output);
+            if (produced * stereo_channels < output.size() && resampler.drained())
             {
-                state = State::Stopped;
+                state       = State::Stopped;
+                cue_preview = false;
             }
         }
         else if (state == State::FadingOut)
         {
-            frames_read = renderFadeOut(output);
+            produced = renderFadeOut(output);
         }
-        position_frames += frames_read;
-        std::ranges::fill(output.subspan(frames_read * stereo_channels), 0.0F);
+        std::ranges::fill(output.subspan(produced * stereo_channels), 0.0F);
     }
 
     std::size_t Deck::renderFadeOut(std::span<float> output) noexcept // [audio-thread]
     {
-        const std::size_t wanted      = std::min(output.size() / stereo_channels, fade_remaining);
-        const std::size_t frames_read = source->read(output.first(wanted * stereo_channels));
+        const std::size_t wanted   = std::min(output.size() / stereo_channels, fade_remaining);
+        const std::size_t produced = resampler.process(*source, speed(), output.first(wanted * stereo_channels));
 
         // Linear from the current level down to 0.0, reached on the last frame of the fade
-        for (std::size_t frame = 0; frame < frames_read; ++frame)
+        for (std::size_t frame = 0; frame < produced; ++frame)
         {
             const float gain = static_cast<float>(fade_remaining - frame - 1) / static_cast<float>(pause_fade_frames);
             for (std::size_t channel = 0; channel < stereo_channels; ++channel)
@@ -93,10 +169,14 @@ namespace djw::core::engine
         }
 
         fade_remaining -= wanted;
-        if (fade_remaining == 0 || frames_read < wanted)
+        if (fade_remaining == 0 || produced < wanted)
         {
             state = State::Stopped;
+            if (std::exchange(return_to_cue, false))
+            {
+                seek(cue_frame);
+            }
         }
-        return frames_read;
+        return produced;
     }
 } // namespace djw::core::engine

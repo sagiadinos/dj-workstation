@@ -16,7 +16,7 @@ namespace djw::core::engine
         constexpr double pause_fade_seconds = 0.005;
 
         // Engine::apply handles every command; a new command must be added there
-        static_assert(std::variant_size_v<api::Command> == 4, "handle the new command in Engine::apply");
+        static_assert(std::variant_size_v<api::Command> == 7, "handle the new command in Engine::apply");
     } // namespace
 
     Engine::DeckSlot::DeckSlot(api::DeckId id, std::size_t pause_fade_frames)
@@ -169,6 +169,27 @@ namespace djw::core::engine
                 slot->deck.pause();
             }
         }
+        else if (const auto *cue = std::get_if<api::DeckCue>(&command))
+        {
+            if (DeckSlot *slot = findDeck(list, cue->deck))
+            {
+                slot->deck.cue(cue->pressed);
+            }
+        }
+        else if (const auto *pitch = std::get_if<api::DeckSetPitch>(&command))
+        {
+            if (DeckSlot *slot = findDeck(list, pitch->deck))
+            {
+                slot->deck.setPitch(pitch->percent);
+            }
+        }
+        else if (const auto *bend = std::get_if<api::DeckPitchBend>(&command))
+        {
+            if (DeckSlot *slot = findDeck(list, bend->deck))
+            {
+                slot->deck.setPitchBend(bend->direction);
+            }
+        }
         else if (const auto *seek = std::get_if<api::DeckSeek>(&command))
         {
             if (DeckSlot *slot = findDeck(list, seek->deck))
@@ -208,8 +229,10 @@ namespace djw::core::engine
                 .track_loaded     = deck.hasTrack(),
                 .play_state       = deck.isPlaying() ? api::PlayState::Playing : api::PlayState::Stopped,
                 .channel_volume   = slot->channel.volume(),
-                .position_seconds = static_cast<double>(deck.positionFrames()) / rate,
+                .position_seconds = deck.positionFrames() / rate,
                 .duration_seconds = static_cast<double>(deck.lengthFrames()) / rate,
+                .cue_seconds      = static_cast<double>(deck.cueFrame()) / rate,
+                .pitch_percent    = deck.pitchPercent(),
             });
         }
     }

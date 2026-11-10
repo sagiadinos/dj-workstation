@@ -32,6 +32,9 @@ namespace djw::core::api
             float     channel_volume   = 1.0F;
             double    position_seconds = 0.0;
             double    duration_seconds = 0.0;
+            double    cue_seconds      = 0.0;
+            /// Pitch fader, without a held pitch bend
+            float pitch_percent = 0.0F;
     };
 
     static_assert(std::is_trivially_copyable_v<DeckSnapshot>);
