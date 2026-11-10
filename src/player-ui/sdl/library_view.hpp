@@ -7,6 +7,9 @@
 #include "api/library.hpp"
 #include "clock.hpp"
 #include "column_header.hpp"
+#include "file_dialogs.hpp"
+#include "i18n/translator.hpp"
+#include "menu_bar.hpp"
 #include "text_button.hpp"
 #include "text_field.hpp"
 #include "track_list.hpp"
@@ -18,6 +21,7 @@
 #include <optional>
 #include <functional>
 #include <string>
+#include <string_view>
 
 namespace djw::player_ui::sdl
 {
@@ -34,6 +38,10 @@ namespace djw::player_ui::sdl
      * anything else saves, Escape cancels. The change goes to the library, which writes the file in the background;
      * the row shows the new value at once. Tracks for which in_use is true (loaded in a deck) are not changed.
      *
+     * Menu bar on top (Database, Playlist, Settings, View): add a music folder (folder dialog) and rescan; the
+     * playlist commands, which the owner carries out in the playlist window; the language, which takes effect at once;
+     * clear the search and show only missing tracks. All texts come from the translator on every update.
+     *
      * Dead links: when tracks are missing, the status line shows a "Missing" button that lists only those; there a
      * "Remove" button takes them out of the library after a second tap within confirm_time. With setAddToPlaylist,
      * an "Add to playlist" button at the right end of the status line hands the selected track on.
@@ -45,6 +53,16 @@ namespace djw::player_ui::sdl
             using InUse = std::function<bool(const std::filesystem::path &file)>;
             using Add   = std::function<void(const core::api::LibraryTrack &track)>;
 
+            /// What the Playlist menu asks the playlist window to do
+            enum class PlaylistCommand : std::uint8_t
+            {
+                New,
+                Import,
+                Export
+            };
+            using PlaylistAction  = std::function<void(PlaylistCommand command)>;
+            using LanguageChosen = std::function<void(Language language)>;
+
             /// Most tracks listed at once; the search narrows it down
             static constexpr std::size_t               result_limit = 1'000;
             static constexpr std::chrono::milliseconds refresh_interval{1'000};
@@ -55,7 +73,8 @@ namespace djw::player_ui::sdl
                 core::api::LibraryColumn::Artist, core::api::LibraryColumn::Title, core::api::LibraryColumn::Genre,
                 core::api::LibraryColumn::Year};
 
-            LibraryView(core::api::Library &library, Load load, InUse in_use = {}, Clock clock = steadyClock());
+            LibraryView(core::api::Library &library, FileDialogs &dialogs, const Translator &translator, Load load,
+                        InUse in_use = {}, Clock clock = steadyClock());
 
             void layout(const Rect &area) override;
             void addTo(PointerRouter &router) override;
@@ -79,9 +98,14 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton              &missingButton() const noexcept { return missing_button; }
             [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
             [[nodiscard]] const TextButton              &addButton() const noexcept { return add_button; }
+            [[nodiscard]] const MenuBar                 &menuBar() const noexcept { return menu; }
 
             /// Shows an "Add to playlist" button for the selected track, which hands the track to add
             void setAddToPlaylist(Add add) { add_to_playlist = std::move(add); }
+            /// Enables the Playlist menu: its commands go to action
+            void setPlaylistCommands(PlaylistAction action) { playlist_action = std::move(action); }
+            /// Called when the user picks a language in the Settings menu
+            void setOnLanguage(LanguageChosen chosen) { language_chosen = std::move(chosen); }
 
         private:
             /// The cell being edited; the track is kept by id, as a refresh may move its row
@@ -94,6 +118,11 @@ namespace djw::player_ui::sdl
 
             /// The field tapped last takes the focus from all others
             void resolveFocus();
+            /// Sets the texts of fields, header and buttons in the current language
+            void applyTranslations();
+            /// Builds the menus for the current state and carries out the entry chosen
+            void updateMenu(const core::api::LibraryStatus &status);
+            void chooseMenuEntry(int id);
             void startEdit(const TrackList::Cell &cell);
             void commitEdit();
             void cancelEdit();
@@ -107,23 +136,30 @@ namespace djw::player_ui::sdl
             void                                     updateStatus(const core::api::LibraryStatus &status);
 
             core::api::Library      *library;
+            FileDialogs             *dialogs;
+            const Translator        *translator;
             Load                     load;
             InUse                    in_use;
             Clock                    clock;
-            TextField                search_field{"Search"};
-            std::array<TextField, 4> filters{TextField{"Artist"}, TextField{"Title"}, TextField{"Genre"},
-                                             TextField{"Year"}};
+            MenuBar                  menu;
+            TextField                search_field;
+            std::array<TextField, 4> filters;
             ColumnHeader             header;
             TrackList                list;
             TextField                cell_editor;
             TextButton               missing_button;
             TextButton               remove_button;
-            TextButton               add_button{"Add to playlist"};
+            TextButton               add_button;
             Add                      add_to_playlist;
+            PlaylistAction           playlist_action;
+            LanguageChosen           language_chosen;
             bool                     only_missing = false;
             std::optional<std::chrono::steady_clock::time_point> confirm_remove_until;
             std::optional<CellEdit>                              edit;
-            std::string                                          edit_message;
+            /// Key of the message about the last edit, empty if none; translated when shown
+            std::string_view                                     edit_message;
+            /// Why the last folder could not be added, as the library says
+            std::string                                          folder_error;
             core::api::LibraryColumn                             sort_by    = core::api::LibraryColumn::Artist;
             bool                                                 descending = false;
             Rect                                                 status_area;

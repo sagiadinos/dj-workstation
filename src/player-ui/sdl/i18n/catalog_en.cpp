@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Niko Sagiadinos
+
+#include "i18n/catalog.hpp"
+
+namespace djw::player_ui::sdl::catalogs
+{
+    namespace
+    {
+        constexpr CatalogEntry entries[] = {
+            {"window.library", "djw - Library"},
+            {"window.playlist", "djw - Playlist"},
+            {"menu.database", "Database"},
+            {"menu.playlist", "Playlist"},
+            {"menu.settings", "Settings"},
+            {"menu.view", "View"},
+            {"menu.database.add_folder", "Add music folder…"},
+            {"menu.database.rescan", "Rescan library"},
+            {"menu.playlist.new", "New playlist"},
+            {"menu.playlist.import", "Import playlist…"},
+            {"menu.playlist.export", "Export playlist…"},
+            {"menu.playlist.add_track", "Add selected track"},
+            {"menu.view.clear_filters", "Clear search and filters"},
+            {"menu.view.missing_only", "Show missing tracks only"},
+            {"search.placeholder", "Search"},
+            {"column.artist", "Artist"},
+            {"column.title", "Title"},
+            {"column.genre", "Genre"},
+            {"column.year", "Year"},
+            {"column.time", "Time"},
+            {"tracks.count", "{count, plural, one {# track} other {# tracks}}"},
+            {"files.count", "{count, plural, one {# file} other {# files}}"},
+            {"library.add_to_playlist", "Add to playlist"},
+            {"library.missing", "Missing: {count}"},
+            {"library.remove_missing", "Remove missing"},
+            {"library.remove_confirm", "Tap again to remove {count}"},
+            {"library.scanning", "scanning, {files}"},
+            {"library.saving_tags", "saving tags"},
+            {"library.error.in_use", "the track is loaded in a deck, its tags are not changed while it plays"},
+            {"library.error.year", "the year must be a number of up to four digits"},
+            {"playlist.name_placeholder", "Playlist name"},
+            {"playlist.default_name", "Playlist {number}"},
+            {"playlist.new", "New"},
+            {"playlist.delete", "Delete"},
+            {"playlist.delete_confirm", "Really delete?"},
+            {"playlist.import", "Import"},
+            {"playlist.export", "Export"},
+            {"playlist.up", "Up"},
+            {"playlist.down", "Down"},
+            {"playlist.remove", "Remove"},
+            {"playlist.none", "no playlist"},
+            {"playlist.saving", "saving"},
+            {"playlist.error.create_first", "create a playlist first"},
+            {"playlist.imported", "imported {name}: {tracks}, {not_found} not found"},
+            {"deck.cannot_load", "Cannot load: {error}"},
+        };
+    } // namespace
+
+    std::span<const CatalogEntry> english()
+    {
+        return entries;
+    }
+} // namespace djw::player_ui::sdl::catalogs

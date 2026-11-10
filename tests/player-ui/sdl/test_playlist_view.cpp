@@ -3,6 +3,7 @@
 
 #include "playlist_view.hpp"
 
+#include "fake_dialogs.hpp"
 #include "fake_library.hpp"
 #include "recording_canvas.hpp"
 
@@ -15,33 +16,7 @@ using Button = PlaylistView::Button;
 
 namespace
 {
-    /// Remembers what was asked; the test answers with choose()
-    class FakeDialogs final : public FileDialogs
-    {
-        public:
-            void openPlaylist(Chosen chosen) override
-            {
-                opened  = true;
-                pending = std::move(chosen);
-            }
-
-            void savePlaylist(const std::string &suggested_name, Chosen chosen) override
-            {
-                suggested = suggested_name;
-                pending   = std::move(chosen);
-            }
-
-            void choose(const std::filesystem::path &file)
-            {
-                REQUIRE(pending);
-                pending(file);
-                pending = nullptr;
-            }
-
-            bool        opened = false;
-            std::string suggested;
-            Chosen      pending;
-    };
+    using djw::tests::FakeDialogs;
 
     struct Fixture
     {
@@ -84,9 +59,10 @@ namespace
 
             djw::tests::FakeLibrary               library;
             FakeDialogs                           dialogs;
+            Translator                            translator;
             std::vector<api::LibraryTrack>        loaded;
             std::chrono::steady_clock::time_point now{};
-            PlaylistView  view{library, dialogs, [this](const api::LibraryTrack &track) { loaded.push_back(track); },
+            PlaylistView  view{library, dialogs, translator, [this](const api::LibraryTrack &track) { loaded.push_back(track); },
                                [this] { return now; }};
             PointerRouter router;
     };
@@ -221,7 +197,7 @@ TEST_CASE("PlaylistView: Import goes through the open dialog and shows the impor
 
     CHECK(fixture.library.imports == std::vector<std::filesystem::path>{"/lists/Friday.m3u8"});
     CHECK(fixture.view.current()->name == "Friday");
-    CHECK(fixture.view.statusText() == "1 tracks - imported Friday: 1 tracks, 2 not found");
+    CHECK(fixture.view.statusText() == "1 track - imported Friday: 1 track, 2 not found");
 }
 
 TEST_CASE("PlaylistView: Export suggests the playlist name and writes where the user chose")
@@ -272,7 +248,7 @@ TEST_CASE("PlaylistView: a double tap loads a track, errors of the library show 
 
     fixture.library.library_status.write_error = "disk full";
     fixture.view.update();
-    CHECK(fixture.view.statusText() == "1 tracks - disk full");
+    CHECK(fixture.view.statusText() == "1 track - disk full");
 
     djw::tests::RecordingCanvas canvas;
     fixture.view.draw(canvas);

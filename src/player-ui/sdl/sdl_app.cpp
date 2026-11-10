@@ -55,7 +55,8 @@ namespace djw::player_ui::sdl
     }
 
     std::expected<std::unique_ptr<SdlApp>, std::string> SdlApp::create(core::api::Core &core, core::api::DeckId deck,
-                                                                       core::api::Library *library)
+                                                                       core::api::Library *library, Language language,
+                                                                       LanguageChanged language_changed)
     {
         core::api::DeckSnapshotBuffer *snapshot = core.deckSnapshot(deck);
         if (snapshot == nullptr)
@@ -64,6 +65,8 @@ namespace djw::player_ui::sdl
         }
 
         std::unique_ptr<SdlApp> app{new SdlApp{core, deck, *snapshot}};
+        app->translator.setLanguage(language);
+        app->language_changed = std::move(language_changed);
         if (!app->libraries.sdl_initialized)
         {
             return std::unexpected{sdlError("cannot initialize SDL")};
@@ -86,29 +89,36 @@ namespace djw::player_ui::sdl
         {
             SdlApp *owner     = app.get();
             app->library_view = std::make_unique<LibraryView>(
-                *library, [owner](const core::api::LibraryTrack &track) { owner->load(track); },
+                *library, app->dialogs, app->translator,
+                [owner](const core::api::LibraryTrack &track) { owner->load(track); },
                 [owner](const std::filesystem::path &file) { return file == owner->loaded_file; });
-            auto library_window =
-                SdlWindow::create({.title = "djw - Library", .width = 720, .height = 640}, *app->library_view, font);
+            app->library_view->setOnLanguage([owner](Language chosen) { owner->setLanguage(chosen); });
+            app->library_view->setPlaylistCommands([owner](LibraryView::PlaylistCommand command)
+                                                   { owner->runPlaylistCommand(command); });
+            auto library_window = SdlWindow::create(
+                {.title = app->translator.tr("window.library"), .width = 720, .height = 640}, *app->library_view, font);
             if (!library_window)
             {
                 return std::unexpected{library_window.error()};
             }
             (*library_window)->placeRightOf(*app->windows.front());
+            app->library_window = library_window->get();
             app->windows.push_back(std::move(*library_window));
 
             app->playlist_view = std::make_unique<PlaylistView>(
-                *library, app->dialogs, [owner](const core::api::LibraryTrack &track) { owner->load(track); });
+                *library, app->dialogs, app->translator,
+                [owner](const core::api::LibraryTrack &track) { owner->load(track); });
             app->library_view->setAddToPlaylist([owner](const core::api::LibraryTrack &track)
                                                 { owner->playlist_view->addTrack(track); });
-            auto playlist_window =
-                SdlWindow::create({.title = "djw - Playlist", .width = 560, .height = 640}, *app->playlist_view, font);
+            auto playlist_window = SdlWindow::create(
+                {.title = app->translator.tr("window.playlist"), .width = 560, .height = 640}, *app->playlist_view, font);
             if (!playlist_window)
             {
                 return std::unexpected{playlist_window.error()};
             }
             (*playlist_window)->placeRightOf(*app->windows.back());
             app->dialogs.setParent((*playlist_window)->handle());
+            app->playlist_window = playlist_window->get();
             app->windows.push_back(std::move(*playlist_window));
         }
         return app;
@@ -127,7 +137,48 @@ namespace djw::player_ui::sdl
         }
         else
         {
-            deck_view.setTrackTitle("Cannot load: " + loaded.error());
+            deck_view.setTrackTitle(translator.tr("deck.cannot_load", {{"error", loaded.error()}}));
+        }
+    }
+
+    void SdlApp::setLanguage(Language language)
+    {
+        if (language == translator.language())
+        {
+            return;
+        }
+        translator.setLanguage(language);
+        if (library_window != nullptr)
+        {
+            library_window->setTitle(translator.tr("window.library"));
+        }
+        if (playlist_window != nullptr)
+        {
+            playlist_window->setTitle(translator.tr("window.playlist"));
+        }
+        if (language_changed)
+        {
+            language_changed(language);
+        }
+    }
+
+    void SdlApp::runPlaylistCommand(LibraryView::PlaylistCommand command)
+    {
+        if (!playlist_view)
+        {
+            return;
+        }
+        switch (command)
+        {
+            case LibraryView::PlaylistCommand::New:
+                playlist_view->createNew();
+                break;
+            case LibraryView::PlaylistCommand::Import:
+                playlist_view->importFile();
+                break;
+            case LibraryView::PlaylistCommand::Export:
+                playlist_view->exportShown();
+                break;
         }
     }
 

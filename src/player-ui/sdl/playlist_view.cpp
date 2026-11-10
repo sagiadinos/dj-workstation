@@ -31,9 +31,10 @@ namespace djw::player_ui::sdl
         }
     } // namespace
 
-    PlaylistView::PlaylistView(core::api::Library &library, FileDialogs &dialogs, Load load, Clock clock)
-        : library{&library}, playlists{&library.playlists()}, dialogs{&dialogs}, load{std::move(load)},
-          clock{std::move(clock)}, list{this->clock}
+    PlaylistView::PlaylistView(core::api::Library &library, FileDialogs &dialogs, const Translator &translator,
+                               Load load, Clock clock)
+        : library{&library}, playlists{&library.playlists()}, dialogs{&dialogs}, translator{&translator},
+          load{std::move(load)}, clock{std::move(clock)}, list{this->clock}
     {
     }
 
@@ -155,12 +156,46 @@ namespace djw::player_ui::sdl
     {
         for (int number = 1;; ++number)
         {
-            std::string name = "Playlist " + std::to_string(number);
+            std::string name = translator->tr("playlist.default_name", {{"number", number}});
             if (std::ranges::none_of(all, [&name](const auto &playlist) { return playlist.name == name; }))
             {
                 return name;
             }
         }
+    }
+
+    void PlaylistView::createNew()
+    {
+        commitRename();
+        createPlaylist();
+    }
+
+    void PlaylistView::importFile()
+    {
+        dialogs->openPlaylist([this](const std::filesystem::path &file) { playlists->importM3u(file); });
+    }
+
+    void PlaylistView::exportShown()
+    {
+        if (const auto playlist = current())
+        {
+            const std::int64_t id = playlist->id;
+            dialogs->savePlaylist(playlist->name + ".m3u8",
+                                  [this, id](const std::filesystem::path &file) { playlists->exportM3u(id, file); });
+        }
+    }
+
+    void PlaylistView::applyTranslations()
+    {
+        name_field.setPlaceholder(translator->tr("playlist.name_placeholder"));
+        control(Button::New).setLabel(translator->tr("playlist.new"));
+        control(Button::Delete)
+            .setLabel(translator->tr(confirm_delete_until ? "playlist.delete_confirm" : "playlist.delete"));
+        control(Button::Import).setLabel(translator->tr("playlist.import"));
+        control(Button::Export).setLabel(translator->tr("playlist.export"));
+        control(Button::Up).setLabel(translator->tr("playlist.up"));
+        control(Button::Down).setLabel(translator->tr("playlist.down"));
+        control(Button::Remove).setLabel(translator->tr("playlist.remove"));
     }
 
     void PlaylistView::createPlaylist()
@@ -219,8 +254,7 @@ namespace djw::player_ui::sdl
         }
         if (control(Button::New).takePress())
         {
-            commitRename();
-            createPlaylist();
+            createNew();
         }
         if (control(Button::Delete).takePress() && shown)
         {
@@ -238,18 +272,15 @@ namespace djw::player_ui::sdl
         {
             confirm_delete_until.reset();
         }
-        control(Button::Delete).setLabel(confirm_delete_until ? "Really delete?" : "Delete");
+        applyTranslations();
 
         if (control(Button::Import).takePress())
         {
-            dialogs->openPlaylist([this](const std::filesystem::path &file) { playlists->importM3u(file); });
+            importFile();
         }
-        const auto playlist = current();
-        if (control(Button::Export).takePress() && playlist)
+        if (control(Button::Export).takePress())
         {
-            const std::int64_t id = playlist->id;
-            dialogs->savePlaylist(playlist->name + ".m3u8",
-                                  [this, id](const std::filesystem::path &file) { playlists->exportM3u(id, file); });
+            exportShown();
         }
         if (control(Button::Up).takePress())
         {
@@ -273,9 +304,10 @@ namespace djw::player_ui::sdl
     {
         if (!shown)
         {
-            message = "create a playlist first";
+            message_key = "playlist.error.create_first";
             return;
         }
+        message_key = {};
         message.clear();
         playlists->add(*shown, {track.id});
     }
@@ -310,12 +342,17 @@ namespace djw::player_ui::sdl
             reload();
         }
 
-        status_text = current() ? std::to_string(current()->track_count) + " tracks" : std::string{"no playlist"};
+        status_text = current() ? translator->tr("tracks.count", {{"count", current()->track_count}})
+                                : translator->tr("playlist.none");
         if (status.pending_writes > 0)
         {
-            status_text += " - saving";
+            status_text += " - " + translator->tr("playlist.saving");
         }
-        if (!message.empty())
+        if (!message_key.empty())
+        {
+            status_text += " - " + translator->tr(message_key);
+        }
+        else if (!message.empty())
         {
             status_text += " - " + message;
         }
@@ -325,8 +362,11 @@ namespace djw::player_ui::sdl
         }
         else if (show_import && seen_import)
         {
-            status_text += " - imported " + seen_import->playlist + ": " + std::to_string(seen_import->tracks) +
-                           " tracks, " + std::to_string(seen_import->not_found) + " not found";
+            status_text += " - " + translator->tr("playlist.imported",
+                                                  {{"name", seen_import->playlist},
+                                                   {"tracks", translator->tr("tracks.count",
+                                                                             {{"count", seen_import->tracks}})},
+                                                   {"not_found", seen_import->not_found}});
         }
 
         if (const auto row = list.takeActivated(); row && load)

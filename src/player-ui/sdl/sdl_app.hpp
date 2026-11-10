@@ -7,12 +7,14 @@
 #include "api/core.hpp"
 #include "api/library.hpp"
 #include "deck_view.hpp"
+#include "i18n/translator.hpp"
 #include "library_view.hpp"
 #include "playlist_view.hpp"
 #include "sdl_file_dialogs.hpp"
 #include "sdl_window.hpp"
 
 #include <expected>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -28,9 +30,13 @@ namespace djw::player_ui::sdl
     class SdlApp
     {
         public:
-            /// library may be nullptr: then there is no library window
+            /// Called with the new language when the user picks one in the Settings menu, to keep it for the next start
+            using LanguageChanged = std::function<void(Language language)>;
+
+            /// library may be nullptr: then there is no library window. The texts start in language.
             static std::expected<std::unique_ptr<SdlApp>, std::string>
-            create(core::api::Core &core, core::api::DeckId deck, core::api::Library *library);
+            create(core::api::Core &core, core::api::DeckId deck, core::api::Library *library, Language language,
+                   LanguageChanged language_changed = {});
 
             /// Runs until a window is closed
             void run();
@@ -60,10 +66,14 @@ namespace djw::player_ui::sdl
             SdlApp(core::api::Core &core, core::api::DeckId deck, core::api::DeckSnapshotBuffer &snapshot);
 
             void load(const core::api::LibraryTrack &track);
+            void setLanguage(Language language);
+            void runPlaylistCommand(LibraryView::PlaylistCommand command);
             void processEvents(bool &running);
 
             SdlLibraries      libraries;
             SdlFileDialogs    dialogs;
+            Translator        translator;
+            LanguageChanged   language_changed;
             core::api::Core  *core;
             core::api::DeckId deck;
             DeckView          deck_view;
@@ -72,6 +82,9 @@ namespace djw::player_ui::sdl
             std::unique_ptr<LibraryView>            library_view;
             std::unique_ptr<PlaylistView>           playlist_view;
             std::vector<std::unique_ptr<SdlWindow>> windows;
+            /// Window titles are set again when the language changes
+            SdlWindow *library_window  = nullptr;
+            SdlWindow *playlist_window = nullptr;
     };
 } // namespace djw::player_ui::sdl
 

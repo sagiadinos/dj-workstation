@@ -46,6 +46,8 @@ namespace djw::player_ui::sdl
             /// The SDL window, e.g. as parent of a dialog
             [[nodiscard]] SDL_Window *handle() const noexcept { return window.get(); }
 
+            void setTitle(const std::string &title) const { SDL_SetWindowTitle(window.get(), title.c_str()); }
+
             /// Moves this window next to other, to its right, with the same top edge
             void placeRightOf(const SdlWindow &other);
 

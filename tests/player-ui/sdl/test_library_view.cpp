@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "library_view.hpp"
+#include "fake_dialogs.hpp"
 #include "track_columns.hpp"
 
 #include "fake_library.hpp"
@@ -14,6 +15,7 @@
 using namespace djw::player_ui::sdl;
 namespace api = djw::core::api;
 using namespace std::chrono_literals;
+using djw::tests::RecordingCanvas;
 
 namespace
 {
@@ -50,7 +52,9 @@ namespace
             std::vector<api::LibraryTrack>        loaded;
             std::chrono::steady_clock::time_point now{};
             std::filesystem::path                 in_use{"/m/b.mp3"};
-            LibraryView   view{library, [this](const api::LibraryTrack &track) { loaded.push_back(track); },
+            djw::tests::FakeDialogs               dialogs;
+            Translator                            translator;
+            LibraryView   view{library, dialogs, translator, [this](const api::LibraryTrack &track) { loaded.push_back(track); },
                                [this](const std::filesystem::path &file) { return file == in_use; },
                                [this] { return now; }};
             PointerRouter router;
@@ -454,4 +458,174 @@ TEST_CASE("LibraryView: the Add to playlist button shows for a selected track an
 
     REQUIRE(added.size() == 1);
     CHECK(added.front().title == "alpha");
+}
+
+namespace
+{
+    /// Opens menu number menu and taps its entry number item
+    void chooseEntry(Fixture &fixture, std::size_t menu, std::size_t item)
+    {
+        const Rect title = fixture.view.menuBar().titleArea(menu);
+        fixture.tap({title.x + 10, title.y + 10});
+        const Rect entry = fixture.view.menuBar().itemArea(menu, item);
+        fixture.tap({entry.x + 10, entry.y + 10});
+        fixture.view.update();
+    }
+} // namespace
+
+TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings and View")
+{
+    Fixture fixture;
+    CHECK(fixture.view.menuBar().bounds().y == 0.0F);
+    CHECK(fixture.view.searchField().bounds().y >= MenuBar::bar_height);
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Database"));
+    CHECK(canvas.drew("Playlist"));
+    CHECK(canvas.drew("Settings"));
+    CHECK(canvas.drew("View"));
+}
+
+TEST_CASE("LibraryView: Add music folder asks for a folder and adds it to the library")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 0, 0);
+    CHECK(fixture.dialogs.folder_asked);
+    fixture.dialogs.choose("/music");
+    REQUIRE(fixture.library.added_folders.size() == 1);
+    CHECK(fixture.library.added_folders[0] == "/music");
+}
+
+TEST_CASE("LibraryView: a folder the library refuses shows in the status line")
+{
+    Fixture fixture;
+    fixture.library.add_folder_error = "no such folder";
+    chooseEntry(fixture, 0, 0);
+    fixture.dialogs.choose("/nowhere");
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("no such folder") != std::string::npos);
+}
+
+TEST_CASE("LibraryView: Rescan scans the library again")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 0, 1);
+    CHECK(fixture.library.rescans == 1);
+}
+
+TEST_CASE("LibraryView: the Playlist menu is off without a playlist window, otherwise it sends its commands")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 1, 0);
+    // Disabled: the menu stays open and nothing was sent
+    CHECK(fixture.view.menuBar().isOpen());
+    fixture.view.keyboard(EditKey::Escape);
+
+    std::vector<LibraryView::PlaylistCommand> commands;
+    fixture.view.setPlaylistCommands([&commands](LibraryView::PlaylistCommand command) { commands.push_back(command); });
+    fixture.view.update();
+    chooseEntry(fixture, 1, 0);
+    chooseEntry(fixture, 1, 1);
+    chooseEntry(fixture, 1, 2);
+    CHECK(commands == std::vector{LibraryView::PlaylistCommand::New, LibraryView::PlaylistCommand::Import,
+                                  LibraryView::PlaylistCommand::Export});
+}
+
+TEST_CASE("LibraryView: Add selected track needs a selected track")
+{
+    Fixture fixture;
+    std::vector<std::int64_t> added;
+    fixture.view.setAddToPlaylist([&added](const api::LibraryTrack &track) { added.push_back(track.id); });
+    fixture.view.setPlaylistCommands([](LibraryView::PlaylistCommand) {});
+    fixture.view.update();
+    chooseEntry(fixture, 1, 3);
+    CHECK(added.empty());
+    fixture.view.keyboard(EditKey::Escape); // closes the menu
+
+    fixture.tap(fixture.firstRow());
+    fixture.view.update();
+    chooseEntry(fixture, 1, 3);
+    REQUIRE(added.size() == 1);
+    CHECK(added[0] == fixture.view.trackList().tracks()[0].id);
+}
+
+TEST_CASE("LibraryView: the Settings menu lists the languages and reports the one chosen")
+{
+    Fixture fixture;
+    std::vector<Language> chosen;
+    fixture.view.setOnLanguage([&chosen](Language language) { chosen.push_back(language); });
+    chooseEntry(fixture, 2, 1);
+    REQUIRE(chosen.size() == 1);
+    CHECK(chosen[0] == Language::German);
+
+    const Rect title = fixture.view.menuBar().titleArea(2);
+    fixture.tap({title.x + 10, title.y + 10});
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    for (const Language language : languages)
+    {
+        CHECK(canvas.drew(languageName(language)));
+    }
+}
+
+TEST_CASE("LibraryView: View clears the search and the filters, and shows only missing tracks")
+{
+    Fixture fixture;
+    fixture.tap(fixture.searchField());
+    fixture.view.keyboard(std::string{"abc"});
+    fixture.view.update();
+    CHECK(fixture.view.query().text == "abc");
+    chooseEntry(fixture, 3, 0);
+    fixture.view.update();
+    CHECK(fixture.view.query().text.empty());
+
+    // Missing tracks only: disabled without missing tracks
+    chooseEntry(fixture, 3, 1);
+    CHECK_FALSE(fixture.view.query().only_missing);
+    fixture.view.keyboard(EditKey::Escape); // closes the menu
+    fixture.library.library_status.missing_total = 2;
+    fixture.view.update();
+    chooseEntry(fixture, 3, 1);
+    fixture.view.update();
+    CHECK(fixture.view.query().only_missing);
+}
+
+TEST_CASE("LibraryView: all texts follow the language at once")
+{
+    Fixture fixture;
+    fixture.library.library_status.tracks_total = 1;
+    fixture.library.library_status.missing_total = 3;
+    fixture.view.update();
+    CHECK(fixture.view.statusText() == "1 track");
+    CHECK(fixture.view.missingButton().label() == "Missing: 3");
+
+    fixture.translator.setLanguage(Language::Russian);
+    fixture.library.library_status.tracks_total = 3;
+    fixture.view.update();
+    CHECK(fixture.view.statusText() == "3 трека");
+    CHECK(fixture.view.missingButton().label() == "Отсутствуют: 3");
+
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    // (the recording canvas measures bytes, so only short Cyrillic words fit its menu titles)
+    CHECK(canvas.drew("Вид"));
+    CHECK(canvas.drew("Поиск"));
+
+    fixture.translator.setLanguage(Language::German);
+    fixture.view.update();
+    RecordingCanvas german;
+    fixture.view.draw(german);
+    CHECK(german.drew("Datenbank"));
+    CHECK(german.drew("Interpret"));
+    CHECK(german.drew("Suche"));
+}
+
+TEST_CASE("LibraryView: Escape closes an open menu")
+{
+    Fixture fixture;
+    const Rect title = fixture.view.menuBar().titleArea(0);
+    fixture.tap({title.x + 10, title.y + 10});
+    REQUIRE(fixture.view.menuBar().isOpen());
+    fixture.view.keyboard(EditKey::Escape);
+    CHECK_FALSE(fixture.view.menuBar().isOpen());
 }

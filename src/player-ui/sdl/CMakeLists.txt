@@ -34,6 +34,16 @@ FetchContent_MakeAvailable(SDL3_ttf)
 
 # Everything except main(), so the tests can link it. Only the sdl_* files use SDL; the widgets draw on a Canvas.
 add_library(djw_player_sdl_ui STATIC
+    i18n/language.cpp
+    i18n/message_format.cpp
+    i18n/catalog.cpp
+    i18n/catalog_en.cpp
+    i18n/catalog_de.cpp
+    i18n/catalog_fr.cpp
+    i18n/catalog_es.cpp
+    i18n/catalog_el.cpp
+    i18n/catalog_ru.cpp
+    i18n/translator.cpp
     pointer_router.cpp
     fader.cpp
     play_button.cpp
@@ -41,6 +51,7 @@ add_library(djw_player_sdl_ui STATIC
     deck_view.cpp
     text_field.cpp
     text_button.cpp
+    menu_bar.cpp
     track_columns.cpp
     column_header.cpp
     track_list.cpp

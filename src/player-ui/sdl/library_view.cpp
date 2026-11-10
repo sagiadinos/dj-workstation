@@ -18,6 +18,23 @@ namespace djw::player_ui::sdl
         constexpr float header_height = 30.0F;
         constexpr float status_height = 28.0F;
 
+        /// Ids of the menu entries; the languages follow language_base in the order of languages
+        enum MenuId : int
+        {
+            AddFolder = 1,
+            Rescan,
+            PlaylistNew,
+            PlaylistImport,
+            PlaylistExport,
+            PlaylistAddTrack,
+            ClearFilters,
+            MissingOnly,
+            language_base = 100
+        };
+
+        constexpr std::array<std::string_view, 5> column_keys{"column.artist", "column.title", "column.genre",
+                                                              "column.year", "column.time"};
+
         constexpr Color status_color{160, 160, 160};
 
         constexpr float missing_button_width = 150.0F;
@@ -64,15 +81,19 @@ namespace djw::player_ui::sdl
         }
     } // namespace
 
-    LibraryView::LibraryView(core::api::Library &library, Load load, InUse in_use, Clock clock)
-        : library{&library}, load{std::move(load)}, in_use{std::move(in_use)}, clock{std::move(clock)},
+    LibraryView::LibraryView(core::api::Library &library, FileDialogs &dialogs, const Translator &translator,
+                             Load load, InUse in_use, Clock clock)
+        : library{&library}, dialogs{&dialogs}, translator{&translator}, load{std::move(load)}, in_use{std::move(in_use)}, clock{std::move(clock)},
           list{this->clock}
     {
     }
 
     void LibraryView::layout(const Rect &area)
     {
-        const Rect inner = area.inset(margin);
+        const float bar_height = std::min(MenuBar::bar_height, area.height);
+        menu.place({area.x, area.y, area.width, bar_height}, area);
+        const Rect below{area.x, area.y + bar_height, area.width, area.height - bar_height};
+        const Rect inner = below.inset(margin);
         search_field.setBounds({inner.x, inner.y, inner.width, std::min(search_height, inner.height)});
 
         const Rect filter_row{inner.x, inner.y + search_height + gap, inner.width, filter_height};
@@ -107,6 +128,7 @@ namespace djw::player_ui::sdl
         router.add(remove_button);
         router.add(add_button);
         router.add(cell_editor); // on top of the list; without an edit it has no area and catches nothing
+        router.add(menu);        // on top of everything: an open menu covers the window
     }
 
     void LibraryView::resolveFocus()
@@ -144,6 +166,12 @@ namespace djw::player_ui::sdl
     void LibraryView::keyboard(const KeyboardInput &input)
     {
         resolveFocus();
+        if (const auto *key = std::get_if<EditKey>(&input);
+            menu.isOpen() && key != nullptr && *key == EditKey::Escape)
+        {
+            menu.close();
+            return;
+        }
         if (edit && cell_editor.focused())
         {
             if (const auto *key = std::get_if<EditKey>(&input); key != nullptr && *key == EditKey::Enter)
@@ -183,11 +211,11 @@ namespace djw::player_ui::sdl
         }
         if (in_use && in_use(track.path))
         {
-            edit_message = "the track is loaded in a deck, its tags are not changed while it plays";
+            edit_message = "library.error.in_use";
             return;
         }
-        edit_message.clear();
-        edit = CellEdit{.track_id = track.id, .column = cell.column, .original = *value};
+        edit_message = {};
+        edit         = CellEdit{.track_id = track.id, .column = cell.column, .original = *value};
         cell_editor.setText(*value);
         search_field.setFocused(false);
         for (TextField &filter : filters)
@@ -235,7 +263,7 @@ namespace djw::player_ui::sdl
                 change.year = parseYear(value);
                 if (!change.year)
                 {
-                    edit_message = "the year must be a number of up to four digits";
+                    edit_message = "library.error.year";
                     return;
                 }
                 break;
@@ -253,7 +281,7 @@ namespace djw::player_ui::sdl
             track.year                    = change.year.value_or(track.year);
             list.replaceTrack(*row, std::move(track));
         }
-        edit_message.clear();
+        edit_message = {};
         library->updateTags(done.track_id, std::move(change));
     }
 
@@ -303,6 +331,7 @@ namespace djw::player_ui::sdl
 
     void LibraryView::update()
     {
+        applyTranslations();
         resolveFocus();
         if (list.takeTouched() && edit)
         {
@@ -315,6 +344,7 @@ namespace djw::player_ui::sdl
         applySortTap();
         const core::api::LibraryStatus status = library->status();
         updateMissingButtons(status);
+        updateMenu(status);
 
         const core::api::LibraryQuery query            = currentQuery();
         const bool                    query_changed    = !has_searched || query != searched;
@@ -381,13 +411,14 @@ namespace djw::player_ui::sdl
         const Rect  missing_area{missing_right - missing_button_width, status_area.y, missing_button_width,
                                  status_area.height};
         missing_button.setBounds(show_missing ? missing_area : Rect{});
-        missing_button.setLabel("Missing: " + std::to_string(status.missing_total));
+        missing_button.setLabel(translator->tr("library.missing", {{"count", status.missing_total}}));
         missing_button.setHighlighted(only_missing);
         remove_button.setBounds(show_remove ? Rect{missing_area.x - remove_button_width - gap, status_area.y,
                                                    remove_button_width, status_area.height}
                                             : Rect{});
-        remove_button.setLabel(confirm_remove_until ? "Tap again to remove " + std::to_string(status.missing_total)
-                                                    : std::string{"Remove missing"});
+        remove_button.setLabel(confirm_remove_until
+                                   ? translator->tr("library.remove_confirm", {{"count", status.missing_total}})
+                                   : translator->tr("library.remove_missing"));
     }
 
     void LibraryView::search(const core::api::LibraryQuery &query, bool keep_position)
@@ -409,16 +440,19 @@ namespace djw::player_ui::sdl
 
     void LibraryView::updateStatus(const core::api::LibraryStatus &status)
     {
-        status_text = std::to_string(status.tracks_total) + " tracks";
+        status_text = translator->tr("tracks.count", {{"count", status.tracks_total}});
         if (status.scanning)
         {
-            status_text += " - scanning, " + std::to_string(status.files_found) + " files";
+            status_text += " - " + translator->tr("library.scanning",
+                                                  {{"files", translator->tr("files.count",
+                                                                            {{"count", status.files_found}})}});
         }
         if (status.pending_writes > 0)
         {
-            status_text += " - saving tags";
+            status_text += " - " + translator->tr("library.saving_tags");
         }
-        const std::array<const std::string *, 4> errors{&search_error, &edit_message, &status.write_error,
+        const std::string                        edit_text = edit_message.empty() ? std::string{} : translator->tr(edit_message);
+        const std::array<const std::string *, 5> errors{&search_error, &edit_text, &folder_error, &status.write_error,
                                                         &status.scan_error};
         for (const std::string *error : errors)
         {
@@ -427,6 +461,119 @@ namespace djw::player_ui::sdl
                 status_text += " - " + *error;
                 break;
             }
+        }
+    }
+
+    void LibraryView::applyTranslations()
+    {
+        search_field.setPlaceholder(translator->tr("search.placeholder"));
+        std::array<std::string, track_columns.size()> names;
+        for (std::size_t index = 0; index < names.size(); ++index)
+        {
+            names[index] = translator->tr(column_keys[index]);
+        }
+        for (std::size_t index = 0; index < filters.size(); ++index)
+        {
+            filters[index].setPlaceholder(names[columnIndex(filter_columns[index])]);
+        }
+        header.setNames(std::move(names));
+        add_button.setLabel(translator->tr("library.add_to_playlist"));
+    }
+
+    void LibraryView::updateMenu(const core::api::LibraryStatus &status)
+    {
+        const auto        tr             = [this](std::string_view key) { return translator->tr(key); };
+        const bool        has_playlists  = static_cast<bool>(playlist_action);
+        const bool        can_add_track  = has_playlists && add_to_playlist && list.selected().has_value();
+
+        std::vector<MenuItem> language_items;
+        for (std::size_t index = 0; index < languages.size(); ++index)
+        {
+            language_items.push_back({.id      = language_base + static_cast<int>(index),
+                                      .label   = std::string{languageName(languages[index])},
+                                      .enabled = true,
+                                      .checked = languages[index] == translator->language()});
+        }
+
+        std::vector<Menu> menus;
+        menus.push_back({tr("menu.database"),
+                         {{.id = AddFolder, .label = tr("menu.database.add_folder")},
+                          {.id = Rescan, .label = tr("menu.database.rescan")}}});
+        menus.push_back({tr("menu.playlist"),
+                         {{.id = PlaylistNew, .label = tr("menu.playlist.new"), .enabled = has_playlists},
+                          {.id = PlaylistImport, .label = tr("menu.playlist.import"), .enabled = has_playlists},
+                          {.id = PlaylistExport, .label = tr("menu.playlist.export"), .enabled = has_playlists},
+                          {.id = PlaylistAddTrack, .label = tr("menu.playlist.add_track"), .enabled = can_add_track}}});
+        menus.push_back({tr("menu.settings"), std::move(language_items)});
+        menus.push_back({tr("menu.view"),
+                         {{.id = ClearFilters, .label = tr("menu.view.clear_filters")},
+                          {.id      = MissingOnly,
+                           .label   = tr("menu.view.missing_only"),
+                           .enabled = status.missing_total > 0 || only_missing,
+                           .checked = only_missing}}});
+        menu.setMenus(std::move(menus));
+        menu.setRightToLeft(translator->rightToLeft());
+
+        if (const auto chosen = menu.takeChosen())
+        {
+            chooseMenuEntry(*chosen);
+        }
+    }
+
+    void LibraryView::chooseMenuEntry(int id)
+    {
+        if (id >= language_base)
+        {
+            const auto index = static_cast<std::size_t>(id - language_base);
+            if (index < languages.size() && language_chosen)
+            {
+                language_chosen(languages[index]);
+            }
+            return;
+        }
+        switch (id)
+        {
+            case AddFolder:
+                dialogs->openFolder(
+                    [this](const std::filesystem::path &folder)
+                    {
+                        auto added   = library->addFolder(folder);
+                        folder_error = added ? std::string{} : added.error();
+                    });
+                break;
+            case Rescan:
+                library->rescan();
+                break;
+            case PlaylistNew:
+            case PlaylistImport:
+            case PlaylistExport:
+                if (playlist_action)
+                {
+                    playlist_action(id == PlaylistNew      ? PlaylistCommand::New
+                                    : id == PlaylistImport ? PlaylistCommand::Import
+                                                           : PlaylistCommand::Export);
+                }
+                break;
+            case PlaylistAddTrack:
+                if (const auto selected = list.selected(); selected && add_to_playlist)
+                {
+                    add_to_playlist(list.tracks()[*selected]);
+                }
+                break;
+            case ClearFilters:
+                search_field.setText({});
+                for (TextField &filter : filters)
+                {
+                    filter.setText({});
+                }
+                only_missing = false;
+                break;
+            case MissingOnly:
+                only_missing = !only_missing;
+                confirm_remove_until.reset();
+                break;
+            default:
+                break;
         }
     }
 
@@ -457,6 +604,7 @@ namespace djw::player_ui::sdl
         missing_button.draw(canvas);
         remove_button.draw(canvas);
         add_button.draw(canvas);
+        menu.draw(canvas); // last, so an open menu lies over everything
     }
 
     void LibraryView::wheel(Point position, float dy)

@@ -23,8 +23,16 @@ namespace djw::tests
     {
         public:
             // api::Library
-            std::expected<void, std::string>   addFolder(const std::filesystem::path &) override { return {}; }
-            void                               rescan() override {}
+            std::expected<void, std::string> addFolder(const std::filesystem::path &folder) override
+            {
+                added_folders.push_back(folder);
+                if (!add_folder_error.empty())
+                {
+                    return std::unexpected{add_folder_error};
+                }
+                return {};
+            }
+            void                               rescan() override { ++rescans; }
             std::vector<std::filesystem::path> folders() const override { return {}; }
             core::api::LibraryStatus           status() const override { return library_status; }
             core::api::Playlists              &playlists() noexcept override { return *this; }
@@ -154,6 +162,9 @@ namespace djw::tests
                 {.id = 2, .path = "/m/b.mp3", .artist = "B", .title = "beta"},
                 {.id = 3, .path = "/m/c.mp3", .artist = "C", .title = "gamma"},
             };
+            std::vector<std::filesystem::path>                                added_folders;
+            std::string                                                       add_folder_error;
+            int                                                               rescans = 0;
             core::api::LibraryStatus                                          library_status;
             std::vector<std::pair<std::int64_t, core::api::LibraryTagChange>> edits;
             int                                                               removals = 0;

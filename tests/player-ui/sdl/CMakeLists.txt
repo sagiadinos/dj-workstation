@@ -14,6 +14,8 @@ add_executable(djw_player_sdl_tests
     test_library_view.cpp
     test_playlist_view.cpp
     test_command_line.cpp
+    test_i18n.cpp
+    test_menu_bar.cpp
 )
 djw_set_options(djw_player_sdl_tests TEST)
 target_include_directories(djw_player_sdl_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

@@ -53,6 +53,12 @@ namespace djw::player_ui::sdl
                                static_cast<int>(playlist_filters.size()), suggested_name.c_str());
     }
 
+    void SdlFileDialogs::openFolder(Chosen chosen)
+    {
+        auto *userdata = new std::shared_ptr<Answer>{waitFor(std::move(chosen))};
+        SDL_ShowOpenFolderDialog(&onAnswer, userdata, parent, nullptr, false);
+    }
+
     void SdlFileDialogs::deliver()
     {
         if (!answer)

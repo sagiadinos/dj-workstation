@@ -61,6 +61,14 @@ namespace djw::player_ui::sdl
         pressed.reset();
     }
 
+    ColumnHeader::ColumnHeader()
+    {
+        for (std::size_t index = 0; index < track_columns.size(); ++index)
+        {
+            names[index] = std::string{columnName(track_columns[index])};
+        }
+    }
+
     void ColumnHeader::draw(Canvas &canvas) const
     {
         canvas.fillRect(bounds(), background);
@@ -70,14 +78,14 @@ namespace djw::player_ui::sdl
             const bool  sorted = column == sort_by;
             const float text_y = area.y + ((area.height - canvas.textHeight()) / 2);
             const float arrow  = sorted ? arrow_size + padding : 0.0F;
-            canvas.textElided({area.x + padding, text_y}, columnName(column), sorted ? sorted_color : text_color,
+            const std::string &name = names[columnIndex(column)];
+            canvas.textElided({area.x + padding, text_y}, name, sorted ? sorted_color : text_color,
                               area.width - (2 * padding) - arrow);
             if (sorted)
             {
-                const std::string_view name   = columnName(column);
-                const float            left   = area.x + padding + canvas.textWidth(name) + (padding / 2);
-                const float            middle = area.y + (area.height / 2);
-                const float            half   = arrow_size / 2;
+                const float left   = area.x + padding + canvas.textWidth(name) + (padding / 2);
+                const float middle = area.y + (area.height / 2);
+                const float half   = arrow_size / 2;
                 if (descending)
                 {
                     canvas.fillTriangle({left, middle - half}, {left + arrow_size, middle - half},

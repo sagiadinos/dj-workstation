@@ -11,9 +11,9 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * The system's file dialogs for playlist files. Behind this interface so views can be tested without dialogs.
+     * The system's dialogs for playlist files and music folders. Behind this interface so views can be tested without dialogs.
      *
-     * chosen is called on the UI thread with the file the user picked, and not at all when the dialog is cancelled.
+     * chosen is called on the UI thread with the file or folder the user picked, and not at all when the dialog is cancelled.
      */
     class FileDialogs
     {
@@ -31,6 +31,8 @@ namespace djw::player_ui::sdl
             virtual void openPlaylist(Chosen chosen) = 0;
             /// Lets the user choose where to save a playlist file, suggesting suggested_name
             virtual void savePlaylist(const std::string &suggested_name, Chosen chosen) = 0;
+            /// Lets the user pick an existing folder, e.g. a music folder for the library
+            virtual void openFolder(Chosen chosen) = 0;
     };
 } // namespace djw::player_ui::sdl
 
