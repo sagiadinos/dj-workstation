@@ -7,9 +7,34 @@
 
 namespace djw::core::engine
 {
-    Deck::Deck(api::DeckId id, AudioSource &source, std::size_t pause_fade_frames) noexcept
-        : deck_id{id}, source{&source}, pause_fade_frames{pause_fade_frames}
+    Deck::Deck(api::DeckId id, std::size_t pause_fade_frames) noexcept
+        : deck_id{id}, pause_fade_frames{pause_fade_frames}
     {
+    }
+
+    void Deck::attach(AudioSource *track) noexcept // [audio-thread]
+    {
+        if (track == source)
+        {
+            return;
+        }
+        source          = track;
+        state           = State::Stopped;
+        fade_remaining  = 0;
+        position_frames = 0;
+    }
+
+    std::uint64_t Deck::lengthFrames() const noexcept
+    {
+        return source != nullptr ? source->lengthFrames() : 0;
+    }
+
+    void Deck::play() noexcept // [audio-thread]
+    {
+        if (source != nullptr)
+        {
+            state = State::Playing;
+        }
     }
 
     void Deck::pause() noexcept // [audio-thread]
@@ -22,12 +47,27 @@ namespace djw::core::engine
         fade_remaining = pause_fade_frames;
     }
 
+    void Deck::seek(std::uint64_t frame) noexcept // [audio-thread]
+    {
+        if (source == nullptr)
+        {
+            return;
+        }
+        const std::uint64_t length = source->lengthFrames();
+        position_frames            = length > 0 ? std::min(frame, length) : frame;
+        source->seek(position_frames);
+    }
+
     void Deck::render(std::span<float> output) noexcept // [audio-thread]
     {
         std::size_t frames_read = 0;
         if (state == State::Playing)
         {
             frames_read = source->read(output);
+            if (frames_read * stereo_channels < output.size() && source->atEnd())
+            {
+                state = State::Stopped;
+            }
         }
         else if (state == State::FadingOut)
         {

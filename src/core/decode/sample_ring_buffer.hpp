@@ -35,6 +35,14 @@ namespace djw::core::decode
             /// Reader side: copies up to samples.size() samples, returns how many
             std::size_t read(std::span<float> samples) noexcept; // [audio-thread]
 
+            /// Reader side: drops up to count samples without copying, returns how many
+            std::size_t discard(std::size_t count) noexcept; // [audio-thread]
+
+            /// Writer side: samples written since construction
+            [[nodiscard]] std::size_t totalWritten() const noexcept { return head.load(std::memory_order_relaxed); }
+            /// Reader side: samples read or discarded since construction
+            [[nodiscard]] std::size_t totalRead() const noexcept { return tail.load(std::memory_order_relaxed); }
+
         private:
             static constexpr std::size_t cache_line = 64;
 

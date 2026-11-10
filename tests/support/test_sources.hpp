@@ -7,9 +7,11 @@
 #include "engine/audio_source.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <numbers>
 #include <span>
 #include <utility>
@@ -17,7 +19,8 @@
 
 namespace djw::tests
 {
-    /// Endless sine on both channels. The phase is computed from the frame count, so the output is reproducible.
+    /// Endless sine on both channels with unknown length. The phase is computed from the frame position, so the
+    /// output is reproducible.
     class SineSource final : public core::engine::AudioSource
     {
         public:
@@ -40,6 +43,10 @@ namespace djw::tests
                 return frames;
             }
 
+            void          seek(std::uint64_t frame) noexcept override { next_frame = frame; }
+            std::uint64_t lengthFrames() const noexcept override { return 0; }
+            bool          atEnd() const noexcept override { return false; }
+
         private:
             double        frequency;
             std::uint32_t sample_rate;
@@ -47,11 +54,34 @@ namespace djw::tests
             std::uint64_t next_frame = 0;
     };
 
-    /// Plays a fixed buffer of interleaved stereo once, then runs dry.
+    /// Counts living instances, to see when the engine frees a track
+    using LifeCounter = std::shared_ptr<std::atomic<int>>;
+
+    /// A fixed buffer of interleaved stereo, played like a fully decoded track.
     class BufferSource final : public core::engine::AudioSource
     {
         public:
-            explicit BufferSource(std::vector<float> samples) : samples{std::move(samples)} {}
+            explicit BufferSource(std::vector<float> samples, LifeCounter life = nullptr)
+                : samples{std::move(samples)}, life{std::move(life)}
+            {
+                if (this->life)
+                {
+                    ++*this->life;
+                }
+            }
+
+            BufferSource(const BufferSource &)            = delete;
+            BufferSource &operator=(const BufferSource &) = delete;
+            BufferSource(BufferSource &&)                 = delete;
+            BufferSource &operator=(BufferSource &&)      = delete;
+
+            ~BufferSource() override
+            {
+                if (life)
+                {
+                    --*life;
+                }
+            }
 
             std::size_t read(std::span<float> output) noexcept override
             {
@@ -62,10 +92,34 @@ namespace djw::tests
                 return count / core::engine::stereo_channels;
             }
 
+            void seek(std::uint64_t frame) noexcept override
+            {
+                position = std::min(static_cast<std::size_t>(frame) * core::engine::stereo_channels, samples.size());
+            }
+
+            std::uint64_t lengthFrames() const noexcept override
+            {
+                return samples.size() / core::engine::stereo_channels;
+            }
+
+            bool atEnd() const noexcept override { return position >= samples.size(); }
+
         private:
             std::vector<float> samples;
+            LifeCounter        life;
             std::size_t        position = 0;
     };
+
+    /// frames frames where frame n has the value n on both channels
+    inline std::vector<float> ramp(std::size_t frames)
+    {
+        std::vector<float> samples(frames * core::engine::stereo_channels);
+        for (std::size_t i = 0; i < samples.size(); ++i)
+        {
+            samples[i] = static_cast<float>(i / core::engine::stereo_channels);
+        }
+        return samples;
+    }
 } // namespace djw::tests
 
 #endif // DJW_TESTS_SUPPORT_TEST_SOURCES_HPP

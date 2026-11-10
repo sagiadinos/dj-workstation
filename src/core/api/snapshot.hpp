@@ -27,9 +27,11 @@ namespace djw::core::api
     struct DeckSnapshot
     {
             DeckId    deck{};
+            bool      track_loaded     = false;
             PlayState play_state       = PlayState::Stopped;
             float     channel_volume   = 1.0F;
             double    position_seconds = 0.0;
+            double    duration_seconds = 0.0;
     };
 
     static_assert(std::is_trivially_copyable_v<DeckSnapshot>);

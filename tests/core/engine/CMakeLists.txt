@@ -6,6 +6,7 @@ add_executable(djw_core_engine_tests
     test_deck.cpp
     test_mixer_channel.cpp
     test_engine.cpp
+    test_reclaimer.cpp
     test_render_golden.cpp
 )
 djw_set_options(djw_core_engine_tests TEST)
@@ -17,6 +18,7 @@ target_link_libraries(djw_core_engine_tests PRIVATE
     djw_test_support
     djw_test_allocation_counter
     doctest::doctest
+    Threads::Threads
 )
 
 add_test(NAME core.engine COMMAND djw_core_engine_tests)

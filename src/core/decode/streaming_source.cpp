@@ -16,16 +16,14 @@ namespace djw::core::decode
     } // namespace
 
     StreamingSource::StreamingSource(std::unique_ptr<Decoder> decoder, std::size_t buffer_frames)
-        : decoder{std::move(decoder)}, ring{buffer_frames * stereo},
+        : decoder{std::move(decoder)}, length{this->decoder->lengthFrames()}, ring{buffer_frames * stereo},
           chunk(std::clamp(ring.capacity() / stereo / 4, std::size_t{1}, chunk_frames) * stereo)
     {
         while (fillChunk())
         {
         }
-        if (!decoder_done.load(std::memory_order_relaxed))
-        {
-            worker = std::thread{[this] { run(); }};
-        }
+        // Started even if everything is decoded already: a seek needs the worker
+        worker = std::thread{[this] { run(); }};
     }
 
     StreamingSource::~StreamingSource()
@@ -39,13 +37,56 @@ namespace djw::core::decode
 
     std::size_t StreamingSource::read(std::span<float> output) noexcept // [audio-thread]
     {
+        if (!seekSettled())
+        {
+            return 0;
+        }
         // The worker writes whole frames, so the fill level is always a whole number of frames
         return ring.read(output.first(output.size() / stereo * stereo)) / stereo;
     }
 
-    bool StreamingSource::endOfStream() const noexcept
+    void StreamingSource::seek(std::uint64_t frame) noexcept // [audio-thread]
     {
-        return decoder_done.load(std::memory_order_acquire) && ring.readAvailable() == 0;
+        seek_frame.store(length > 0 ? std::min(frame, length) : frame, std::memory_order_relaxed);
+        seek_generation.store(++requested_generation, std::memory_order_release);
+        ring.discard(ring.readAvailable());
+    }
+
+    bool StreamingSource::atEnd() const noexcept // [audio-thread]
+    {
+        return answered_generation.load(std::memory_order_acquire) == requested_generation &&
+               decoder_done.load(std::memory_order_acquire) && ring.readAvailable() == 0;
+    }
+
+    bool StreamingSource::seekSettled() noexcept // [audio-thread]
+    {
+        if (answered_generation.load(std::memory_order_acquire) != requested_generation)
+        {
+            ring.discard(ring.readAvailable());
+            return false;
+        }
+        // Audio written before the worker moved the decoder is from the old position
+        const std::size_t stale = stale_until.load(std::memory_order_relaxed);
+        if (ring.totalRead() < stale)
+        {
+            ring.discard(stale - ring.totalRead());
+        }
+        return ring.totalRead() >= stale;
+    }
+
+    void StreamingSource::handleSeek()
+    {
+        const std::uint32_t generation = seek_generation.load(std::memory_order_acquire);
+        if (generation == handled_generation)
+        {
+            return;
+        }
+        const auto moved = decoder->seek(seek_frame.load(std::memory_order_relaxed));
+        decode_failed.store(!moved, std::memory_order_relaxed);
+        decoder_done.store(!moved, std::memory_order_relaxed);
+        stale_until.store(ring.totalWritten(), std::memory_order_relaxed);
+        handled_generation = generation;
+        answered_generation.store(generation, std::memory_order_release);
     }
 
     bool StreamingSource::fillChunk()
@@ -62,14 +103,16 @@ namespace djw::core::decode
             decoder_done.store(true, std::memory_order_release);
             return false;
         }
-        ring.write(std::span{chunk}.first(*frames * stereo));
+        // Fits: there was room for a whole chunk and only this thread writes
+        static_cast<void>(ring.write(std::span{chunk}.first(*frames * stereo)));
         return true;
     }
 
     void StreamingSource::run()
     {
-        while (!stop_requested.load(std::memory_order_relaxed) && !decoder_done.load(std::memory_order_relaxed))
+        while (!stop_requested.load(std::memory_order_relaxed))
         {
+            handleSeek();
             if (!fillChunk())
             {
                 std::this_thread::sleep_for(poll_interval);

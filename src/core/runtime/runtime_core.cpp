@@ -3,18 +3,28 @@
 
 #include "runtime/runtime_core.hpp"
 
-#include "decode/miniaudio_decoder.hpp"
+#include <string>
+#include <utility>
 
 namespace djw::core::runtime
 {
     namespace
     {
-        // Decoded audio buffered per deck; covers slow storage such as SD cards on the Raspberry Pi
+        // Decoded audio buffered for a streamed track; covers slow storage such as SD cards on the Raspberry Pi
         constexpr std::uint32_t stream_buffer_seconds = 1;
+
+        std::string unknownDeck(api::DeckId deck)
+        {
+            return "unknown deck " + std::to_string(std::to_underlying(deck));
+        }
     } // namespace
 
     RuntimeCore::RuntimeCore(const api::CoreConfig &config, std::unique_ptr<audio_io::AudioDevice> audio_device)
-        : engine{{.sample_rate = audio_device->sampleRate(), .max_block_frames = config.buffer_frames}},
+        : track_config{.sample_rate = audio_device->sampleRate(),
+                       .memory_limit_frames =
+                           std::uint64_t{config.memory_track_limit_seconds} * audio_device->sampleRate(),
+                       .stream_buffer_frames = std::size_t{stream_buffer_seconds} * audio_device->sampleRate()},
+          engine{{.sample_rate = audio_device->sampleRate(), .max_block_frames = config.buffer_frames}},
           frontend_queue{engine.addCommandQueue()}, callback{engine}, device{std::move(audio_device)}
     {
     }
@@ -24,20 +34,36 @@ namespace djw::core::runtime
         device->stop();
     }
 
-    std::expected<api::DeckId, std::string> RuntimeCore::addDeck(const std::filesystem::path &file)
+    api::DeckId RuntimeCore::addDeck()
     {
-        if (started)
+        engine.collectGarbage();
+        return engine.addDeck();
+    }
+
+    std::expected<void, std::string> RuntimeCore::removeDeck(api::DeckId deck)
+    {
+        engine.collectGarbage();
+        if (!engine.removeDeck(deck))
         {
-            return std::unexpected{std::string{"decks can only be added before start"}};
+            return std::unexpected{unknownDeck(deck)};
         }
-        auto decoder = decode::MiniaudioDecoder::open(file, engine.sampleRate());
-        if (!decoder)
+        return {};
+    }
+
+    std::expected<void, std::string> RuntimeCore::loadTrack(api::DeckId deck, const std::filesystem::path &file)
+    {
+        engine.collectGarbage();
+        if (engine.deckSnapshot(deck) == nullptr)
         {
-            return std::unexpected{decoder.error()};
+            return std::unexpected{unknownDeck(deck)};
         }
-        sources.push_back(std::make_unique<decode::StreamingSource>(std::move(*decoder),
-                                                                    stream_buffer_seconds * engine.sampleRate()));
-        return engine.addDeck(*sources.back());
+        auto track = decode::openTrack(file, track_config);
+        if (!track)
+        {
+            return std::unexpected{track.error()};
+        }
+        engine.setTrack(deck, std::move(*track));
+        return {};
     }
 
     std::expected<void, std::string> RuntimeCore::start()

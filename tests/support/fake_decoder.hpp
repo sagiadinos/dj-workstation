@@ -7,36 +7,59 @@
 #include "decode/decoder.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <expected>
+#include <memory>
 #include <span>
 #include <string>
+#include <thread>
 
 namespace djw::tests
 {
+    struct FakeDecoderOptions
+    {
+            std::uint64_t total_frames = 0;
+            /// Length the decoder announces; 0 means total_frames. Lets a test announce more than there is.
+            std::uint64_t announced_frames = 0;
+            /// Fails on the first read at or after this frame; 0 never fails
+            std::uint64_t fail_at_frame = 0;
+            /// Delay per read, to make decoding slow enough to watch
+            std::chrono::microseconds read_delay{0};
+    };
+
     /**
      * Decoder producing a counting ramp: frame n has the value n on both channels (exact in float up to 2^24).
-     * Optionally fails after a number of frames, to test error handling.
      */
     class FakeDecoder final : public core::decode::Decoder
     {
         public:
-            explicit FakeDecoder(std::size_t total_frames, std::size_t fail_after_frames = 0) noexcept
-                : total_frames{total_frames}, fail_after_frames{fail_after_frames}
+            explicit FakeDecoder(std::uint64_t total_frames)
+                : FakeDecoder{FakeDecoderOptions{.total_frames = total_frames}}
             {
             }
 
+            explicit FakeDecoder(const FakeDecoderOptions &options) : options{options} {}
+
             std::expected<std::size_t, std::string> read(std::span<float> output) override
             {
-                if (fail_after_frames != 0 && next_frame >= fail_after_frames)
+                if (options.read_delay.count() > 0)
+                {
+                    std::this_thread::sleep_for(options.read_delay);
+                }
+                if (options.fail_at_frame != 0 && next_frame >= options.fail_at_frame)
                 {
                     return std::unexpected{std::string{"fake decoder error"}};
                 }
-                std::size_t frames = std::min(output.size() / 2, total_frames - next_frame);
-                if (fail_after_frames != 0)
+                std::uint64_t end = options.total_frames;
+                if (options.fail_at_frame != 0)
                 {
-                    frames = std::min(frames, fail_after_frames - next_frame);
+                    end = std::min(end, options.fail_at_frame);
                 }
+                const auto frames = static_cast<std::size_t>(
+                    std::min<std::uint64_t>(output.size() / 2, end - std::min(end, next_frame)));
                 for (std::size_t frame = 0; frame < frames; ++frame)
                 {
                     output[frame * 2]     = static_cast<float>(next_frame);
@@ -46,10 +69,25 @@ namespace djw::tests
                 return frames;
             }
 
+            std::expected<void, std::string> seek(std::uint64_t frame) override
+            {
+                seeks->fetch_add(1);
+                next_frame = std::min(frame, options.total_frames);
+                return {};
+            }
+
+            std::uint64_t lengthFrames() const noexcept override
+            {
+                return options.announced_frames != 0 ? options.announced_frames : options.total_frames;
+            }
+
+            /// Number of seeks, readable after the decoder has been handed over
+            std::shared_ptr<std::atomic<int>> seekCounter() const { return seeks; }
+
         private:
-            std::size_t total_frames;
-            std::size_t fail_after_frames;
-            std::size_t next_frame = 0;
+            FakeDecoderOptions                options;
+            std::uint64_t                     next_frame = 0;
+            std::shared_ptr<std::atomic<int>> seeks      = std::make_shared<std::atomic<int>>(0);
     };
 } // namespace djw::tests
 

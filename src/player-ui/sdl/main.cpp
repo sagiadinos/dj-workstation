@@ -27,10 +27,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    const auto deck = (*core)->addDeck(argv[1]);
-    if (!deck)
+    const api::DeckId deck = (*core)->addDeck();
+    if (auto loaded = (*core)->loadTrack(deck, argv[1]); !loaded)
     {
-        std::cerr << "djw: " << deck.error() << '\n';
+        std::cerr << "djw: " << loaded.error() << '\n';
         return 1;
     }
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    auto app = djw::player_ui::sdl::SdlApp::create(**core, *deck);
+    auto app = djw::player_ui::sdl::SdlApp::create(**core, deck);
     if (!app)
     {
         std::cerr << "djw: " << app.error() << '\n';
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     (*app)->run();
 
     // Let the pause fade out instead of cutting the sound; with a full queue the sound is cut, fine on exit
-    if ((*core)->commandQueue().tryPush(api::DeckPause{*deck}))
+    if ((*core)->commandQueue().tryPush(api::DeckPause{deck}))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds{50});
     }

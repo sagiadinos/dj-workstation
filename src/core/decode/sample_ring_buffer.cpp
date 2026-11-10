@@ -48,4 +48,11 @@ namespace djw::core::decode
         tail.store(tail_index + count, std::memory_order_release);
         return count;
     }
+
+    std::size_t SampleRingBuffer::discard(std::size_t count) noexcept // [audio-thread]
+    {
+        const std::size_t dropped = std::min(count, readAvailable());
+        tail.store(tail.load(std::memory_order_relaxed) + dropped, std::memory_order_release);
+        return dropped;
+    }
 } // namespace djw::core::decode

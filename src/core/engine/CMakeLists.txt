@@ -5,6 +5,7 @@ add_library(djw_core_engine STATIC
     deck.cpp
     mixer_channel.cpp
     engine.cpp
+    reclaimer.cpp
 )
 add_library(djw::core::engine ALIAS djw_core_engine)
 djw_set_options(djw_core_engine)

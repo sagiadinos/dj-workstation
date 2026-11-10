@@ -35,7 +35,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - The audio thread reads the decoded chunks directly. Chunks are published to it lock-free and stay unchanged while the track is loaded; they are freed outside the audio thread after the track is unloaded.
 - Memory per track: about 23 MB per minute at 48 kHz (a 5-minute track about 115 MB).
 - The size held in memory has a configurable limit, as in VirtualDJ. Tracks above it are streamed from disk through a ring buffer (`decode::StreamingSource`); seeking there may have a short gap and reverse playback is limited to what is buffered. The default limit is 5 minutes of track length; longer tracks (extended versions, mixes) are streamed.
-- Until this is implemented (M1, deck loading), every track is streamed through `decode::StreamingSource`.
+- Implemented in `decode::MemoryTrack` and `decode::StreamingSource`; `decode::makeTrack` chooses between them.
 
 ### Dependencies
 - Only use libraries listed in FEATURES.md section 6.

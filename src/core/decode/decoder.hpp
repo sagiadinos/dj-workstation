@@ -5,6 +5,7 @@
 #define DJW_CORE_DECODE_DECODER_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <span>
 #include <string>
@@ -29,6 +30,12 @@ namespace djw::core::decode
 
             /// Decodes up to output.size() / 2 frames. Returns the number of frames, 0 at the end of the stream.
             virtual std::expected<std::size_t, std::string> read(std::span<float> output) = 0;
+
+            /// Continues decoding at the given frame (at the output sample rate).
+            virtual std::expected<void, std::string> seek(std::uint64_t frame) = 0;
+
+            /// Length in frames at the output sample rate, 0 if unknown
+            [[nodiscard]] virtual std::uint64_t lengthFrames() const noexcept = 0;
     };
 } // namespace djw::core::decode
 

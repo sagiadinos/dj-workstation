@@ -42,10 +42,10 @@ namespace
 
 TEST_CASE("Render: play, lower the channel volume, pause")
 {
-    engine::Engine         engine{{.sample_rate = sample_rate, .max_block_frames = block_frames}};
-    api::CommandQueue     &queue = engine.addCommandQueue();
-    djw::tests::SineSource source{440.0, sample_rate, 0.5F};
-    const api::DeckId      deck = engine.addDeck(source);
+    engine::Engine     engine{{.sample_rate = sample_rate, .max_block_frames = block_frames}};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    const api::DeckId  deck  = engine.addDeck();
+    REQUIRE(engine.setTrack(deck, std::make_unique<djw::tests::SineSource>(440.0, sample_rate, 0.5F)));
 
     const auto audio = renderScenario(engine, queue, 48,
                                       {

@@ -10,7 +10,9 @@
 #include "engine/audio_source.hpp"
 #include "engine/deck.hpp"
 #include "engine/mixer_channel.hpp"
+#include "engine/reclaimer.hpp"
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -32,19 +34,35 @@ namespace djw::core::engine
      * render() is the audio callback. It runs without an audio device too, which is what the offline render tests
      * use. Commands come in through command queues, deck state goes out through one snapshot buffer per deck.
      *
-     * Setup (addCommandQueue, addDeck) must happen before rendering starts. Adding and removing decks while
-     * rendering comes with M1 (deck list swapped through an atomic pointer).
+     * Decks and tracks change while rendering: the control thread (the one calling addDeck, removeDeck, setTrack)
+     * publishes a new deck list or track through an atomic pointer, the audio thread picks it up at the start of
+     * its next render. What it no longer sees is freed later by the control thread, see Reclaimer; call
+     * collectGarbage() regularly for that. Command queues are fixed once rendering has started.
      */
     class Engine
     {
         public:
             explicit Engine(EngineConfig config);
+            Engine(const Engine &)            = delete;
+            Engine &operator=(const Engine &) = delete;
+            Engine(Engine &&)                 = delete;
+            Engine &operator=(Engine &&)      = delete;
+            ~Engine();
 
-            /// One queue per producer (frontend, controller, ...), see SpscQueue.
+            /// One queue per producer (frontend, controller, ...), see SpscQueue. Only before rendering starts.
             api::CommandQueue &addCommandQueue();
-            api::DeckId        addDeck(AudioSource &source);
 
-            /// Snapshot buffer of a deck for the reader side, nullptr for an unknown deck
+            /// Control thread: a new deck without a track
+            api::DeckId addDeck();
+            /// Control thread: false for an unknown deck. Its snapshot buffer must not be used afterwards.
+            bool removeDeck(api::DeckId deck);
+            /// Control thread: replaces the deck's track (nullptr unloads); the deck stops at the new track's start.
+            /// False for an unknown deck.
+            bool setTrack(api::DeckId deck, std::unique_ptr<AudioSource> track);
+            /// Control thread: frees decks, lists and tracks the audio thread no longer uses.
+            void collectGarbage();
+
+            /// Control thread: snapshot buffer of a deck for the reader side, nullptr for an unknown deck
             api::DeckSnapshotBuffer *deckSnapshot(api::DeckId deck) noexcept;
 
             [[nodiscard]] std::uint32_t sampleRate() const noexcept { return config.sample_rate; }
@@ -56,24 +74,41 @@ namespace djw::core::engine
         private:
             struct DeckSlot
             {
-                    DeckSlot(api::DeckId id, AudioSource &source, std::size_t pause_fade_frames);
+                    DeckSlot(api::DeckId id, std::size_t pause_fade_frames);
 
                     Deck                    deck;
                     MixerChannel            channel;
                     api::DeckSnapshotBuffer snapshot;
+                    /// Published to the audio thread
+                    std::atomic<AudioSource *> track{nullptr};
+                    /// Control thread: owner of the published track
+                    std::unique_ptr<AudioSource> owned_track;
             };
 
-            DeckSlot *findDeck(api::DeckId deck) noexcept;
-            void      applyCommands() noexcept;                      // [audio-thread]
-            void      apply(const api::Command &command) noexcept;   // [audio-thread]
-            void      renderBlock(std::span<float> output) noexcept; // [audio-thread]
-            void      publishSnapshots() noexcept;                   // [audio-thread]
+            /// Immutable once published
+            struct DeckList
+            {
+                    std::vector<DeckSlot *> slots;
+            };
+
+            DeckSlot *findOwned(api::DeckId deck) noexcept;
+            void      publishDeckList();
+
+            static DeckSlot *findDeck(const DeckList &list, api::DeckId deck) noexcept;           // [audio-thread]
+            void             applyCommands(const DeckList &list) noexcept;                        // [audio-thread]
+            void             apply(const DeckList &list, const api::Command &command) noexcept;   // [audio-thread]
+            void             renderBlock(const DeckList &list, std::span<float> output) noexcept; // [audio-thread]
+            void             publishSnapshots(const DeckList &list) noexcept;                     // [audio-thread]
 
             EngineConfig                                    config;
             std::vector<std::unique_ptr<api::CommandQueue>> command_queues;
-            std::vector<std::unique_ptr<DeckSlot>>          decks;
             std::vector<float>                              deck_buffer;
-            std::uint32_t                                   next_deck_id = 1;
+            Reclaimer                                       reclaimer;
+            // Control thread: all decks and the owner of the published list
+            std::vector<std::unique_ptr<DeckSlot>> slots;
+            std::unique_ptr<DeckList>              current_list;
+            std::atomic<const DeckList *>          published_list{nullptr};
+            std::uint32_t                          next_deck_id = 1;
     };
 } // namespace djw::core::engine
 

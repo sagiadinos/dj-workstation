@@ -18,7 +18,8 @@ using djw::tests::FakeAudioDevice;
 namespace
 {
     const std::filesystem::path audio_dir{DJW_TEST_AUDIO_DIR};
-    const std::filesystem::path wav_file = audio_dir / "sine_440hz_48k_stereo.wav";
+    const std::filesystem::path wav_file  = audio_dir / "sine_440hz_48k_stereo.wav";
+    const std::filesystem::path flac_file = audio_dir / "sine_440hz_48k_stereo.flac";
 
     std::vector<float> decodeFile(const std::filesystem::path &file, std::size_t frames)
     {
@@ -28,62 +29,115 @@ namespace
         REQUIRE((*decoder)->read(samples) == frames);
         return samples;
     }
+
+    /// A started core with a fake device the test can pull audio from
+    struct Fixture
+    {
+            Fixture() : Fixture{api::CoreConfig{}} {}
+
+            explicit Fixture(const api::CoreConfig &config, std::uint32_t device_rate = 48'000)
+            {
+                auto owner = std::make_unique<FakeAudioDevice>(device_rate);
+                device     = owner.get();
+                core       = std::make_unique<runtime::RuntimeCore>(config, std::move(owner));
+                REQUIRE(core->start().has_value());
+            }
+
+            std::vector<float> pull(std::size_t frames, std::size_t block = 250)
+            {
+                std::vector<float> output;
+                for (std::size_t done = 0; done < frames; done += block)
+                {
+                    const auto samples = device->pull(std::min(block, frames - done));
+                    output.insert(output.end(), samples.begin(), samples.end());
+                }
+                return output;
+            }
+
+            FakeAudioDevice                      *device = nullptr;
+            std::unique_ptr<runtime::RuntimeCore> core;
+    };
 } // namespace
 
-TEST_CASE("RuntimeCore: plays a file through the device after a play command")
+TEST_CASE("RuntimeCore: plays a loaded file through the device after a play command")
 {
-    auto                 device_owner = std::make_unique<FakeAudioDevice>();
-    auto                &device       = *device_owner;
-    runtime::RuntimeCore core{{}, std::move(device_owner)};
+    Fixture           fixture;
+    const api::DeckId deck = fixture.core->addDeck();
 
-    const auto deck = core.addDeck(wav_file);
-    REQUIRE_MESSAGE(deck.has_value(), deck.error());
-    REQUIRE(core.commandQueue().tryPush(api::DeckPlay{*deck}));
-    REQUIRE(core.start().has_value());
-
-    std::vector<float> output;
-    for (int block = 0; block < 12'000 / 250; ++block)
-    {
-        const auto samples = device.pull(250);
-        output.insert(output.end(), samples.begin(), samples.end());
-    }
+    REQUIRE(fixture.core->loadTrack(deck, wav_file).has_value());
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{deck}));
+    const auto output = fixture.pull(12'000);
 
     CHECK(output == decodeFile(wav_file, 12'000));
-    CHECK(core.deckSnapshot(*deck)->read().play_state == api::PlayState::Playing);
-    CHECK(core.deckSnapshot(*deck)->read().position_seconds == doctest::Approx(0.25));
+    const api::DeckSnapshot state = fixture.core->deckSnapshot(deck)->read();
+    CHECK(state.track_loaded);
+    CHECK(state.position_seconds == doctest::Approx(0.25));
+    CHECK(state.duration_seconds == doctest::Approx(0.25));
+}
+
+TEST_CASE("RuntimeCore: decks are added, loaded and removed while audio is running")
+{
+    Fixture           fixture;
+    const api::DeckId first = fixture.core->addDeck();
+    REQUIRE(fixture.core->loadTrack(first, wav_file).has_value());
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{first}));
+    fixture.pull(1'000);
+
+    const api::DeckId second = fixture.core->addDeck();
+    CHECK(second != first);
+    REQUIRE(fixture.core->loadTrack(second, flac_file).has_value());
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{second}));
+    fixture.pull(1'000);
+    CHECK(fixture.core->deckSnapshot(second)->read().play_state == api::PlayState::Playing);
+
+    REQUIRE(fixture.core->removeDeck(first).has_value());
+    CHECK(fixture.core->deckSnapshot(first) == nullptr);
+    fixture.pull(1'000);
+    CHECK(fixture.core->deckSnapshot(second)->read().position_seconds == doctest::Approx(2'000.0 / 48'000));
+}
+
+TEST_CASE("RuntimeCore: loading into a playing deck stops it at the start of the new track")
+{
+    Fixture           fixture;
+    const api::DeckId deck = fixture.core->addDeck();
+    REQUIRE(fixture.core->loadTrack(deck, wav_file).has_value());
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{deck}));
+    fixture.pull(1'000);
+
+    REQUIRE(fixture.core->loadTrack(deck, flac_file).has_value());
+    fixture.pull(250);
+
+    const api::DeckSnapshot state = fixture.core->deckSnapshot(deck)->read();
+    CHECK(state.play_state == api::PlayState::Stopped);
+    CHECK(state.position_seconds == 0.0);
 }
 
 TEST_CASE("RuntimeCore: the engine runs at the sample rate of the device")
 {
-    auto                 device_owner = std::make_unique<FakeAudioDevice>(44'100);
-    auto                &device       = *device_owner;
-    runtime::RuntimeCore core{{.sample_rate = 48'000}, std::move(device_owner)};
+    Fixture           fixture{{.sample_rate = 48'000}, 44'100};
+    const api::DeckId deck = fixture.core->addDeck();
+    REQUIRE(fixture.core->loadTrack(deck, wav_file).has_value());
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{deck}));
 
-    const auto deck = core.addDeck(wav_file);
-    REQUIRE(deck.has_value());
-    REQUIRE(core.commandQueue().tryPush(api::DeckPlay{*deck}));
-    REQUIRE(core.start().has_value());
-    device.pull(4'410);
+    fixture.pull(4'410);
 
-    CHECK(core.deckSnapshot(*deck)->read().position_seconds == doctest::Approx(0.1));
+    CHECK(fixture.core->deckSnapshot(deck)->read().position_seconds == doctest::Approx(0.1));
 }
 
-TEST_CASE("RuntimeCore: a file that cannot be decoded is an error naming the file")
+TEST_CASE("RuntimeCore: errors name the problem and leave the deck as it was")
 {
-    runtime::RuntimeCore core{{}, std::make_unique<FakeAudioDevice>()};
+    Fixture           fixture;
+    const api::DeckId deck = fixture.core->addDeck();
+    REQUIRE(fixture.core->loadTrack(deck, wav_file).has_value());
 
-    const auto deck = core.addDeck(audio_dir / "missing.flac");
+    const auto missing = fixture.core->loadTrack(deck, audio_dir / "missing.flac");
+    REQUIRE_FALSE(missing.has_value());
+    CHECK(missing.error().find("missing.flac") != std::string::npos);
+    fixture.pull(250);
+    CHECK(fixture.core->deckSnapshot(deck)->read().track_loaded);
 
-    REQUIRE_FALSE(deck.has_value());
-    CHECK(deck.error().find("missing.flac") != std::string::npos);
-}
-
-TEST_CASE("RuntimeCore: decks cannot be added after start")
-{
-    runtime::RuntimeCore core{{}, std::make_unique<FakeAudioDevice>()};
-    REQUIRE(core.start().has_value());
-
-    CHECK_FALSE(core.addDeck(wav_file).has_value());
+    CHECK_FALSE(fixture.core->loadTrack(api::DeckId{99}, wav_file).has_value());
+    CHECK_FALSE(fixture.core->removeDeck(api::DeckId{99}).has_value());
 }
 
 TEST_CASE("RuntimeCore: an error of the device on start is passed on")
@@ -109,23 +163,22 @@ TEST_CASE("RuntimeCore: the device is stopped when the core is destroyed")
     CHECK(log->stopped);
 }
 
-TEST_CASE("createCore: with silent output the deck plays in real time")
+TEST_CASE("createCore: with silent output a deck plays in real time")
 {
     auto core = api::createCore({.silent_output = true});
     REQUIRE_MESSAGE(core.has_value(), core.error());
 
-    const auto deck = (*core)->addDeck(wav_file);
-    REQUIRE(deck.has_value());
-    REQUIRE((*core)->commandQueue().tryPush(api::DeckPlay{*deck}));
+    const api::DeckId deck = (*core)->addDeck();
+    REQUIRE((*core)->loadTrack(deck, wav_file).has_value());
+    REQUIRE((*core)->commandQueue().tryPush(api::DeckPlay{deck}));
     REQUIRE((*core)->start().has_value());
 
-    api::DeckSnapshotBuffer *snapshot = (*core)->deckSnapshot(*deck);
+    api::DeckSnapshotBuffer *snapshot = (*core)->deckSnapshot(deck);
     const auto               deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
     while (snapshot->read().position_seconds < 0.05 && std::chrono::steady_clock::now() < deadline)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds{5});
     }
 
-    CHECK(snapshot->read().play_state == api::PlayState::Playing);
     CHECK(snapshot->read().position_seconds >= 0.05);
 }

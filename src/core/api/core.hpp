@@ -23,14 +23,17 @@ namespace djw::core::api
             std::uint32_t buffer_frames = 256;
             /// No sound output, the core still runs in real time (tests, headless runs)
             bool silent_output = false;
+            /// Tracks up to this length are held in memory, longer ones are streamed (Architecture.md, Track loading)
+            std::uint32_t memory_track_limit_seconds = 300;
     };
 
     /**
      * The core as the frontends see it.
      *
-     * Setup goes through the methods here (adding decks, starting the audio output). While running, a frontend
-     * only pushes commands into its command queue and reads deck snapshots. The implementation lives in
-     * core/runtime; frontends only include this header.
+     * Decks are added, removed and loaded through the methods here, also while audio is running. Everything else
+     * goes through the frontend's command queue, and deck state comes back through deck snapshots. All methods are
+     * called from one thread, the frontend's. The implementation lives in core/runtime; frontends only include this
+     * header.
      */
     class Core
     {
@@ -42,8 +45,15 @@ namespace djw::core::api
             Core &operator=(Core &&)      = delete;
             virtual ~Core()               = default;
 
-            /// Adds a deck with the given file loaded. Only before start(); adding decks while running comes with M1.
-            virtual std::expected<DeckId, std::string> addDeck(const std::filesystem::path &file) = 0;
+            /// Adds an empty deck.
+            virtual DeckId addDeck() = 0;
+
+            /// Removes a deck; its snapshot buffer must not be used afterwards.
+            virtual std::expected<void, std::string> removeDeck(DeckId deck) = 0;
+
+            /// Loads a file into a deck, replacing its track; the deck stops at the start of the new track. Opening
+            /// the file happens here, decoding continues in the background. On error the deck keeps its track.
+            virtual std::expected<void, std::string> loadTrack(DeckId deck, const std::filesystem::path &file) = 0;
 
             /// Starts the audio output.
             virtual std::expected<void, std::string> start() = 0;

@@ -44,8 +44,9 @@ namespace djw::core::decode
                 }
             }
 
-            ma_decoder decoder{};
-            bool       initialized = false;
+            ma_decoder    decoder{};
+            bool          initialized   = false;
+            std::uint64_t length_frames = 0;
     };
 
     std::expected<std::unique_ptr<MiniaudioDecoder>, std::string>
@@ -60,6 +61,13 @@ namespace djw::core::decode
             return std::unexpected{"cannot decode " + path.string() + ": " + ma_result_description(result)};
         }
         state->initialized = true;
+
+        // Exact for WAV and FLAC; for MP3 miniaudio scans the frames once
+        ma_uint64 length = 0;
+        if (ma_decoder_get_length_in_pcm_frames(&state->decoder, &length) == MA_SUCCESS)
+        {
+            state->length_frames = length;
+        }
         return std::unique_ptr<MiniaudioDecoder>{new MiniaudioDecoder{std::move(state)}};
     }
 
@@ -77,5 +85,20 @@ namespace djw::core::decode
             return std::unexpected{std::string{"decoding failed: "} + ma_result_description(result)};
         }
         return static_cast<std::size_t>(frames_read);
+    }
+
+    std::expected<void, std::string> MiniaudioDecoder::seek(std::uint64_t frame)
+    {
+        const ma_result result = ma_decoder_seek_to_pcm_frame(&state->decoder, frame);
+        if (result != MA_SUCCESS)
+        {
+            return std::unexpected{std::string{"seeking failed: "} + ma_result_description(result)};
+        }
+        return {};
+    }
+
+    std::uint64_t MiniaudioDecoder::lengthFrames() const noexcept
+    {
+        return state->length_frames;
     }
 } // namespace djw::core::decode

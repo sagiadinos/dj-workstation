@@ -22,6 +22,13 @@ namespace djw::core::api
             DeckId deck;
     };
 
+    /// Jumps to a position of the loaded track; clamped to the track
+    struct DeckSeek
+    {
+            DeckId deck;
+            double position_seconds;
+    };
+
     /// Channel fader of a deck, 0.0 (silent) to 1.0 (full). Values outside are clamped by the engine.
     struct MixerSetChannelVolume
     {
@@ -36,7 +43,7 @@ namespace djw::core::api
      * thread. Keep it that way: a command that needs a string or a buffer (e.g. loading a file) is handled outside
      * the audio thread.
      */
-    using Command = std::variant<DeckPlay, DeckPause, MixerSetChannelVolume>;
+    using Command = std::variant<DeckPlay, DeckPause, DeckSeek, MixerSetChannelVolume>;
 
     static_assert(std::is_trivially_copyable_v<Command>);
 

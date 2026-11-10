@@ -29,6 +29,8 @@ namespace djw::core::decode
             ~MiniaudioDecoder() override;
 
             std::expected<std::size_t, std::string> read(std::span<float> output) override;
+            std::expected<void, std::string>        seek(std::uint64_t frame) override;
+            [[nodiscard]] std::uint64_t             lengthFrames() const noexcept override;
 
         private:
             struct State;

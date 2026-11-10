@@ -5,6 +5,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -135,4 +136,36 @@ TEST_CASE("MiniaudioDecoder: a file that is not audio is an error")
     const auto decoder = MiniaudioDecoder::open(path, 48'000);
     std::filesystem::remove(path);
     CHECK_FALSE(decoder.has_value());
+}
+
+TEST_CASE("MiniaudioDecoder: knows the length of the files")
+{
+    const auto wav  = MiniaudioDecoder::open(audio_dir / "sine_440hz_48k_stereo.wav", 48'000);
+    const auto flac = MiniaudioDecoder::open(audio_dir / "sine_440hz_48k_stereo.flac", 48'000);
+    const auto mp3  = MiniaudioDecoder::open(audio_dir / "sine_440hz_48k_stereo.mp3", 48'000);
+    const auto mono = MiniaudioDecoder::open(audio_dir / "sine_440hz_44k1_mono.wav", 48'000);
+    REQUIRE(wav.has_value());
+    REQUIRE(flac.has_value());
+    REQUIRE(mp3.has_value());
+    REQUIRE(mono.has_value());
+
+    CHECK((*wav)->lengthFrames() == file_frames);
+    CHECK((*flac)->lengthFrames() == file_frames);
+    CHECK((*mp3)->lengthFrames() == decodeAll(audio_dir / "sine_440hz_48k_stereo.mp3", 48'000).size() / 2);
+    // Converted to the output rate
+    CHECK((*mono)->lengthFrames() >= file_frames - 50);
+    CHECK((*mono)->lengthFrames() <= file_frames + 50);
+}
+
+TEST_CASE("MiniaudioDecoder: after a seek decoding continues at that frame")
+{
+    const std::vector<float> all     = decodeAll(audio_dir / "sine_440hz_48k_stereo.flac", 48'000);
+    auto                     decoder = MiniaudioDecoder::open(audio_dir / "sine_440hz_48k_stereo.flac", 48'000);
+    REQUIRE(decoder.has_value());
+
+    REQUIRE((*decoder)->seek(7'000).has_value());
+    std::vector<float> block(100 * 2);
+    REQUIRE((*decoder)->read(block) == 100);
+
+    CHECK(std::equal(block.begin(), block.end(), all.begin() + 7'000 * 2));
 }

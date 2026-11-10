@@ -7,30 +7,36 @@
 #include "api/core.hpp"
 #include "audio_io/audio_callback.hpp"
 #include "audio_io/audio_device.hpp"
-#include "decode/streaming_source.hpp"
+#include "decode/track_loader.hpp"
 #include "engine/engine.hpp"
 
 #include <memory>
-#include <vector>
 
 namespace djw::core::runtime
 {
     /**
-     * Implementation of api::Core: wires engine, decoders and the audio device together.
+     * Implementation of api::Core: wires engine, track loading and the audio device together.
      *
      * The device is injected, so tests can drive the core with a fake device. It is stopped before anything it
-     * calls into is destroyed.
+     * calls into is destroyed. Every call frees what the engine retired since the last call (unloaded tracks,
+     * removed decks).
      */
     class RuntimeCore final : public api::Core
     {
         public:
             RuntimeCore(const api::CoreConfig &config, std::unique_ptr<audio_io::AudioDevice> audio_device);
+            RuntimeCore(const RuntimeCore &)            = delete;
+            RuntimeCore &operator=(const RuntimeCore &) = delete;
+            RuntimeCore(RuntimeCore &&)                 = delete;
+            RuntimeCore &operator=(RuntimeCore &&)      = delete;
             ~RuntimeCore() override;
 
-            std::expected<api::DeckId, std::string> addDeck(const std::filesystem::path &file) override;
-            std::expected<void, std::string>        start() override;
-            api::CommandQueue                      &commandQueue() noexcept override { return frontend_queue; }
-            api::DeckSnapshotBuffer                *deckSnapshot(api::DeckId deck) noexcept override;
+            api::DeckId                      addDeck() override;
+            std::expected<void, std::string> removeDeck(api::DeckId deck) override;
+            std::expected<void, std::string> loadTrack(api::DeckId deck, const std::filesystem::path &file) override;
+            std::expected<void, std::string> start() override;
+            api::CommandQueue               &commandQueue() noexcept override { return frontend_queue; }
+            api::DeckSnapshotBuffer         *deckSnapshot(api::DeckId deck) noexcept override;
 
         private:
             /// Lets the audio device call the engine
@@ -44,11 +50,11 @@ namespace djw::core::runtime
                     engine::Engine *engine;
             };
 
-            engine::Engine                                        engine;
-            api::CommandQueue                                    &frontend_queue;
-            std::vector<std::unique_ptr<decode::StreamingSource>> sources;
-            EngineCallback                                        callback;
-            bool                                                  started = false;
+            decode::TrackLoadConfig track_config;
+            engine::Engine          engine;
+            api::CommandQueue      &frontend_queue;
+            EngineCallback          callback;
+            bool                    started = false;
             // Declared last: destroyed first
             std::unique_ptr<audio_io::AudioDevice> device;
     };
