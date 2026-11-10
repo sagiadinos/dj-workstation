@@ -16,7 +16,7 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * Scrollable list of tracks with artist, title, genre and duration.
+     * Scrollable list of tracks with the columns of track_columns.
      *
      * Dragging scrolls (touch and mouse alike); a tap selects a row, a second tap on the same row within
      * double_tap_time activates it, e.g. to load it into a deck. A drag never selects anything.

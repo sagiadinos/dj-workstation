@@ -51,7 +51,8 @@ namespace djw::player_ui::sdl
 
     void TextField::pointerDown(Point /*position*/)
     {
-        has_focus = true;
+        has_focus       = true;
+        focus_requested = true;
     }
 
     void TextField::draw(Canvas &canvas) const

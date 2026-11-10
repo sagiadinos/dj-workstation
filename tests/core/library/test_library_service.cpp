@@ -56,13 +56,13 @@ TEST_CASE("Library: a folder added is scanned with real tags and can be searched
     CHECK(status.tracks_total == 3);
     CHECK(library->folders() == std::vector<std::filesystem::path>{std::filesystem::canonical(music.path())});
 
-    const auto beyonce = library->search("beyonce", 10);
+    const auto beyonce = library->search({.text = "beyonce"});
     REQUIRE(beyonce.has_value());
     REQUIRE(beyonce->size() == 1);
     CHECK(beyonce->front().title == "Ünïcode Title");
     CHECK(beyonce->front().path == std::filesystem::canonical(music.path()) / "sub" / "tagged_vorbis.flac");
 
-    const auto by_name = library->search("some song", 10);
+    const auto by_name = library->search({.text = "some song"});
     REQUIRE(by_name.has_value());
     REQUIRE(by_name->size() == 1);
     CHECK(by_name->front().artist == "Some One");
@@ -116,7 +116,7 @@ TEST_CASE("Library: search works while a scan writes, and closing stops a runnin
 
     for (int i = 0; i < 20; ++i)
     {
-        const auto found = library->search("artist", 1'000);
+        const auto found = library->search({.text = "artist"});
         REQUIRE_MESSAGE(found.has_value(), found.error());
         CHECK(found->size() <= 300);
     }
@@ -143,6 +143,6 @@ TEST_CASE("Library: opening, scanning and closing many times leaves nothing behi
         auto library = openLibrary(data.path() / "library.db");
         REQUIRE(library->addFolder(music.path()).has_value());
         CHECK(waitForScan(*library).tracks_total == 1);
-        CHECK(library->search("tagged", 10).value().size() == 1);
+        CHECK(library->search({.text = "tagged"}).value().size() == 1);
     }
 }

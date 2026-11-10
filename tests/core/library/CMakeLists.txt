@@ -4,6 +4,7 @@
 add_executable(djw_core_library_tests
     main.cpp
     test_file_name_tags.cpp
+    test_text_fold.cpp
     test_search_query.cpp
     test_tag_reader.cpp
     test_track_store.cpp

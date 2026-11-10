@@ -3,6 +3,8 @@
 
 #include "library/track_store.hpp"
 
+#include "library/search_query.hpp"
+#include "library/text_fold.hpp"
 #include "library/utf8_path.hpp"
 
 #include <type_traits>
@@ -27,9 +29,15 @@ namespace djw::core::library
                 album     TEXT    NOT NULL,
                 genre     TEXT    NOT NULL,
                 year      INTEGER NOT NULL,
-                duration  REAL    NOT NULL
+                duration  REAL    NOT NULL,
+                -- Folded (foldText) for filters and sorting: lower case, without accents
+                artist_key TEXT NOT NULL,
+                title_key  TEXT NOT NULL,
+                genre_key  TEXT NOT NULL,
+                -- artist, title, album, genre and file name, one per line, for wildcard words of the search text
+                any_key    TEXT NOT NULL
             );
-            CREATE INDEX tracks_by_artist_title ON tracks (artist COLLATE NOCASE, title COLLATE NOCASE);
+            CREATE INDEX tracks_by_artist_title ON tracks (artist_key, title_key);
 
             -- Full text index over the tracks table; remove_diacritics: "Beyonce" finds "Beyoncé"
             CREATE VIRTUAL TABLE tracks_search USING fts5 (
@@ -52,9 +60,40 @@ namespace djw::core::library
             END;
         )sql";
 
+        // Version 1 had no key columns; they are added and filled from the tags
+        constexpr std::string_view migration_to_2 = R"sql(
+            ALTER TABLE tracks ADD COLUMN artist_key TEXT NOT NULL DEFAULT '';
+            ALTER TABLE tracks ADD COLUMN title_key  TEXT NOT NULL DEFAULT '';
+            ALTER TABLE tracks ADD COLUMN genre_key  TEXT NOT NULL DEFAULT '';
+            ALTER TABLE tracks ADD COLUMN any_key    TEXT NOT NULL DEFAULT '';
+            DROP INDEX tracks_by_artist_title;
+            CREATE INDEX tracks_by_artist_title ON tracks (artist_key, title_key);
+        )sql";
+
         constexpr std::string_view track_columns =
             "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, t.duration";
-        constexpr std::string_view track_order = " ORDER BY t.artist COLLATE NOCASE, t.title COLLATE NOCASE LIMIT ?";
+
+        constexpr std::string_view update_keys =
+            "UPDATE tracks SET artist_key = ?, title_key = ?, genre_key = ?, any_key = ? WHERE id = ?";
+
+        struct TrackKeys
+        {
+                std::string artist;
+                std::string title;
+                std::string genre;
+                std::string any;
+        };
+
+        TrackKeys keysOf(const TrackTags &tags, std::string_view file_name)
+        {
+            return {
+                .artist = foldText(tags.artist),
+                .title  = foldText(tags.title),
+                .genre  = foldText(tags.genre),
+                .any    = foldText(tags.artist + '\n' + tags.title + '\n' + tags.album + '\n' + tags.genre + '\n' +
+                                   std::string{file_name}),
+            };
+        }
 
         api::LibraryTrack readTrack(const Statement &row)
         {
@@ -145,6 +184,10 @@ namespace djw::core::library
         {
             result = database.execute(std::string{schema} + "PRAGMA user_version = " + std::to_string(schema_version));
         }
+        else if (*version == 1)
+        {
+            result = migrateToVersion2(database);
+        }
         else if (*version != schema_version)
         {
             result = std::unexpected{"the library database has schema version " + std::to_string(*version) +
@@ -161,26 +204,66 @@ namespace djw::core::library
         return database.execute("COMMIT");
     }
 
+    std::expected<void, std::string> TrackStore::migrateToVersion2(SqliteDatabase &database)
+    {
+        if (auto altered = database.execute(migration_to_2); !altered)
+        {
+            return altered;
+        }
+        auto tracks = database.prepare("SELECT id, artist, title, album, genre, file_name FROM tracks");
+        auto update = database.prepare(update_keys);
+        if (!tracks || !update)
+        {
+            return std::unexpected{!tracks ? tracks.error() : update.error()};
+        }
+        while (true)
+        {
+            const auto row = tracks->step();
+            if (!row)
+            {
+                return std::unexpected{row.error()};
+            }
+            if (!*row)
+            {
+                break;
+            }
+            const TrackKeys keys = keysOf({.artist = tracks->text(1),
+                                           .title  = tracks->text(2),
+                                           .album  = tracks->text(3),
+                                           .genre  = tracks->text(4)},
+                                          tracks->text(5));
+            if (auto updated = update->bind(1, keys.artist)
+                                   .bind(2, keys.title)
+                                   .bind(3, keys.genre)
+                                   .bind(4, keys.any)
+                                   .bind(5, tracks->integer(0))
+                                   .run();
+                !updated)
+            {
+                return updated;
+            }
+        }
+        return database.execute("PRAGMA user_version = 2");
+    }
+
     std::expected<TrackStore::Statements, std::string> TrackStore::prepareStatements(SqliteDatabase &database)
     {
-        const std::string select     = "SELECT " + std::string{track_columns};
-        auto              add_folder = database.prepare("INSERT OR IGNORE INTO folders (path) VALUES (?)");
-        auto              folders    = database.prepare("SELECT path FROM folders ORDER BY path");
-        auto              stamp      = database.prepare("SELECT modified, size FROM tracks WHERE path = ?");
-        auto              store      = database.prepare(R"sql(
-            INSERT INTO tracks (path, file_name, modified, size, artist, title, album, genre, year, duration)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        auto add_folder = database.prepare("INSERT OR IGNORE INTO folders (path) VALUES (?)");
+        auto folders    = database.prepare("SELECT path FROM folders ORDER BY path");
+        auto stamp      = database.prepare("SELECT modified, size FROM tracks WHERE path = ?");
+        auto store      = database.prepare(R"sql(
+            INSERT INTO tracks (path, file_name, modified, size, artist, title, album, genre, year, duration,
+                                artist_key, title_key, genre_key, any_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (path) DO UPDATE SET
                 file_name = excluded.file_name, modified = excluded.modified, size = excluded.size,
                 artist = excluded.artist, title = excluded.title, album = excluded.album, genre = excluded.genre,
-                year = excluded.year, duration = excluded.duration
+                year = excluded.year, duration = excluded.duration, artist_key = excluded.artist_key,
+                title_key = excluded.title_key, genre_key = excluded.genre_key, any_key = excluded.any_key
         )sql");
-        auto              search = database.prepare(select + " FROM tracks_search s JOIN tracks t ON t.id = s.rowid" +
-                                                    " WHERE tracks_search MATCH ?" + std::string{track_order});
-        auto              list   = database.prepare(select + " FROM tracks t" + std::string{track_order});
-        auto              count  = database.prepare("SELECT count(*) FROM tracks");
+        auto count      = database.prepare("SELECT count(*) FROM tracks");
 
-        for (const auto *statement : {&add_folder, &folders, &stamp, &store, &search, &list, &count})
+        for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count})
         {
             if (!*statement)
             {
@@ -192,8 +275,6 @@ namespace djw::core::library
             .folders    = std::move(*folders),
             .stamp      = std::move(*stamp),
             .store      = std::move(*store),
-            .search     = std::move(*search),
-            .list       = std::move(*list),
             .count      = std::move(*count),
         };
     }
@@ -228,8 +309,10 @@ namespace djw::core::library
     std::expected<void, std::string> TrackStore::store(const std::filesystem::path &file, const FileStamp &stamp,
                                                        const TrackTags &tags)
     {
+        const std::string file_name = toUtf8(file.filename());
+        const TrackKeys   keys      = keysOf(tags, file_name);
         return statements.store.bind(1, toUtf8(file))
-            .bind(2, toUtf8(file.filename()))
+            .bind(2, file_name)
             .bind(3, stamp.modified)
             .bind(4, static_cast<std::int64_t>(stamp.size))
             .bind(5, tags.artist)
@@ -238,21 +321,28 @@ namespace djw::core::library
             .bind(8, tags.genre)
             .bind(9, std::int64_t{tags.year})
             .bind(10, tags.duration_seconds)
+            .bind(11, keys.artist)
+            .bind(12, keys.title)
+            .bind(13, keys.genre)
+            .bind(14, keys.any)
             .run();
     }
 
-    std::expected<std::vector<api::LibraryTrack>, std::string> TrackStore::search(std::string_view fts_query,
-                                                                                  std::size_t      limit)
+    std::expected<std::vector<api::LibraryTrack>, std::string> TrackStore::search(const api::LibraryQuery &query)
     {
-        Statement &query = fts_query.empty() ? statements.list : statements.search;
-        int        index = 1;
-        if (!fts_query.empty())
+        // Prepared per search: the conditions depend on which filters are set, and preparing is cheap next to the
+        // search itself
+        const SearchSql search    = buildSearch(query, track_columns);
+        auto            statement = database.prepare(search.sql);
+        if (!statement)
         {
-            query.bind(index++, fts_query);
+            return std::unexpected{statement.error()};
         }
-        query.bind(index, static_cast<std::int64_t>(limit));
-
-        return collectRows(query, readTrack);
+        for (std::size_t index = 0; index < search.parameters.size(); ++index)
+        {
+            statement->bind(static_cast<int>(index + 1), search.parameters[index]);
+        }
+        return collectRows(*statement, readTrack);
     }
 
     std::expected<std::size_t, std::string> TrackStore::trackCount()

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "library_view.hpp"
+#include "track_columns.hpp"
 
 #include "recording_canvas.hpp"
 
@@ -22,11 +23,12 @@ namespace
             std::vector<std::filesystem::path> folders() const override { return {}; }
             api::LibraryScanStatus             scanStatus() const override { return status; }
 
-            std::expected<std::vector<api::LibraryTrack>, std::string> search(std::string_view text,
-                                                                              std::size_t      limit) const override
+            std::expected<std::vector<api::LibraryTrack>, std::string>
+            search(const api::LibraryQuery &query) const override
             {
                 ++searches;
-                last_limit = limit;
+                last_query              = query;
+                const std::string &text = query.text;
                 if (fail)
                 {
                     return std::unexpected{std::string{"database broken"}};
@@ -46,10 +48,10 @@ namespace
                 {.id = 1, .path = "/m/a.mp3", .artist = "A", .title = "alpha"},
                 {.id = 2, .path = "/m/b.mp3", .artist = "B", .title = "beta"},
             };
-            api::LibraryScanStatus status;
-            bool                   fail       = false;
-            mutable int            searches   = 0;
-            mutable std::size_t    last_limit = 0;
+            api::LibraryScanStatus    status;
+            bool                      fail     = false;
+            mutable int               searches = 0;
+            mutable api::LibraryQuery last_query;
     };
 
     struct Fixture
@@ -92,7 +94,7 @@ TEST_CASE("LibraryView: lists all tracks at first, up to the result limit")
 {
     Fixture fixture;
     CHECK(fixture.view.trackList().tracks().size() == 2);
-    CHECK(fixture.library.last_limit == LibraryView::result_limit);
+    CHECK(fixture.library.last_query.limit == LibraryView::result_limit);
 }
 
 TEST_CASE("LibraryView: typing in the search field searches as you type")
@@ -196,4 +198,71 @@ TEST_CASE("LibraryView: the mouse wheel scrolls the list only over the list")
 
     fixture.view.wheel(fixture.firstRow(), -1.0F);
     CHECK(fixture.view.trackList().scrollOffset() == doctest::Approx(TrackList::row_height));
+}
+
+namespace
+{
+    Point centerOf(const Rect &area)
+    {
+        return {area.x + (area.width / 2), area.y + (area.height / 2)};
+    }
+} // namespace
+
+TEST_CASE("LibraryView: the filter fields sit above their columns and go into the query")
+{
+    Fixture fixture;
+    for (std::size_t index = 0; index < LibraryView::filter_columns.size(); ++index)
+    {
+        const Rect &field  = fixture.view.filterField(index).bounds();
+        const Rect  column = columnArea(fixture.view.trackList().bounds(), LibraryView::filter_columns.at(index));
+        CHECK(field.x == doctest::Approx(column.x));
+        CHECK(field.y + field.height <= fixture.view.columnHeader().bounds().y);
+    }
+
+    fixture.tap(centerOf(fixture.view.filterField(0).bounds()));
+    fixture.view.keyboard(std::string{"daft"});
+    fixture.tap(centerOf(fixture.view.filterField(3).bounds()));
+    fixture.view.keyboard(std::string{"199?"});
+    fixture.view.update();
+
+    CHECK(fixture.library.last_query.artist == "daft");
+    CHECK(fixture.library.last_query.year == "199?");
+    CHECK(fixture.library.last_query.title.empty());
+    CHECK(fixture.view.query() == fixture.library.last_query);
+}
+
+TEST_CASE("LibraryView: typed text goes only to the field tapped last")
+{
+    Fixture fixture;
+    fixture.tap(fixture.searchField());
+    fixture.tap(centerOf(fixture.view.filterField(1).bounds()));
+
+    fixture.view.keyboard(std::string{"x"});
+
+    CHECK(fixture.view.searchField().text().empty());
+    CHECK(fixture.view.filterField(1).text() == "x");
+    CHECK_FALSE(fixture.view.searchField().focused());
+    CHECK(fixture.view.wantsTextInput());
+}
+
+TEST_CASE("LibraryView: tapping a column header sorts by it, tapping it again reverses the order")
+{
+    Fixture    fixture;
+    const auto tap_column = [&](api::LibraryColumn column)
+    {
+        fixture.tap(centerOf(columnArea(fixture.view.columnHeader().bounds(), column)));
+        fixture.view.update();
+    };
+    CHECK(fixture.library.last_query.sort_by == api::LibraryColumn::Artist);
+
+    tap_column(api::LibraryColumn::Year);
+    CHECK(fixture.library.last_query.sort_by == api::LibraryColumn::Year);
+    CHECK_FALSE(fixture.library.last_query.descending);
+
+    tap_column(api::LibraryColumn::Year);
+    CHECK(fixture.library.last_query.descending);
+
+    tap_column(api::LibraryColumn::Title);
+    CHECK(fixture.library.last_query.sort_by == api::LibraryColumn::Title);
+    CHECK_FALSE(fixture.library.last_query.descending);
 }

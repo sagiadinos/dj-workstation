@@ -8,6 +8,7 @@
 #include "widget.hpp"
 
 #include <string>
+#include <utility>
 
 namespace djw::player_ui::sdl
 {
@@ -23,6 +24,8 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const std::string &text() const noexcept { return content; }
             [[nodiscard]] bool               focused() const noexcept { return has_focus; }
             void                             setFocused(bool focused) noexcept { has_focus = focused; }
+            /// True once after a tap focused the field, so the view can take the focus from the other fields
+            [[nodiscard]] bool takeFocusRequest() noexcept { return std::exchange(focus_requested, false); }
 
             /// Applies the input if focused; true when the text changed
             bool input(const KeyboardInput &input);
@@ -36,7 +39,8 @@ namespace djw::player_ui::sdl
         private:
             std::string placeholder;
             std::string content;
-            bool        has_focus = false;
+            bool        has_focus       = false;
+            bool        focus_requested = false;
     };
 } // namespace djw::player_ui::sdl
 

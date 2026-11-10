@@ -10,7 +10,6 @@
 #include <filesystem>
 #include <memory>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace djw::core::api
@@ -26,6 +25,42 @@ namespace djw::core::api
             std::string           genre{};
             int                   year             = 0;
             double                duration_seconds = 0.0;
+    };
+
+    /// Columns the track list can be sorted by
+    enum class LibraryColumn : std::uint8_t
+    {
+        Artist,
+        Title,
+        Genre,
+        Year,
+        Duration
+    };
+
+    /**
+     * A search in the library.
+     *
+     * text searches as you type: every word must appear at the start of a word in artist, title, album, genre or file
+     * name. A word with the wildcards * (any characters) or ? (one character) is searched anywhere in those fields.
+     *
+     * The column filters narrow down further. Without wildcards a filter matches when the column contains it; with
+     * wildcards the pattern must match the whole value ("Daft*": starts with Daft). Empty filters and text match
+     * everything. Case and accents are ignored everywhere for Latin script ("beyonce" finds "Beyoncé").
+     */
+    struct LibraryQuery
+    {
+            std::string text{};
+            std::string artist{};
+            std::string title{};
+            std::string genre{};
+            std::string year{};
+
+            LibraryColumn sort_by    = LibraryColumn::Artist;
+            bool          descending = false;
+            /// At most this many tracks
+            std::size_t limit = 1'000;
+
+            bool operator==(const LibraryQuery &) const = default;
     };
 
     /// Progress of the folder scan; counts are those of the current or last scan.
@@ -66,12 +101,11 @@ namespace djw::core::api
             [[nodiscard]] virtual LibraryScanStatus                  scanStatus() const = 0;
 
             /**
-             * Search as you type: every word of text must appear at the start of a word in artist, title, album,
-             * genre or file name, ignoring case and accents. An empty text lists all tracks. At most limit tracks,
-             * ordered by artist and title.
+             * The tracks matching query, sorted by its column (ties by artist and title; empty values last in either
+             * direction), at most query.limit of them.
              */
             [[nodiscard]] virtual std::expected<std::vector<LibraryTrack>, std::string>
-            search(std::string_view text, std::size_t limit) const = 0;
+            search(const LibraryQuery &query) const = 0;
     };
 
     struct LibraryConfig

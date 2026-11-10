@@ -32,6 +32,7 @@ add_library(djw_core_library STATIC
     sqlite_database.cpp
     file_name_tags.cpp
     tag_reader.cpp
+    text_fold.cpp
     search_query.cpp
     track_store.cpp
     folder_scanner.cpp

@@ -23,6 +23,7 @@ namespace
             result.push_back({.id               = i,
                               .artist           = "Artist " + std::to_string(i),
                               .title            = "Title " + std::to_string(i),
+                              .year             = i == 0 ? 0 : 1990 + i,
                               .duration_seconds = 245.0});
         }
         return result;
@@ -155,6 +156,8 @@ TEST_CASE("TrackList: draws the visible rows only, clipped to its bounds, with t
     CHECK(canvas.drew("Title 4"));
     CHECK_FALSE(canvas.drew("Title 5"));
     CHECK(canvas.drew("4:05"));
+    CHECK(canvas.drew("1991"));
+    CHECK_FALSE(canvas.drew("0")); // no year: empty
     REQUIRE(canvas.clip_changes.size() == 2);
     CHECK(canvas.clip_changes.front().has_value());
     CHECK_FALSE(canvas.clip.has_value()); // reset after drawing

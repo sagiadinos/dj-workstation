@@ -42,7 +42,7 @@ namespace djw::core::library
             [[nodiscard]] std::vector<std::filesystem::path> folders() const override;
             [[nodiscard]] api::LibraryScanStatus             scanStatus() const override;
             [[nodiscard]] std::expected<std::vector<api::LibraryTrack>, std::string>
-            search(std::string_view text, std::size_t limit) const override;
+            search(const api::LibraryQuery &query) const override;
 
         private:
             LibraryService(TrackStore reader, TrackStore writer, TagReader read_tags);

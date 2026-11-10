@@ -55,7 +55,7 @@ namespace
             std::vector<std::string> titles()
             {
                 std::vector<std::string> result;
-                const auto               found = store.search("", 1'000).value();
+                const auto               found = store.search({.limit = 1'000}).value();
                 for (const auto &track : found)
                 {
                     result.push_back(track.title);

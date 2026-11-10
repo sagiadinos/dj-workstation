@@ -3,7 +3,6 @@
 
 #include "library/library_service.hpp"
 
-#include "library/search_query.hpp"
 #include "library/utf8_path.hpp"
 
 #include <system_error>
@@ -89,10 +88,10 @@ namespace djw::core::library
         };
     }
 
-    std::expected<std::vector<api::LibraryTrack>, std::string> LibraryService::search(std::string_view text,
-                                                                                      std::size_t      limit) const
+    std::expected<std::vector<api::LibraryTrack>, std::string>
+    LibraryService::search(const api::LibraryQuery &query) const
     {
-        return reader.search(ftsQuery(text), limit);
+        return reader.search(query);
     }
 
     void LibraryService::run() // library thread

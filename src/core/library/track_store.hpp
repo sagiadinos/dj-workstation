@@ -39,7 +39,7 @@ namespace djw::core::library
     {
         public:
             /// Database schema version, stored as PRAGMA user_version
-            static constexpr std::int64_t schema_version = 1;
+            static constexpr std::int64_t schema_version = 2;
 
             static std::expected<TrackStore, std::string> open(const std::filesystem::path &database_file);
 
@@ -52,9 +52,7 @@ namespace djw::core::library
             std::expected<void, std::string> store(const std::filesystem::path &file, const FileStamp &stamp,
                                                    const TrackTags &tags);
 
-            /// fts_query as made by ftsQuery(); empty: all tracks
-            std::expected<std::vector<api::LibraryTrack>, std::string> search(std::string_view fts_query,
-                                                                              std::size_t      limit);
+            std::expected<std::vector<api::LibraryTrack>, std::string> search(const api::LibraryQuery &query);
             std::expected<std::size_t, std::string>                    trackCount();
 
             std::expected<void, std::string> beginTransaction() { return database.execute("BEGIN"); }
@@ -67,8 +65,6 @@ namespace djw::core::library
                     Statement folders;
                     Statement stamp;
                     Statement store;
-                    Statement search;
-                    Statement list;
                     Statement count;
             };
 
@@ -78,6 +74,7 @@ namespace djw::core::library
             }
 
             static std::expected<void, std::string>       createSchema(SqliteDatabase &database);
+            static std::expected<void, std::string>       migrateToVersion2(SqliteDatabase &database);
             static std::expected<Statements, std::string> prepareStatements(SqliteDatabase &database);
 
             SqliteDatabase database;

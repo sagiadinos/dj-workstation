@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Niko Sagiadinos
 
-#include "library/search_query.hpp"
 #include "library/track_store.hpp"
 
 #include "temp_dir.hpp"
@@ -9,7 +8,7 @@
 #include <doctest/doctest.h>
 
 using djw::core::library::FileStamp;
-using djw::core::library::ftsQuery;
+namespace api = djw::core::api;
 using djw::core::library::TrackStore;
 using djw::core::library::TrackTags;
 
@@ -36,7 +35,12 @@ namespace
             /// Titles found for what the user typed
             std::vector<std::string> titles(std::string_view typed, std::size_t limit = 100)
             {
-                const auto found = store.search(ftsQuery(typed), limit);
+                return titles(api::LibraryQuery{.text = std::string{typed}, .limit = limit});
+            }
+
+            std::vector<std::string> titles(const api::LibraryQuery &query)
+            {
+                const auto found = store.search(query);
                 REQUIRE_MESSAGE(found.has_value(), found.error());
                 std::vector<std::string> result;
                 for (const auto &track : *found)
@@ -61,7 +65,7 @@ TEST_CASE("TrackStore: a stored track comes back with all its fields")
                           .year             = 2001,
                           .duration_seconds = 245.5});
 
-    const auto found = fixture.store.search("", 10);
+    const auto found = fixture.store.search({});
     REQUIRE(found.has_value());
     REQUIRE(found->size() == 1);
     const auto &track = found->front();
@@ -153,7 +157,7 @@ TEST_CASE("TrackStore: the data stays in the file, a second connection sees it")
 
     TrackStore second = fixture.open();
 
-    const auto found = second.search("", 10);
+    const auto found = second.search({});
     REQUIRE(found.has_value());
     REQUIRE(found->size() == 1);
     CHECK(found->front().title == "Kept");
@@ -164,7 +168,7 @@ TEST_CASE("TrackStore: non-ASCII paths are stored as they are")
     Fixture fixture;
     fixture.add("Ärger über Öl – ½.mp3", {.title = "T"});
 
-    const auto found = fixture.store.search(ftsQuery("ärger"), 10);
+    const auto found = fixture.store.search({.text = "ärger"});
     REQUIRE(found.has_value());
     REQUIRE(found->size() == 1);
     CHECK(found->front().path == fixture.folder.path() / "Ärger über Öl – ½.mp3");
@@ -191,4 +195,92 @@ TEST_CASE("TrackStore: a database file that cannot be opened is an error")
     const auto                opened = TrackStore::open(folder.path() / "missing" / "library.db");
     REQUIRE_FALSE(opened.has_value());
     CHECK(opened.error().find("library.db") != std::string::npos);
+}
+
+TEST_CASE("TrackStore: column filters match contained text, or with wildcards the whole value, without case or accents")
+{
+    Fixture fixture;
+    fixture.add("1.mp3", {.artist = "Daft Punk", .title = "One More Time", .genre = "House", .year = 2000});
+    fixture.add("2.mp3", {.artist = "Punk Daft", .title = "Around the World", .genre = "Deep House", .year = 1997});
+    fixture.add("3.mp3", {.artist = "Die Ärzte", .title = "Schrei nach Liebe", .genre = "Punk", .year = 1993});
+
+    CHECK(fixture.titles({.artist = "punk"}).size() == 2);
+    CHECK(fixture.titles({.artist = "daft*"}) == std::vector<std::string>{"One More Time"});
+    CHECK(fixture.titles({.artist = "*ARZTE"}) == std::vector<std::string>{"Schrei nach Liebe"});
+    CHECK(fixture.titles({.title = "around"}) == std::vector<std::string>{"Around the World"});
+    CHECK(fixture.titles({.genre = "house"}).size() == 2);
+    CHECK(fixture.titles({.genre = "h?use"}) == std::vector<std::string>{"One More Time"});
+    CHECK(fixture.titles({.year = "199?"}).size() == 2);
+    CHECK(fixture.titles({.year = "2000"}) == std::vector<std::string>{"One More Time"});
+    CHECK(fixture.titles({.artist = "daft", .genre = "deep"}) == std::vector<std::string>{"Around the World"});
+}
+
+TEST_CASE("TrackStore: a year filter never matches tracks without a year")
+{
+    Fixture fixture;
+    fixture.add("1.mp3", {.title = "No Year"});
+    CHECK(fixture.titles({.year = "*"}).empty());
+    CHECK(fixture.titles({.year = "0"}).empty());
+}
+
+TEST_CASE("TrackStore: search words with wildcards match anywhere, together with the other words")
+{
+    Fixture fixture;
+    fixture.add("Club Mix.mp3", {.artist = "Daft Punk", .title = "One More Time"});
+    fixture.add("2.mp3", {.artist = "Daft Punk", .title = "Around the World"});
+
+    CHECK(fixture.titles("w?rld") == std::vector<std::string>{"Around the World"});
+    CHECK(fixture.titles("daft *ore") == std::vector<std::string>{"One More Time"});
+    CHECK(fixture.titles("cl*mix") == std::vector<std::string>{"One More Time"}); // file name
+}
+
+TEST_CASE("TrackStore: sorts by any column in both directions, empty values last, ties by artist and title")
+{
+    Fixture fixture;
+    fixture.add("1.mp3", {.artist = "b", .title = "y", .genre = "Rock", .year = 1990, .duration_seconds = 300});
+    fixture.add("2.mp3", {.artist = "Ä", .title = "x", .genre = "", .year = 0, .duration_seconds = 100});
+    fixture.add("3.mp3", {.artist = "", .title = "z", .genre = "House", .year = 2010, .duration_seconds = 200});
+    fixture.add("4.mp3", {.artist = "c", .title = "", .genre = "house", .year = 1990, .duration_seconds = 0});
+
+    using C           = api::LibraryColumn;
+    const auto titles = [&](C column, bool descending)
+    { return fixture.titles(api::LibraryQuery{.sort_by = column, .descending = descending}); };
+
+    CHECK(titles(C::Artist, false) == std::vector<std::string>{"x", "y", "", "z"}); // Ä sorts as a
+    CHECK(titles(C::Artist, true) == std::vector<std::string>{"", "y", "x", "z"});
+    CHECK(titles(C::Title, false) == std::vector<std::string>{"x", "y", "z", ""});
+    CHECK(titles(C::Title, true) == std::vector<std::string>{"z", "y", "x", ""});
+    // Both house: the tie goes by artist, where empty counts as smallest; empty last holds for the sort column
+    CHECK(titles(C::Genre, false) == std::vector<std::string>{"z", "", "y", "x"});
+    CHECK(titles(C::Year, false) == std::vector<std::string>{"y", "", "z", "x"}); // 1990: b, c
+    CHECK(titles(C::Year, true) == std::vector<std::string>{"z", "y", "", "x"});
+    CHECK(titles(C::Duration, false) == std::vector<std::string>{"x", "z", "y", ""});
+    CHECK(titles(C::Duration, true) == std::vector<std::string>{"y", "z", "x", ""});
+}
+
+TEST_CASE("TrackStore: a version 1 database is migrated, its tracks get their keys")
+{
+    Fixture fixture;
+    fixture.add("Some File.mp3", {.artist = "Die Ärzte", .title = "Westerland", .genre = "Punk"});
+    {
+        // Back to version 1: keys gone, as a database written by the first library version
+        auto database = djw::core::library::SqliteDatabase::open(fixture.database());
+        REQUIRE(database.has_value());
+        REQUIRE(
+            database
+                ->execute("DROP INDEX tracks_by_artist_title;"
+                          "ALTER TABLE tracks DROP COLUMN artist_key; ALTER TABLE tracks DROP COLUMN title_key;"
+                          "ALTER TABLE tracks DROP COLUMN genre_key; ALTER TABLE tracks DROP COLUMN any_key;"
+                          "CREATE INDEX tracks_by_artist_title ON tracks (artist COLLATE NOCASE, title COLLATE NOCASE);"
+                          "PRAGMA user_version = 1")
+                .has_value());
+    }
+
+    auto migrated = TrackStore::open(fixture.database());
+    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
+    fixture.store = std::move(*migrated);
+
+    CHECK(fixture.titles({.artist = "arzte"}) == std::vector<std::string>{"Westerland"});
+    CHECK(fixture.titles("so?e") == std::vector<std::string>{"Westerland"});
+    CHECK(fixture.titles({.genre = "punk"}) == std::vector<std::string>{"Westerland"});
 }

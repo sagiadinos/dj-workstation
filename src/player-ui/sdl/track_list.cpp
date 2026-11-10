@@ -4,6 +4,7 @@
 #include "track_list.hpp"
 
 #include "time_format.hpp"
+#include "track_columns.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -21,10 +22,6 @@ namespace djw::player_ui::sdl
         constexpr Color text_color{230, 230, 230};
         constexpr Color secondary_text_color{160, 160, 160};
 
-        /// Share of the row width per column: artist, title, genre; the duration gets what is left
-        constexpr float artist_share = 0.3F;
-        constexpr float title_share  = 0.4F;
-        constexpr float genre_share  = 0.18F;
     } // namespace
 
     void TrackList::setTracks(std::vector<core::api::LibraryTrack> tracks, bool keep_position)
@@ -124,7 +121,6 @@ namespace djw::player_ui::sdl
 
         const auto  first   = static_cast<std::size_t>(offset / row_height);
         const float text_dy = (row_height - canvas.textHeight()) / 2;
-        const float width   = area.width - (2 * padding);
         for (std::size_t index = first; index < rows.size(); ++index)
         {
             const float y = area.y + (static_cast<float>(index) * row_height) - offset;
@@ -138,21 +134,19 @@ namespace djw::player_ui::sdl
             canvas.fillRect({area.x, y, area.width, row_height}, background);
 
             const auto &track  = rows[index];
-            float       x      = area.x + padding;
             const float text_y = y + text_dy;
-            const auto  column = [&](const std::string &text, float share, Color color)
+            const auto  cells  = columnAreas({area.x, y, area.width, row_height});
+            const auto  cell   = [&](core::api::LibraryColumn column, const std::string &text, Color color)
             {
-                const float column_width = width * share;
-                canvas.textElided({x, text_y}, text, color, column_width - padding);
-                x += column_width;
+                const Rect &cell_area = cells[columnIndex(column)];
+                canvas.textElided({cell_area.x + padding, text_y}, text, color, cell_area.width - (2 * padding));
             };
-            column(track.artist, artist_share, text_color);
-            column(track.title, title_share, text_color);
-            column(track.genre, genre_share, secondary_text_color);
-
-            const std::string duration = formatDuration(track.duration_seconds);
-            canvas.text({area.x + area.width - padding - canvas.textWidth(duration), text_y}, duration,
-                        secondary_text_color);
+            cell(core::api::LibraryColumn::Artist, track.artist, text_color);
+            cell(core::api::LibraryColumn::Title, track.title, text_color);
+            cell(core::api::LibraryColumn::Genre, track.genre, secondary_text_color);
+            cell(core::api::LibraryColumn::Year, track.year != 0 ? std::to_string(track.year) : std::string{},
+                 secondary_text_color);
+            cell(core::api::LibraryColumn::Duration, formatDuration(track.duration_seconds), secondary_text_color);
         }
         canvas.setClip(std::nullopt);
     }
