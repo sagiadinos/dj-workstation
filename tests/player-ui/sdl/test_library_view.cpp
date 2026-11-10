@@ -473,7 +473,7 @@ namespace
     }
 } // namespace
 
-TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings and View")
+TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings, Language and View")
 {
     Fixture fixture;
     CHECK(fixture.view.menuBar().bounds().y == 0.0F);
@@ -483,6 +483,7 @@ TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settin
     CHECK(canvas.drew("Database"));
     CHECK(canvas.drew("Playlist"));
     CHECK(canvas.drew("Settings"));
+    CHECK(canvas.drew("Language"));
     CHECK(canvas.drew("View"));
 }
 
@@ -549,16 +550,16 @@ TEST_CASE("LibraryView: Add selected track needs a selected track")
     CHECK(added[0] == fixture.view.trackList().tracks()[0].id);
 }
 
-TEST_CASE("LibraryView: the Settings menu lists the languages and reports the one chosen")
+TEST_CASE("LibraryView: the Language menu lists the languages and reports the one chosen")
 {
     Fixture fixture;
     std::vector<Language> chosen;
     fixture.view.setOnLanguage([&chosen](Language language) { chosen.push_back(language); });
-    chooseEntry(fixture, 2, 1);
+    chooseEntry(fixture, 3, 1);
     REQUIRE(chosen.size() == 1);
     CHECK(chosen[0] == Language::German);
 
-    const Rect title = fixture.view.menuBar().titleArea(2);
+    const Rect title = fixture.view.menuBar().titleArea(3);
     fixture.tap({title.x + 10, title.y + 10});
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
@@ -575,17 +576,17 @@ TEST_CASE("LibraryView: View clears the search and the filters, and shows only m
     fixture.view.keyboard(std::string{"abc"});
     fixture.view.update();
     CHECK(fixture.view.query().text == "abc");
-    chooseEntry(fixture, 3, 0);
+    chooseEntry(fixture, 4, 1);
     fixture.view.update();
     CHECK(fixture.view.query().text.empty());
 
     // Missing tracks only: disabled without missing tracks
-    chooseEntry(fixture, 3, 1);
+    chooseEntry(fixture, 4, 2);
     CHECK_FALSE(fixture.view.query().only_missing);
     fixture.view.keyboard(EditKey::Escape); // closes the menu
     fixture.library.library_status.missing_total = 2;
     fixture.view.update();
-    chooseEntry(fixture, 3, 1);
+    chooseEntry(fixture, 4, 2);
     fixture.view.update();
     CHECK(fixture.view.query().only_missing);
 }
@@ -628,4 +629,39 @@ TEST_CASE("LibraryView: Escape closes an open menu")
     REQUIRE(fixture.view.menuBar().isOpen());
     fixture.view.keyboard(EditKey::Escape);
     CHECK_FALSE(fixture.view.menuBar().isOpen());
+}
+
+TEST_CASE("LibraryView: Settings has nothing to choose yet, the language has its own menu")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 2, 0);
+    CHECK(fixture.view.menuBar().isOpen()); // the only entry is disabled
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("No settings yet"));
+    CHECK_FALSE(canvas.drew("Deutsch"));
+}
+
+TEST_CASE("LibraryView: View shows or hides the playlist window and tells whether it is shown")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 4, 0);
+    CHECK(fixture.view.menuBar().isOpen()); // off without a playlist window
+    fixture.view.keyboard(EditKey::Escape);
+
+    bool                                      shown = false;
+    std::vector<LibraryView::PlaylistCommand> commands;
+    fixture.view.setPlaylistCommands([&commands](LibraryView::PlaylistCommand command) { commands.push_back(command); },
+                                     [&shown] { return shown; });
+    fixture.view.update();
+    chooseEntry(fixture, 4, 0);
+    CHECK(commands == std::vector{LibraryView::PlaylistCommand::ToggleWindow});
+
+    shown = true;
+    fixture.view.update();
+    RecordingCanvas canvas;
+    const Rect      title = fixture.view.menuBar().titleArea(4);
+    fixture.tap({title.x + 10, title.y + 10});
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Playlist window"));
 }

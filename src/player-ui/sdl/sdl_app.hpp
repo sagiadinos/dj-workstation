@@ -13,7 +13,9 @@
 #include "sdl_file_dialogs.hpp"
 #include "sdl_window.hpp"
 
+#include <cstdint>
 #include <expected>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
@@ -22,8 +24,9 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * The SDL3 player: a window with one deck and, if there is a library, a library and a playlist window. Owns SDL and
-     * SDL_ttf and runs the event loop. Closing any window ends the program.
+     * The SDL3 player: a window with one deck and, if there is a library, the library window, which is the main window,
+     * and a playlist window that the user opens from the Playlist or View menu. Owns SDL and SDL_ttf and runs the event
+     * loop. Closing the deck or library window ends the program; closing the playlist window only closes it.
      *
      * Declaration order is destruction order in reverse: windows before the views they show, SDL itself last.
      */
@@ -68,6 +71,11 @@ namespace djw::player_ui::sdl
             void load(const core::api::LibraryTrack &track);
             void setLanguage(Language language);
             void runPlaylistCommand(LibraryView::PlaylistCommand command);
+            void addToPlaylist(const core::api::LibraryTrack &track);
+            /// The playlist window is opened and closed between frames, never while the windows are being drawn
+            void openPlaylistWindow();
+            void closePlaylistWindow();
+            void applyWindowRequests();
             void processEvents(bool &running);
 
             SdlLibraries      libraries;
@@ -83,8 +91,18 @@ namespace djw::player_ui::sdl
             std::unique_ptr<PlaylistView>           playlist_view;
             std::vector<std::unique_ptr<SdlWindow>> windows;
             /// Window titles are set again when the language changes
-            SdlWindow *library_window  = nullptr;
+            SdlWindow *library_window = nullptr;
+            /// Open only while the user wants it: not at start, and closing it does not end the program
             SdlWindow *playlist_window = nullptr;
+
+            enum class WindowRequest : std::uint8_t
+            {
+                None,
+                OpenPlaylist,
+                ClosePlaylist
+            };
+            WindowRequest         window_request = WindowRequest::None;
+            std::filesystem::path font;
     };
 } // namespace djw::player_ui::sdl
 

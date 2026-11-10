@@ -76,8 +76,8 @@ namespace djw::player_ui::sdl
             return std::unexpected{sdlError("cannot initialize SDL_ttf")};
         }
 
-        const std::filesystem::path font = fontFile();
-        auto                        deck_window =
+        const std::filesystem::path &font = app->font = fontFile();
+        auto                         deck_window =
             SdlWindow::create({.title = "djw", .width = 360, .height = 640, .vsync = true}, app->deck_view, font);
         if (!deck_window)
         {
@@ -94,7 +94,8 @@ namespace djw::player_ui::sdl
                 [owner](const std::filesystem::path &file) { return file == owner->loaded_file; });
             app->library_view->setOnLanguage([owner](Language chosen) { owner->setLanguage(chosen); });
             app->library_view->setPlaylistCommands([owner](LibraryView::PlaylistCommand command)
-                                                   { owner->runPlaylistCommand(command); });
+                                                   { owner->runPlaylistCommand(command); },
+                                                   [owner] { return owner->playlist_window != nullptr; });
             auto library_window = SdlWindow::create(
                 {.title = app->translator.tr("window.library"), .width = 720, .height = 640}, *app->library_view, font);
             if (!library_window)
@@ -105,21 +106,13 @@ namespace djw::player_ui::sdl
             app->library_window = library_window->get();
             app->windows.push_back(std::move(*library_window));
 
+            // The view lives on; only its window comes and goes
             app->playlist_view = std::make_unique<PlaylistView>(
                 *library, app->dialogs, app->translator,
                 [owner](const core::api::LibraryTrack &track) { owner->load(track); });
             app->library_view->setAddToPlaylist([owner](const core::api::LibraryTrack &track)
-                                                { owner->playlist_view->addTrack(track); });
-            auto playlist_window = SdlWindow::create(
-                {.title = app->translator.tr("window.playlist"), .width = 560, .height = 640}, *app->playlist_view, font);
-            if (!playlist_window)
-            {
-                return std::unexpected{playlist_window.error()};
-            }
-            (*playlist_window)->placeRightOf(*app->windows.back());
-            app->dialogs.setParent((*playlist_window)->handle());
-            app->playlist_window = playlist_window->get();
-            app->windows.push_back(std::move(*playlist_window));
+                                                { owner->addToPlaylist(track); });
+            app->dialogs.setParent(app->library_window->handle());
         }
         return app;
     }
@@ -162,14 +155,87 @@ namespace djw::player_ui::sdl
         }
     }
 
+    void SdlApp::openPlaylistWindow()
+    {
+        if (!playlist_view || playlist_window != nullptr)
+        {
+            return;
+        }
+        auto created = SdlWindow::create({.title = translator.tr("window.playlist"), .width = 560, .height = 640},
+                                         *playlist_view, font);
+        if (!created)
+        {
+            SDL_Log("djw: cannot open the playlist window: %s", created.error().c_str());
+            return;
+        }
+        if (library_window != nullptr)
+        {
+            (*created)->placeRightOf(*library_window);
+        }
+        playlist_window = created->get();
+        windows.push_back(std::move(*created));
+    }
+
+    void SdlApp::closePlaylistWindow()
+    {
+        if (playlist_window == nullptr)
+        {
+            return;
+        }
+        std::erase_if(windows, [this](const auto &window) { return window.get() == playlist_window; });
+        playlist_window = nullptr;
+    }
+
+    void SdlApp::applyWindowRequests()
+    {
+        switch (std::exchange(window_request, WindowRequest::None))
+        {
+            case WindowRequest::OpenPlaylist:
+                openPlaylistWindow();
+                break;
+            case WindowRequest::ClosePlaylist:
+                closePlaylistWindow();
+                break;
+            case WindowRequest::None:
+                break;
+        }
+    }
+
+    void SdlApp::addToPlaylist(const core::api::LibraryTrack &track)
+    {
+        if (!playlist_view)
+        {
+            return;
+        }
+        if (playlist_window == nullptr)
+        {
+            playlist_view->update(); // reads the playlists, which the window would do on its first frame
+            window_request = WindowRequest::OpenPlaylist;
+        }
+        playlist_view->addTrack(track);
+    }
+
     void SdlApp::runPlaylistCommand(LibraryView::PlaylistCommand command)
     {
         if (!playlist_view)
         {
             return;
         }
+        if (command == LibraryView::PlaylistCommand::ToggleWindow)
+        {
+            window_request = playlist_window == nullptr ? WindowRequest::OpenPlaylist : WindowRequest::ClosePlaylist;
+            return;
+        }
+        // The commands show their result in the playlist window, so it opens if it is not
+        if (playlist_window == nullptr)
+        {
+            playlist_view->update();
+            window_request = WindowRequest::OpenPlaylist;
+        }
         switch (command)
         {
+            case LibraryView::PlaylistCommand::ToggleWindow:
+                break;
             case LibraryView::PlaylistCommand::New:
                 playlist_view->createNew();
                 break;
@@ -194,6 +260,7 @@ namespace djw::player_ui::sdl
             {
                 window->frame();
             }
+            applyWindowRequests(); // not inside the loop above, which would invalidate it
             if (!paced)
             {
                 SDL_Delay(frame_ms);
@@ -206,6 +273,12 @@ namespace djw::player_ui::sdl
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && playlist_window != nullptr &&
+                event.window.windowID == playlist_window->id())
+            {
+                closePlaylistWindow(); // only this window; the program goes on
+                continue;
+            }
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
                 running = false;

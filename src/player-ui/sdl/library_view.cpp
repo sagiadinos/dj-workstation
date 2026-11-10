@@ -29,6 +29,7 @@ namespace djw::player_ui::sdl
             PlaylistAddTrack,
             ClearFilters,
             MissingOnly,
+            TogglePlaylistWindow,
             language_base = 100
         };
 
@@ -504,9 +505,15 @@ namespace djw::player_ui::sdl
                           {.id = PlaylistImport, .label = tr("menu.playlist.import"), .enabled = has_playlists},
                           {.id = PlaylistExport, .label = tr("menu.playlist.export"), .enabled = has_playlists},
                           {.id = PlaylistAddTrack, .label = tr("menu.playlist.add_track"), .enabled = can_add_track}}});
-        menus.push_back({tr("menu.settings"), std::move(language_items)});
+        // No settings yet but the language, which has its own menu
+        menus.push_back({tr("menu.settings"), {{.id = 0, .label = tr("menu.settings.none"), .enabled = false}}});
+        menus.push_back({tr("menu.language"), std::move(language_items)});
         menus.push_back({tr("menu.view"),
-                         {{.id = ClearFilters, .label = tr("menu.view.clear_filters")},
+                         {{.id      = TogglePlaylistWindow,
+                           .label   = tr("menu.view.playlist_window"),
+                           .enabled = has_playlists,
+                           .checked = playlist_shown && playlist_shown()},
+                          {.id = ClearFilters, .label = tr("menu.view.clear_filters")},
                           {.id      = MissingOnly,
                            .label   = tr("menu.view.missing_only"),
                            .enabled = status.missing_total > 0 || only_missing,
@@ -543,6 +550,12 @@ namespace djw::player_ui::sdl
                 break;
             case Rescan:
                 library->rescan();
+                break;
+            case TogglePlaylistWindow:
+                if (playlist_action)
+                {
+                    playlist_action(PlaylistCommand::ToggleWindow);
+                }
                 break;
             case PlaylistNew:
             case PlaylistImport:

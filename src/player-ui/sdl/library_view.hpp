@@ -38,9 +38,9 @@ namespace djw::player_ui::sdl
      * anything else saves, Escape cancels. The change goes to the library, which writes the file in the background;
      * the row shows the new value at once. Tracks for which in_use is true (loaded in a deck) are not changed.
      *
-     * Menu bar on top (Database, Playlist, Settings, View): add a music folder (folder dialog) and rescan; the
-     * playlist commands, which the owner carries out in the playlist window; the language, which takes effect at once;
-     * clear the search and show only missing tracks. All texts come from the translator on every update.
+     * Menu bar on top (Database, Playlist, Settings, Language, View): add a music folder (folder dialog) and rescan; the
+     * playlist commands, which the owner carries out in the playlist window (opening it if needed); the language,
+     * which takes effect at once; clear the search, show only missing tracks, show or hide the playlist window. All texts come from the translator on every update.
      *
      * Dead links: when tracks are missing, the status line shows a "Missing" button that lists only those; there a
      * "Remove" button takes them out of the library after a second tap within confirm_time. With setAddToPlaylist,
@@ -58,9 +58,12 @@ namespace djw::player_ui::sdl
             {
                 New,
                 Import,
-                Export
+                Export,
+                /// Shows the playlist window, or hides it if it is shown
+                ToggleWindow
             };
             using PlaylistAction  = std::function<void(PlaylistCommand command)>;
+            using PlaylistShown   = std::function<bool()>;
             using LanguageChosen = std::function<void(Language language)>;
 
             /// Most tracks listed at once; the search narrows it down
@@ -102,8 +105,13 @@ namespace djw::player_ui::sdl
 
             /// Shows an "Add to playlist" button for the selected track, which hands the track to add
             void setAddToPlaylist(Add add) { add_to_playlist = std::move(add); }
-            /// Enables the Playlist menu: its commands go to action
-            void setPlaylistCommands(PlaylistAction action) { playlist_action = std::move(action); }
+            /// Enables the Playlist menu and the playlist window entry of the View menu: the commands go to action,
+            /// shown tells whether the playlist window is open
+            void setPlaylistCommands(PlaylistAction action, PlaylistShown shown = {})
+            {
+                playlist_action = std::move(action);
+                playlist_shown  = std::move(shown);
+            }
             /// Called when the user picks a language in the Settings menu
             void setOnLanguage(LanguageChosen chosen) { language_chosen = std::move(chosen); }
 
@@ -152,6 +160,7 @@ namespace djw::player_ui::sdl
             TextButton               add_button;
             Add                      add_to_playlist;
             PlaylistAction           playlist_action;
+            PlaylistShown            playlist_shown;
             LanguageChosen           language_chosen;
             bool                     only_missing = false;
             std::optional<std::chrono::steady_clock::time_point> confirm_remove_until;
