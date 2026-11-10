@@ -10,10 +10,10 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr Color background{50, 50, 50};
-        constexpr Color background_pressed{90, 90, 90};
-        constexpr Color symbol_stopped{0, 200, 80};
-        constexpr Color symbol_playing{230, 160, 0};
+        constexpr Color background{0, 170, 0};
+        constexpr Color background_pressed{70, 215, 70};
+        constexpr Color symbol_stopped{15, 15, 15};
+        constexpr Color symbol_playing{15, 15, 15};
     } // namespace
 
     bool PlayButton::takePress() noexcept

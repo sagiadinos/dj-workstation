@@ -58,6 +58,18 @@ namespace djw::tests
                 return static_cast<float>(text.size()) * char_width;
             }
 
+            // The large text counts like the normal text, three times as big; it is recorded in the same list
+            void largeText(player_ui::sdl::Point position, std::string_view text, player_ui::sdl::Color color) override
+            {
+                texts.push_back({position, std::string{text}});
+                static_cast<void>(color);
+            }
+            [[nodiscard]] float largeTextHeight() const noexcept override { return line_height * 2.0F; }
+            [[nodiscard]] float largeTextWidth(std::string_view text) const noexcept override
+            {
+                return static_cast<float>(text.size()) * char_width * 2.0F;
+            }
+
             void setClip(std::optional<player_ui::sdl::Rect> rect) override
             {
                 clip = rect;

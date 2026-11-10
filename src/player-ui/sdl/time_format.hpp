@@ -11,6 +11,10 @@ namespace djw::player_ui::sdl
     /// Track position as "m:ss.t" (minutes, seconds, tenths), e.g. "3:07.4". Negative values show as 0.
     std::string formatPosition(double seconds);
 
+    /// Time for the player display as "HH:MM:SS:hh" (hours, minutes, seconds, hundredths, truncated), e.g.
+    /// "00:03:59:00"; with remaining a "-" comes first. Negative values show as 0.
+    std::string formatClock(double seconds, bool remaining);
+
     /// Track length as "m:ss", rounded to whole seconds, e.g. "4:05". Negative values show as 0.
     std::string formatDuration(double seconds);
 } // namespace djw::player_ui::sdl

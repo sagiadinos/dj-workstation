@@ -259,7 +259,7 @@ TEST_CASE("catalogs: every message formats and takes the arguments of the Englis
             {
                 const std::vector<MessageArg> args{{"count", n},   {"number", n}, {"files", "files"},
                                                    {"tracks", "tracks"}, {"name", "name"}, {"not_found", n},
-                                                   {"error", "error"}};
+                                                   {"error", "error"}, {"value", "+1.2"}};
                 const auto                    done = formatMessage(language, translated, args);
                 CHECK_MESSAGE(done.has_value(), (done ? "" : done.error()));
             }

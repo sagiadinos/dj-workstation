@@ -15,6 +15,8 @@ add_executable(djw_player_sdl_tests
     test_playlist_view.cpp
     test_command_line.cpp
     test_i18n.cpp
+    test_controls.cpp
+    test_mixer_view.cpp
     test_sdl_app.cpp
     test_menu_bar.cpp
 )

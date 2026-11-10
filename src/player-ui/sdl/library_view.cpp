@@ -31,6 +31,7 @@ namespace djw::player_ui::sdl
             MissingOnly,
             TogglePlaylistWindow,
             NewDeckEntry,
+            ToggleMixerWindow,
             language_base = 100
         };
 
@@ -187,6 +188,15 @@ namespace djw::player_ui::sdl
                 return;
             }
             static_cast<void>(cell_editor.input(input));
+            return;
+        }
+        if (const auto *key = std::get_if<EditKey>(&input); key != nullptr && *key == EditKey::Enter)
+        {
+            // A track chosen in the list goes into a player, as with a double tap
+            if (const auto row = list.selected(); row && load)
+            {
+                load(list.tracks()[*row]);
+            }
             return;
         }
         static_cast<void>(search_field.input(input));
@@ -453,6 +463,10 @@ namespace djw::player_ui::sdl
         {
             status_text += " - " + translator->tr("library.saving_tags");
         }
+        if (!notice_key.empty() && clock() < notice_until)
+        {
+            status_text += " - " + translator->tr(notice_key);
+        }
         const std::string                        edit_text = edit_message.empty() ? std::string{} : translator->tr(edit_message);
         const std::array<const std::string *, 5> errors{&search_error, &edit_text, &folder_error, &status.write_error,
                                                         &status.scan_error};
@@ -514,6 +528,10 @@ namespace djw::player_ui::sdl
                            .label    = tr("menu.view.new_deck"),
                            .enabled  = static_cast<bool>(new_deck_requested),
                            .shortcut = "Ctrl+N"},
+                          {.id      = ToggleMixerWindow,
+                           .label   = tr("menu.view.mixer_window"),
+                           .enabled = static_cast<bool>(mixer_toggle),
+                           .checked = mixer_shown && mixer_shown()},
                           {.id      = TogglePlaylistWindow,
                            .label   = tr("menu.view.playlist_window"),
                            .enabled = has_playlists,
@@ -555,6 +573,12 @@ namespace djw::player_ui::sdl
                 break;
             case Rescan:
                 library->rescan();
+                break;
+            case ToggleMixerWindow:
+                if (mixer_toggle)
+                {
+                    mixer_toggle();
+                }
                 break;
             case NewDeckEntry:
                 if (new_deck_requested)
@@ -599,6 +623,12 @@ namespace djw::player_ui::sdl
             default:
                 break;
         }
+    }
+
+    void LibraryView::setNotice(std::string_view key)
+    {
+        notice_key   = key;
+        notice_until = clock() + notice_time;
     }
 
     void LibraryView::draw(Canvas &canvas) const

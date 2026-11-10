@@ -30,6 +30,9 @@ namespace djw::player_ui::sdl
             void textElided(Point position, std::string_view text, Color color, float max_width) override;
             [[nodiscard]] float textHeight() const noexcept override;
             [[nodiscard]] float textWidth(std::string_view text) const noexcept override;
+            void                largeText(Point position, std::string_view text, Color color) override;
+            [[nodiscard]] float largeTextHeight() const noexcept override;
+            [[nodiscard]] float largeTextWidth(std::string_view text) const noexcept override;
             void                setClip(std::optional<Rect> clip) override;
 
         private:

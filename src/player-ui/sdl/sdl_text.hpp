@@ -19,8 +19,8 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * Text drawing with SDL3_ttf on one renderer: one font, shaped with HarfBuzz, so any UTF-8 text the font covers
-     * shows correctly.
+     * Text drawing with SDL3_ttf on one renderer: one font in two sizes (normal, and large for the time display),
+     * shaped with HarfBuzz, so any UTF-8 text the font covers shows correctly.
      *
      * Sizes are in points. The font is rasterized at the window's pixel density, so text stays sharp on HiDPI
      * screens. Shaped lines are cached, as the same lines are drawn every frame.
@@ -28,7 +28,14 @@ namespace djw::player_ui::sdl
     class SdlText
     {
         public:
-            static constexpr float font_points = 16.0F;
+            static constexpr float font_points       = 16.0F;
+            static constexpr float large_font_points = 40.0F;
+
+            enum class Size : unsigned char
+            {
+                Normal,
+                Large
+            };
 
             static std::expected<std::unique_ptr<SdlText>, std::string> open(SDL_Renderer                &renderer,
                                                                              const std::filesystem::path &font_file);
@@ -43,27 +50,37 @@ namespace djw::player_ui::sdl
             void setDensity(float density);
 
             /// Draws at position (points); the renderer works in pixels with a render scale of 1
-            void draw(Point position, std::string_view text, Color color);
+            void draw(Point position, std::string_view text, Color color, Size size = Size::Normal);
             /// Draws at most max_width points of text, cut with "…"
             void drawElided(Point position, std::string_view text, Color color, float max_width);
 
-            [[nodiscard]] float lineHeight() const noexcept;
-            [[nodiscard]] float width(std::string_view text) const;
+            [[nodiscard]] float lineHeight(Size size = Size::Normal) const noexcept;
+            [[nodiscard]] float width(std::string_view text, Size size = Size::Normal) const;
 
         private:
             /// More cached lines than this and the cache starts over
             static constexpr std::size_t cache_limit = 4'096;
 
-            SdlText(TTF_TextEngine *engine, TTF_Font *font) noexcept;
+            /// One size of the font with its shaped lines and measured widths
+            struct Face
+            {
+                    TTF_Font                                      *font  = nullptr;
+                    float                                          points = 0.0F;
+                    std::unordered_map<std::string, TTF_Text *>    cache{};
+                    mutable std::unordered_map<std::string, float> widths{};
+            };
 
-            TTF_Text *line(std::string_view text);
-            void      clearCache();
+            SdlText(TTF_TextEngine *engine, TTF_Font *normal, TTF_Font *large) noexcept;
 
-            TTF_TextEngine                                *engine;
-            TTF_Font                                      *font;
-            float                                          density = 1.0F;
-            std::unordered_map<std::string, TTF_Text *>    cache;
-            mutable std::unordered_map<std::string, float> widths;
+            [[nodiscard]] Face       &face(Size size) noexcept { return size == Size::Large ? large : normal; }
+            [[nodiscard]] const Face &face(Size size) const noexcept { return size == Size::Large ? large : normal; }
+            TTF_Text                 *line(Face &which, std::string_view text);
+            void                      clearCache(Face &which);
+
+            TTF_TextEngine *engine;
+            Face            normal;
+            Face            large;
+            float           density = 1.0F;
     };
 } // namespace djw::player_ui::sdl
 

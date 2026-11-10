@@ -31,6 +31,15 @@ namespace djw::player_ui::sdl
         return minutesSeconds(tenths / 10) + '.' + std::to_string(tenths % 10);
     }
 
+    std::string formatClock(double seconds, bool remaining)
+    {
+        const auto        hundredths = static_cast<std::int64_t>(std::max(0.0, seconds) * 100.0);
+        const std::int64_t whole      = hundredths / 100;
+        const auto         two        = [](std::int64_t value) { return (value < 10 ? "0" : "") + std::to_string(value); };
+        return std::string{remaining ? "-" : ""} + two(whole / 3'600) + ':' + two((whole / 60) % 60) + ':' +
+               two(whole % 60) + ':' + two(hundredths % 100);
+    }
+
     std::string formatDuration(double seconds)
     {
         return minutesSeconds(std::llround(std::max(0.0, seconds)));

@@ -356,7 +356,7 @@ TEST_CASE("LibraryView: the duration cannot be edited, nor a track loaded in a d
 
     longPress(fixture, 1, api::LibraryColumn::Title); // /m/b.mp3 is in use
     CHECK_FALSE(fixture.view.editing());
-    CHECK(fixture.view.statusText().find("loaded in a deck") != std::string::npos);
+    CHECK(fixture.view.statusText().find("loaded in a player") != std::string::npos);
 }
 
 TEST_CASE("LibraryView: pending tag edits and their errors show in the status line")
@@ -576,17 +576,17 @@ TEST_CASE("LibraryView: View clears the search and the filters, and shows only m
     fixture.view.keyboard(std::string{"abc"});
     fixture.view.update();
     CHECK(fixture.view.query().text == "abc");
-    chooseEntry(fixture, 4, 2);
+    chooseEntry(fixture, 4, 3);
     fixture.view.update();
     CHECK(fixture.view.query().text.empty());
 
     // Missing tracks only: disabled without missing tracks
-    chooseEntry(fixture, 4, 3);
+    chooseEntry(fixture, 4, 4);
     CHECK_FALSE(fixture.view.query().only_missing);
     fixture.view.keyboard(EditKey::Escape); // closes the menu
     fixture.library.library_status.missing_total = 2;
     fixture.view.update();
-    chooseEntry(fixture, 4, 3);
+    chooseEntry(fixture, 4, 4);
     fixture.view.update();
     CHECK(fixture.view.query().only_missing);
 }
@@ -645,7 +645,7 @@ TEST_CASE("LibraryView: Settings has nothing to choose yet, the language has its
 TEST_CASE("LibraryView: View shows or hides the playlist window and tells whether it is shown")
 {
     Fixture fixture;
-    chooseEntry(fixture, 4, 1);
+    chooseEntry(fixture, 4, 2);
     CHECK(fixture.view.menuBar().isOpen()); // off without a playlist window
     fixture.view.keyboard(EditKey::Escape);
 
@@ -654,7 +654,7 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
     fixture.view.setPlaylistCommands([&commands](LibraryView::PlaylistCommand command) { commands.push_back(command); },
                                      [&shown] { return shown; });
     fixture.view.update();
-    chooseEntry(fixture, 4, 1);
+    chooseEntry(fixture, 4, 2);
     CHECK(commands == std::vector{LibraryView::PlaylistCommand::ToggleWindow});
 
     shown = true;
@@ -666,7 +666,7 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
     CHECK(canvas.drew("Playlist window"));
 }
 
-TEST_CASE("LibraryView: View > New deck calls the app and shows its shortcut")
+TEST_CASE("LibraryView: View > New player calls the app and shows its shortcut")
 {
     Fixture fixture;
     chooseEntry(fixture, 4, 0);
@@ -684,5 +684,70 @@ TEST_CASE("LibraryView: View > New deck calls the app and shows its shortcut")
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
     CHECK(canvas.drew("Ctrl+N"));
-    CHECK(canvas.drew("New deck"));
+    CHECK(canvas.drew("New player"));
+}
+
+TEST_CASE("LibraryView: View > Crossfader window shows or hides the window and tells whether it is shown")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 4, 1);
+    CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
+    fixture.view.keyboard(EditKey::Escape);
+
+    int  toggles = 0;
+    bool shown   = false;
+    fixture.view.setMixerWindow([&toggles] { ++toggles; }, [&shown] { return shown; });
+    fixture.view.update();
+    chooseEntry(fixture, 4, 1);
+    CHECK(toggles == 1);
+
+    shown = true;
+    fixture.view.update();
+    const Rect title = fixture.view.menuBar().titleArea(4);
+    fixture.tap({title.x + 10, title.y + 10});
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Crossfader window"));
+}
+
+TEST_CASE("LibraryView: Enter loads the selected track, like a double tap")
+{
+    Fixture fixture;
+    fixture.view.keyboard(EditKey::Enter);
+    CHECK(fixture.loaded.empty()); // nothing selected
+
+    fixture.tap(fixture.firstRow());
+    fixture.view.update();
+    fixture.view.keyboard(EditKey::Enter);
+    REQUIRE(fixture.loaded.size() == 1);
+    CHECK(fixture.loaded[0].id == fixture.view.trackList().tracks()[0].id);
+    CHECK(fixture.view.selectedTrack()->id == fixture.loaded[0].id);
+}
+
+TEST_CASE("LibraryView: Enter ends a tag edit and does not load")
+{
+    Fixture fixture;
+    fixture.tap(fixture.firstRow());
+    fixture.view.update();
+    fixture.now += 1s; // a long press on the title cell starts the editor
+    const Rect cell = *fixture.view.trackList().cellArea({0, api::LibraryColumn::Title});
+    fixture.router.handle({{1, 1}, PointerPhase::Down, {cell.x + 5, cell.y + 5}});
+    fixture.now += 2s;
+    fixture.view.update();
+    fixture.router.handle({{1, 1}, PointerPhase::Up, {cell.x + 5, cell.y + 5}});
+    REQUIRE(fixture.view.editing());
+    fixture.view.keyboard(EditKey::Enter);
+    CHECK_FALSE(fixture.view.editing());
+    CHECK(fixture.loaded.empty());
+}
+
+TEST_CASE("LibraryView: a notice shows in the status line for a while")
+{
+    Fixture fixture;
+    fixture.view.setNotice("library.notice.all_playing");
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("all players are playing") != std::string::npos);
+    fixture.now += LibraryView::notice_time + 1s;
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("all players are playing") == std::string::npos);
 }

@@ -54,6 +54,21 @@ namespace djw::player_ui::sdl
         return text_renderer->width(text);
     }
 
+    void SdlCanvas::largeText(Point position, std::string_view text, Color color)
+    {
+        text_renderer->draw(position, text, color, SdlText::Size::Large);
+    }
+
+    float SdlCanvas::largeTextHeight() const noexcept
+    {
+        return text_renderer->lineHeight(SdlText::Size::Large);
+    }
+
+    float SdlCanvas::largeTextWidth(std::string_view text) const noexcept
+    {
+        return text_renderer->width(text, SdlText::Size::Large);
+    }
+
     void SdlCanvas::setClip(std::optional<Rect> clip)
     {
         if (!clip)

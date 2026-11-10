@@ -15,27 +15,40 @@ namespace djw::player_ui::sdl
     std::expected<std::unique_ptr<SdlText>, std::string> SdlText::open(SDL_Renderer                &renderer,
                                                                        const std::filesystem::path &font_file)
     {
-        TTF_Font *font = TTF_OpenFont(font_file.string().c_str(), font_points);
-        if (font == nullptr)
+        TTF_Font *normal = TTF_OpenFont(font_file.string().c_str(), font_points);
+        if (normal == nullptr)
         {
+            return std::unexpected{"cannot open font " + font_file.string() + ": " + SDL_GetError()};
+        }
+        TTF_Font *large = TTF_OpenFont(font_file.string().c_str(), large_font_points);
+        if (large == nullptr)
+        {
+            TTF_CloseFont(normal);
             return std::unexpected{"cannot open font " + font_file.string() + ": " + SDL_GetError()};
         }
         TTF_TextEngine *engine = TTF_CreateRendererTextEngine(&renderer);
         if (engine == nullptr)
         {
-            TTF_CloseFont(font);
+            TTF_CloseFont(normal);
+            TTF_CloseFont(large);
             return std::unexpected{std::string{"cannot create text engine: "} + SDL_GetError()};
         }
-        return std::unique_ptr<SdlText>{new SdlText{engine, font}};
+        return std::unique_ptr<SdlText>{new SdlText{engine, normal, large}};
     }
 
-    SdlText::SdlText(TTF_TextEngine *engine, TTF_Font *font) noexcept : engine{engine}, font{font} {}
+    SdlText::SdlText(TTF_TextEngine *engine, TTF_Font *normal_font, TTF_Font *large_font) noexcept
+        : engine{engine}, normal{.font = normal_font, .points = font_points},
+          large{.font = large_font, .points = large_font_points}
+    {
+    }
 
     SdlText::~SdlText()
     {
-        clearCache();
+        clearCache(normal);
+        clearCache(large);
         TTF_DestroyRendererTextEngine(engine);
-        TTF_CloseFont(font);
+        TTF_CloseFont(normal.font);
+        TTF_CloseFont(large.font);
     }
 
     void SdlText::setDensity(float pixel_density)
@@ -45,46 +58,49 @@ namespace djw::player_ui::sdl
             return;
         }
         density = pixel_density;
-        TTF_SetFontSize(font, font_points * density);
-        clearCache();
+        for (Face *which : {&normal, &large})
+        {
+            TTF_SetFontSize(which->font, which->points * density);
+            clearCache(*which);
+        }
     }
 
-    void SdlText::clearCache()
+    void SdlText::clearCache(Face &which)
     {
-        for (const auto &entry : cache)
+        for (const auto &entry : which.cache)
         {
             TTF_DestroyText(entry.second);
         }
-        cache.clear();
-        widths.clear();
+        which.cache.clear();
+        which.widths.clear();
     }
 
-    TTF_Text *SdlText::line(std::string_view text)
+    TTF_Text *SdlText::line(Face &which, std::string_view text)
     {
         const std::string key{text};
-        if (const auto found = cache.find(key); found != cache.end())
+        if (const auto found = which.cache.find(key); found != which.cache.end())
         {
             return found->second;
         }
-        if (cache.size() >= cache_limit)
+        if (which.cache.size() >= cache_limit)
         {
-            clearCache();
+            clearCache(which);
         }
-        TTF_Text *created = TTF_CreateText(engine, font, key.data(), key.size());
+        TTF_Text *created = TTF_CreateText(engine, which.font, key.data(), key.size());
         if (created != nullptr)
         {
-            cache.emplace(key, created);
+            which.cache.emplace(key, created);
         }
         return created;
     }
 
-    void SdlText::draw(Point position, std::string_view text, Color color)
+    void SdlText::draw(Point position, std::string_view text, Color color, Size size)
     {
         if (text.empty())
         {
             return;
         }
-        TTF_Text *shaped = line(text);
+        TTF_Text *shaped = line(face(size), text);
         if (shaped == nullptr)
         {
             return;
@@ -108,29 +124,31 @@ namespace djw::player_ui::sdl
         }
         int         measured_width  = 0;
         std::size_t measured_length = 0;
-        TTF_MeasureString(font, text.data(), text.size(), static_cast<int>(room), &measured_width, &measured_length);
+        TTF_MeasureString(normal.font, text.data(), text.size(), static_cast<int>(room), &measured_width,
+                          &measured_length);
         draw(position, std::string{text.substr(0, measured_length)} + std::string{ellipsis}, color);
     }
 
-    float SdlText::lineHeight() const noexcept
+    float SdlText::lineHeight(Size size) const noexcept
     {
-        return static_cast<float>(TTF_GetFontHeight(font)) / density;
+        return static_cast<float>(TTF_GetFontHeight(face(size).font)) / density;
     }
 
-    float SdlText::width(std::string_view text) const
+    float SdlText::width(std::string_view text, Size size) const
     {
+        const Face &which = face(size);
         std::string key{text};
-        if (const auto found = widths.find(key); found != widths.end())
+        if (const auto found = which.widths.find(key); found != which.widths.end())
         {
             return found->second;
         }
         int pixels = 0;
         int height = 0;
-        TTF_GetStringSize(font, key.data(), key.size(), &pixels, &height);
+        TTF_GetStringSize(which.font, key.data(), key.size(), &pixels, &height);
         const float points = static_cast<float>(pixels) / density;
-        if (widths.size() < cache_limit)
+        if (which.widths.size() < cache_limit)
         {
-            widths.emplace(std::move(key), points);
+            which.widths.emplace(std::move(key), points);
         }
         return points;
     }

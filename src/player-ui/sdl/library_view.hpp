@@ -32,16 +32,16 @@ namespace djw::player_ui::sdl
      *
      * Searches as the user types. While a scan runs the list is refreshed once per refresh_interval, so new tracks
      * show up, and again whenever the library's revision changes (scan end, written tag edits). A double tap on a
-     * track hands it to load. Typed text goes to the field tapped last.
+     * track, or Enter with a track selected, hands it to load. Typed text goes to the field tapped last.
      *
      * Tag editor: a long press on an artist, title, genre or year cell opens an editor in the cell. Enter or touching
      * anything else saves, Escape cancels. The change goes to the library, which writes the file in the background;
-     * the row shows the new value at once. Tracks for which in_use is true (loaded in a deck) are not changed.
+     * the row shows the new value at once. Tracks for which in_use is true (loaded in a player) are not changed.
      *
      * Menu bar on top (Database, Playlist, Settings, Language, View): add a music folder (folder dialog) and rescan; the
      * playlist commands, which the owner carries out in the playlist window (opening it if needed); the language,
-     * which takes effect at once; new deck (Ctrl+N is handled by the app), clear the search, show only missing tracks,
-     * show or hide the playlist window. All texts come from the translator on every update.
+     * which takes effect at once; new player (Ctrl+N is handled by the app), clear the search, show only missing tracks,
+     * show or hide the playlist and crossfader windows. All texts come from the translator on every update.
      *
      * Dead links: when tracks are missing, the status line shows a "Missing" button that lists only those; there a
      * "Remove" button takes them out of the library after a second tap within confirm_time. With setAddToPlaylist,
@@ -67,6 +67,11 @@ namespace djw::player_ui::sdl
             using PlaylistShown   = std::function<bool()>;
             using LanguageChosen = std::function<void(Language language)>;
             using NewDeck        = std::function<void()>;
+            using Toggle         = std::function<void()>;
+            using Shown          = std::function<bool()>;
+
+            /// How long a notice (see setNotice) stays in the status line
+            static constexpr std::chrono::milliseconds notice_time{4'000};
 
             /// Most tracks listed at once; the search narrows it down
             static constexpr std::size_t               result_limit = 1'000;
@@ -114,6 +119,20 @@ namespace djw::player_ui::sdl
                 playlist_action = std::move(action);
                 playlist_shown  = std::move(shown);
             }
+            /// Enables View > Crossfader window: toggle shows or hides it, shown tells whether it is open
+            void setMixerWindow(Toggle toggle, Shown shown)
+            {
+                mixer_toggle = std::move(toggle);
+                mixer_shown  = std::move(shown);
+            }
+            /// The track selected in the list, std::nullopt if none
+            [[nodiscard]] std::optional<core::api::LibraryTrack> selectedTrack() const
+            {
+                const auto row = list.selected();
+                return row ? std::optional{list.tracks()[*row]} : std::nullopt;
+            }
+            /// Shows a message (a catalog key) in the status line for notice_time, e.g. why a track was not loaded
+            void setNotice(std::string_view key);
             /// Enables View > New deck, which calls new_deck
             void setOnNewDeck(NewDeck new_deck) { new_deck_requested = std::move(new_deck); }
             /// Called when the user picks a language in the Language menu
@@ -166,6 +185,10 @@ namespace djw::player_ui::sdl
             PlaylistAction           playlist_action;
             PlaylistShown            playlist_shown;
             NewDeck                  new_deck_requested;
+            Toggle                   mixer_toggle;
+            Shown                    mixer_shown;
+            std::string_view         notice_key;
+            std::chrono::steady_clock::time_point notice_until;
             LanguageChosen           language_chosen;
             bool                     only_missing = false;
             std::optional<std::chrono::steady_clock::time_point> confirm_remove_until;

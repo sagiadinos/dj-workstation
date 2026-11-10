@@ -31,6 +31,11 @@ namespace djw::player_ui::sdl
             [[nodiscard]] virtual float textHeight() const noexcept                                      = 0;
             [[nodiscard]] virtual float textWidth(std::string_view text) const noexcept                  = 0;
 
+            /// Like text(), in the large size of the time display
+            virtual void                      largeText(Point position, std::string_view text, Color color) = 0;
+            [[nodiscard]] virtual float largeTextHeight() const noexcept                                   = 0;
+            [[nodiscard]] virtual float largeTextWidth(std::string_view text) const noexcept               = 0;
+
             /// Drawing outside clip is cut off until the next setClip(); std::nullopt draws everywhere again
             virtual void setClip(std::optional<Rect> clip) = 0;
     };

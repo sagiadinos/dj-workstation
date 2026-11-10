@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <ranges>
+#include <utility>
 
 namespace djw::player_ui::sdl
 {
@@ -41,10 +42,14 @@ namespace djw::player_ui::sdl
             return std::filesystem::path{base != nullptr ? base : ""} / "fonts" / "NotoSans-Regular.ttf";
         }
 
-        std::string displayTitle(const core::api::LibraryTrack &track)
+        /// "01", "12": the number of a player as the windows show it
+        std::string twoDigits(int number)
         {
-            return track.artist.empty() ? track.title : track.artist + " - " + track.title;
+            return (number < 10 ? "0" : "") + std::to_string(number);
         }
+
+        constexpr int player_width  = 380;
+        constexpr int player_height = 480;
     } // namespace
 
     SdlApp::SdlLibraries::SdlLibraries() : sdl_initialized{initSdl()}, ttf_initialized{sdl_initialized && TTF_Init()} {}
@@ -88,9 +93,18 @@ namespace djw::player_ui::sdl
             return std::unexpected{std::string{"cannot open the window of the deck"}};
         }
 
+        SdlApp *owner = app.get();
+        // The crossfader window works without a library
+        app->mixer_view = std::make_unique<MixerView>(core.commandQueue(), core.mixerSnapshot(), app->translator,
+                                                      [owner] { return owner->mixerDecks(); });
+        app->tools[index(Tool::Mixer)] = {.view      = app->mixer_view.get(),
+                                          .window    = nullptr,
+                                          .title_key = "window.mixer",
+                                          .width     = 440,
+                                          .height    = 250};
+
         if (library != nullptr)
         {
-            SdlApp *owner     = app.get();
             app->library_view = std::make_unique<LibraryView>(
                 *library, app->dialogs, app->translator,
                 [owner](const core::api::LibraryTrack &track) { owner->load(track); },
@@ -101,16 +115,19 @@ namespace djw::player_ui::sdl
                 });
             app->library_view->setOnNewDeck([owner] { ++owner->new_decks_requested; });
             app->library_view->setOnLanguage([owner](Language chosen) { owner->setLanguage(chosen); });
-            app->library_view->setPlaylistCommands([owner](LibraryView::PlaylistCommand command)
-                                                   { owner->runPlaylistCommand(command); },
-                                                   [owner] { return owner->playlist_window != nullptr; });
+            app->library_view->setPlaylistCommands(
+                [owner](LibraryView::PlaylistCommand command) { owner->runPlaylistCommand(command); },
+                [owner] { return owner->toolWindowOpen(Tool::Playlist); });
+            app->library_view->setMixerWindow(
+                [owner] { owner->requestToolWindow(Tool::Mixer, !owner->toolWindowOpen(Tool::Mixer)); },
+                [owner] { return owner->toolWindowOpen(Tool::Mixer); });
             auto library_window = SdlWindow::create(
                 {.title = app->translator.tr("window.library"), .width = 720, .height = 640}, *app->library_view, font);
             if (!library_window)
             {
                 return std::unexpected{library_window.error()};
             }
-            (*library_window)->placeRightOf(*app->windows.front());
+            (*library_window)->placeRightOf(*app->decks.front()->window);
             app->library_window = library_window->get();
             app->windows.push_back(std::move(*library_window));
 
@@ -118,6 +135,11 @@ namespace djw::player_ui::sdl
             app->playlist_view = std::make_unique<PlaylistView>(
                 *library, app->dialogs, app->translator,
                 [owner](const core::api::LibraryTrack &track) { owner->load(track); });
+            app->tools[index(Tool::Playlist)] = {.view      = app->playlist_view.get(),
+                                                 .window    = nullptr,
+                                                 .title_key = "window.playlist",
+                                                 .width     = 560,
+                                                 .height    = 640};
             app->library_view->setAddToPlaylist([owner](const core::api::LibraryTrack &track)
                                                 { owner->addToPlaylist(track); });
             app->dialogs.setParent(app->library_window->handle());
@@ -140,6 +162,11 @@ namespace djw::player_ui::sdl
         return found != decks.end() ? found->get() : nullptr;
     }
 
+    std::string SdlApp::deckTitle(const DeckWindow &deck) const
+    {
+        return translator.tr("window.deck", {{"number", twoDigits(deck.number)}});
+    }
+
     bool SdlApp::openDeckWindow(core::api::DeckId deck)
     {
         core::api::DeckSnapshotBuffer *snapshot = core->deckSnapshot(deck);
@@ -147,18 +174,16 @@ namespace djw::player_ui::sdl
         {
             return false;
         }
-        auto opened = std::make_unique<DeckWindow>();
+        auto opened    = std::make_unique<DeckWindow>();
         opened->id     = deck;
         opened->number = ++deck_counter;
-        opened->view   = std::make_unique<DeckView>(deck, core->commandQueue(), *snapshot);
+        opened->view   = std::make_unique<DeckView>(deck, core->commandQueue(), *snapshot, translator);
+        opened->view->setOnLoad([this, deck] { loadSelectedInto(deck); });
         // One window paces the frames with the display: the first one, or the next if that one is gone
-        const bool pace = std::ranges::none_of(windows, [](const auto &window) { return window->paced(); });
-        auto       created =
-            SdlWindow::create({.title  = translator.tr("window.deck", {{"number", opened->number}}),
-                               .width  = 360,
-                               .height = 640,
-                               .vsync  = pace},
-                              *opened->view, font);
+        const bool pace    = std::ranges::none_of(windows, [](const auto &window) { return window->paced(); });
+        auto       created = SdlWindow::create(
+            {.title = deckTitle(*opened), .width = player_width, .height = player_height, .vsync = pace}, *opened->view,
+            font);
         if (!created)
         {
             SDL_Log("djw: cannot open a deck window: %s", created.error().c_str());
@@ -171,7 +196,6 @@ namespace djw::player_ui::sdl
         opened->window = created->get();
         windows.push_back(std::move(*created));
         decks.push_back(std::move(opened));
-        active_deck = deck;
         return true;
     }
 
@@ -196,10 +220,6 @@ namespace djw::player_ui::sdl
         std::erase_if(windows, [window](const auto &candidate) { return candidate.get() == window; });
         std::erase_if(decks, [deck](const auto &candidate) { return candidate->id == deck; });
         static_cast<void>(core->removeDeck(deck));
-        if (active_deck == deck && !decks.empty())
-        {
-            active_deck = decks.back()->id;
-        }
         // The window that paced the frames may be gone
         if (std::ranges::none_of(windows, [](const auto &candidate) { return candidate->paced(); }) && !decks.empty())
         {
@@ -207,11 +227,22 @@ namespace djw::player_ui::sdl
         }
     }
 
-    void SdlApp::setDeckTitles()
+    void SdlApp::setWindowTitles()
     {
         for (const auto &deck : decks)
         {
-            deck->window->setTitle(translator.tr("window.deck", {{"number", deck->number}}));
+            deck->window->setTitle(deckTitle(*deck));
+        }
+        if (library_window != nullptr)
+        {
+            library_window->setTitle(translator.tr("window.library"));
+        }
+        for (const ToolWindow &tool : tools)
+        {
+            if (tool.window != nullptr)
+            {
+                tool.window->setTitle(translator.tr(tool.title_key));
+            }
         }
     }
 
@@ -222,29 +253,81 @@ namespace djw::player_ui::sdl
             return;
         }
         decks.front()->loaded_file = std::move(file);
-        decks.front()->view->setTrackTitle(std::move(title));
+        decks.front()->view->setTrack({}, std::move(title));
+    }
+
+    bool SdlApp::loadInto(DeckWindow &target, const core::api::LibraryTrack &track)
+    {
+        if (target.view->playing())
+        {
+            if (library_view)
+            {
+                library_view->setNotice("library.notice.player_playing");
+            }
+            return false; // what plays is not replaced
+        }
+        if (auto loaded = core->loadTrack(target.id, track.path); !loaded)
+        {
+            target.view->setMessage(translator.tr("deck.cannot_load", {{"error", loaded.error()}}));
+            return false;
+        }
+        target.loaded_file = track.path;
+        // A file without tags shows its name
+        const std::string title = track.title.empty() ? track.path.stem().string() : track.title;
+        target.view->setTrack(track.artist, title);
+        return true;
     }
 
     void SdlApp::load(const core::api::LibraryTrack &track)
     {
-        if (deckWindow(active_deck) == nullptr)
+        if (decks.empty())
         {
-            addDeck(); // every deck was closed: a track needs one
+            // Opening a window now could disturb the frame in progress: the track follows the new player
+            load_after_new_deck = track;
+            ++new_decks_requested;
+            return;
         }
-        DeckWindow *target = deckWindow(active_deck);
+        const auto free_deck = std::ranges::find_if(decks, [](const auto &deck) { return !deck->view->playing(); });
+        if (free_deck == decks.end())
+        {
+            if (library_view)
+            {
+                library_view->setNotice("library.notice.all_playing");
+            }
+            return;
+        }
+        loadInto(**free_deck, track);
+    }
+
+    void SdlApp::loadSelectedInto(core::api::DeckId deck)
+    {
+        if (!library_view)
+        {
+            return;
+        }
+        DeckWindow *target = deckWindow(deck);
         if (target == nullptr)
         {
             return;
         }
-        if (auto loaded = core->loadTrack(target->id, track.path); loaded)
+        const auto track = library_view->selectedTrack();
+        if (!track)
         {
-            target->loaded_file = track.path;
-            target->view->setTrackTitle(displayTitle(track));
+            library_view->setNotice("library.notice.select_first");
+            return;
         }
-        else
+        loadInto(*target, *track);
+    }
+
+    std::vector<MixerDeck> SdlApp::mixerDecks() const
+    {
+        std::vector<MixerDeck> result;
+        result.reserve(decks.size());
+        for (const auto &deck : decks)
         {
-            target->view->setTrackTitle(translator.tr("deck.cannot_load", {{"error", loaded.error()}}));
+            result.push_back({deck->id, deck->number, deck->view->crossfaderSide()});
         }
+        return result;
     }
 
     void SdlApp::setLanguage(Language language)
@@ -254,68 +337,78 @@ namespace djw::player_ui::sdl
             return;
         }
         translator.setLanguage(language);
-        if (library_window != nullptr)
-        {
-            library_window->setTitle(translator.tr("window.library"));
-        }
-        if (playlist_window != nullptr)
-        {
-            playlist_window->setTitle(translator.tr("window.playlist"));
-        }
-        setDeckTitles();
+        setWindowTitles();
         if (language_changed)
         {
             language_changed(language);
         }
     }
 
-    void SdlApp::openPlaylistWindow()
+    void SdlApp::openTool(Tool tool)
     {
-        if (!playlist_view || playlist_window != nullptr)
+        ToolWindow &which = tools[index(tool)];
+        if (which.view == nullptr || which.window != nullptr)
         {
             return;
         }
-        auto created = SdlWindow::create({.title = translator.tr("window.playlist"), .width = 560, .height = 640},
-                                         *playlist_view, font);
+        auto created = SdlWindow::create({.title  = translator.tr(which.title_key),
+                                          .width  = which.width,
+                                          .height = which.height},
+                                         *which.view, font);
         if (!created)
         {
-            SDL_Log("djw: cannot open the playlist window: %s", created.error().c_str());
+            SDL_Log("djw: cannot open a window: %s", created.error().c_str());
             return;
         }
         if (library_window != nullptr)
         {
             (*created)->placeRightOf(*library_window);
         }
-        playlist_window = created->get();
+        which.window = created->get();
         windows.push_back(std::move(*created));
     }
 
-    void SdlApp::closePlaylistWindow()
+    void SdlApp::closeTool(Tool tool)
     {
-        if (playlist_window == nullptr)
+        ToolWindow &which = tools[index(tool)];
+        if (which.window == nullptr)
         {
             return;
         }
-        std::erase_if(windows, [this](const auto &window) { return window.get() == playlist_window; });
-        playlist_window = nullptr;
+        const SdlWindow *window = which.window;
+        std::erase_if(windows, [window](const auto &candidate) { return candidate.get() == window; });
+        which.window = nullptr;
+    }
+
+    void SdlApp::requestToolWindow(Tool tool, bool open)
+    {
+        tools[index(tool)].request = open ? Request::Open : Request::Close;
     }
 
     void SdlApp::applyWindowRequests()
     {
+        for (const Tool tool : {Tool::Playlist, Tool::Mixer})
+        {
+            switch (std::exchange(tools[index(tool)].request, Request::None))
+            {
+                case Request::Open:
+                    openTool(tool);
+                    break;
+                case Request::Close:
+                    closeTool(tool);
+                    break;
+                case Request::None:
+                    break;
+            }
+        }
         for (int count = std::exchange(new_decks_requested, 0); count > 0; --count)
         {
             addDeck();
         }
-        switch (std::exchange(window_request, WindowRequest::None))
+        // A track chosen with no player open goes into the one just opened
+        if (load_after_new_deck && !decks.empty())
         {
-            case WindowRequest::OpenPlaylist:
-                openPlaylistWindow();
-                break;
-            case WindowRequest::ClosePlaylist:
-                closePlaylistWindow();
-                break;
-            case WindowRequest::None:
-                break;
+            loadInto(*decks.back(), *std::exchange(load_after_new_deck, std::nullopt));
         }
     }
 
@@ -325,10 +418,10 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        if (playlist_window == nullptr)
+        if (!toolWindowOpen(Tool::Playlist))
         {
             playlist_view->update(); // reads the playlists, which the window would do on its first frame
-            window_request = WindowRequest::OpenPlaylist;
+            requestToolWindow(Tool::Playlist, true);
         }
         playlist_view->addTrack(track);
     }
@@ -341,14 +434,14 @@ namespace djw::player_ui::sdl
         }
         if (command == LibraryView::PlaylistCommand::ToggleWindow)
         {
-            window_request = playlist_window == nullptr ? WindowRequest::OpenPlaylist : WindowRequest::ClosePlaylist;
+            requestToolWindow(Tool::Playlist, !toolWindowOpen(Tool::Playlist));
             return;
         }
         // The commands show their result in the playlist window, so it opens if it is not
-        if (playlist_window == nullptr)
+        if (!toolWindowOpen(Tool::Playlist))
         {
             playlist_view->update();
-            window_request = WindowRequest::OpenPlaylist;
+            requestToolWindow(Tool::Playlist, true);
         }
         switch (command)
         {
@@ -399,12 +492,6 @@ namespace djw::player_ui::sdl
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && playlist_window != nullptr &&
-                event.window.windowID == playlist_window->id())
-            {
-                closePlaylistWindow(); // only this window; the program goes on
-                continue;
-            }
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
                 if (DeckWindow *closing = deckOfWindow(event.window.windowID))
@@ -412,18 +499,19 @@ namespace djw::player_ui::sdl
                     closeDeck(closing->id); // only this deck; the program goes on
                     continue;
                 }
+                const auto tool = std::ranges::find_if(tools, [&event](const ToolWindow &candidate)
+                                                       { return candidate.window != nullptr &&
+                                                                candidate.window->id() == event.window.windowID; });
+                if (tool != tools.end())
+                {
+                    closeTool(static_cast<Tool>(tool - tools.begin())); // only this window; the program goes on
+                    continue;
+                }
             }
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
                 running = false;
                 continue;
-            }
-            if (event.type == SDL_EVENT_WINDOW_FOCUS_GAINED)
-            {
-                if (const DeckWindow *focused = deckOfWindow(event.window.windowID))
-                {
-                    active_deck = focused->id; // the next track from the library goes here
-                }
             }
             if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_N &&
                 (event.key.mod & new_deck_modifier) != 0)
