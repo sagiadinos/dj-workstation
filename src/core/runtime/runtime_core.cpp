@@ -3,6 +3,10 @@
 
 #include "runtime/runtime_core.hpp"
 
+#include "decode/first_sound.hpp"
+#include "decode/track_loader.hpp"
+
+#include <cmath>
 #include <string>
 #include <utility>
 
@@ -52,7 +56,8 @@ namespace djw::core::runtime
         return {};
     }
 
-    std::expected<void, std::string> RuntimeCore::loadTrack(api::DeckId deck, const std::filesystem::path &file)
+    std::expected<api::LoadedTrack, std::string> RuntimeCore::loadTrack(api::DeckId deck, const std::filesystem::path &file,
+                                                                        const api::LoadOptions &options)
     {
         engine.collectGarbage();
         if (engine.deckSnapshot(deck) == nullptr)
@@ -64,8 +69,32 @@ namespace djw::core::runtime
         {
             return std::unexpected{track.error()};
         }
+
+        // Where the deck starts: the cue point given, else the first sound if wanted and known, else the beginning
+        const double        rate = static_cast<double>(track_config.sample_rate);
+        api::LoadedTrack    loaded;
+        std::uint64_t       start = 0;
+        const std::uint64_t length = (*track)->lengthFrames();
+        if (options.cue_seconds && *options.cue_seconds > 0.0)
+        {
+            start = static_cast<std::uint64_t>(std::llround(*options.cue_seconds * rate));
+        }
+        else if (!options.cue_seconds && options.cue_to_first_sound)
+        {
+            if (const auto sound = decode::findFirstSound(file, track_config))
+            {
+                loaded.first_sound_seconds = static_cast<double>(*sound) / rate;
+                start                      = *sound;
+            }
+        }
+        if (length > 0 && start >= length)
+        {
+            start = 0; // beyond the end: a stale cue point of an edited file
+        }
+        (*track)->setStartFrame(start);
+        loaded.cue_seconds = static_cast<double>(start) / rate;
         engine.setTrack(deck, std::move(*track));
-        return {};
+        return loaded;
     }
 
     std::expected<void, std::string> RuntimeCore::start()

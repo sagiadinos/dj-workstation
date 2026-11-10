@@ -94,6 +94,7 @@ namespace djw::player_ui::sdl
         }
 
         SdlApp *owner = app.get();
+        app->library  = library;
         // The crossfader window works without a library
         app->mixer_view = std::make_unique<MixerView>(core.commandQueue(), core.mixerSnapshot(), app->translator,
                                                       [owner] { return owner->mixerDecks(); });
@@ -179,6 +180,16 @@ namespace djw::player_ui::sdl
         opened->number = ++deck_counter;
         opened->view   = std::make_unique<DeckView>(deck, core->commandQueue(), *snapshot, translator);
         opened->view->setOnLoad([this, deck] { loadSelectedInto(deck); });
+        // The cue point the user sets goes into the library, where the next load finds it
+        opened->view->setOnCueSet(
+            [this, deck](double seconds)
+            {
+                const DeckWindow *source = deckWindow(deck);
+                if (library != nullptr && source != nullptr && source->track_id != 0)
+                {
+                    library->setCuePoint(source->track_id, seconds);
+                }
+            });
         // One window paces the frames with the display: the first one, or the next if that one is gone
         const bool pace    = std::ranges::none_of(windows, [](const auto &window) { return window->paced(); });
         auto       created = SdlWindow::create(
@@ -253,6 +264,7 @@ namespace djw::player_ui::sdl
             return;
         }
         decks.front()->loaded_file = std::move(file);
+        decks.front()->track_id    = 0;
         decks.front()->view->setTrack({}, std::move(title));
     }
 
@@ -266,12 +278,19 @@ namespace djw::player_ui::sdl
             }
             return false; // what plays is not replaced
         }
-        if (auto loaded = core->loadTrack(target.id, track.path); !loaded)
+        // Cue-Load: start at the cue point stored for the track, else at its first sound, else at the beginning
+        core::api::LoadOptions options;
+        if (target.view->cueLoad())
+        {
+            options = {.cue_seconds = track.cue_seconds, .cue_to_first_sound = true};
+        }
+        if (auto loaded = core->loadTrack(target.id, track.path, options); !loaded)
         {
             target.view->setMessage(translator.tr("deck.cannot_load", {{"error", loaded.error()}}));
             return false;
         }
         target.loaded_file = track.path;
+        target.track_id    = track.id;
         // A file without tags shows its name
         const std::string title = track.title.empty() ? track.path.stem().string() : track.title;
         target.view->setTrack(track.artist, title);

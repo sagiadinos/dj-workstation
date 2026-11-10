@@ -8,6 +8,7 @@ add_executable(djw_core_decode_tests
     test_miniaudio_decoder.cpp
     test_memory_track.cpp
     test_track_loader.cpp
+    test_first_sound.cpp
 )
 djw_set_options(djw_core_decode_tests TEST)
 target_compile_definitions(djw_core_decode_tests PRIVATE

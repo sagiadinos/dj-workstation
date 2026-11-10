@@ -401,3 +401,34 @@ TEST_CASE("Library: an M3U import reports its outcome in the status")
     CHECK(status.last_import->not_found == 1);
     CHECK(status.tracks_total == 1);
 }
+
+TEST_CASE("Library: a cue point is stored in the database, the revision goes up, the file stays as it is")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::filesystem::copy_file(audio_dir / "tagged_vorbis.flac", music.path() / "a.flac");
+    auto library = openLibrary(data.path() / "library.db");
+    REQUIRE(library->addFolder(music.path()).has_value());
+    const api::LibraryStatus scanned = waitForScan(*library);
+    const auto               track   = library->search({}).value().front();
+    CHECK_FALSE(track.cue_seconds.has_value());
+
+    library->setCuePoint(track.id, 7.25);
+    const api::LibraryStatus stored = waitForEdits(*library);
+
+    CHECK(stored.write_error.empty());
+    CHECK(stored.revision > scanned.revision);
+    const auto found = library->search({}).value();
+    REQUIRE(found.size() == 1);
+    REQUIRE(found.front().cue_seconds.has_value());
+    CHECK(*found.front().cue_seconds == doctest::Approx(7.25));
+
+    // The file is untouched: a rescan reads nothing again, and the cue point is still there
+    library->rescan();
+    CHECK(waitForScan(*library).files_updated == 0);
+    CHECK(library->search({}).value().front().cue_seconds.has_value());
+
+    library->setCuePoint(track.id, std::nullopt);
+    static_cast<void>(waitForEdits(*library));
+    CHECK_FALSE(library->search({}).value().front().cue_seconds.has_value());
+}

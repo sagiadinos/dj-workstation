@@ -3,6 +3,7 @@
 
 #include "sdl_app.hpp"
 
+#include "fake_library.hpp"
 #include "temp_dir.hpp"
 #include "wav_file.hpp"
 
@@ -320,4 +321,118 @@ TEST_CASE("SdlApp: the track a player was started with shows as its track")
     auto    app = fixture.openApp();
     app->setDeckTrack("/music/a.mp3", "a.mp3");
     CHECK(app->deckFile(0) == "/music/a.mp3");
+}
+
+namespace
+{
+    /// A WAV file of two seconds: half a second of silence, then a tone
+    std::filesystem::path gapWav(const djw::tests::TempDir &folder)
+    {
+        djw::tests::StereoAudio audio{.sample_rate = 48'000, .samples = std::vector<float>(48'000 * 2 * 2, 0.0F)};
+        for (std::size_t frame = 24'000; frame < 96'000; ++frame)
+        {
+            const auto value = static_cast<float>(
+                0.4 * std::sin(2.0 * 3.14159265358979 * 440.0 * static_cast<double>(frame) / 48'000.0));
+            audio.samples[frame * 2]       = value;
+            audio.samples[(frame * 2) + 1] = value;
+        }
+        const auto file = folder.path() / "gap.wav";
+        REQUIRE(djw::tests::writeWav(file, audio).has_value());
+        return file;
+    }
+
+    /// The position of the deck as the core reports it, after a few frames
+    double positionOf(Fixture &fixture, SdlApp &app, std::size_t index)
+    {
+        for (int i = 0; i < 20; ++i)
+        {
+            static_cast<void>(app.runFrame());
+            std::this_thread::sleep_for(std::chrono::milliseconds{5});
+        }
+        return fixture.core->deckSnapshot(app.deckId(index))->read().position_seconds;
+    }
+} // namespace
+
+TEST_CASE("SdlApp: without Cue-Load a track starts at the beginning, with it at the stored cue point or the first sound")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = gapWav(folder);
+    auto                      app  = fixture.openApp();
+    Fixture::ctrlN();
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 3);
+
+    // Cue-Load off (the default): the beginning, though the track has a cue point
+    api::LibraryTrack track = trackOf(file);
+    track.cue_seconds       = 1.5;
+    app->load(track);
+    CHECK(positionOf(fixture, *app, 0) == doctest::Approx(0.0));
+
+    // Cue-Load on, the track has a stored cue point: there
+    app->setDeckCueLoad(1, true);
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, true)); // player 1 plays, so the track goes to player 2
+    app->load(track);
+    CHECK(app->deckFile(1) == file);
+    CHECK(positionOf(fixture, *app, 1) == doctest::Approx(1.5));
+
+    // Cue-Load on, no stored cue point: the first sound, half a second in
+    app->setDeckCueLoad(2, true);
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(1)}));
+    REQUIRE(waitForPlaying(*app, 1, true));
+    api::LibraryTrack plain = trackOf(file);
+    app->load(plain);
+    CHECK(positionOf(fixture, *app, 2) == doctest::Approx(0.5).epsilon(0.02));
+}
+
+TEST_CASE("SdlApp: the cue point the user sets is stored in the library for the track")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = gapWav(folder);
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library);
+
+    api::LibraryTrack track = trackOf(file);
+    track.id                = 7;
+    app->load(track);
+    static_cast<void>(positionOf(fixture, *app, 0));
+    CHECK(library.cue_points.empty()); // loading is no cue point the user set
+
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckSeek{app->deckId(0), 1.0}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckCue{app->deckId(0), true}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckCue{app->deckId(0), false}));
+    for (int i = 0; i < 300 && library.cue_points.empty(); ++i)
+    {
+        static_cast<void>(app->runFrame());
+        std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    }
+    REQUIRE(library.cue_points.size() == 1);
+    CHECK(library.cue_points[0].first == 7);
+    REQUIRE(library.cue_points[0].second.has_value());
+    CHECK(*library.cue_points[0].second == doctest::Approx(1.0));
+}
+
+TEST_CASE("SdlApp: a file from outside the library has no track to store a cue point for")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = gapWav(folder);
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library);
+    app->setDeckTrack(file, "gap.wav");
+    REQUIRE(fixture.core->loadTrack(app->deckId(0), file).has_value());
+    static_cast<void>(positionOf(fixture, *app, 0));
+
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckSeek{app->deckId(0), 1.0}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckCue{app->deckId(0), true}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckCue{app->deckId(0), false}));
+    for (int i = 0; i < 40; ++i)
+    {
+        static_cast<void>(app->runFrame());
+        std::this_thread::sleep_for(std::chrono::milliseconds{10});
+    }
+    CHECK(library.cue_points.empty());
 }

@@ -87,6 +87,8 @@ namespace djw::player_ui::sdl
             {
                 return decks.at(index)->loaded_file;
             }
+            /// The Cue-Load option of the deck at index; for tests
+            void setDeckCueLoad(std::size_t index, bool on) { decks.at(index)->view->setCueLoad(on); }
             /// Whether the deck at index plays, as of the last frame; for tests
             [[nodiscard]] bool deckPlaying(std::size_t index) const { return decks.at(index)->view->playing(); }
 
@@ -118,6 +120,8 @@ namespace djw::player_ui::sdl
                     SdlWindow                *window = nullptr; ///< owned by windows
                     /// The file loaded into the deck; its tags are not changed while it is loaded
                     std::filesystem::path loaded_file;
+                    /// The library track loaded, 0 for a file from outside the library; its cue point is stored
+                    std::int64_t track_id = 0;
             };
 
             enum class Request : std::uint8_t
@@ -172,7 +176,8 @@ namespace djw::player_ui::sdl
             SdlFileDialogs    dialogs;
             Translator        translator;
             LanguageChanged   language_changed;
-            core::api::Core  *core;
+            core::api::Core    *core;
+            core::api::Library *library = nullptr;
             /// Views come before the windows that show them: destroyed after them
             std::vector<std::unique_ptr<DeckWindow>> decks;
             int                                      deck_counter = 0;

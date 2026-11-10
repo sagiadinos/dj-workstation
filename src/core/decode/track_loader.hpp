@@ -12,6 +12,7 @@
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace djw::core::decode
@@ -23,6 +24,8 @@ namespace djw::core::decode
             std::uint64_t memory_limit_frames = 300 * std::uint64_t{48'000};
             /// Ring buffer of a streamed track
             std::size_t stream_buffer_frames = 48'000;
+            /// How far into a file findFirstSound looks for the first audible sound
+            std::uint64_t first_sound_search_frames = 30 * std::uint64_t{48'000};
     };
 
     /// Turns an opened decoder into a track: in memory if its length is known and within the limit (and the memory
@@ -32,6 +35,10 @@ namespace djw::core::decode
     /// Opens an audio file and makes a track of it, see makeTrack.
     std::expected<std::unique_ptr<engine::AudioSource>, std::string> openTrack(const std::filesystem::path &file,
                                                                                const TrackLoadConfig       &config);
+
+    /// The first audible frame of an audio file (see findFirstSound), on a decoder of its own; std::nullopt if the
+    /// file cannot be opened or the first sound is not known.
+    std::optional<std::uint64_t> findFirstSound(const std::filesystem::path &file, const TrackLoadConfig &config);
 } // namespace djw::core::decode
 
 #endif // DJW_CORE_DECODE_TRACK_LOADER_HPP

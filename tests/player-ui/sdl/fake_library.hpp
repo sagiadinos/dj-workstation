@@ -39,6 +39,11 @@ namespace djw::tests
 
             void removeMissing() override { ++removals; }
 
+            void setCuePoint(std::int64_t track_id, std::optional<double> seconds) override
+            {
+                cue_points.emplace_back(track_id, seconds);
+            }
+
             void updateTags(std::int64_t track_id, core::api::LibraryTagChange change) override
             {
                 edits.emplace_back(track_id, std::move(change));
@@ -165,6 +170,7 @@ namespace djw::tests
             std::vector<std::filesystem::path>                                added_folders;
             std::string                                                       add_folder_error;
             int                                                               rescans = 0;
+            std::vector<std::pair<std::int64_t, std::optional<double>>>       cue_points;
             core::api::LibraryStatus                                          library_status;
             std::vector<std::pair<std::int64_t, core::api::LibraryTagChange>> edits;
             int                                                               removals = 0;

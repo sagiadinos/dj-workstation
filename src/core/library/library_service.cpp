@@ -106,6 +106,11 @@ namespace djw::core::library
         queue([this, track_id, change = std::move(change)] { return writeTags(track_id, change); });
     }
 
+    void LibraryService::setCuePoint(std::int64_t track_id, std::optional<double> seconds)
+    {
+        queue([this, track_id, seconds] { return writer.tracks.setCue(track_id, seconds); });
+    }
+
     void LibraryService::removeMissing()
     {
         queue([this] { return writer.tracks.removeMissing(); });

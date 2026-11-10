@@ -8,6 +8,7 @@ add_library(djw_core_decode STATIC
     sample_ring_buffer.cpp
     streaming_source.cpp
     memory_track.cpp
+    first_sound.cpp
     track_loader.cpp
 )
 add_library(djw::core::decode ALIAS djw_core_decode)

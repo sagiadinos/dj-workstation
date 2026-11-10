@@ -66,7 +66,8 @@ namespace djw::player_ui::sdl
     DeckView::DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot,
                        const Translator &translator)
         : deck{deck}, queue{&queue}, snapshot{&snapshot}, translator{&translator}, state{snapshot.read()},
-          sent_volume{state.channel_volume}, sent_headphone_level{state.headphone_level}
+          seen_cue_sets{state.cue_set_count}, sent_volume{state.channel_volume},
+          sent_headphone_level{state.headphone_level}
     {
         volume_fader.setValue(state.channel_volume);
         headphone_fader.setValue(state.headphone_level);
@@ -158,10 +159,6 @@ namespace djw::player_ui::sdl
     {
         track_artist = std::move(artist);
         track_title  = std::move(title);
-        if (cue_load_box.checked())
-        {
-            pending.emplace_back(core::api::MixerSetHeadphoneCue{deck, true});
-        }
     }
 
     void DeckView::setMessage(std::string message)
@@ -318,6 +315,14 @@ namespace djw::player_ui::sdl
     void DeckView::update()
     {
         state = snapshot->read();
+        if (state.cue_set_count != seen_cue_sets)
+        {
+            seen_cue_sets = state.cue_set_count;
+            if (on_cue_set)
+            {
+                on_cue_set(state.cue_seconds);
+            }
+        }
         play_button.setPlaying(playing());
         applyTranslations();
         handleButtons();

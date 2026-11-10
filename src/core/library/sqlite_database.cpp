@@ -46,6 +46,12 @@ namespace djw::core::library
         return *this;
     }
 
+    Statement &Statement::bindNull(int index)
+    {
+        sqlite3_bind_null(statement.get(), index);
+        return *this;
+    }
+
     std::expected<bool, std::string> Statement::step()
     {
         const int result = sqlite3_step(statement.get());
@@ -100,6 +106,11 @@ namespace djw::core::library
     double Statement::real(int column) const
     {
         return sqlite3_column_double(statement.get(), column);
+    }
+
+    bool Statement::isNull(int column) const
+    {
+        return sqlite3_column_type(statement.get(), column) == SQLITE_NULL;
     }
 
     void SqliteDatabase::Closer::operator()(sqlite3 *database) const noexcept

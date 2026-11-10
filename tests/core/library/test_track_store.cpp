@@ -288,3 +288,57 @@ TEST_CASE("TrackStore: a version 2 database gets the missing flag, all tracks st
     CHECK(fixture.store.missingCount().value() == 0);
     CHECK(fixture.titles({.only_missing = true}).empty());
 }
+
+TEST_CASE("TrackStore: a track has no cue point at first, a stored one comes back, null removes it")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    fixture.add("b.mp3", {.title = "b"});
+    auto tracks = fixture.store.search({.sort_by = api::LibraryColumn::Title}).value();
+    REQUIRE(tracks.size() == 2);
+    CHECK_FALSE(tracks[0].cue_seconds.has_value());
+
+    REQUIRE(fixture.store.setCue(tracks[0].id, 12.345).has_value());
+    tracks = fixture.store.search({.sort_by = api::LibraryColumn::Title}).value();
+    REQUIRE(tracks[0].cue_seconds.has_value());
+    CHECK(*tracks[0].cue_seconds == doctest::Approx(12.345));
+    CHECK_FALSE(tracks[1].cue_seconds.has_value()); // only that track
+
+    REQUIRE(fixture.store.setCue(tracks[0].id, 0.0).has_value()); // 0 is a cue point too, not none
+    CHECK(fixture.store.search({.sort_by = api::LibraryColumn::Title}).value()[0].cue_seconds == 0.0);
+
+    REQUIRE(fixture.store.setCue(tracks[0].id, std::nullopt).has_value());
+    CHECK_FALSE(fixture.store.search({.sort_by = api::LibraryColumn::Title}).value()[0].cue_seconds.has_value());
+}
+
+TEST_CASE("TrackStore: the cue point survives a rescan of the file")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    const auto id = fixture.store.search({}).value().front().id;
+    REQUIRE(fixture.store.setCue(id, 31.5).has_value());
+
+    fixture.add("a.mp3", {.title = "a, retagged"}); // the scan stores the file again
+    const auto found = fixture.store.search({}).value();
+    REQUIRE(found.size() == 1);
+    CHECK(found.front().title == "a, retagged");
+    REQUIRE(found.front().cue_seconds.has_value());
+    CHECK(*found.front().cue_seconds == doctest::Approx(31.5));
+}
+
+TEST_CASE("TrackStore: a version 4 database gets the cue column, its tracks have no cue point")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "Kept"});
+    djw::tests::downgradeLibrary(fixture.database(), 4);
+
+    auto migrated = TrackStore::open(fixture.database());
+    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
+    fixture.store = std::move(*migrated);
+
+    const auto found = fixture.store.search({}).value();
+    REQUIRE(found.size() == 1);
+    CHECK_FALSE(found.front().cue_seconds.has_value());
+    REQUIRE(fixture.store.setCue(found.front().id, 5.0).has_value());
+    CHECK(fixture.store.search({}).value().front().cue_seconds == 5.0);
+}

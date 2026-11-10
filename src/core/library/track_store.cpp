@@ -76,7 +76,7 @@ namespace djw::core::library
             "ALTER TABLE tracks ADD COLUMN missing INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 3;";
 
         constexpr std::string_view track_columns =
-            "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, t.duration, t.missing";
+            "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, t.duration, t.missing, t.cue";
 
         // Version 3 had no playlists
         constexpr std::string_view migration_to_4 = R"sql(
@@ -93,6 +93,9 @@ namespace djw::core::library
             CREATE INDEX playlist_entries_by_track ON playlist_entries (track_id);
             PRAGMA user_version = 4;
         )sql";
+
+        // Version 4 had no cue points; NULL is none
+        constexpr std::string_view migration_to_5 = "ALTER TABLE tracks ADD COLUMN cue REAL; PRAGMA user_version = 5;";
 
         constexpr std::string_view update_keys =
             "UPDATE tracks SET artist_key = ?, title_key = ?, genre_key = ?, any_key = ? WHERE id = ?";
@@ -156,6 +159,7 @@ namespace djw::core::library
             .year             = static_cast<int>(row.integer(6)),
             .duration_seconds = row.real(7),
             .missing          = row.integer(8) != 0,
+            .cue_seconds      = row.isNull(9) ? std::nullopt : std::optional{row.real(9)},
         };
     }
 
@@ -241,7 +245,14 @@ namespace djw::core::library
                 return migrated;
             }
         }
-        return database.execute(migration_to_4);
+        if (from_version < 4)
+        {
+            if (auto migrated = database.execute(migration_to_4); !migrated)
+            {
+                return migrated;
+            }
+        }
+        return database.execute(migration_to_5);
     }
 
     std::expected<void, std::string> TrackStore::migrateToVersion2(SqliteDatabase &database)
@@ -308,9 +319,10 @@ namespace djw::core::library
         auto missing_count  = database.prepare("SELECT count(*) FROM tracks WHERE missing = 1");
         auto remove_missing = database.prepare("DELETE FROM tracks WHERE missing = 1");
         auto id_of_path     = database.prepare("SELECT id FROM tracks WHERE path = ?");
+        auto set_cue        = database.prepare("UPDATE tracks SET cue = ? WHERE id = ?");
 
         for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count, &path, &files, &set_missing,
-                                      &missing_count, &remove_missing})
+                                      &missing_count, &remove_missing, &id_of_path, &set_cue})
         {
             if (!*statement)
             {
@@ -329,6 +341,7 @@ namespace djw::core::library
             .missing_count  = std::move(*missing_count),
             .remove_missing = std::move(*remove_missing),
             .id_of_path     = std::move(*id_of_path),
+            .set_cue        = std::move(*set_cue),
         };
     }
 
@@ -417,6 +430,20 @@ namespace djw::core::library
     std::expected<void, std::string> TrackStore::setMissing(std::int64_t track_id, bool missing)
     {
         return statements.set_missing.bind(1, std::int64_t{missing ? 1 : 0}).bind(2, track_id).run();
+    }
+
+    std::expected<void, std::string> TrackStore::setCue(std::int64_t track_id, std::optional<double> seconds)
+    {
+        Statement &update = statements.set_cue;
+        if (seconds)
+        {
+            update.bind(1, *seconds);
+        }
+        else
+        {
+            update.bindNull(1);
+        }
+        return update.bind(2, track_id).run();
     }
 
     std::expected<void, std::string> TrackStore::removeMissing()

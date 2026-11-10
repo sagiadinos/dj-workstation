@@ -36,6 +36,8 @@ namespace djw::core::library
             Statement &bind(int index, std::string_view text);
             Statement &bind(int index, std::int64_t value);
             Statement &bind(int index, double value);
+            /// Binds NULL
+            Statement &bindNull(int index);
 
             /// Runs one step: true when a row is available, false when done
             std::expected<bool, std::string> step();
@@ -47,6 +49,8 @@ namespace djw::core::library
             [[nodiscard]] std::string  text(int column) const;
             [[nodiscard]] std::int64_t integer(int column) const;
             [[nodiscard]] double       real(int column) const;
+            /// The column of the current row is NULL
+            [[nodiscard]] bool isNull(int column) const;
 
         private:
             friend class SqliteDatabase;

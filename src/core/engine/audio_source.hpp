@@ -42,6 +42,14 @@ namespace djw::core::engine
 
             /// The read position is at the end; nothing more will come without a seek.
             [[nodiscard]] virtual bool atEnd() const noexcept = 0; // [audio-thread]
+
+            /// Where a deck starts when it takes this source and where it puts its cue point (0: the beginning), e.g.
+            /// the first sound. Set before the source is handed to the engine; the engine only reads it.
+            void                        setStartFrame(std::uint64_t frame) noexcept { start_frame = frame; }
+            [[nodiscard]] std::uint64_t startFrame() const noexcept { return start_frame; }
+
+        private:
+            std::uint64_t start_frame = 0;
     };
 } // namespace djw::core::engine
 

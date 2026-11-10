@@ -276,6 +276,7 @@ namespace djw::core::engine
                 .position_seconds = deck.positionFrames() / rate,
                 .duration_seconds = static_cast<double>(deck.lengthFrames()) / rate,
                 .cue_seconds      = static_cast<double>(deck.cueFrame()) / rate,
+                .cue_set_count    = deck.cueSetCount(),
                 .pitch_percent    = deck.pitchPercent(),
                 .keylock          = deck.keylock(),
                 .crossfader_side  = slot->channel.crossfaderSide(),

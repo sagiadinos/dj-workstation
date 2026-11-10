@@ -50,6 +50,7 @@ namespace djw::core::library
             std::expected<void, std::string> addFolder(const std::filesystem::path &folder) override;
             void                             rescan() override;
             void                             updateTags(std::int64_t track_id, api::LibraryTagChange change) override;
+            void                             setCuePoint(std::int64_t track_id, std::optional<double> seconds) override;
             void                             removeMissing() override;
             [[nodiscard]] api::Playlists    &playlists() noexcept override { return *this; }
             [[nodiscard]] std::vector<std::filesystem::path> folders() const override;

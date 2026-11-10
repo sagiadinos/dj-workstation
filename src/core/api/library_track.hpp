@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace djw::core::api
@@ -23,6 +24,8 @@ namespace djw::core::api
             double                duration_seconds = 0.0;
             /// The file was not found at the last check (dead link)
             bool missing = false;
+            /// The cue point the user set last, in seconds; a deck jumps there when the track is loaded (Cue-Load)
+            std::optional<double> cue_seconds{};
     };
 } // namespace djw::core::api
 

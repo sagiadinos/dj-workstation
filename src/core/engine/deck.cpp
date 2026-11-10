@@ -28,6 +28,17 @@ namespace djw::core::engine
         return_to_cue  = false;
         resampler.reset(0);
         stretcher.reset(0);
+        if (source != nullptr)
+        {
+            // The track says where to start: the first sound or the cue point stored for it; this is the cue point
+            const std::uint64_t length = source->lengthFrames();
+            const std::uint64_t start  = source->startFrame();
+            if (start > 0 && (length == 0 || start < length))
+            {
+                cue_frame = start;
+                restartAt(start);
+            }
+        }
     }
 
     double Deck::playbackPosition() const noexcept
@@ -107,6 +118,7 @@ namespace djw::core::engine
         else if (!atCue())
         {
             cue_frame = static_cast<std::uint64_t>(std::llround(playbackPosition()));
+            ++cue_sets;
         }
         else
         {

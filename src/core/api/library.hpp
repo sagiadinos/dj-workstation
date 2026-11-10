@@ -123,6 +123,14 @@ namespace djw::core::api
             virtual void updateTags(std::int64_t track_id, LibraryTagChange change) = 0;
 
             /**
+             * Stores the cue point of a track (seconds, the one the user set last; std::nullopt removes it). A deck
+             * with Cue-Load jumps there when the track is loaded; LibraryTrack::cue_seconds shows it. Written on the
+             * library thread: returns at once, the revision goes up when it is stored, an error goes to write_error.
+             * It changes only the database, not the file.
+             */
+            virtual void setCuePoint(std::int64_t track_id, std::optional<double> seconds) = 0;
+
+            /**
              * Removes the tracks whose file is missing from the library (not from the disk, they are gone already), on
              * the library thread. Whether a file is missing is checked at the end of every scan; a file that comes
              * back (e.g. a drive mounted again) loses its mark there.

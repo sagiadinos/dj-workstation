@@ -444,3 +444,78 @@ TEST_CASE("Deck: a track plays out to its end with keylock and the deck stops")
     }
     CHECK_FALSE(deck.isPlaying());
 }
+
+TEST_CASE("Deck: a track with a start frame is taken at that frame, which is its cue point")
+{
+    BufferSource source{djw::tests::ramp(1'000)};
+    source.setStartFrame(400);
+    Deck deck{DeckId{1}, 0};
+    deck.attach(&source);
+
+    CHECK(deck.positionFrames() == 400);
+    CHECK(deck.cueFrame() == 400);
+    CHECK_FALSE(deck.isPlaying());
+    CHECK(deck.cueSetCount() == 0); // it came with the track, the user did not set it
+
+    deck.play();
+    std::vector<float> output(4);
+    deck.render(output);
+    CHECK(output == std::vector<float>{400.0F, 400.0F, 401.0F, 401.0F}); // the source was moved there as well
+    CHECK(deck.positionFrames() == 402);
+
+    // CUE goes back to that point
+    deck.cue(true);
+    CHECK(deck.positionFrames() == 400);
+}
+
+TEST_CASE("Deck: a start frame at or beyond the end is not used, one in a track of unknown length is")
+{
+    BufferSource beyond{djw::tests::ramp(100)};
+    beyond.setStartFrame(100);
+    Deck deck{DeckId{1}, 0};
+    deck.attach(&beyond);
+    CHECK(deck.positionFrames() == 0);
+    CHECK(deck.cueFrame() == 0);
+
+    SineSource endless{440.0, 48'000, 0.5F}; // length 0 is unknown
+    endless.setStartFrame(5'000);
+    deck.attach(&endless);
+    CHECK(deck.positionFrames() == 5'000);
+    CHECK(deck.cueFrame() == 5'000);
+}
+
+TEST_CASE("Deck: the next track starts at its own start frame, not at the cue point of the one before")
+{
+    BufferSource first{djw::tests::ramp(1'000)};
+    first.setStartFrame(700);
+    BufferSource second{djw::tests::ramp(1'000)};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&first);
+    deck.attach(&second);
+    CHECK(deck.positionFrames() == 0);
+    CHECK(deck.cueFrame() == 0);
+}
+
+TEST_CASE("Deck: the cue point set with CUE is counted, the one that comes with a track is not")
+{
+    BufferSource source{djw::tests::ramp(48'000)};
+    source.setStartFrame(1'000);
+    Deck deck{DeckId{1}, 0};
+    deck.attach(&source);
+    CHECK(deck.cueSetCount() == 0);
+
+    deck.seek(20'000);
+    deck.cue(true); // stopped away from the cue point: sets it here
+    deck.cue(false);
+    CHECK(deck.cueFrame() == 20'000);
+    CHECK(deck.cueSetCount() == 1);
+
+    deck.cue(true); // stopped at the cue point: preview, no new cue point
+    deck.cue(false);
+    CHECK(deck.cueSetCount() == 1);
+
+    deck.seek(30'000);
+    deck.cue(true);
+    deck.cue(false);
+    CHECK(deck.cueSetCount() == 2);
+}

@@ -49,6 +49,8 @@ namespace djw::core::engine
             [[nodiscard]] bool          isPlaying() const noexcept { return state == State::Playing; }
             [[nodiscard]] double        positionFrames() const noexcept { return playbackPosition(); }
             [[nodiscard]] std::uint64_t cueFrame() const noexcept { return cue_frame; }
+            /// How often the cue point was set with the CUE button; a track's start position does not count
+            [[nodiscard]] std::uint32_t cueSetCount() const noexcept { return cue_sets; }
             [[nodiscard]] std::uint64_t lengthFrames() const noexcept;
             [[nodiscard]] float         pitchPercent() const noexcept { return pitch_percent; }
             [[nodiscard]] bool          keylock() const noexcept { return keylock_on; }
@@ -99,6 +101,7 @@ namespace djw::core::engine
             std::size_t   fade_remaining = 0;
             State         state          = State::Stopped;
             std::uint64_t cue_frame      = 0;
+            std::uint32_t cue_sets       = 0;
             bool          cue_preview    = false; ///< playing only while CUE is held
             bool          return_to_cue  = false; ///< jump to the cue point when the fade has ended
             float         pitch_percent  = 0.0F;

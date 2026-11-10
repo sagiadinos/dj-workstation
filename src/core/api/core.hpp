@@ -12,6 +12,7 @@
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace djw::core::api
@@ -31,6 +32,25 @@ namespace djw::core::api
             bool headphone_output = false;
             /// Tracks up to this length are held in memory, longer ones are streamed (Architecture.md, Track loading)
             std::uint32_t memory_track_limit_seconds = 300;
+    };
+
+    /// How loadTrack starts the deck
+    struct LoadOptions
+    {
+            /// Start here and make it the cue point, e.g. the one stored for the track; ignored beyond the track's end
+            std::optional<double> cue_seconds{};
+            /// Without cue_seconds: start at the first audible sound if it is known (the beginning of the track if
+            /// not) and make that the cue point. Off: start at the beginning.
+            bool cue_to_first_sound = false;
+    };
+
+    /// What loadTrack made of a track
+    struct LoadedTrack
+    {
+            /// Where the deck stands and its cue point, in seconds (0 at the beginning)
+            double cue_seconds = 0.0;
+            /// The first audible sound, when it was looked for and found; the core looks in the first 30 seconds
+            std::optional<double> first_sound_seconds{};
     };
 
     /**
@@ -57,9 +77,11 @@ namespace djw::core::api
             /// Removes a deck; its snapshot buffer must not be used afterwards.
             virtual std::expected<void, std::string> removeDeck(DeckId deck) = 0;
 
-            /// Loads a file into a deck, replacing its track; the deck stops at the start of the new track. Opening
-            /// the file happens here, decoding continues in the background. On error the deck keeps its track.
-            virtual std::expected<void, std::string> loadTrack(DeckId deck, const std::filesystem::path &file) = 0;
+            /// Loads a file into a deck, replacing its track; the deck stops at the start of the new track, or where
+            /// options say. Opening the file happens here, decoding continues in the background. On error the deck
+            /// keeps its track. Do not load a deck that plays: the frontend decides that.
+            virtual std::expected<LoadedTrack, std::string> loadTrack(DeckId deck, const std::filesystem::path &file,
+                                                                      const LoadOptions &options = {}) = 0;
 
             /// Starts the audio output.
             virtual std::expected<void, std::string> start() = 0;

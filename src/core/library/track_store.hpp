@@ -53,7 +53,7 @@ namespace djw::core::library
     {
         public:
             /// Database schema version, stored as PRAGMA user_version
-            static constexpr std::int64_t schema_version = 4;
+            static constexpr std::int64_t schema_version = 5;
 
             static std::expected<TrackStore, std::string> open(const std::filesystem::path &database_file);
 
@@ -71,6 +71,8 @@ namespace djw::core::library
             std::expected<std::size_t, std::string>                    missingCount();
             std::expected<std::vector<StoredFile>, std::string>        files();
             std::expected<void, std::string>                           setMissing(std::int64_t track_id, bool missing);
+            /// Stores the cue point of a track in seconds; std::nullopt removes it
+            std::expected<void, std::string> setCue(std::int64_t track_id, std::optional<double> seconds);
             /// Deletes all tracks marked missing
             std::expected<void, std::string> removeMissing();
 
@@ -100,6 +102,7 @@ namespace djw::core::library
                     Statement missing_count;
                     Statement remove_missing;
                     Statement id_of_path;
+                    Statement set_cue;
             };
 
             TrackStore(std::unique_ptr<SqliteDatabase> database, Statements statements) noexcept

@@ -33,7 +33,8 @@ namespace djw::player_ui::sdl
      * position slider and Zero (pitch zero), then the state (loaded, cued, paused, playing), CUE (red, acts while held
      * like on a CDJ) and play/pause (green). At the bottom the channel fader, the headphone level fader with its HP
      * (headphone cue) button, the artist and title display and the Cue-Load option: a track loaded into this
-     * player is put on the headphones at once.
+     * player starts at its cue point (see cueLoad(); the owner does the loading). When the user sets a cue point with
+     * CUE, the owner is told to store it.
      *
      * Turns input into commands for the core and shows the deck's snapshot. Commands that matter in order (play,
      * CUE press and release, bend, ...) wait in a list and go out one after the other as the queue has room, so none
@@ -42,7 +43,8 @@ namespace djw::player_ui::sdl
     class DeckView final : public View
     {
         public:
-            using Load = std::function<void()>;
+            using Load   = std::function<void()>;
+            using CueSet = std::function<void(double seconds)>;
 
             DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot,
                      const Translator &translator);
@@ -58,7 +60,11 @@ namespace djw::player_ui::sdl
             /// What the Load button does
             void setOnLoad(Load load) { on_load = std::move(load); }
 
-            /// A track was loaded: shown in the display; with Cue-Load on it goes to the headphones
+            /// Called when the user sets the cue point with the CUE button, with the new cue point in seconds (a cue
+            /// point that came with a loaded track is no call)
+            void setOnCueSet(CueSet cue_set) { on_cue_set = std::move(cue_set); }
+
+            /// A track was loaded: shown in the display
             void setTrack(std::string artist, std::string title);
             /// A line in place of the track in the display, e.g. why loading failed
             void setMessage(std::string message);
@@ -89,6 +95,9 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton &headphoneButton() const noexcept { return headphone_button; }
             [[nodiscard]] const Slider     &positionSlider() const noexcept { return position_slider; }
             [[nodiscard]] const CheckBox   &cueLoadBox() const noexcept { return cue_load_box; }
+            /// The Cue-Load option is on: a track loaded into this player starts at its cue point
+            [[nodiscard]] bool cueLoad() const noexcept { return cue_load_box.checked(); }
+            void               setCueLoad(bool on) noexcept { cue_load_box.setChecked(on); }
             /// The state shown next to the buttons, e.g. "playing"
             [[nodiscard]] std::string stateText() const;
 
@@ -105,6 +114,8 @@ namespace djw::player_ui::sdl
             const Translator                 *translator;
             core::api::DeckSnapshot           state;
             Load                              on_load;
+            CueSet                            on_cue_set;
+            std::uint32_t                     seen_cue_sets = 0;
 
             TextButton load_button;
             TextButton bend_down_button{"-"};

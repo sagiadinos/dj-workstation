@@ -266,7 +266,7 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 | Always on top | L | Desktop option from the original version. |
 
 Layout reference: the original version, see [djw.gif](https://dj-workstation.de/bilder/djw.gif). The new UI keeps its structure, adapted for touch:
-- Player window: load button, pitch bend -/+, vertical pitch fader, large time display with elapsed/remaining toggle, pitch in percent and pitch zero, position slider, state (loaded/cued/playing), large CUE and play/pause buttons, channel volume and headphone level faders with headphone cue button, artist and title, cue load option.
+- Player window: load button, pitch bend -/+, vertical pitch fader, large time display with elapsed/remaining toggle, pitch in percent and pitch zero, position slider, state (loaded/cued/playing), large CUE and play/pause buttons, channel volume and headphone level faders with headphone cue button, artist and title, Cue-Load option (a loaded track starts at the cue point stored for it, else at its first audible sound, else at the beginning; the last cue point the user set is stored per track in the library database).
 - Crossfader window: deck selection for side A and B, zero, momentary A/B buttons, fade now, autoplay start before the end (s), fade time (s), autoplay and autofade switches.
 - Playlist window: numbered list, next track highlighted.
 - Library window: search fields directly above the columns (artist, title, genre, year), sortable list.

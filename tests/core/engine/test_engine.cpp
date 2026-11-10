@@ -259,6 +259,7 @@ TEST_CASE("Engine: CUE, pitch and pitch bend arrive at the deck and show in the 
 
     const api::DeckSnapshot state = engine.deckSnapshot(deck)->read();
     CHECK(state.keylock);
+    CHECK(state.cue_set_count == 1); // the CUE press above set the cue point away from the start
     CHECK(state.cue_seconds == doctest::Approx(0.5));
     CHECK(state.pitch_percent == doctest::Approx(-6.5F));
     CHECK(state.play_state == api::PlayState::Stopped);

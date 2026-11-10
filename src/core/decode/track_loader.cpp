@@ -3,6 +3,7 @@
 
 #include "decode/track_loader.hpp"
 
+#include "decode/first_sound.hpp"
 #include "decode/memory_track.hpp"
 #include "decode/miniaudio_decoder.hpp"
 #include "decode/streaming_source.hpp"
@@ -33,5 +34,15 @@ namespace djw::core::decode
             return std::unexpected{decoder.error()};
         }
         return makeTrack(std::move(*decoder), config);
+    }
+
+    std::optional<std::uint64_t> findFirstSound(const std::filesystem::path &file, const TrackLoadConfig &config)
+    {
+        auto decoder = MiniaudioDecoder::open(file, config.sample_rate);
+        if (!decoder)
+        {
+            return std::nullopt;
+        }
+        return findFirstSound(**decoder, config.first_sound_search_frames);
     }
 } // namespace djw::core::decode

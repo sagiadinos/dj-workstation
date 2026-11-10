@@ -46,6 +46,9 @@ namespace djw::core::api
             double    position_seconds = 0.0;
             double    duration_seconds = 0.0;
             double    cue_seconds      = 0.0;
+            /// Goes up each time the cue point is set with the CUE button (not when a track is loaded), so a frontend
+            /// can tell a cue point the user set from one that came with the track
+            std::uint32_t cue_set_count = 0;
             /// Pitch fader, without a held pitch bend
             float          pitch_percent   = 0.0F;
             /// Keylock: the pitch fader changes the tempo only

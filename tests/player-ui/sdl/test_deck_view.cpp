@@ -477,23 +477,60 @@ TEST_CASE("DeckView: the headphone button toggles the cue from the state shown, 
     CHECK(sent->value == doctest::Approx(0.0F));
 }
 
-TEST_CASE("DeckView: with Cue-Load on a loaded track goes to the headphones")
+TEST_CASE("DeckView: the Cue-Load option is off at first, a tap switches it, loading a track sends nothing")
 {
     Fixture fixture;
-    fixture.view.setTrack("A", "B");
-    CHECK(fixture.drain().empty()); // off by default
-
+    CHECK_FALSE(fixture.view.cueLoad());
     fixture.tapCenter(fixture.view.cueLoadBox().bounds());
     fixture.view.update();
-    CHECK(fixture.view.cueLoadBox().checked());
-    CHECK(fixture.drain().empty()); // switching it on does not touch the headphones
-
+    CHECK(fixture.view.cueLoad());
     fixture.view.setTrack("C", "D");
     fixture.view.update();
-    const auto commands = fixture.drain();
-    REQUIRE(commands.size() == 1);
-    REQUIRE(std::holds_alternative<api::MixerSetHeadphoneCue>(commands[0]));
-    CHECK(std::get<api::MixerSetHeadphoneCue>(commands[0]).enabled);
+    CHECK(fixture.drain().empty()); // the owner loads the track at its cue point, the view sends no command for it
+
+    fixture.tapCenter(fixture.view.cueLoadBox().bounds());
+    CHECK_FALSE(fixture.view.cueLoad());
+    fixture.view.setCueLoad(true);
+    CHECK(fixture.view.cueLoad());
+}
+
+TEST_CASE("DeckView: a cue point the user set is reported once, one that came with a track is not")
+{
+    Fixture             fixture;
+    std::vector<double> reported;
+    fixture.view.setOnCueSet([&reported](double seconds) { reported.push_back(seconds); });
+
+    // A track loaded at its stored cue point: the cue seconds change, the count does not
+    fixture.show({.deck = deck, .track_loaded = true, .cue_seconds = 42.0, .cue_set_count = 0});
+    fixture.show({.deck = deck, .track_loaded = true, .cue_seconds = 42.0, .cue_set_count = 0});
+    CHECK(reported.empty());
+
+    // The user sets a cue point with CUE
+    fixture.show({.deck = deck, .track_loaded = true, .cue_seconds = 12.5, .cue_set_count = 1});
+    REQUIRE(reported.size() == 1);
+    CHECK(reported[0] == 12.5);
+    fixture.show({.deck = deck, .track_loaded = true, .cue_seconds = 12.5, .cue_set_count = 1}); // the same again
+    CHECK(reported.size() == 1);
+
+    // Another track comes with its own cue point
+    fixture.show({.deck = deck, .track_loaded = true, .cue_seconds = 99.0, .cue_set_count = 1});
+    CHECK(reported.size() == 1);
+
+    fixture.show({.deck = deck, .track_loaded = true, .cue_seconds = 3.0, .cue_set_count = 2});
+    REQUIRE(reported.size() == 2);
+    CHECK(reported[1] == 3.0);
+}
+
+TEST_CASE("DeckView: the cue set count the view starts with is not a new cue point")
+{
+    api::CommandQueue       queue;
+    api::DeckSnapshotBuffer snapshot{api::DeckSnapshot{.deck = deck, .cue_set_count = 5}};
+    Translator              translator;
+    DeckView                view{deck, queue, snapshot, translator};
+    int                     reports = 0;
+    view.setOnCueSet([&reports](double) { ++reports; });
+    view.update();
+    CHECK(reports == 0);
 }
 
 TEST_CASE("DeckView: the texts follow the language")

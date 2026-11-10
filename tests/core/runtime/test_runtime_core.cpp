@@ -5,11 +5,15 @@
 
 #include "decode/miniaudio_decoder.hpp"
 #include "fake_audio_device.hpp"
+#include "temp_dir.hpp"
+#include "wav_file.hpp"
 
 #include <doctest/doctest.h>
 
 #include <chrono>
+#include <cmath>
 #include <filesystem>
+#include <numbers>
 #include <thread>
 
 using namespace djw::core;
@@ -217,4 +221,138 @@ TEST_CASE("createCore: with silent output a deck plays in real time")
     }
 
     CHECK(snapshot->read().position_seconds >= 0.05);
+}
+
+namespace
+{
+    /// Two seconds: half a second of silence, then a tone
+    std::filesystem::path gapFile(const djw::tests::TempDir &folder)
+    {
+        djw::tests::StereoAudio audio{.sample_rate = 48'000, .samples = std::vector<float>(48'000 * 2 * 2, 0.0F)};
+        for (std::size_t frame = 24'000; frame < 96'000; ++frame)
+        {
+            const auto value = static_cast<float>(
+                0.4 * std::sin(2.0 * std::numbers::pi * 440.0 * static_cast<double>(frame) / 48'000.0));
+            audio.samples[frame * 2]       = value;
+            audio.samples[(frame * 2) + 1] = value;
+        }
+        const auto file = folder.path() / "gap.wav";
+        REQUIRE(djw::tests::writeWav(file, audio).has_value());
+        return file;
+    }
+} // namespace
+
+TEST_CASE("RuntimeCore: by default a track starts at the beginning")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck   = fixture.core->addDeck();
+    const auto                loaded = fixture.core->loadTrack(deck, gapFile(folder));
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->cue_seconds == 0.0);
+    CHECK_FALSE(loaded->first_sound_seconds.has_value());
+    fixture.pull(250);
+    CHECK(fixture.core->deckSnapshot(deck)->read().position_seconds == 0.0);
+}
+
+TEST_CASE("RuntimeCore: with cue_to_first_sound the deck stands at the first sound, which is its cue point")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck   = fixture.core->addDeck();
+    const auto                loaded = fixture.core->loadTrack(deck, gapFile(folder), {.cue_to_first_sound = true});
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->first_sound_seconds.has_value());
+    CHECK(*loaded->first_sound_seconds == doctest::Approx(0.5).epsilon(0.01));
+    CHECK(loaded->cue_seconds == *loaded->first_sound_seconds);
+
+    fixture.pull(250);
+    const api::DeckSnapshot state = fixture.core->deckSnapshot(deck)->read();
+    CHECK(state.position_seconds == doctest::Approx(0.5).epsilon(0.01));
+    CHECK(state.cue_seconds == doctest::Approx(0.5).epsilon(0.01));
+    CHECK(state.cue_set_count == 0);
+    CHECK(state.play_state == api::PlayState::Stopped);
+
+    // Play starts from there, the audio is the tone, not the silence
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{deck}));
+    const auto output = fixture.pull(2'000);
+    float      peak   = 0.0F;
+    for (const float sample : output)
+    {
+        peak = std::max(peak, std::abs(sample));
+    }
+    CHECK(peak > 0.3F);
+}
+
+TEST_CASE("RuntimeCore: a cue point given wins over the first sound and is not searched for")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck = fixture.core->addDeck();
+    const auto                loaded =
+        fixture.core->loadTrack(deck, gapFile(folder), {.cue_seconds = 1.25, .cue_to_first_sound = true});
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->cue_seconds == doctest::Approx(1.25));
+    CHECK_FALSE(loaded->first_sound_seconds.has_value());
+
+    fixture.pull(250);
+    const api::DeckSnapshot state = fixture.core->deckSnapshot(deck)->read();
+    CHECK(state.position_seconds == doctest::Approx(1.25));
+    CHECK(state.cue_seconds == doctest::Approx(1.25));
+}
+
+TEST_CASE("RuntimeCore: a cue point at 0 is a cue point, the first sound is not looked for")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck = fixture.core->addDeck();
+    const auto                loaded =
+        fixture.core->loadTrack(deck, gapFile(folder), {.cue_seconds = 0.0, .cue_to_first_sound = true});
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->cue_seconds == 0.0);
+    CHECK_FALSE(loaded->first_sound_seconds.has_value());
+}
+
+TEST_CASE("RuntimeCore: a cue point beyond the end of the track is not used")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck   = fixture.core->addDeck();
+    const auto                loaded = fixture.core->loadTrack(deck, gapFile(folder), {.cue_seconds = 99.0});
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->cue_seconds == 0.0);
+    fixture.pull(250);
+    CHECK(fixture.core->deckSnapshot(deck)->read().position_seconds == 0.0);
+}
+
+TEST_CASE("RuntimeCore: when the first sound is not known the track starts at 0")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    djw::tests::StereoAudio   silence{.sample_rate = 48'000, .samples = std::vector<float>(48'000 * 2, 0.0F)};
+    const auto                file = folder.path() / "silence.wav";
+    REQUIRE(djw::tests::writeWav(file, silence).has_value());
+    const api::DeckId deck   = fixture.core->addDeck();
+    const auto        loaded = fixture.core->loadTrack(deck, file, {.cue_to_first_sound = true});
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->cue_seconds == 0.0);
+    CHECK_FALSE(loaded->first_sound_seconds.has_value());
+}
+
+TEST_CASE("RuntimeCore: the user setting the cue point is counted, loading a track at a cue point is not")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck = fixture.core->addDeck();
+    REQUIRE(fixture.core->loadTrack(deck, gapFile(folder), {.cue_seconds = 0.5}).has_value());
+    fixture.pull(250);
+    CHECK(fixture.core->deckSnapshot(deck)->read().cue_set_count == 0);
+
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckSeek{deck, 1.0}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckCue{deck, true}));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckCue{deck, false}));
+    fixture.pull(250);
+    const api::DeckSnapshot state = fixture.core->deckSnapshot(deck)->read();
+    CHECK(state.cue_set_count == 1);
+    CHECK(state.cue_seconds == doctest::Approx(1.0));
 }

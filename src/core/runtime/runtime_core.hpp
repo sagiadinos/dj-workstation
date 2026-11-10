@@ -35,7 +35,8 @@ namespace djw::core::runtime
 
             api::DeckId                      addDeck() override;
             std::expected<void, std::string> removeDeck(api::DeckId deck) override;
-            std::expected<void, std::string> loadTrack(api::DeckId deck, const std::filesystem::path &file) override;
+            std::expected<api::LoadedTrack, std::string> loadTrack(api::DeckId deck, const std::filesystem::path &file,
+                                                                   const api::LoadOptions &options = {}) override;
             std::expected<void, std::string> start() override;
             api::CommandQueue               &commandQueue() noexcept override { return frontend_queue; }
             api::DeckSnapshotBuffer         *deckSnapshot(api::DeckId deck) noexcept override;
