@@ -21,3 +21,6 @@ CMakeUserPresets.json
 # Build directories (CMakePresets.json and CLion)
 /build/
 /cmake-build-*/
+
+# Local lint tools (.github/lint-requirements.txt)
+/.venv-lint/

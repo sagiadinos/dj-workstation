@@ -36,8 +36,8 @@ namespace djw::player_ui::sdl
 
             void draw(Canvas &canvas) const;
 
-            const Fader      &fader() const noexcept { return volume_fader; }
-            const PlayButton &playButton() const noexcept { return play_button; }
+            [[nodiscard]] const Fader      &fader() const noexcept { return volume_fader; }
+            [[nodiscard]] const PlayButton &playButton() const noexcept { return play_button; }
 
         private:
             core::api::DeckId                 deck;

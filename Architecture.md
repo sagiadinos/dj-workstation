@@ -77,7 +77,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - Includes in this order, separated by a blank line: own header (in `.cpp`), project headers with path relative to the module root (`"engine/deck.hpp"`), then standard and third-party headers in `<>`.
 
 ### Formatting
-Enforced by `.clang-format` (clang-format 19 or newer):
+Enforced by `.clang-format`. The clang-format version is pinned (see Static analysis and CI), because the output differs between versions:
 - Based on LLVM style, 4 spaces indentation, no tabs, column limit 120.
 - Allman braces (opening brace on its own line), also for namespaces, classes and functions.
 - Namespace contents and access modifiers are indented; members below `public:`/`private:` are indented again.
@@ -149,9 +149,15 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 ## Static analysis and CI
 
 - `.clang-tidy` in the repository root with `bugprone-*`, `modernize-*`, `performance-*`, `cppcoreguidelines-*`, `readability-identifier-naming` (enforces the naming rules above) and selected `misc-*` checks. Noisy checks are disabled there with a reason, not suppressed in code.
-- clang-tidy runs on project targets only, not on `third_party/` or fetched dependencies. Locally optional, in CI warnings are errors.
+- clang-tidy runs on the sources in `src/`, not on `tests/` (the doctest macros trigger many checks), `third_party/` or fetched dependencies. Locally optional, in CI warnings are errors.
+- clang-format and clang-tidy are pinned to one version in `.github/lint-requirements.txt` and installed with pip, so local runs and CI give the same result. Use the same version locally: `python3 -m venv .venv-lint && .venv-lint/bin/pip install -r .github/lint-requirements.txt`.
 - Duplicated code is caught in review, there is no separate duplicate detection tool.
-- CI runs for every push and pull request: build with warnings as errors, `ctest`, ASan/UBSan with LeakSanitizer and TSan runs, clang-format check, clang-tidy, and test coverage.
+- CI (`.github/workflows/ci.yml`) runs for every push to `main` and every pull request, for now on Linux x86_64 only:
+  - build and `ctest` with warnings as errors, with GCC 13 (the minimum), GCC 14 and Clang 18
+  - all tests with `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan`
+  - clang-format check and clang-tidy
+  - line coverage of `src/` with gcovr; the report is attached to the run
+- The CI does not start the SDL player, so leaks in system graphics drivers (seen locally with Mesa/EGL) do not show up there. A LeakSanitizer suppression file is added once a CI job runs the player.
 
 ## Workflow
 

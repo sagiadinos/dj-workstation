@@ -1,0 +1,5 @@
+# Pinned versions of the lint and coverage tools (clang-format, clang-tidy, gcovr), installed with pip in CI.
+# Same versions locally: python3 -m venv .venv-lint && .venv-lint/bin/pip install -r .github/lint-requirements.txt
+clang-format==23.1.4
+clang-tidy==23.1.4
+gcovr==8.8

@@ -11,7 +11,6 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
-#include <stop_token>
 #include <thread>
 #include <vector>
 
@@ -33,22 +32,24 @@ namespace djw::core::decode
             std::size_t read(std::span<float> output) noexcept override; // [audio-thread]
 
             /// The decoder reached the end of the stream (or failed) and everything decoded has been read.
-            bool endOfStream() const noexcept;
+            [[nodiscard]] bool endOfStream() const noexcept;
             /// The decoder reported an error; the stream ends at that point.
-            bool failed() const noexcept { return decode_failed.load(std::memory_order_acquire); }
+            [[nodiscard]] bool failed() const noexcept { return decode_failed.load(std::memory_order_acquire); }
 
         private:
             /// Decodes one chunk if there is room for it. Returns false if there was nothing to do.
             bool fillChunk();
-            void run(const std::stop_token &stop);
+            void run();
 
             std::unique_ptr<Decoder> decoder;
             SampleRingBuffer         ring;
             std::vector<float>       chunk;
             std::atomic<bool>        decoder_done{false};
             std::atomic<bool>        decode_failed{false};
-            // Declared last: destroyed first, so the worker is stopped and joined before the members it uses go away.
-            std::jthread worker;
+            std::atomic<bool>        stop_requested{false};
+            // std::thread instead of std::jthread: jthread is missing or experimental in the minimum standard
+            // libraries (libc++ 17, Apple Clang 15). The destructor stops and joins it.
+            std::thread worker;
     };
 } // namespace djw::core::decode
 

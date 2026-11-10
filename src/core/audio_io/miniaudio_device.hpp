@@ -43,7 +43,7 @@ namespace djw::core::audio_io
 
             std::expected<void, std::string> start(AudioCallback &callback) override;
             void                             stop() noexcept override;
-            std::uint32_t                    sampleRate() const noexcept override;
+            [[nodiscard]] std::uint32_t      sampleRate() const noexcept override;
 
         private:
             struct State;

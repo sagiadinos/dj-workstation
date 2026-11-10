@@ -17,8 +17,8 @@ namespace djw::core::engine
     {
         public:
             /// Target volume, clamped to 0.0 ... 1.0
-            void  setVolume(float value) noexcept; // [audio-thread]
-            float volume() const noexcept { return target_volume; }
+            void                setVolume(float value) noexcept; // [audio-thread]
+            [[nodiscard]] float volume() const noexcept { return target_volume; }
 
             /// Adds input * volume to output, both interleaved stereo of the same size.
             void mixInto(std::span<const float> input, std::span<float> output) noexcept; // [audio-thread]

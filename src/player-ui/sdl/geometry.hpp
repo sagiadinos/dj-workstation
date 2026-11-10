@@ -22,13 +22,13 @@ namespace djw::player_ui::sdl
             float width  = 0.0F;
             float height = 0.0F;
 
-            bool contains(Point point) const noexcept
+            [[nodiscard]] bool contains(Point point) const noexcept
             {
                 return point.x >= x && point.x < x + width && point.y >= y && point.y < y + height;
             }
 
             /// The rectangle shrunk by margin on every side, never negative in size
-            Rect inset(float margin) const noexcept
+            [[nodiscard]] Rect inset(float margin) const noexcept
             {
                 return {x + margin, y + margin, std::max(0.0F, width - 2 * margin),
                         std::max(0.0F, height - 2 * margin)};

@@ -25,8 +25,8 @@ namespace djw::player_ui::sdl
             Widget &operator=(Widget &&)      = delete;
             virtual ~Widget()                 = default;
 
-            const Rect &bounds() const noexcept { return area; }
-            void        setBounds(const Rect &rect) noexcept { area = rect; }
+            [[nodiscard]] const Rect &bounds() const noexcept { return area; }
+            void                      setBounds(const Rect &rect) noexcept { area = rect; }
 
             virtual void pointerDown(Point position) = 0;
             virtual void pointerMove(Point position) = 0;

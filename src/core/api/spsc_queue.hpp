@@ -27,7 +27,7 @@ namespace djw::core::api
 
         public:
             /// Producer side. Returns false if the queue is full.
-            bool tryPush(const T &value) noexcept // [audio-thread]
+            [[nodiscard]] bool tryPush(const T &value) noexcept // [audio-thread]
             {
                 const std::size_t head_index = head.load(std::memory_order_relaxed);
                 if (head_index - tail.load(std::memory_order_acquire) == Capacity)
@@ -40,7 +40,7 @@ namespace djw::core::api
             }
 
             /// Consumer side. Returns std::nullopt if the queue is empty.
-            std::optional<T> tryPop() noexcept // [audio-thread]
+            [[nodiscard]] std::optional<T> tryPop() noexcept // [audio-thread]
             {
                 const std::size_t tail_index = tail.load(std::memory_order_relaxed);
                 if (tail_index == head.load(std::memory_order_acquire))

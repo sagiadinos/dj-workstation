@@ -18,18 +18,20 @@ namespace djw::player_ui::sdl
 
         constexpr Color background{20, 20, 20};
 
+        bool initSdl()
+        {
+            // Touch is handled as touch; no extra mouse events for it
+            SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+            return SDL_Init(SDL_INIT_VIDEO);
+        }
+
         std::string sdlError(const char *what)
         {
             return std::string{what} + ": " + SDL_GetError();
         }
     } // namespace
 
-    SdlApp::SdlLibrary::SdlLibrary()
-    {
-        // Touch is handled as touch; no extra mouse events for it
-        SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
-        initialized = SDL_Init(SDL_INIT_VIDEO);
-    }
+    SdlApp::SdlLibrary::SdlLibrary() : initialized{initSdl()} {}
 
     SdlApp::SdlLibrary::~SdlLibrary()
     {

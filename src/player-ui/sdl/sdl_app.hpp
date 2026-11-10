@@ -42,7 +42,7 @@ namespace djw::player_ui::sdl
                     SdlLibrary &operator=(SdlLibrary &&)      = delete;
                     ~SdlLibrary();
 
-                    bool initialized = false;
+                    bool initialized;
             };
 
             struct WindowDeleter
@@ -57,9 +57,9 @@ namespace djw::player_ui::sdl
 
             SdlApp(core::api::Core &core, core::api::DeckId deck, core::api::DeckSnapshotBuffer &snapshot);
 
-            Rect windowArea() const;
-            void processEvents(bool &running);
-            void drawFrame();
+            [[nodiscard]] Rect windowArea() const;
+            void               processEvents(bool &running);
+            void               drawFrame();
 
             SdlLibrary                                     library;
             std::unique_ptr<SDL_Window, WindowDeleter>     window;

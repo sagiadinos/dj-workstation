@@ -1,5 +1,5 @@
 # Formatting rules, see Architecture.md
-# Requires clang-format 19 or newer
+# Checked in CI with the version pinned in .github/lint-requirements.txt
 BasedOnStyle: LLVM
 IndentWidth: 4
 UseTab: Never

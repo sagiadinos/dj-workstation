@@ -28,10 +28,10 @@ namespace djw::player_ui::sdl
 
             void handle(const PointerEvent &event);
 
-            bool isCaptured(const Widget &widget) const noexcept;
+            [[nodiscard]] bool isCaptured(const Widget &widget) const noexcept;
 
         private:
-            Widget *widgetAt(Point position) const noexcept;
+            [[nodiscard]] Widget *widgetAt(Point position) const noexcept;
 
             std::vector<Widget *>         widgets;
             std::map<PointerId, Widget *> captures;

@@ -6,6 +6,7 @@
 #include <miniaudio.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <span>
 
@@ -43,8 +44,8 @@ namespace djw::core::audio_io
 
             static void dataCallback(ma_device *device, void *output, const void *, ma_uint32 frames) // [audio-thread]
             {
-                auto      *state = static_cast<State *>(device->pUserData);
-                const auto samples =
+                const auto *state = static_cast<const State *>(device->pUserData);
+                const auto  samples =
                     std::span{static_cast<float *>(output), static_cast<std::size_t>(frames) * output_channels};
                 if (AudioCallback *callback = state->callback.load(std::memory_order_acquire))
                 {
@@ -67,10 +68,10 @@ namespace djw::core::audio_io
     {
         auto state = std::make_unique<State>();
 
-        const ma_backend null_backend[] = {ma_backend_null};
-        const bool       use_null       = config.backend == AudioBackend::Null;
-        ma_result        result =
-            ma_context_init(use_null ? null_backend : nullptr, use_null ? 1 : 0, nullptr, &state->context);
+        const std::array<ma_backend, 1> null_backend{ma_backend_null};
+        const bool                      use_null = config.backend == AudioBackend::Null;
+        ma_result                       result =
+            ma_context_init(use_null ? null_backend.data() : nullptr, use_null ? 1 : 0, nullptr, &state->context);
         if (result != MA_SUCCESS)
         {
             return std::unexpected{describe("cannot initialize audio", result)};

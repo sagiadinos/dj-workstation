@@ -48,8 +48,10 @@ int main(int argc, char *argv[])
     }
     (*app)->run();
 
-    // Let the pause fade out instead of cutting the sound
-    (*core)->commandQueue().tryPush(api::DeckPause{*deck});
-    std::this_thread::sleep_for(std::chrono::milliseconds{50});
+    // Let the pause fade out instead of cutting the sound; with a full queue the sound is cut, fine on exit
+    if ((*core)->commandQueue().tryPush(api::DeckPause{*deck}))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{50});
+    }
     return 0;
 }

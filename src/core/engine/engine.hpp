@@ -47,7 +47,7 @@ namespace djw::core::engine
             /// Snapshot buffer of a deck for the reader side, nullptr for an unknown deck
             api::DeckSnapshotBuffer *deckSnapshot(api::DeckId deck) noexcept;
 
-            std::uint32_t sampleRate() const noexcept { return config.sample_rate; }
+            [[nodiscard]] std::uint32_t sampleRate() const noexcept { return config.sample_rate; }
 
             /// Applies pending commands, renders output.size() / 2 frames of interleaved stereo and publishes the
             /// deck snapshots.

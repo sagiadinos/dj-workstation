@@ -1,0 +1,167 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Niko Sagiadinos
+#
+# Build, tests, sanitizers, static analysis and coverage, see Architecture.md ("Static analysis and CI").
+# Linux x86_64 for now; the other platforms of FEATURES.md section 7 follow with their milestones.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+# Ubuntu 24.04 has no SDL3 package, so SDL3 is built from source. The CI never opens a window; the console build
+# skips SDL's check for X11/Wayland development packages.
+env:
+  SDL_CONFIGURE_FLAGS: -DSDL_UNIX_CONSOLE_BUILD=ON
+
+jobs:
+  # Warnings are errors. gcc-13 is the minimum GCC from Architecture.md. Clang is built against libc++ as
+  # Architecture.md expects; clang-18 with libstdc++ has no std::expected.
+  build:
+    name: Build and test (${{ matrix.cxx }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cc: gcc-13, cxx: g++-13 }
+          - { cc: gcc-14, cxx: g++-14 }
+          - { cc: clang-18, cxx: clang++-18, cxxflags: -stdlib=libc++, packages: libc++-18-dev libc++abi-18-dev }
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+      CXXFLAGS: ${{ matrix.cxxflags }}
+      LDFLAGS: ${{ matrix.cxxflags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build ${{ matrix.packages }}
+
+      - name: Configure
+        run: cmake --preset linux-debug -DDJW_WARNINGS_AS_ERRORS=ON $SDL_CONFIGURE_FLAGS
+
+      - name: Build
+        run: cmake --build --preset linux-debug
+
+      - name: Test
+        run: ctest --preset linux-debug
+
+  # ASan with LeakSanitizer and UBSan, and TSan. The test presets set the sanitizer options; every finding fails.
+  sanitizers:
+    name: Tests with ${{ matrix.preset }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [linux-asan, linux-tsan]
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+      # The runner kernel randomizes mmap with more bits than TSan's memory layout allows
+      - name: Reduce address space randomization for TSan
+        if: matrix.preset == 'linux-tsan'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }} -DDJW_WARNINGS_AS_ERRORS=ON $SDL_CONFIGURE_FLAGS
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
+
+  # clang-format and clang-tidy in the versions pinned in .github/lint-requirements.txt; any finding fails.
+  lint:
+    name: Format and clang-tidy
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet -r .github/lint-requirements.txt
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+
+      - name: clang-format
+        run: |
+          clang-format --version
+          git ls-files '*.cpp' '*.hpp' | xargs clang-format --dry-run --Werror
+
+      # Only configuring is needed: clang-tidy reads compile_commands.json, fetched dependencies are downloaded
+      - name: Configure
+        run: cmake --preset linux-debug $SDL_CONFIGURE_FLAGS
+
+      - name: clang-tidy
+        run: |
+          clang-tidy --version
+          git ls-files 'src/*.cpp' \
+            | xargs -P "$(nproc)" -n 1 clang-tidy -p build/linux-debug --quiet --warnings-as-errors='*'
+
+  # Line coverage of src/ by the tests; the HTML report is attached to the run, the summary shown on its page.
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet -r .github/lint-requirements.txt
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: >
+          cmake --preset linux-debug $SDL_CONFIGURE_FLAGS
+          -DCMAKE_CXX_FLAGS=--coverage
+          -DCMAKE_EXE_LINKER_FLAGS=--coverage
+
+      - name: Build
+        run: cmake --build --preset linux-debug
+
+      - name: Test
+        run: ctest --preset linux-debug
+
+      - name: Report
+        run: |
+          mkdir -p coverage
+          gcovr --gcov-executable gcov-14 --root . --filter 'src/' \
+                --html-details coverage/index.html --txt coverage/summary.txt build/linux-debug
+          { echo '### Line coverage of src/'; echo '```'; cat coverage/summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/

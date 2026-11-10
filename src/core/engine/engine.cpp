@@ -13,10 +13,8 @@ namespace djw::core::engine
         // Long enough to avoid a click, short enough to feel instant
         constexpr double pause_fade_seconds = 0.005;
 
-        template <typename... Ts> struct Overloaded : Ts...
-        {
-                using Ts::operator()...;
-        };
+        // Engine::apply handles every command; a new command must be added there
+        static_assert(std::variant_size_v<api::Command> == 3, "handle the new command in Engine::apply");
     } // namespace
 
     Engine::DeckSlot::DeckSlot(api::DeckId id, AudioSource &source, std::size_t pause_fade_frames)
@@ -84,31 +82,28 @@ namespace djw::core::engine
 
     void Engine::apply(const api::Command &command) noexcept // [audio-thread]
     {
-        std::visit(
-            Overloaded{
-                [this](const api::DeckPlay &play)
-                {
-                    if (DeckSlot *slot = findDeck(play.deck))
-                    {
-                        slot->deck.play();
-                    }
-                },
-                [this](const api::DeckPause &pause)
-                {
-                    if (DeckSlot *slot = findDeck(pause.deck))
-                    {
-                        slot->deck.pause();
-                    }
-                },
-                [this](const api::MixerSetChannelVolume &volume)
-                {
-                    if (DeckSlot *slot = findDeck(volume.deck))
-                    {
-                        slot->channel.setVolume(volume.value);
-                    }
-                },
-            },
-            command);
+        // std::get_if instead of std::visit: std::visit may throw, which the audio thread must not
+        if (const auto *play = std::get_if<api::DeckPlay>(&command))
+        {
+            if (DeckSlot *slot = findDeck(play->deck))
+            {
+                slot->deck.play();
+            }
+        }
+        else if (const auto *pause = std::get_if<api::DeckPause>(&command))
+        {
+            if (DeckSlot *slot = findDeck(pause->deck))
+            {
+                slot->deck.pause();
+            }
+        }
+        else if (const auto *volume = std::get_if<api::MixerSetChannelVolume>(&command))
+        {
+            if (DeckSlot *slot = findDeck(volume->deck))
+            {
+                slot->channel.setVolume(volume->value);
+            }
+        }
     }
 
     void Engine::renderBlock(std::span<float> output) noexcept // [audio-thread]

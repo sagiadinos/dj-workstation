@@ -16,7 +16,7 @@ namespace djw::player_ui::sdl
     {
         public:
             /// True once per press; the caller decides what the press means
-            bool takePress() noexcept;
+            [[nodiscard]] bool takePress() noexcept;
 
             void setPlaying(bool playing) noexcept { showing_pause = playing; }
 

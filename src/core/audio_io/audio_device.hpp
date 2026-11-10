@@ -32,7 +32,7 @@ namespace djw::core::audio_io
             /// Stops the device; when it returns, the callback is no longer running.
             virtual void stop() noexcept = 0;
 
-            virtual std::uint32_t sampleRate() const noexcept = 0;
+            [[nodiscard]] virtual std::uint32_t sampleRate() const noexcept = 0;
     };
 } // namespace djw::core::audio_io
 

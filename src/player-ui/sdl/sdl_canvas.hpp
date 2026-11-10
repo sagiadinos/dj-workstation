@@ -16,11 +16,11 @@ namespace djw::player_ui::sdl
         public:
             explicit SdlCanvas(SDL_Renderer &renderer) noexcept : renderer{&renderer} {}
 
-            void  fillRect(const Rect &rect, Color color) override;
-            void  fillTriangle(Point first, Point second, Point third, Color color) override;
-            void  text(Point position, std::string_view text, Color color) override;
-            float textHeight() const noexcept override;
-            float textWidth(std::string_view text) const noexcept override;
+            void                fillRect(const Rect &rect, Color color) override;
+            void                fillTriangle(Point first, Point second, Point third, Color color) override;
+            void                text(Point position, std::string_view text, Color color) override;
+            [[nodiscard]] float textHeight() const noexcept override;
+            [[nodiscard]] float textWidth(std::string_view text) const noexcept override;
 
         private:
             SDL_Renderer *renderer;

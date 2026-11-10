@@ -17,8 +17,8 @@ namespace djw::player_ui::sdl
     class Fader final : public Widget
     {
         public:
-            float value() const noexcept { return current; }
-            void  setValue(float value) noexcept;
+            [[nodiscard]] float value() const noexcept { return current; }
+            void                setValue(float value) noexcept;
 
             void pointerDown(Point position) override;
             void pointerMove(Point position) override;
@@ -28,8 +28,8 @@ namespace djw::player_ui::sdl
 
         private:
             /// The part of the bounds the value maps to (the knob must stay inside the bounds)
-            Rect track() const noexcept;
-            void follow(Point position) noexcept;
+            [[nodiscard]] Rect track() const noexcept;
+            void               follow(Point position) noexcept;
 
             float current = 1.0F;
             bool  held    = false;

@@ -24,11 +24,18 @@ namespace djw::core::decode
         }
         if (!decoder_done.load(std::memory_order_relaxed))
         {
-            worker = std::jthread{[this](const std::stop_token &stop) { run(stop); }};
+            worker = std::thread{[this] { run(); }};
         }
     }
 
-    StreamingSource::~StreamingSource() = default;
+    StreamingSource::~StreamingSource()
+    {
+        stop_requested.store(true, std::memory_order_relaxed);
+        if (worker.joinable())
+        {
+            worker.join();
+        }
+    }
 
     std::size_t StreamingSource::read(std::span<float> output) noexcept // [audio-thread]
     {
@@ -59,9 +66,9 @@ namespace djw::core::decode
         return true;
     }
 
-    void StreamingSource::run(const std::stop_token &stop)
+    void StreamingSource::run()
     {
-        while (!stop.stop_requested() && !decoder_done.load(std::memory_order_relaxed))
+        while (!stop_requested.load(std::memory_order_relaxed) && !decoder_done.load(std::memory_order_relaxed))
         {
             if (!fillChunk())
             {

@@ -27,10 +27,10 @@ namespace djw::core::engine
             /// pause_fade_frames: length of the fade-out on pause, 0 stops at once
             Deck(api::DeckId id, AudioSource &source, std::size_t pause_fade_frames) noexcept;
 
-            api::DeckId id() const noexcept { return deck_id; }
-            bool        isPlaying() const noexcept { return state == State::Playing; }
+            [[nodiscard]] api::DeckId id() const noexcept { return deck_id; }
+            [[nodiscard]] bool        isPlaying() const noexcept { return state == State::Playing; }
             /// Frames played since the start of the source
-            std::uint64_t positionFrames() const noexcept { return position_frames; }
+            [[nodiscard]] std::uint64_t positionFrames() const noexcept { return position_frames; }
 
             void play() noexcept { state = State::Playing; } // [audio-thread]
             void pause() noexcept;                           // [audio-thread]

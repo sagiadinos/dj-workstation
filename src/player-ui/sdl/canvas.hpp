@@ -24,9 +24,9 @@ namespace djw::player_ui::sdl
             virtual void fillRect(const Rect &rect, Color color)                           = 0;
             virtual void fillTriangle(Point first, Point second, Point third, Color color) = 0;
             /// Simple text; character height is textHeight()
-            virtual void  text(Point position, std::string_view text, Color color) = 0;
-            virtual float textHeight() const noexcept                              = 0;
-            virtual float textWidth(std::string_view text) const noexcept          = 0;
+            virtual void                text(Point position, std::string_view text, Color color) = 0;
+            [[nodiscard]] virtual float textHeight() const noexcept                              = 0;
+            [[nodiscard]] virtual float textWidth(std::string_view text) const noexcept          = 0;
     };
 } // namespace djw::player_ui::sdl
 

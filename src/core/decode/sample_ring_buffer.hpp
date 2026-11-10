@@ -23,15 +23,15 @@ namespace djw::core::decode
             /// The capacity is rounded up to a power of two.
             explicit SampleRingBuffer(std::size_t min_capacity);
 
-            std::size_t capacity() const noexcept { return buffer.size(); }
+            [[nodiscard]] std::size_t capacity() const noexcept { return buffer.size(); }
 
             /// Writer side: samples that can be written now
-            std::size_t writeAvailable() const noexcept;
+            [[nodiscard]] std::size_t writeAvailable() const noexcept;
             /// Writer side: copies as many samples as fit, returns how many
             std::size_t write(std::span<const float> samples) noexcept;
 
             /// Reader side: samples that can be read now
-            std::size_t readAvailable() const noexcept; // [audio-thread]
+            [[nodiscard]] std::size_t readAvailable() const noexcept; // [audio-thread]
             /// Reader side: copies up to samples.size() samples, returns how many
             std::size_t read(std::span<float> samples) noexcept; // [audio-thread]
 
