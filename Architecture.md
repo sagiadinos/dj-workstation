@@ -16,7 +16,7 @@ djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a com
 
 ### Architecture
 - `core/` must never include anything from `player-ui/` or SDL. The core builds and runs headless.
-- The frontends in `player-ui/` talk to the core only through `core/api/`: setup (adding decks, starting audio) through the `api::Core` interface, while running only through the command queue and state snapshots. The music library through the `api::Library` interface (`api::openLibrary`). No direct calls into engine or library internals.
+- The frontends in `player-ui/` talk to the core only through `core/api/`: setup (adding decks, starting audio) through the `api::Core` interface, while running only through the command queue and state snapshots. The music library through the `api::Library` interface (`api::openLibrary`), its saved playlists through `api::Playlists` (`Library::playlists()`). No direct calls into engine or library internals.
 - Platform-specific code lives in `platform/` or behind an interface, never scattered with `#ifdef` across the core.
 
 ### Audio thread

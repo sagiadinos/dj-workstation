@@ -47,6 +47,14 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const std::vector<core::api::LibraryTrack> &tracks() const noexcept { return rows; }
 
             [[nodiscard]] std::optional<std::size_t> selected() const noexcept { return selection; }
+            /// Selects a row; ignored for a row that does not exist
+            void select(std::size_t row) noexcept
+            {
+                if (row < rows.size())
+                {
+                    selection = row;
+                }
+            }
             /// The row activated by a double tap since the last call, if any
             [[nodiscard]] std::optional<std::size_t> takeActivated() noexcept;
             /// The cell held for long_press_time, once per press; call once per frame, as nothing else checks the time

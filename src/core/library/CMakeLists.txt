@@ -36,6 +36,9 @@ add_library(djw_core_library STATIC
     text_fold.cpp
     search_query.cpp
     track_store.cpp
+    playlist_store.cpp
+    m3u.cpp
+    playlist_files.cpp
     folder_scanner.cpp
     missing_files.cpp
     missing_files.cpp

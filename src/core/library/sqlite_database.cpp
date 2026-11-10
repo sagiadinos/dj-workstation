@@ -118,7 +118,9 @@ namespace djw::core::library
             return std::unexpected{sqliteError(handle, "cannot open library database " + toUtf8(file))};
         }
         sqlite3_busy_timeout(handle, busy_timeout_ms);
-        if (auto wal = database.execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;"); !wal)
+        if (auto wal =
+                database.execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;");
+            !wal)
         {
             return std::unexpected{wal.error()};
         }

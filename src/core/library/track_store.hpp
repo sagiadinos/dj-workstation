@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -37,6 +38,11 @@ namespace djw::core::library
             bool                  missing = false;
     };
 
+    /// The columns readTrack expects, for SELECTs over the tracks table with the alias t
+    [[nodiscard]] std::string_view trackColumns() noexcept;
+    /// A track from a row with the columns of trackColumns()
+    [[nodiscard]] api::LibraryTrack readTrack(const Statement &row);
+
     /**
      * The library tables on one database connection: folders, tracks and the full text index over the tracks.
      *
@@ -47,7 +53,7 @@ namespace djw::core::library
     {
         public:
             /// Database schema version, stored as PRAGMA user_version
-            static constexpr std::int64_t schema_version = 3;
+            static constexpr std::int64_t schema_version = 4;
 
             static std::expected<TrackStore, std::string> open(const std::filesystem::path &database_file);
 
@@ -68,11 +74,17 @@ namespace djw::core::library
             /// Deletes all tracks marked missing
             std::expected<void, std::string> removeMissing();
 
+            /// The track of a file, std::nullopt if the file is not in the library
+            std::expected<std::optional<std::int64_t>, std::string> trackId(const std::filesystem::path &file);
+
             /// The file of a track, std::nullopt for an unknown id
             std::expected<std::optional<std::filesystem::path>, std::string> trackPath(std::int64_t track_id);
 
-            std::expected<void, std::string> beginTransaction() { return database.execute("BEGIN"); }
-            std::expected<void, std::string> commitTransaction() { return database.execute("COMMIT"); }
+            std::expected<void, std::string> beginTransaction() { return database->execute("BEGIN"); }
+            std::expected<void, std::string> commitTransaction() { return database->execute("COMMIT"); }
+
+            /// The connection, e.g. for the playlists on it; it stays where it is when the store is moved
+            [[nodiscard]] SqliteDatabase &connection() noexcept { return *database; }
 
         private:
             struct Statements
@@ -87,9 +99,10 @@ namespace djw::core::library
                     Statement set_missing;
                     Statement missing_count;
                     Statement remove_missing;
+                    Statement id_of_path;
             };
 
-            TrackStore(SqliteDatabase database, Statements statements) noexcept
+            TrackStore(std::unique_ptr<SqliteDatabase> database, Statements statements) noexcept
                 : database{std::move(database)}, statements{std::move(statements)}
             {
             }
@@ -99,8 +112,8 @@ namespace djw::core::library
             static std::expected<void, std::string>       migrateToVersion2(SqliteDatabase &database);
             static std::expected<Statements, std::string> prepareStatements(SqliteDatabase &database);
 
-            SqliteDatabase database;
-            Statements     statements;
+            std::unique_ptr<SqliteDatabase> database;
+            Statements                      statements;
     };
 } // namespace djw::core::library
 

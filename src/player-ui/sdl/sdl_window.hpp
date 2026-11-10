@@ -43,6 +43,8 @@ namespace djw::player_ui::sdl
 
             [[nodiscard]] SDL_WindowID id() const noexcept { return SDL_GetWindowID(window.get()); }
             [[nodiscard]] bool         paced() const noexcept { return vsync; }
+            /// The SDL window, e.g. as parent of a dialog
+            [[nodiscard]] SDL_Window *handle() const noexcept { return window.get(); }
 
             /// Moves this window next to other, to its right, with the same top edge
             void placeRightOf(const SdlWindow &other);

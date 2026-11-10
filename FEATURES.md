@@ -95,7 +95,7 @@ djw/
 |---|---|---|
 | Audio | mixing, resampling, keylock, DVS decoding | no locks, no allocations, no I/O, no syscalls |
 | Decoder (per deck) | decode file, fill ring buffer | may block |
-| Library | folder scan, dead link check, reading and writing tags, database writes | may block; own SQLite connection, the UI searches on its own |
+| Library | folder scan, dead link check, reading and writing tags, playlist changes and M3U files, database writes | may block; own SQLite connection, the UI searches on its own |
 | Analysis (pool) | BPM, waveform, loudness | low priority |
 | Control | read MIDI/HID, mapping, Lua | never on the audio thread |
 | UI | rendering, touch events | reads state snapshots only |

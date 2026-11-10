@@ -45,11 +45,13 @@ add_library(djw_player_sdl_ui STATIC
     column_header.cpp
     track_list.cpp
     library_view.cpp
+    playlist_view.cpp
     command_line.cpp
     sdl_events.cpp
     sdl_text.cpp
     sdl_canvas.cpp
     sdl_window.cpp
+    sdl_file_dialogs.cpp
     sdl_app.cpp
 )
 djw_set_options(djw_player_sdl_ui)

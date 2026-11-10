@@ -10,6 +10,8 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <vector>
 
 struct sqlite3;
 struct sqlite3_stmt;
@@ -59,6 +61,29 @@ namespace djw::core::library
             sqlite3                                 *database;
             std::unique_ptr<sqlite3_stmt, Finalizer> statement;
     };
+
+    /// Runs query to the end and returns read(row) for every row; the query is reset in any case
+    template <typename Read>
+    auto collectRows(Statement &query, Read read)
+        -> std::expected<std::vector<std::invoke_result_t<Read, const Statement &>>, std::string>
+    {
+        std::vector<std::invoke_result_t<Read, const Statement &>> rows;
+        while (true)
+        {
+            const auto row = query.step();
+            if (!row)
+            {
+                query.reset();
+                return std::unexpected{row.error()};
+            }
+            if (!*row)
+            {
+                query.reset();
+                return rows;
+            }
+            rows.push_back(read(query));
+        }
+    }
 
     /// One SQLite connection. Use a connection from one thread only; several connections may share a file.
     class SqliteDatabase

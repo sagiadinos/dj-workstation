@@ -11,7 +11,7 @@ namespace djw::player_ui::sdl
     namespace
     {
         /// Share of the width per column, in the order of track_columns
-        constexpr std::array<float, track_columns.size()> shares{0.28F, 0.33F, 0.18F, 0.10F, 0.11F};
+        constexpr std::array<float, track_columns.size()> shares{0.28F, 0.31F, 0.18F, 0.12F, 0.11F};
 
     } // namespace
 

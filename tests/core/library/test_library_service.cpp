@@ -155,7 +155,7 @@ namespace
     api::LibraryStatus waitForEdits(const api::Library &library)
     {
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
-        while (library.status().pending_edits > 0 && std::chrono::steady_clock::now() < deadline)
+        while (library.status().pending_writes > 0 && std::chrono::steady_clock::now() < deadline)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds{2});
         }
@@ -184,7 +184,7 @@ TEST_CASE("Library: a tag edit is written into the file and the database, and th
     library->updateTags(track.id, {.title = "Edited", .year = 2001});
     const api::LibraryStatus edited = waitForEdits(*library);
 
-    CHECK(edited.edit_error.empty());
+    CHECK(edited.write_error.empty());
     CHECK(edited.revision > scanned.revision);
     const auto found = library->search({.title = "edited"}).value();
     REQUIRE(found.size() == 1);
@@ -212,7 +212,7 @@ TEST_CASE("Library: a failing tag edit reports its error and changes nothing")
     library->updateTags(library->search({}).value().front().id, {.title = "New"});
     const api::LibraryStatus status = waitForEdits(*library);
 
-    CHECK(status.edit_error == "disk full");
+    CHECK(status.write_error == "disk full");
     CHECK(status.revision == revision);
     CHECK(library->search({}).value().front().title == "Old");
 }
@@ -224,7 +224,7 @@ TEST_CASE("Library: a tag edit of an unknown track is an error")
 
     library->updateTags(4711, {.title = "x"});
 
-    CHECK(waitForEdits(*library).edit_error.find("4711") != std::string::npos);
+    CHECK(waitForEdits(*library).write_error.find("4711") != std::string::npos);
 }
 
 TEST_CASE("Library: tag edits are written during a scan, not after it")
@@ -302,4 +302,102 @@ TEST_CASE("Library: a scan marks deleted files as missing, removeMissing takes t
     CHECK(removed.missing_total == 0);
     CHECK(removed.tracks_total == 1);
     CHECK(library->search({}).value().front().title == "Tagged Title");
+}
+
+namespace
+{
+    /// Waits until the library's revision passes before, at most five seconds
+    api::LibraryStatus waitForRevision(const api::Library &library, std::uint64_t before)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+        while ((library.status().revision <= before || library.status().pending_writes > 0) &&
+               std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{2});
+        }
+        return library.status();
+    }
+
+    std::vector<std::string> playlistTitles(api::Playlists &playlists, std::int64_t id)
+    {
+        std::vector<std::string> titles;
+        const auto               found = playlists.tracks(id).value();
+        for (const auto &track : found)
+        {
+            titles.push_back(track.title);
+        }
+        return titles;
+    }
+} // namespace
+
+TEST_CASE("Library: playlist changes run on the library thread and raise the revision")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    for (const char *name : {"a", "b", "c"})
+    {
+        std::ofstream{music.path() / (std::string{name} + ".mp3")} << "x";
+    }
+    auto library = openService(
+        data.path() / "library.db",
+        [](const std::filesystem::path &file) { return library::TrackTags{.title = file.stem().string()}; },
+        [](const std::filesystem::path &, const api::LibraryTagChange &) -> std::expected<void, std::string>
+        { return {}; });
+    REQUIRE(library->addFolder(music.path()).has_value());
+    auto            revision  = waitForScan(*library).revision;
+    api::Playlists &playlists = library->playlists();
+    const auto      tracks    = library->search({}).value(); // a, b, c
+
+    playlists.create("Set");
+    revision      = waitForRevision(*library, revision).revision;
+    const auto id = playlists.list().value().front().id;
+
+    playlists.add(id, {tracks[0].id, tracks[1].id, tracks[2].id});
+    playlists.moveEntry(id, 2, 0); // c a b
+    playlists.moveEntry(id, 0, 1); // a c b
+    playlists.removeEntry(id, 2);  // a c
+    playlists.removeEntry(id, 99); // nothing
+    playlists.rename(id, "Friday");
+    const auto status = waitForRevision(*library, revision);
+
+    CHECK(status.write_error.empty());
+    CHECK(playlistTitles(playlists, id) == std::vector<std::string>{"a", "c"});
+    CHECK(playlists.list().value().front().name == "Friday");
+
+    playlists.create("Friday");
+    CHECK(waitForRevision(*library, status.revision).write_error.find("exists") != std::string::npos);
+
+    playlists.remove(id);
+    waitForRevision(*library, library->status().revision);
+    CHECK(playlists.list().value().empty());
+}
+
+TEST_CASE("Library: writes still queued are done when the library closes")
+{
+    const djw::tests::TempDir data;
+    {
+        auto library = openLibrary(data.path() / "library.db");
+        library->playlists().create("Saved before exit");
+    }
+    auto library = openLibrary(data.path() / "library.db");
+    REQUIRE(library->playlists().list().value().size() == 1);
+    CHECK(library->playlists().list().value().front().name == "Saved before exit");
+}
+
+TEST_CASE("Library: an M3U import reports its outcome in the status")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::filesystem::copy_file(audio_dir / "tagged_id3v2.mp3", music.path() / "a.mp3");
+    std::ofstream{music.path() / "Set.m3u"} << "a.mp3\nmissing.mp3\n";
+    auto library = openLibrary(data.path() / "library.db");
+
+    library->playlists().importM3u(music.path() / "Set.m3u");
+    const auto status = waitForRevision(*library, 0);
+
+    REQUIRE(status.last_import.has_value());
+    CHECK(status.last_import->playlist == "Set");
+    CHECK(status.last_import->tracks == 1);
+    CHECK(status.last_import->not_found == 1);
+    CHECK(status.tracks_total == 1);
 }

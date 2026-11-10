@@ -8,6 +8,8 @@
 #include "api/library.hpp"
 #include "deck_view.hpp"
 #include "library_view.hpp"
+#include "playlist_view.hpp"
+#include "sdl_file_dialogs.hpp"
 #include "sdl_window.hpp"
 
 #include <expected>
@@ -18,8 +20,8 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * The SDL3 player: a window with one deck and, if there is a library, a library window. Owns SDL and SDL_ttf
-     * and runs the event loop. Closing any window ends the program.
+     * The SDL3 player: a window with one deck and, if there is a library, a library and a playlist window. Owns SDL and
+     * SDL_ttf and runs the event loop. Closing any window ends the program.
      *
      * Declaration order is destruction order in reverse: windows before the views they show, SDL itself last.
      */
@@ -61,12 +63,14 @@ namespace djw::player_ui::sdl
             void processEvents(bool &running);
 
             SdlLibraries      libraries;
+            SdlFileDialogs    dialogs;
             core::api::Core  *core;
             core::api::DeckId deck;
             DeckView          deck_view;
             /// The file loaded into the deck; its tags are not changed while it is loaded
             std::filesystem::path                   loaded_file;
             std::unique_ptr<LibraryView>            library_view;
+            std::unique_ptr<PlaylistView>           playlist_view;
             std::vector<std::unique_ptr<SdlWindow>> windows;
     };
 } // namespace djw::player_ui::sdl

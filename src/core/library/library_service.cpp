@@ -4,22 +4,41 @@
 #include "library/library_service.hpp"
 
 #include "library/missing_files.hpp"
+#include "library/playlist_files.hpp"
 #include "library/utf8_path.hpp"
 
+#include <algorithm>
 #include <system_error>
 #include <utility>
 
 namespace djw::core::library
 {
+    std::expected<LibraryService::Connection, std::string>
+    LibraryService::connect(const std::filesystem::path &database_file)
+    {
+        auto tracks = TrackStore::open(database_file);
+        if (!tracks)
+        {
+            return std::unexpected{tracks.error()};
+        }
+        // The playlists use the track store's connection, which stays in place when the store moves
+        auto playlists = PlaylistStore::open(tracks->connection());
+        if (!playlists)
+        {
+            return std::unexpected{playlists.error()};
+        }
+        return Connection{.tracks = std::move(*tracks), .playlists = std::move(*playlists)};
+    }
+
     std::expected<std::unique_ptr<LibraryService>, std::string>
     LibraryService::open(const std::filesystem::path &database_file, TagReader read_tags, TagWriter write_tags)
     {
-        auto reader = TrackStore::open(database_file);
+        auto reader = connect(database_file);
         if (!reader)
         {
             return std::unexpected{reader.error()};
         }
-        auto writer = TrackStore::open(database_file);
+        auto writer = connect(database_file);
         if (!writer)
         {
             return std::unexpected{writer.error()};
@@ -28,12 +47,12 @@ namespace djw::core::library
             new LibraryService{std::move(*reader), std::move(*writer), std::move(read_tags), std::move(write_tags)}};
     }
 
-    LibraryService::LibraryService(TrackStore reader, TrackStore writer, TagReader read_tags, TagWriter write_tags)
+    LibraryService::LibraryService(Connection reader, Connection writer, TagReader read_tags, TagWriter write_tags)
         : reader{std::move(reader)}, writer{std::move(writer)}, read_tags{std::move(read_tags)},
           write_tags{std::move(write_tags)}
     {
-        tracks_total  = this->reader.trackCount().value_or(0);
-        missing_total = this->reader.missingCount().value_or(0);
+        tracks_total  = this->reader.tracks.trackCount().value_or(0);
+        missing_total = this->reader.tracks.missingCount().value_or(0);
         thread        = std::thread{[this] { run(); }};
     }
 
@@ -43,10 +62,18 @@ namespace djw::core::library
         {
             const std::scoped_lock lock{mutex};
             scan_requested = false;
-            edits.clear();
         }
         wake.notify_all();
         thread.join();
+    }
+
+    void LibraryService::queue(Job job)
+    {
+        {
+            const std::scoped_lock lock{mutex};
+            jobs.push_back(std::move(job));
+        }
+        wake.notify_all();
     }
 
     std::expected<void, std::string> LibraryService::addFolder(const std::filesystem::path &folder)
@@ -57,7 +84,7 @@ namespace djw::core::library
         {
             return std::unexpected{"not a folder: " + toUtf8(folder)};
         }
-        if (auto added = reader.addFolder(absolute); !added)
+        if (auto added = reader.tracks.addFolder(absolute); !added)
         {
             return added;
         }
@@ -76,47 +103,187 @@ namespace djw::core::library
 
     void LibraryService::updateTags(std::int64_t track_id, api::LibraryTagChange change)
     {
-        {
-            const std::scoped_lock lock{mutex};
-            edits.push_back({.track_id = track_id, .change = std::move(change)});
-        }
-        wake.notify_all();
+        queue([this, track_id, change = std::move(change)] { return writeTags(track_id, change); });
     }
 
     void LibraryService::removeMissing()
     {
-        {
-            const std::scoped_lock lock{mutex};
-            remove_requested = true;
-        }
-        wake.notify_all();
+        queue([this] { return writer.tracks.removeMissing(); });
     }
 
     std::vector<std::filesystem::path> LibraryService::folders() const
     {
-        return reader.folders().value_or(std::vector<std::filesystem::path>{});
+        return reader.tracks.folders().value_or(std::vector<std::filesystem::path>{});
     }
 
     api::LibraryStatus LibraryService::status() const
     {
         const std::scoped_lock lock{mutex};
         return {
-            .scanning      = scanning || scan_requested,
-            .files_found   = counters.files_found.load(std::memory_order_relaxed),
-            .files_updated = counters.files_updated.load(std::memory_order_relaxed),
-            .tracks_total  = tracks_total,
-            .missing_total = missing_total,
-            .pending_edits = edits.size() + edits_writing,
-            .revision      = revision,
-            .scan_error    = scan_error,
-            .edit_error    = edit_error,
+            .scanning       = scanning || scan_requested,
+            .files_found    = counters.files_found.load(std::memory_order_relaxed),
+            .files_updated  = counters.files_updated.load(std::memory_order_relaxed),
+            .tracks_total   = tracks_total,
+            .missing_total  = missing_total,
+            .pending_writes = jobs.size() + jobs_running,
+            .revision       = revision,
+            .scan_error     = scan_error,
+            .write_error    = write_error,
+            .last_import    = last_import,
         };
     }
 
     std::expected<std::vector<api::LibraryTrack>, std::string>
     LibraryService::search(const api::LibraryQuery &query) const
     {
-        return reader.search(query);
+        return reader.tracks.search(query);
+    }
+
+    std::expected<std::vector<api::Playlist>, std::string> LibraryService::list() const
+    {
+        return reader.playlists.list();
+    }
+
+    std::expected<std::vector<api::LibraryTrack>, std::string> LibraryService::tracks(std::int64_t playlist_id) const
+    {
+        return reader.playlists.tracks(playlist_id);
+    }
+
+    void LibraryService::create(std::string name)
+    {
+        queue(
+            [this, name = std::move(name)]() -> std::expected<void, std::string>
+            {
+                const auto taken = writer.playlists.idOf(name);
+                if (!taken)
+                {
+                    return std::unexpected{taken.error()};
+                }
+                if (*taken)
+                {
+                    return std::unexpected{"a playlist named " + name + " exists already"};
+                }
+                const auto created = writer.playlists.create(name);
+                if (!created)
+                {
+                    return std::unexpected{created.error()};
+                }
+                return {};
+            });
+    }
+
+    void LibraryService::rename(std::int64_t playlist_id, std::string name)
+    {
+        queue(
+            [this, playlist_id, name = std::move(name)]() -> std::expected<void, std::string>
+            {
+                const auto taken = writer.playlists.idOf(name);
+                if (!taken)
+                {
+                    return std::unexpected{taken.error()};
+                }
+                if (*taken && **taken != playlist_id)
+                {
+                    return std::unexpected{"a playlist named " + name + " exists already"};
+                }
+                return writer.playlists.rename(playlist_id, name);
+            });
+    }
+
+    void LibraryService::remove(std::int64_t playlist_id)
+    {
+        queue([this, playlist_id] { return writer.playlists.remove(playlist_id); });
+    }
+
+    void LibraryService::changeEntries(std::int64_t                                     playlist_id,
+                                       std::function<bool(std::vector<std::int64_t> &)> change)
+    {
+        queue(
+            [this, playlist_id, change = std::move(change)]() -> std::expected<void, std::string>
+            {
+                auto entries = writer.playlists.entries(playlist_id);
+                if (!entries)
+                {
+                    return std::unexpected{entries.error()};
+                }
+                if (!change(*entries))
+                {
+                    return {}; // nothing to change, e.g. an index past the end
+                }
+                return writer.playlists.setEntries(playlist_id, *entries);
+            });
+    }
+
+    void LibraryService::add(std::int64_t playlist_id, std::vector<std::int64_t> track_ids)
+    {
+        changeEntries(playlist_id,
+                      [track_ids = std::move(track_ids)](std::vector<std::int64_t> &entries)
+                      {
+                          entries.insert(entries.end(), track_ids.begin(), track_ids.end());
+                          return !track_ids.empty();
+                      });
+    }
+
+    void LibraryService::removeEntry(std::int64_t playlist_id, std::size_t index)
+    {
+        changeEntries(playlist_id,
+                      [index](std::vector<std::int64_t> &entries)
+                      {
+                          if (index >= entries.size())
+                          {
+                              return false;
+                          }
+                          entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(index));
+                          return true;
+                      });
+    }
+
+    void LibraryService::moveEntry(std::int64_t playlist_id, std::size_t from, std::size_t to)
+    {
+        changeEntries(playlist_id,
+                      [from, to](std::vector<std::int64_t> &entries)
+                      {
+                          if (from >= entries.size() || to >= entries.size() || from == to)
+                          {
+                              return false;
+                          }
+                          const auto first = entries.begin();
+                          if (from < to)
+                          {
+                              std::rotate(first + static_cast<std::ptrdiff_t>(from),
+                                          first + static_cast<std::ptrdiff_t>(from) + 1,
+                                          first + static_cast<std::ptrdiff_t>(to) + 1);
+                          }
+                          else
+                          {
+                              std::rotate(first + static_cast<std::ptrdiff_t>(to),
+                                          first + static_cast<std::ptrdiff_t>(from),
+                                          first + static_cast<std::ptrdiff_t>(from) + 1);
+                          }
+                          return true;
+                      });
+    }
+
+    void LibraryService::importM3u(std::filesystem::path file)
+    {
+        queue(
+            [this, file = std::move(file)]() -> std::expected<void, std::string>
+            {
+                auto imported = importM3uFile(file, writer.tracks, writer.playlists, read_tags);
+                if (!imported)
+                {
+                    return std::unexpected{imported.error()};
+                }
+                const std::scoped_lock lock{mutex};
+                last_import = std::move(*imported);
+                return {};
+            });
+    }
+
+    void LibraryService::exportM3u(std::int64_t playlist_id, std::filesystem::path file)
+    {
+        queue([this, playlist_id, file = std::move(file)]
+              { return exportM3uFile(playlist_id, file, writer.playlists); });
     }
 
     void LibraryService::run() // library thread
@@ -126,13 +293,8 @@ namespace djw::core::library
             bool scan_now = false;
             {
                 std::unique_lock lock{mutex};
-                wake.wait(lock,
-                          [this] { return scan_requested || remove_requested || !edits.empty() || stopping.load(); });
-                if (stopping.load())
-                {
-                    return;
-                }
-                scan_now       = scan_requested;
+                wake.wait(lock, [this] { return scan_requested || !jobs.empty() || stopping.load(); });
+                scan_now       = scan_requested && !stopping.load();
                 scan_requested = false;
                 if (scan_now)
                 {
@@ -140,8 +302,11 @@ namespace djw::core::library
                     scan_error.clear();
                 }
             }
-            writePendingEdits();
-            removeMissingTracks();
+            runJobs();
+            if (stopping.load())
+            {
+                return; // the jobs queued until now are done, a scan is not started any more
+            }
             if (scan_now)
             {
                 scan();
@@ -155,15 +320,16 @@ namespace djw::core::library
         counters.files_updated.store(0);
 
         std::string error;
-        if (auto folders = writer.folders(); !folders)
+        if (auto folders = writer.tracks.folders(); !folders)
         {
             error = folders.error();
         }
         else
         {
-            error = scanFolders(*folders, writer, read_tags, counters, stopping, [this] { writeEditsDuringScan(); });
+            error =
+                scanFolders(*folders, writer.tracks, read_tags, counters, stopping, [this] { runJobsDuringScan(); });
         }
-        if (std::string missing_error = checkMissingFiles(writer, stopping); error.empty())
+        if (std::string missing_error = checkMissingFiles(writer.tracks, stopping); error.empty())
         {
             error = std::move(missing_error);
         }
@@ -177,105 +343,86 @@ namespace djw::core::library
 
     void LibraryService::updateCounts() // library thread
     {
-        const auto tracks  = writer.trackCount();
-        const auto missing = writer.missingCount();
+        const auto tracks  = writer.tracks.trackCount();
+        const auto missing = writer.tracks.missingCount();
 
         const std::scoped_lock lock{mutex};
         tracks_total  = tracks.value_or(tracks_total);
         missing_total = missing.value_or(missing_total);
     }
 
-    void LibraryService::removeMissingTracks() // library thread
+    void LibraryService::runJobsDuringScan() // library thread
     {
         {
             const std::scoped_lock lock{mutex};
-            if (!remove_requested)
-            {
-                return;
-            }
-            remove_requested = false;
-        }
-        const auto removed = writer.removeMissing();
-        updateCounts();
-
-        const std::scoped_lock lock{mutex};
-        if (removed)
-        {
-            ++revision;
-        }
-        else
-        {
-            edit_error = removed.error();
-        }
-    }
-
-    void LibraryService::writeEditsDuringScan() // library thread
-    {
-        {
-            const std::scoped_lock lock{mutex};
-            if (edits.empty())
+            if (jobs.empty())
             {
                 return;
             }
         }
-        // Committed first, so the edit is visible to searches as soon as the revision says so
-        auto committed = writer.commitTransaction();
-        writePendingEdits();
+        // Committed first, so a change is visible to readers as soon as the revision says so
+        auto committed = writer.tracks.commitTransaction();
+        runJobs();
         if (committed)
         {
-            committed = writer.beginTransaction();
+            committed = writer.tracks.beginTransaction();
         }
         if (!committed)
         {
             const std::scoped_lock lock{mutex};
-            edit_error = committed.error();
+            write_error = committed.error();
         }
     }
 
-    void LibraryService::writePendingEdits() // library thread
+    void LibraryService::runJobs() // library thread
     {
-        while (!stopping.load())
+        while (true)
         {
-            TagEdit edit;
+            Job job;
             {
                 const std::scoped_lock lock{mutex};
-                if (edits.empty())
+                if (jobs.empty())
                 {
                     return;
                 }
-                edit = std::move(edits.front());
-                edits.pop_front();
-                edits_writing = 1;
+                job = std::move(jobs.front());
+                jobs.pop_front();
+                jobs_running = 1;
             }
-            const auto written = write(edit);
+            const auto done = job();
+            if (done)
+            {
+                updateCounts();
+            }
 
             const std::scoped_lock lock{mutex};
-            edits_writing = 0;
-            if (written)
+            jobs_running = 0;
+            if (done)
             {
-                edit_error.clear();
+                write_error.clear();
                 ++revision;
             }
             else
             {
-                edit_error = written.error();
+                write_error = done.error();
             }
         }
     }
 
-    std::expected<void, std::string> LibraryService::write(const TagEdit &edit) // library thread
+    std::expected<void, std::string> LibraryService::writeTags(std::int64_t                 track_id,
+                                                               const api::LibraryTagChange &change) // library thread
     {
-        const auto path = writer.trackPath(edit.track_id);
+        const auto path = writer.tracks.trackPath(track_id);
         if (!path)
         {
             return std::unexpected{path.error()};
         }
         if (!*path)
         {
-            return std::unexpected{"cannot write tags: track " + std::to_string(edit.track_id) +
+            return std::unexpected{"cannot write tags: track " + std::to_string(track_id) +
                                    " is no longer in the library"};
         }
-        if (auto written = write_tags(**path, edit.change); !written)
+        if (auto written = write_tags(**path, change); !written)
         {
             return written;
         }
@@ -285,6 +432,6 @@ namespace djw::core::library
         {
             return std::unexpected{stamp.error()};
         }
-        return writer.store(**path, *stamp, read_tags(**path));
+        return writer.tracks.store(**path, *stamp, read_tags(**path));
     }
 } // namespace djw::core::library

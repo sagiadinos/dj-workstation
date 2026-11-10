@@ -22,6 +22,7 @@ namespace djw::player_ui::sdl
 
         constexpr float missing_button_width = 150.0F;
         constexpr float remove_button_width  = 220.0F;
+        constexpr float add_button_width     = 170.0F;
 
         /// The value of a column as text, as the editor shows it; std::nullopt for columns that cannot be edited
         std::optional<std::string> editableValue(const core::api::LibraryTrack &track, core::api::LibraryColumn column)
@@ -104,6 +105,7 @@ namespace djw::player_ui::sdl
         router.add(list);
         router.add(missing_button);
         router.add(remove_button);
+        router.add(add_button);
         router.add(cell_editor); // on top of the list; without an edit it has no area and catches nothing
     }
 
@@ -362,11 +364,22 @@ namespace djw::player_ui::sdl
             confirm_remove_until.reset();
         }
 
-        // Right-aligned in the status line, the remove button left of the missing button
-        const bool show_missing = status.missing_total > 0;
-        const bool show_remove  = show_missing && only_missing;
-        const Rect missing_area{status_area.x + status_area.width - missing_button_width, status_area.y,
-                                missing_button_width, status_area.height};
+        const auto selected = list.selected();
+        if (add_button.takePress() && selected && add_to_playlist)
+        {
+            add_to_playlist(list.tracks()[*selected]);
+        }
+
+        // Right-aligned in the status line: add, then missing, then remove
+        const bool  show_add     = add_to_playlist && selected.has_value();
+        const bool  show_missing = status.missing_total > 0;
+        const bool  show_remove  = show_missing && only_missing;
+        const float right_end    = status_area.x + status_area.width;
+        const Rect  add_area{right_end - add_button_width, status_area.y, add_button_width, status_area.height};
+        add_button.setBounds(show_add ? add_area : Rect{});
+        const float missing_right = show_add ? add_area.x - gap : right_end;
+        const Rect  missing_area{missing_right - missing_button_width, status_area.y, missing_button_width,
+                                 status_area.height};
         missing_button.setBounds(show_missing ? missing_area : Rect{});
         missing_button.setLabel("Missing: " + std::to_string(status.missing_total));
         missing_button.setHighlighted(only_missing);
@@ -401,11 +414,11 @@ namespace djw::player_ui::sdl
         {
             status_text += " - scanning, " + std::to_string(status.files_found) + " files";
         }
-        if (status.pending_edits > 0)
+        if (status.pending_writes > 0)
         {
             status_text += " - saving tags";
         }
-        const std::array<const std::string *, 4> errors{&search_error, &edit_message, &status.edit_error,
+        const std::array<const std::string *, 4> errors{&search_error, &edit_message, &status.write_error,
                                                         &status.scan_error};
         for (const std::string *error : errors)
         {
@@ -431,13 +444,19 @@ namespace djw::player_ui::sdl
             cell_editor.draw(canvas);
         }
         // The status text leaves room for the buttons right of it
-        const float buttons_left = remove_button.bounds().width > 0.0F    ? remove_button.bounds().x
-                                   : missing_button.bounds().width > 0.0F ? missing_button.bounds().x
-                                                                          : status_area.x + status_area.width;
+        float buttons_left = status_area.x + status_area.width;
+        for (const TextButton *button : {&add_button, &missing_button, &remove_button})
+        {
+            if (button->bounds().width > 0.0F)
+            {
+                buttons_left = std::min(buttons_left, button->bounds().x);
+            }
+        }
         canvas.textElided({status_area.x, status_area.y + ((status_area.height - canvas.textHeight()) / 2)},
                           status_text, status_color, std::max(0.0F, buttons_left - gap - status_area.x));
         missing_button.draw(canvas);
         remove_button.draw(canvas);
+        add_button.draw(canvas);
     }
 
     void LibraryView::wheel(Point position, float dy)

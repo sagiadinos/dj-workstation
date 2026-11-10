@@ -35,13 +35,15 @@ namespace djw::player_ui::sdl
      * the row shows the new value at once. Tracks for which in_use is true (loaded in a deck) are not changed.
      *
      * Dead links: when tracks are missing, the status line shows a "Missing" button that lists only those; there a
-     * "Remove" button takes them out of the library after a second tap within confirm_time.
+     * "Remove" button takes them out of the library after a second tap within confirm_time. With setAddToPlaylist,
+     * an "Add to playlist" button at the right end of the status line hands the selected track on.
      */
     class LibraryView final : public View
     {
         public:
             using Load  = std::function<void(const core::api::LibraryTrack &track)>;
             using InUse = std::function<bool(const std::filesystem::path &file)>;
+            using Add   = std::function<void(const core::api::LibraryTrack &track)>;
 
             /// Most tracks listed at once; the search narrows it down
             static constexpr std::size_t               result_limit = 1'000;
@@ -76,6 +78,10 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextField               &cellEditor() const noexcept { return cell_editor; }
             [[nodiscard]] const TextButton              &missingButton() const noexcept { return missing_button; }
             [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
+            [[nodiscard]] const TextButton              &addButton() const noexcept { return add_button; }
+
+            /// Shows an "Add to playlist" button for the selected track, which hands the track to add
+            void setAddToPlaylist(Add add) { add_to_playlist = std::move(add); }
 
         private:
             /// The cell being edited; the track is kept by id, as a refresh may move its row
@@ -112,6 +118,8 @@ namespace djw::player_ui::sdl
             TextField                cell_editor;
             TextButton               missing_button;
             TextButton               remove_button;
+            TextButton               add_button{"Add to playlist"};
+            Add                      add_to_playlist;
             bool                     only_missing = false;
             std::optional<std::chrono::steady_clock::time_point> confirm_remove_until;
             std::optional<CellEdit>                              edit;

@@ -12,6 +12,7 @@ add_executable(djw_player_sdl_tests
     test_track_list.cpp
     test_columns.cpp
     test_library_view.cpp
+    test_playlist_view.cpp
     test_command_line.cpp
 )
 djw_set_options(djw_player_sdl_tests TEST)

@@ -96,6 +96,20 @@ namespace djw::player_ui::sdl
             }
             (*library_window)->placeRightOf(*app->windows.front());
             app->windows.push_back(std::move(*library_window));
+
+            app->playlist_view = std::make_unique<PlaylistView>(
+                *library, app->dialogs, [owner](const core::api::LibraryTrack &track) { owner->load(track); });
+            app->library_view->setAddToPlaylist([owner](const core::api::LibraryTrack &track)
+                                                { owner->playlist_view->addTrack(track); });
+            auto playlist_window =
+                SdlWindow::create({.title = "djw - Playlist", .width = 560, .height = 640}, *app->playlist_view, font);
+            if (!playlist_window)
+            {
+                return std::unexpected{playlist_window.error()};
+            }
+            (*playlist_window)->placeRightOf(*app->windows.back());
+            app->dialogs.setParent((*playlist_window)->handle());
+            app->windows.push_back(std::move(*playlist_window));
         }
         return app;
     }
@@ -124,6 +138,7 @@ namespace djw::player_ui::sdl
         while (running)
         {
             processEvents(running);
+            dialogs.deliver();
             for (const auto &window : windows)
             {
                 window->frame();

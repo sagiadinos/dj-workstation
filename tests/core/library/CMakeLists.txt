@@ -9,6 +9,9 @@ add_executable(djw_core_library_tests
     test_tag_reader.cpp
     test_tag_writer.cpp
     test_track_store.cpp
+    test_playlist_store.cpp
+    test_m3u.cpp
+    test_playlist_files.cpp
     test_folder_scanner.cpp
     test_missing_files.cpp
     test_library_service.cpp

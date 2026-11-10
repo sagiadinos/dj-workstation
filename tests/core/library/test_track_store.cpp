@@ -3,6 +3,7 @@
 
 #include "library/track_store.hpp"
 
+#include "library_downgrade.hpp"
 #include "temp_dir.hpp"
 
 #include <doctest/doctest.h>
@@ -262,20 +263,7 @@ TEST_CASE("TrackStore: a version 1 database is migrated, its tracks get their ke
 {
     Fixture fixture;
     fixture.add("Some File.mp3", {.artist = "Die Ärzte", .title = "Westerland", .genre = "Punk"});
-    {
-        // Back to version 1: keys gone, as a database written by the first library version
-        auto database = djw::core::library::SqliteDatabase::open(fixture.database());
-        REQUIRE(database.has_value());
-        REQUIRE(
-            database
-                ->execute("DROP INDEX tracks_by_artist_title;"
-                          "ALTER TABLE tracks DROP COLUMN artist_key; ALTER TABLE tracks DROP COLUMN title_key;"
-                          "ALTER TABLE tracks DROP COLUMN genre_key; ALTER TABLE tracks DROP COLUMN any_key;"
-                          "ALTER TABLE tracks DROP COLUMN missing;"
-                          "CREATE INDEX tracks_by_artist_title ON tracks (artist COLLATE NOCASE, title COLLATE NOCASE);"
-                          "PRAGMA user_version = 1")
-                .has_value());
-    }
+    djw::tests::downgradeLibrary(fixture.database(), 1);
 
     auto migrated = TrackStore::open(fixture.database());
     REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
@@ -290,11 +278,7 @@ TEST_CASE("TrackStore: a version 2 database gets the missing flag, all tracks st
 {
     Fixture fixture;
     fixture.add("a.mp3", {.title = "Kept"});
-    {
-        auto database = djw::core::library::SqliteDatabase::open(fixture.database());
-        REQUIRE(database.has_value());
-        REQUIRE(database->execute("ALTER TABLE tracks DROP COLUMN missing; PRAGMA user_version = 2").has_value());
-    }
+    djw::tests::downgradeLibrary(fixture.database(), 2);
 
     auto migrated = TrackStore::open(fixture.database());
     REQUIRE_MESSAGE(migrated.has_value(), migrated.error());

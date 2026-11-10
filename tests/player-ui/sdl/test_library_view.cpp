@@ -4,6 +4,7 @@
 #include "library_view.hpp"
 #include "track_columns.hpp"
 
+#include "fake_library.hpp"
 #include "recording_canvas.hpp"
 
 #include <doctest/doctest.h>
@@ -16,54 +17,7 @@ using namespace std::chrono_literals;
 
 namespace
 {
-    /// Library with fixed tracks: search returns those whose title contains the text
-    class FakeLibrary final : public api::Library
-    {
-        public:
-            std::expected<void, std::string>   addFolder(const std::filesystem::path &) override { return {}; }
-            void                               rescan() override {}
-            std::vector<std::filesystem::path> folders() const override { return {}; }
-            api::LibraryStatus                 status() const override { return library_status; }
-
-            void removeMissing() override { ++removals; }
-
-            void updateTags(std::int64_t track_id, api::LibraryTagChange change) override
-            {
-                edits.emplace_back(track_id, std::move(change));
-            }
-
-            std::expected<std::vector<api::LibraryTrack>, std::string>
-            search(const api::LibraryQuery &query) const override
-            {
-                ++searches;
-                last_query              = query;
-                const std::string &text = query.text;
-                if (fail)
-                {
-                    return std::unexpected{std::string{"database broken"}};
-                }
-                std::vector<api::LibraryTrack> found;
-                for (const auto &track : tracks)
-                {
-                    if (track.title.find(text) != std::string::npos)
-                    {
-                        found.push_back(track);
-                    }
-                }
-                return found;
-            }
-
-            std::vector<api::LibraryTrack> tracks{
-                {.id = 1, .path = "/m/a.mp3", .artist = "A", .title = "alpha"},
-                {.id = 2, .path = "/m/b.mp3", .artist = "B", .title = "beta"},
-            };
-            api::LibraryStatus                                          library_status;
-            std::vector<std::pair<std::int64_t, api::LibraryTagChange>> edits;
-            int                                                         removals = 0;
-            bool                                                        fail     = false;
-            mutable int                                                 searches = 0;
-            mutable api::LibraryQuery                                   last_query;
-    };
+    using djw::tests::FakeLibrary;
 
     struct Fixture
     {
@@ -106,7 +60,7 @@ namespace
 TEST_CASE("LibraryView: lists all tracks at first, up to the result limit")
 {
     Fixture fixture;
-    CHECK(fixture.view.trackList().tracks().size() == 2);
+    CHECK(fixture.view.trackList().tracks().size() == 3);
     CHECK(fixture.library.last_query.limit == LibraryView::result_limit);
 }
 
@@ -133,7 +87,7 @@ TEST_CASE("LibraryView: typing is ignored while the search field is not focused,
     fixture.view.update();
 
     CHECK(fixture.library.searches == searches);
-    CHECK(fixture.view.trackList().tracks().size() == 2);
+    CHECK(fixture.view.trackList().tracks().size() == 3);
 }
 
 TEST_CASE("LibraryView: a double tap on a track loads it")
@@ -195,14 +149,14 @@ TEST_CASE("LibraryView: a failing search shows its error and keeps the list")
     fixture.view.keyboard(std::string{"x"});
     fixture.view.update();
 
-    CHECK(fixture.view.trackList().tracks().size() == 2);
+    CHECK(fixture.view.trackList().tracks().size() == 3);
     CHECK(fixture.view.statusText().find("database broken") != std::string::npos);
 }
 
 TEST_CASE("LibraryView: the mouse wheel scrolls the list only over the list")
 {
     Fixture fixture;
-    fixture.library.tracks.resize(50, fixture.library.tracks.front());
+    fixture.library.library_tracks.resize(50, fixture.library.library_tracks.front());
     fixture.tap(fixture.searchField());
     fixture.view.keyboard(std::string{"a"});
     fixture.view.update();
@@ -404,11 +358,11 @@ TEST_CASE("LibraryView: the duration cannot be edited, nor a track loaded in a d
 TEST_CASE("LibraryView: pending tag edits and their errors show in the status line")
 {
     Fixture fixture;
-    fixture.library.library_status = {.tracks_total = 2, .pending_edits = 1};
+    fixture.library.library_status = {.tracks_total = 2, .pending_writes = 1};
     fixture.view.update();
     CHECK(fixture.view.statusText() == "2 tracks - saving tags");
 
-    fixture.library.library_status = {.tracks_total = 2, .edit_error = "cannot write tags of /m/a.mp3"};
+    fixture.library.library_status = {.tracks_total = 2, .write_error = "cannot write tags of /m/a.mp3"};
     fixture.view.update();
     CHECK(fixture.view.statusText() == "2 tracks - cannot write tags of /m/a.mp3");
 }
@@ -481,4 +435,23 @@ TEST_CASE("LibraryView: with no missing tracks left the filter turns off")
 
     CHECK_FALSE(fixture.library.last_query.only_missing);
     CHECK(fixture.view.missingButton().bounds().width == 0.0F);
+}
+
+TEST_CASE("LibraryView: the Add to playlist button shows for a selected track and hands it on")
+{
+    Fixture                        fixture;
+    std::vector<api::LibraryTrack> added;
+    fixture.view.update();
+    CHECK(fixture.view.addButton().bounds().width == 0.0F); // no receiver yet
+
+    fixture.view.setAddToPlaylist([&added](const api::LibraryTrack &track) { added.push_back(track); });
+    fixture.view.update();
+    CHECK(fixture.view.addButton().bounds().width == 0.0F); // nothing selected
+
+    fixture.tap(fixture.firstRow());
+    fixture.view.update();
+    tapButton(fixture, fixture.view.addButton());
+
+    REQUIRE(added.size() == 1);
+    CHECK(added.front().title == "alpha");
 }

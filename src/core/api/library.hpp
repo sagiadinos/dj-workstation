@@ -4,6 +4,9 @@
 #ifndef DJW_CORE_API_LIBRARY_HPP
 #define DJW_CORE_API_LIBRARY_HPP
 
+#include "api/library_track.hpp"
+#include "api/playlists.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -15,21 +18,6 @@
 
 namespace djw::core::api
 {
-    /// A track of the library as the frontends see it. Missing tags are empty (year: 0).
-    struct LibraryTrack
-    {
-            std::int64_t          id = 0;
-            std::filesystem::path path{};
-            std::string           artist{};
-            std::string           title{};
-            std::string           album{};
-            std::string           genre{};
-            int                   year             = 0;
-            double                duration_seconds = 0.0;
-            /// The file was not found at the last check (dead link)
-            bool missing = false;
-    };
-
     /// Columns the track list can be sorted by
     enum class LibraryColumn : std::uint8_t
     {
@@ -78,15 +66,17 @@ namespace djw::core::api
             std::size_t tracks_total  = 0;
             /// Tracks whose file was not found at the last check
             std::size_t missing_total = 0;
-            /// Tag changes waiting to be written
-            std::size_t pending_edits = 0;
+            /// Tag edits and playlist changes waiting to be written
+            std::size_t pending_writes = 0;
             /// Goes up whenever stored tracks change outside a scan (tag edits, removals) and when a scan ends; a view
             /// searches again when it changes
             std::uint64_t revision = 0;
             /// Last error of the scan (e.g. a folder that cannot be read), empty if none
             std::string scan_error{};
-            /// Last error writing tags, empty if none
-            std::string edit_error{};
+            /// Last error writing tags or playlists, empty if none
+            std::string write_error{};
+            /// The last M3U import, if there was one
+            std::optional<PlaylistImport> last_import{};
     };
 
     /// New tag values for a track; fields without a value stay as they are
@@ -127,8 +117,8 @@ namespace djw::core::api
             /**
              * Writes new tags into the track's file (ID3v2, Vorbis comments, FLAC, ... through TagLib) and then into
              * the database, on the library thread, also between two files of a running scan. Returns at once;
-             * LibraryStatus shows pending edits, the revision goes up when the track changed, an error goes to
-             * edit_error. Do not change the file of a track a deck is playing.
+             * LibraryStatus shows pending writes, the revision goes up when the track changed, an error goes to
+             * write_error. Do not change the file of a track a deck is playing.
              */
             virtual void updateTags(std::int64_t track_id, LibraryTagChange change) = 0;
 
@@ -138,6 +128,9 @@ namespace djw::core::api
              * back (e.g. a drive mounted again) loses its mark there.
              */
             virtual void removeMissing() = 0;
+
+            /// The saved playlists, which live in the library's database
+            [[nodiscard]] virtual Playlists &playlists() noexcept = 0;
 
             [[nodiscard]] virtual std::vector<std::filesystem::path> folders() const = 0;
             [[nodiscard]] virtual LibraryStatus                      status() const  = 0;
