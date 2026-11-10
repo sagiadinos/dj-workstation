@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     }
     if (command_line->file)
     {
-        (*app)->setDeckTitle(command_line->file->filename().string());
+        (*app)->setDeckTrack(std::filesystem::absolute(*command_line->file), command_line->file->filename().string());
     }
     (*app)->run();
     app->reset(); // the windows go before the library they show

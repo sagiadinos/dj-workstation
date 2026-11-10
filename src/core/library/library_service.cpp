@@ -11,7 +11,7 @@
 namespace djw::core::library
 {
     std::expected<std::unique_ptr<LibraryService>, std::string>
-    LibraryService::open(const std::filesystem::path &database_file, TagReader read_tags)
+    LibraryService::open(const std::filesystem::path &database_file, TagReader read_tags, TagWriter write_tags)
     {
         auto reader = TrackStore::open(database_file);
         if (!reader)
@@ -24,11 +24,12 @@ namespace djw::core::library
             return std::unexpected{writer.error()};
         }
         return std::unique_ptr<LibraryService>{
-            new LibraryService{std::move(*reader), std::move(*writer), std::move(read_tags)}};
+            new LibraryService{std::move(*reader), std::move(*writer), std::move(read_tags), std::move(write_tags)}};
     }
 
-    LibraryService::LibraryService(TrackStore reader, TrackStore writer, TagReader read_tags)
-        : reader{std::move(reader)}, writer{std::move(writer)}, read_tags{std::move(read_tags)}
+    LibraryService::LibraryService(TrackStore reader, TrackStore writer, TagReader read_tags, TagWriter write_tags)
+        : reader{std::move(reader)}, writer{std::move(writer)}, read_tags{std::move(read_tags)},
+          write_tags{std::move(write_tags)}
     {
         const auto count = this->reader.trackCount();
         tracks_total     = count.value_or(0);
@@ -41,6 +42,7 @@ namespace djw::core::library
         {
             const std::scoped_lock lock{mutex};
             scan_requested = false;
+            edits.clear();
         }
         wake.notify_all();
         thread.join();
@@ -71,20 +73,32 @@ namespace djw::core::library
         wake.notify_all();
     }
 
+    void LibraryService::updateTags(std::int64_t track_id, api::LibraryTagChange change)
+    {
+        {
+            const std::scoped_lock lock{mutex};
+            edits.push_back({.track_id = track_id, .change = std::move(change)});
+        }
+        wake.notify_all();
+    }
+
     std::vector<std::filesystem::path> LibraryService::folders() const
     {
         return reader.folders().value_or(std::vector<std::filesystem::path>{});
     }
 
-    api::LibraryScanStatus LibraryService::scanStatus() const
+    api::LibraryStatus LibraryService::status() const
     {
         const std::scoped_lock lock{mutex};
         return {
-            .running       = scanning || scan_requested,
+            .scanning      = scanning || scan_requested,
             .files_found   = counters.files_found.load(std::memory_order_relaxed),
             .files_updated = counters.files_updated.load(std::memory_order_relaxed),
             .tracks_total  = tracks_total,
-            .error         = scan_error,
+            .pending_edits = edits.size() + edits_writing,
+            .revision      = revision,
+            .scan_error    = scan_error,
+            .edit_error    = edit_error,
         };
     }
 
@@ -98,18 +112,27 @@ namespace djw::core::library
     {
         while (true)
         {
+            bool scan_now = false;
             {
                 std::unique_lock lock{mutex};
-                wake.wait(lock, [this] { return scan_requested || stopping.load(); });
+                wake.wait(lock, [this] { return scan_requested || !edits.empty() || stopping.load(); });
                 if (stopping.load())
                 {
                     return;
                 }
+                scan_now       = scan_requested;
                 scan_requested = false;
-                scanning       = true;
-                scan_error.clear();
+                if (scan_now)
+                {
+                    scanning = true;
+                    scan_error.clear();
+                }
             }
-            scan();
+            writePendingEdits();
+            if (scan_now)
+            {
+                scan();
+            }
         }
     }
 
@@ -125,7 +148,7 @@ namespace djw::core::library
         }
         else
         {
-            error = scanFolders(*folders, writer, read_tags, counters, stopping);
+            error = scanFolders(*folders, writer, read_tags, counters, stopping, [this] { writeEditsDuringScan(); });
         }
         const auto count = writer.trackCount();
 
@@ -133,5 +156,85 @@ namespace djw::core::library
         scanning     = false;
         scan_error   = std::move(error);
         tracks_total = count.value_or(tracks_total);
+        ++revision;
+    }
+
+    void LibraryService::writeEditsDuringScan() // library thread
+    {
+        {
+            const std::scoped_lock lock{mutex};
+            if (edits.empty())
+            {
+                return;
+            }
+        }
+        // Committed first, so the edit is visible to searches as soon as the revision says so
+        auto committed = writer.commitTransaction();
+        writePendingEdits();
+        if (committed)
+        {
+            committed = writer.beginTransaction();
+        }
+        if (!committed)
+        {
+            const std::scoped_lock lock{mutex};
+            edit_error = committed.error();
+        }
+    }
+
+    void LibraryService::writePendingEdits() // library thread
+    {
+        while (!stopping.load())
+        {
+            TagEdit edit;
+            {
+                const std::scoped_lock lock{mutex};
+                if (edits.empty())
+                {
+                    return;
+                }
+                edit = std::move(edits.front());
+                edits.pop_front();
+                edits_writing = 1;
+            }
+            const auto written = write(edit);
+
+            const std::scoped_lock lock{mutex};
+            edits_writing = 0;
+            if (written)
+            {
+                edit_error.clear();
+                ++revision;
+            }
+            else
+            {
+                edit_error = written.error();
+            }
+        }
+    }
+
+    std::expected<void, std::string> LibraryService::write(const TagEdit &edit) // library thread
+    {
+        const auto path = writer.trackPath(edit.track_id);
+        if (!path)
+        {
+            return std::unexpected{path.error()};
+        }
+        if (!*path)
+        {
+            return std::unexpected{"cannot write tags: track " + std::to_string(edit.track_id) +
+                                   " is no longer in the library"};
+        }
+        if (auto written = write_tags(**path, edit.change); !written)
+        {
+            return written;
+        }
+        // Read back, so the database holds what is in the file now, with the new stamp of the changed file
+        const auto stamp = fileStamp(**path);
+        if (!stamp)
+        {
+            return std::unexpected{stamp.error()};
+        }
+        return writer.store(**path, *stamp, read_tags(**path));
     }
 } // namespace djw::core::library

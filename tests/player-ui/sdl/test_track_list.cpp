@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Niko Sagiadinos
 
+#include "track_columns.hpp"
 #include "track_list.hpp"
 
 #include "recording_canvas.hpp"
@@ -161,4 +162,59 @@ TEST_CASE("TrackList: draws the visible rows only, clipped to its bounds, with t
     REQUIRE(canvas.clip_changes.size() == 2);
     CHECK(canvas.clip_changes.front().has_value());
     CHECK_FALSE(canvas.clip.has_value()); // reset after drawing
+}
+
+TEST_CASE("TrackList: holding a cell still presses it long once, the release is no tap")
+{
+    Fixture     fixture;
+    const Rect  title = columnArea(fixture.list.bounds(), api::LibraryColumn::Title);
+    const Point at{title.x + 5, fixture.rowY(2)};
+    fixture.list.pointerDown(at);
+    fixture.now += TrackList::long_press_time - 1ms;
+    CHECK_FALSE(fixture.list.takeLongPress());
+
+    fixture.now += 1ms;
+    const auto cell = fixture.list.takeLongPress();
+    REQUIRE(cell.has_value());
+    CHECK(*cell == TrackList::Cell{2, api::LibraryColumn::Title});
+    CHECK_FALSE(fixture.list.takeLongPress());
+
+    fixture.list.pointerUp(at);
+    fixture.now += 100ms;
+    fixture.tap(fixture.rowY(2)); // would be a double tap if the release had counted
+    CHECK_FALSE(fixture.list.takeActivated());
+    CHECK(fixture.list.takeTouched());
+}
+
+TEST_CASE("TrackList: a drag is never a long press")
+{
+    Fixture fixture;
+    fixture.list.pointerDown({50, 300});
+    fixture.list.pointerMove({50, 300 - (2 * TrackList::tap_slop)});
+    fixture.now += 2 * TrackList::long_press_time;
+    CHECK_FALSE(fixture.list.takeLongPress());
+}
+
+TEST_CASE("TrackList: cell areas follow the scroll position and are empty out of view")
+{
+    Fixture    fixture;
+    const auto area = fixture.list.cellArea({1, api::LibraryColumn::Artist});
+    REQUIRE(area.has_value());
+    CHECK(area->y == doctest::Approx(100 + TrackList::row_height));
+
+    fixture.list.scrollBy(-2 * TrackList::row_height);
+    CHECK_FALSE(fixture.list.cellArea({1, api::LibraryColumn::Artist}).has_value());
+    CHECK(fixture.list.cellArea({3, api::LibraryColumn::Artist})->y == doctest::Approx(100 + TrackList::row_height));
+    CHECK_FALSE(fixture.list.cellArea({99, api::LibraryColumn::Artist}).has_value());
+}
+
+TEST_CASE("TrackList: a row can be replaced in place")
+{
+    Fixture fixture;
+    auto    track = fixture.list.tracks()[2];
+    track.title   = "Edited";
+    fixture.list.replaceTrack(2, track);
+    fixture.list.replaceTrack(99, track); // ignored
+    CHECK(fixture.list.tracks()[2].title == "Edited");
+    CHECK(fixture.list.tracks().size() == 20);
 }

@@ -9,7 +9,9 @@
 
 #include <atomic>
 #include <cstddef>
+#include <expected>
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -25,6 +27,12 @@ namespace djw::core::library
     /// MP3, Ogg Vorbis, FLAC and WAV, by extension in any case
     bool isAudioFile(const std::filesystem::path &file);
 
+    /// Modification time and size of a file as stored with its track
+    std::expected<FileStamp, std::string> fileStamp(const std::filesystem::path &file);
+
+    /// Called between two files of a scan, inside the scan's transaction; the library writes tag edits there
+    using BetweenFiles = std::function<void()>;
+
     /**
      * Walks the folders with their subfolders and stores every audio file in store. Tags are read only for new
      * files and files whose modification time or size changed. Committed in batches, so a search sees the progress.
@@ -33,7 +41,8 @@ namespace djw::core::library
      * the first such error is returned (empty if none).
      */
     std::string scanFolders(const std::vector<std::filesystem::path> &folders, TrackStore &store,
-                            const TagReader &read_tags, ScanCounters &counters, const std::atomic<bool> &stop);
+                            const TagReader &read_tags, ScanCounters &counters, const std::atomic<bool> &stop,
+                            const BetweenFiles &between_files = {});
 } // namespace djw::core::library
 
 #endif // DJW_CORE_LIBRARY_FOLDER_SCANNER_HPP

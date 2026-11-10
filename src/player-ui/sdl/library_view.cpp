@@ -19,10 +19,50 @@ namespace djw::player_ui::sdl
         constexpr float status_height = 28.0F;
 
         constexpr Color status_color{160, 160, 160};
+
+        /// The value of a column as text, as the editor shows it; std::nullopt for columns that cannot be edited
+        std::optional<std::string> editableValue(const core::api::LibraryTrack &track, core::api::LibraryColumn column)
+        {
+            switch (column)
+            {
+                case core::api::LibraryColumn::Artist:
+                    return track.artist;
+                case core::api::LibraryColumn::Title:
+                    return track.title;
+                case core::api::LibraryColumn::Genre:
+                    return track.genre;
+                case core::api::LibraryColumn::Year:
+                    return track.year != 0 ? std::to_string(track.year) : std::string{};
+                case core::api::LibraryColumn::Duration:
+                    break;
+            }
+            return std::nullopt;
+        }
+
+        /// A year as typed: empty is 0 (no year), otherwise up to four digits
+        std::optional<int> parseYear(std::string_view text)
+        {
+            constexpr std::size_t max_digits = 4;
+            if (text.size() > max_digits)
+            {
+                return std::nullopt;
+            }
+            int year = 0;
+            for (const char digit : text)
+            {
+                if (digit < '0' || digit > '9')
+                {
+                    return std::nullopt;
+                }
+                year = (year * 10) + (digit - '0');
+            }
+            return year; // empty: 0, no year
+        }
     } // namespace
 
-    LibraryView::LibraryView(core::api::Library &library, Load load, Clock clock)
-        : library{&library}, load{std::move(load)}, clock{std::move(clock)}, list{this->clock}
+    LibraryView::LibraryView(core::api::Library &library, Load load, InUse in_use, Clock clock)
+        : library{&library}, load{std::move(load)}, in_use{std::move(in_use)}, clock{std::move(clock)},
+          list{this->clock}
     {
     }
 
@@ -47,6 +87,7 @@ namespace djw::player_ui::sdl
         const float list_top = header_top + header_height;
         list.setBounds({inner.x, list_top, inner.width, std::max(0.0F, status_area.y - gap - list_top)});
         list.scrollBy(0.0F); // keeps the scroll position valid for the new height
+        placeEditor();
     }
 
     void LibraryView::addTo(PointerRouter &router)
@@ -58,43 +99,171 @@ namespace djw::player_ui::sdl
         }
         router.add(header);
         router.add(list);
+        router.add(cell_editor); // on top of the list; without an edit it has no area and catches nothing
     }
 
     void LibraryView::resolveFocus()
     {
-        const TextField *requested = search_field.takeFocusRequest() ? &search_field : nullptr;
-        for (TextField &filter : filters)
+        const std::array<TextField *, 6> fields{&search_field, &filters[0], &filters[1],
+                                                &filters[2],   &filters[3], &cell_editor};
+        const TextField                 *requested = nullptr;
+        for (TextField *field : fields)
         {
-            if (filter.takeFocusRequest())
+            if (field->takeFocusRequest())
             {
-                requested = &filter;
+                requested = field;
             }
         }
         if (requested == nullptr)
         {
             return;
         }
-        search_field.setFocused(requested == &search_field);
-        for (TextField &filter : filters)
+        for (TextField *field : fields)
         {
-            filter.setFocused(requested == &filter);
+            field->setFocused(field == requested);
+        }
+        if (edit && requested != &cell_editor)
+        {
+            commitEdit(); // another field took over
         }
     }
 
     bool LibraryView::wantsTextInput() const
     {
-        return search_field.focused() ||
+        return search_field.focused() || cell_editor.focused() ||
                std::ranges::any_of(filters, [](const TextField &filter) { return filter.focused(); });
     }
 
     void LibraryView::keyboard(const KeyboardInput &input)
     {
         resolveFocus();
+        if (edit && cell_editor.focused())
+        {
+            if (const auto *key = std::get_if<EditKey>(&input); key != nullptr && *key == EditKey::Enter)
+            {
+                commitEdit();
+                return;
+            }
+            if (const auto *key = std::get_if<EditKey>(&input); key != nullptr && *key == EditKey::Escape)
+            {
+                cancelEdit();
+                return;
+            }
+            static_cast<void>(cell_editor.input(input));
+            return;
+        }
         static_cast<void>(search_field.input(input));
         for (TextField &filter : filters)
         {
             static_cast<void>(filter.input(input));
         }
+    }
+
+    std::optional<std::size_t> LibraryView::rowOf(std::int64_t track_id) const
+    {
+        const auto &rows  = list.tracks();
+        const auto  found = std::ranges::find(rows, track_id, &core::api::LibraryTrack::id);
+        return found != rows.end() ? std::optional{static_cast<std::size_t>(found - rows.begin())} : std::nullopt;
+    }
+
+    void LibraryView::startEdit(const TrackList::Cell &cell)
+    {
+        const core::api::LibraryTrack &track = list.tracks()[cell.row];
+        const auto                     value = editableValue(track, cell.column);
+        if (!value)
+        {
+            return;
+        }
+        if (in_use && in_use(track.path))
+        {
+            edit_message = "the track is loaded in a deck, its tags are not changed while it plays";
+            return;
+        }
+        edit_message.clear();
+        edit = CellEdit{.track_id = track.id, .column = cell.column, .original = *value};
+        cell_editor.setText(*value);
+        search_field.setFocused(false);
+        for (TextField &filter : filters)
+        {
+            filter.setFocused(false);
+        }
+        cell_editor.setFocused(true);
+        placeEditor();
+    }
+
+    void LibraryView::cancelEdit()
+    {
+        edit.reset();
+        cell_editor.setFocused(false);
+        cell_editor.setBounds({});
+    }
+
+    void LibraryView::commitEdit()
+    {
+        if (!edit)
+        {
+            return;
+        }
+        const CellEdit    done  = *edit;
+        const std::string value = cell_editor.text();
+        cancelEdit();
+        if (value == done.original)
+        {
+            return;
+        }
+
+        core::api::LibraryTagChange change;
+        switch (done.column)
+        {
+            case core::api::LibraryColumn::Artist:
+                change.artist = value;
+                break;
+            case core::api::LibraryColumn::Title:
+                change.title = value;
+                break;
+            case core::api::LibraryColumn::Genre:
+                change.genre = value;
+                break;
+            case core::api::LibraryColumn::Year:
+                change.year = parseYear(value);
+                if (!change.year)
+                {
+                    edit_message = "the year must be a number of up to four digits";
+                    return;
+                }
+                break;
+            case core::api::LibraryColumn::Duration:
+                return;
+        }
+
+        // Shown at once; the library writes the file in the background and the next refresh confirms it
+        if (const auto row = rowOf(done.track_id))
+        {
+            core::api::LibraryTrack track = list.tracks()[*row];
+            track.artist                  = change.artist.value_or(track.artist);
+            track.title                   = change.title.value_or(track.title);
+            track.genre                   = change.genre.value_or(track.genre);
+            track.year                    = change.year.value_or(track.year);
+            list.replaceTrack(*row, std::move(track));
+        }
+        edit_message.clear();
+        library->updateTags(done.track_id, std::move(change));
+    }
+
+    void LibraryView::placeEditor()
+    {
+        if (!edit)
+        {
+            return;
+        }
+        const auto row  = rowOf(edit->track_id);
+        const auto area = row ? list.cellArea({*row, edit->column}) : std::nullopt;
+        if (!area)
+        {
+            commitEdit(); // scrolled away or gone from the list
+            return;
+        }
+        cell_editor.setBounds(*area);
     }
 
     void LibraryView::applySortTap()
@@ -104,6 +273,7 @@ namespace djw::player_ui::sdl
         {
             return;
         }
+        commitEdit();
         descending = *tapped == sort_by && !descending;
         sort_by    = *tapped;
         header.setSort(sort_by, descending);
@@ -126,19 +296,28 @@ namespace djw::player_ui::sdl
     void LibraryView::update()
     {
         resolveFocus();
+        if (list.takeTouched() && edit)
+        {
+            commitEdit();
+        }
+        if (const auto cell = list.takeLongPress())
+        {
+            startEdit(*cell);
+        }
         applySortTap();
-        const core::api::LibraryScanStatus status = library->scanStatus();
+        const core::api::LibraryStatus status = library->status();
 
-        const core::api::LibraryQuery query         = currentQuery();
-        const bool                    query_changed = !has_searched || query != searched;
-        const bool                    scan_ended    = was_scanning && !status.running;
-        const bool                    scan_refresh  = status.running && clock() - last_search >= refresh_interval;
-        if (query_changed || scan_ended || scan_refresh)
+        const core::api::LibraryQuery query            = currentQuery();
+        const bool                    query_changed    = !has_searched || query != searched;
+        const bool                    revision_changed = status.revision != seen_revision;
+        const bool                    scan_refresh     = status.scanning && clock() - last_search >= refresh_interval;
+        if (query_changed || revision_changed || scan_refresh)
         {
             search(query, !query_changed);
         }
-        was_scanning = status.running;
+        seen_revision = status.revision;
         updateStatus(status);
+        placeEditor();
 
         if (const auto row = list.takeActivated(); row && load)
         {
@@ -163,20 +342,26 @@ namespace djw::player_ui::sdl
         }
     }
 
-    void LibraryView::updateStatus(const core::api::LibraryScanStatus &status)
+    void LibraryView::updateStatus(const core::api::LibraryStatus &status)
     {
         status_text = std::to_string(status.tracks_total) + " tracks";
-        if (status.running)
+        if (status.scanning)
         {
             status_text += " - scanning, " + std::to_string(status.files_found) + " files";
         }
-        if (!search_error.empty())
+        if (status.pending_edits > 0)
         {
-            status_text += " - " + search_error;
+            status_text += " - saving tags";
         }
-        else if (!status.error.empty())
+        const std::array<const std::string *, 4> errors{&search_error, &edit_message, &status.edit_error,
+                                                        &status.scan_error};
+        for (const std::string *error : errors)
         {
-            status_text += " - " + status.error;
+            if (!error->empty())
+            {
+                status_text += " - " + *error;
+                break;
+            }
         }
     }
 
@@ -189,6 +374,10 @@ namespace djw::player_ui::sdl
         }
         header.draw(canvas);
         list.draw(canvas);
+        if (edit)
+        {
+            cell_editor.draw(canvas);
+        }
         canvas.textElided({status_area.x, status_area.y + ((status_area.height - canvas.textHeight()) / 2)},
                           status_text, status_color, status_area.width);
     }

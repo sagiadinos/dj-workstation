@@ -4,6 +4,7 @@
 #include "api/library.hpp"
 #include "library/library_service.hpp"
 #include "library/tag_reader.hpp"
+#include "library/tag_writer.hpp"
 #include "library/utf8_path.hpp"
 
 #include <system_error>
@@ -21,7 +22,7 @@ namespace djw::core::api
                 return std::unexpected{"cannot create " + library::toUtf8(folder) + ": " + error.message()};
             }
         }
-        auto service = library::LibraryService::open(config.database_file, &library::readTags);
+        auto service = library::LibraryService::open(config.database_file, &library::readTags, &library::writeTags);
         if (!service)
         {
             return std::unexpected{service.error()};

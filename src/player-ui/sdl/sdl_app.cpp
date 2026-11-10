@@ -85,8 +85,9 @@ namespace djw::player_ui::sdl
         if (library != nullptr)
         {
             SdlApp *owner     = app.get();
-            app->library_view = std::make_unique<LibraryView>(*library, [owner](const core::api::LibraryTrack &track)
-                                                              { owner->load(track); });
+            app->library_view = std::make_unique<LibraryView>(
+                *library, [owner](const core::api::LibraryTrack &track) { owner->load(track); },
+                [owner](const std::filesystem::path &file) { return file == owner->loaded_file; });
             auto library_window =
                 SdlWindow::create({.title = "djw - Library", .width = 720, .height = 640}, *app->library_view, font);
             if (!library_window)
@@ -108,7 +109,7 @@ namespace djw::player_ui::sdl
     {
         if (auto loaded = core->loadTrack(deck, track.path); loaded)
         {
-            deck_view.setTrackTitle(displayTitle(track));
+            setDeckTrack(track.path, displayTitle(track));
         }
         else
         {

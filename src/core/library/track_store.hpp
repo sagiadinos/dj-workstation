@@ -54,6 +54,8 @@ namespace djw::core::library
 
             std::expected<std::vector<api::LibraryTrack>, std::string> search(const api::LibraryQuery &query);
             std::expected<std::size_t, std::string>                    trackCount();
+            /// The file of a track, std::nullopt for an unknown id
+            std::expected<std::optional<std::filesystem::path>, std::string> trackPath(std::int64_t track_id);
 
             std::expected<void, std::string> beginTransaction() { return database.execute("BEGIN"); }
             std::expected<void, std::string> commitTransaction() { return database.execute("COMMIT"); }
@@ -66,6 +68,7 @@ namespace djw::core::library
                     Statement stamp;
                     Statement store;
                     Statement count;
+                    Statement path;
             };
 
             TrackStore(SqliteDatabase database, Statements statements) noexcept

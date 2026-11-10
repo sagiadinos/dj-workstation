@@ -9,6 +9,7 @@
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -63,23 +64,43 @@ namespace djw::core::api
             bool operator==(const LibraryQuery &) const = default;
     };
 
-    /// Progress of the folder scan; counts are those of the current or last scan.
-    struct LibraryScanStatus
+    /// What the library is doing and what changed; scan counts are those of the current or last scan
+    struct LibraryStatus
     {
-            bool        running     = false;
+            bool        scanning    = false;
             std::size_t files_found = 0;
             /// New or changed files whose tags were read; unchanged files are skipped
             std::size_t files_updated = 0;
             std::size_t tracks_total  = 0;
+            /// Tag changes waiting to be written
+            std::size_t pending_edits = 0;
+            /// Goes up whenever stored tracks change outside a scan (tag edits) and when a scan ends; a view
+            /// searches again when it changes
+            std::uint64_t revision = 0;
             /// Last error of the scan (e.g. a folder that cannot be read), empty if none
-            std::string error{};
+            std::string scan_error{};
+            /// Last error writing tags, empty if none
+            std::string edit_error{};
+    };
+
+    /// New tag values for a track; fields without a value stay as they are
+    struct LibraryTagChange
+    {
+            std::optional<std::string> artist{};
+            std::optional<std::string> title{};
+            std::optional<std::string> album{};
+            std::optional<std::string> genre{};
+            /// 0 removes the year
+            std::optional<int> year{};
+
+            bool operator==(const LibraryTagChange &) const = default;
     };
 
     /**
      * The music library: the folders it covers, their tracks with tags, and a search over them.
      *
-     * Scanning runs on the library's own thread; the methods return at once. search() runs on the caller's thread
-     * and sees what the scan has stored so far. All methods are called from one thread, the frontend's.
+     * Scanning and writing tags run on the library's own thread; the methods return at once. search() runs on the
+     * caller's thread and sees what the scan has stored so far. All methods are called from one thread, the frontend's.
      */
     class Library
     {
@@ -97,8 +118,16 @@ namespace djw::core::api
             /// Scans all folders of the library again; only new and changed files (mtime, size) are read.
             virtual void rescan() = 0;
 
-            [[nodiscard]] virtual std::vector<std::filesystem::path> folders() const    = 0;
-            [[nodiscard]] virtual LibraryScanStatus                  scanStatus() const = 0;
+            /**
+             * Writes new tags into the track's file (ID3v2, Vorbis comments, FLAC, ... through TagLib) and then into
+             * the database, on the library thread, also between two files of a running scan. Returns at once;
+             * LibraryStatus shows pending edits, the revision goes up when the track changed, an error goes to
+             * edit_error. Do not change the file of a track a deck is playing.
+             */
+            virtual void updateTags(std::int64_t track_id, LibraryTagChange change) = 0;
+
+            [[nodiscard]] virtual std::vector<std::filesystem::path> folders() const = 0;
+            [[nodiscard]] virtual LibraryStatus                      status() const  = 0;
 
             /**
              * The tracks matching query, sorted by its column (ties by artist and title; empty values last in either

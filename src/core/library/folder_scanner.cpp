@@ -38,24 +38,12 @@ namespace djw::core::library
                 std::string first;
         };
 
-        std::expected<FileStamp, std::string> stampOf(const std::filesystem::path &file)
-        {
-            std::error_code error;
-            const auto      modified = std::filesystem::last_write_time(file, error);
-            const auto      size     = error ? 0 : std::filesystem::file_size(file, error);
-            if (error)
-            {
-                return std::unexpected{"cannot read " + toUtf8(file) + ": " + error.message()};
-            }
-            return FileStamp{.modified = static_cast<std::int64_t>(modified.time_since_epoch().count()), .size = size};
-        }
-
         /// Stores one file if it is new or changed
         std::expected<void, std::string> scanFile(const std::filesystem::path &file, TrackStore &store,
                                                   const TagReader &read_tags, ScanCounters &counters)
         {
             counters.files_found.fetch_add(1, std::memory_order_relaxed);
-            const auto current = stampOf(file);
+            const auto current = fileStamp(file);
             if (!current)
             {
                 return std::unexpected{current.error()};
@@ -115,6 +103,18 @@ namespace djw::core::library
         };
     } // namespace
 
+    std::expected<FileStamp, std::string> fileStamp(const std::filesystem::path &file)
+    {
+        std::error_code error;
+        const auto      modified = std::filesystem::last_write_time(file, error);
+        const auto      size     = error ? 0 : std::filesystem::file_size(file, error);
+        if (error)
+        {
+            return std::unexpected{"cannot read " + toUtf8(file) + ": " + error.message()};
+        }
+        return FileStamp{.modified = static_cast<std::int64_t>(modified.time_since_epoch().count()), .size = size};
+    }
+
     bool isAudioFile(const std::filesystem::path &file)
     {
         std::string extension = toUtf8(file.extension());
@@ -124,7 +124,8 @@ namespace djw::core::library
     }
 
     std::string scanFolders(const std::vector<std::filesystem::path> &folders, TrackStore &store,
-                            const TagReader &read_tags, ScanCounters &counters, const std::atomic<bool> &stop)
+                            const TagReader &read_tags, ScanCounters &counters, const std::atomic<bool> &stop,
+                            const BetweenFiles &between_files)
     {
         ErrorLog errors;
         Batch    batch{store};
@@ -165,6 +166,10 @@ namespace djw::core::library
                 if (auto scanned = scanFile(entry->path(), store, read_tags, counters); !scanned)
                 {
                     errors.add(scanned.error());
+                }
+                if (between_files)
+                {
+                    between_files();
                 }
             }
         }

@@ -34,7 +34,11 @@ namespace djw::player_ui::sdl
             void run();
 
             /// What the deck shows as its track, for a track loaded from outside the library
-            void setDeckTitle(std::string title) { deck_view.setTrackTitle(std::move(title)); }
+            void setDeckTrack(std::filesystem::path file, std::string title)
+            {
+                loaded_file = std::move(file);
+                deck_view.setTrackTitle(std::move(title));
+            }
 
         private:
             /// SDL_Init and TTF_Init, undone in reverse
@@ -56,10 +60,12 @@ namespace djw::player_ui::sdl
             void load(const core::api::LibraryTrack &track);
             void processEvents(bool &running);
 
-            SdlLibraries                            libraries;
-            core::api::Core                        *core;
-            core::api::DeckId                       deck;
-            DeckView                                deck_view;
+            SdlLibraries      libraries;
+            core::api::Core  *core;
+            core::api::DeckId deck;
+            DeckView          deck_view;
+            /// The file loaded into the deck; its tags are not changed while it is loaded
+            std::filesystem::path                   loaded_file;
             std::unique_ptr<LibraryView>            library_view;
             std::vector<std::unique_ptr<SdlWindow>> windows;
     };

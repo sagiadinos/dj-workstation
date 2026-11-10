@@ -65,11 +65,65 @@ namespace djw::player_ui::sdl
         return row < rows.size() ? std::optional{row} : std::nullopt;
     }
 
+    std::optional<TrackList::Cell> TrackList::cellAt(Point position) const noexcept
+    {
+        const auto row = rowAt(position);
+        if (!row)
+        {
+            return std::nullopt;
+        }
+        for (const core::api::LibraryColumn column : track_columns)
+        {
+            if (columnArea(bounds(), column).contains(position))
+            {
+                return Cell{*row, column};
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::optional<TrackList::Cell> TrackList::takeLongPress()
+    {
+        if (!held || dragging || long_pressed || clock() - down_time < long_press_time)
+        {
+            return std::nullopt;
+        }
+        long_pressed    = true;
+        const auto cell = cellAt(start);
+        if (cell)
+        {
+            selection = cell->row;
+        }
+        return cell;
+    }
+
+    void TrackList::replaceTrack(std::size_t row, core::api::LibraryTrack track)
+    {
+        if (row < rows.size())
+        {
+            rows[row] = std::move(track);
+        }
+    }
+
+    std::optional<Rect> TrackList::cellArea(const Cell &cell) const
+    {
+        const float y = bounds().y + (static_cast<float>(cell.row) * row_height) - offset;
+        if (cell.row >= rows.size() || y < bounds().y || y + row_height > bounds().y + bounds().height)
+        {
+            return std::nullopt;
+        }
+        return columnArea({bounds().x, y, bounds().width, row_height}, cell.column);
+    }
+
     void TrackList::pointerDown(Point position)
     {
         start        = position;
+        down_time    = clock();
         start_offset = offset;
+        held         = true;
         dragging     = false;
+        long_pressed = false;
+        touched      = true;
     }
 
     void TrackList::pointerMove(Point position)
@@ -86,10 +140,11 @@ namespace djw::player_ui::sdl
 
     void TrackList::pointerUp(Point position)
     {
-        if (!dragging)
+        if (!dragging && !long_pressed)
         {
             tap(position);
         }
+        held     = false;
         dragging = false;
     }
 

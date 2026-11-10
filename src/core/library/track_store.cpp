@@ -262,8 +262,9 @@ namespace djw::core::library
                 title_key = excluded.title_key, genre_key = excluded.genre_key, any_key = excluded.any_key
         )sql");
         auto count      = database.prepare("SELECT count(*) FROM tracks");
+        auto path       = database.prepare("SELECT path FROM tracks WHERE id = ?");
 
-        for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count})
+        for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count, &path})
         {
             if (!*statement)
             {
@@ -276,6 +277,7 @@ namespace djw::core::library
             .stamp      = std::move(*stamp),
             .store      = std::move(*store),
             .count      = std::move(*count),
+            .path       = std::move(*path),
         };
     }
 
@@ -360,5 +362,20 @@ namespace djw::core::library
         }
         query.reset();
         return result;
+    }
+
+    std::expected<std::optional<std::filesystem::path>, std::string> TrackStore::trackPath(std::int64_t track_id)
+    {
+        auto paths =
+            collectRows(statements.path.bind(1, track_id), [](const Statement &row) { return fromUtf8(row.text(0)); });
+        if (!paths)
+        {
+            return std::unexpected{paths.error()};
+        }
+        if (paths->empty())
+        {
+            return std::nullopt;
+        }
+        return std::move(paths->front());
     }
 } // namespace djw::core::library
