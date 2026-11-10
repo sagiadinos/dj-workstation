@@ -3,6 +3,7 @@
 
 #include "fader.hpp"
 #include "play_button.hpp"
+#include "text_button.hpp"
 #include "time_format.hpp"
 
 #include <doctest/doctest.h>
@@ -81,4 +82,22 @@ TEST_CASE("formatPosition: minutes, seconds and tenths, truncated")
     CHECK(formatPosition(60.0) == "1:00.0");
     CHECK(formatPosition(187.4) == "3:07.4");
     CHECK(formatPosition(-1.0) == "0:00.0");
+}
+
+TEST_CASE("TextButton: a press needs down and up on the button, once")
+{
+    TextButton button{"Go"};
+    button.setBounds({0, 0, 100, 40});
+
+    button.pointerDown({10, 10});
+    button.pointerUp({20, 20});
+    CHECK(button.takePress());
+    CHECK_FALSE(button.takePress());
+
+    button.pointerDown({10, 10});
+    button.pointerUp({200, 20}); // slid off
+    CHECK_FALSE(button.takePress());
+
+    button.pointerUp({20, 20}); // up without down
+    CHECK_FALSE(button.takePress());
 }

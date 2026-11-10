@@ -25,6 +25,8 @@ namespace
             std::vector<std::filesystem::path> folders() const override { return {}; }
             api::LibraryStatus                 status() const override { return library_status; }
 
+            void removeMissing() override { ++removals; }
+
             void updateTags(std::int64_t track_id, api::LibraryTagChange change) override
             {
                 edits.emplace_back(track_id, std::move(change));
@@ -57,6 +59,7 @@ namespace
             };
             api::LibraryStatus                                          library_status;
             std::vector<std::pair<std::int64_t, api::LibraryTagChange>> edits;
+            int                                                         removals = 0;
             bool                                                        fail     = false;
             mutable int                                                 searches = 0;
             mutable api::LibraryQuery                                   last_query;
@@ -408,4 +411,74 @@ TEST_CASE("LibraryView: pending tag edits and their errors show in the status li
     fixture.library.library_status = {.tracks_total = 2, .edit_error = "cannot write tags of /m/a.mp3"};
     fixture.view.update();
     CHECK(fixture.view.statusText() == "2 tracks - cannot write tags of /m/a.mp3");
+}
+
+namespace
+{
+    void tapButton(Fixture &fixture, const TextButton &button)
+    {
+        const Rect &area = button.bounds();
+        REQUIRE(area.width > 0);
+        fixture.tap({area.x + (area.width / 2), area.y + (area.height / 2)});
+        fixture.view.update();
+    }
+} // namespace
+
+TEST_CASE("LibraryView: the missing button shows only when tracks are missing and filters on them")
+{
+    Fixture fixture;
+    CHECK(fixture.view.missingButton().bounds().width == 0.0F);
+    CHECK(fixture.view.removeButton().bounds().width == 0.0F);
+
+    fixture.library.library_status.missing_total = 3;
+    fixture.view.update();
+    CHECK(fixture.view.missingButton().label() == "Missing: 3");
+    CHECK(fixture.view.removeButton().bounds().width == 0.0F);
+
+    tapButton(fixture, fixture.view.missingButton());
+    CHECK(fixture.library.last_query.only_missing);
+    CHECK(fixture.view.missingButton().isHighlighted());
+    CHECK(fixture.view.removeButton().bounds().width > 0.0F);
+
+    tapButton(fixture, fixture.view.missingButton());
+    CHECK_FALSE(fixture.library.last_query.only_missing);
+}
+
+TEST_CASE("LibraryView: removing missing tracks needs a second tap in time")
+{
+    Fixture fixture;
+    fixture.library.library_status.missing_total = 2;
+    fixture.view.update();
+    tapButton(fixture, fixture.view.missingButton());
+
+    tapButton(fixture, fixture.view.removeButton());
+    CHECK(fixture.library.removals == 0);
+    CHECK(fixture.view.removeButton().label() == "Tap again to remove 2");
+
+    fixture.now += LibraryView::confirm_time + 1ms;
+    fixture.view.update();
+    CHECK(fixture.view.removeButton().label() == "Remove missing");
+    tapButton(fixture, fixture.view.removeButton());
+    CHECK(fixture.library.removals == 0);
+
+    fixture.now += 1s;
+    tapButton(fixture, fixture.view.removeButton());
+    CHECK(fixture.library.removals == 1);
+    CHECK_FALSE(fixture.library.last_query.only_missing);
+}
+
+TEST_CASE("LibraryView: with no missing tracks left the filter turns off")
+{
+    Fixture fixture;
+    fixture.library.library_status.missing_total = 1;
+    fixture.view.update();
+    tapButton(fixture, fixture.view.missingButton());
+    REQUIRE(fixture.library.last_query.only_missing);
+
+    fixture.library.library_status.missing_total = 0;
+    fixture.view.update();
+    fixture.view.update();
+
+    CHECK_FALSE(fixture.library.last_query.only_missing);
+    CHECK(fixture.view.missingButton().bounds().width == 0.0F);
 }

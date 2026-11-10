@@ -21,6 +21,7 @@ namespace djw::player_ui::sdl
         constexpr Color selected_row_color{40, 75, 120};
         constexpr Color text_color{230, 230, 230};
         constexpr Color secondary_text_color{160, 160, 160};
+        constexpr Color missing_text_color{205, 105, 105}; // the file is gone: dead link
 
     } // namespace
 
@@ -196,12 +197,14 @@ namespace djw::player_ui::sdl
                 const Rect &cell_area = cells[columnIndex(column)];
                 canvas.textElided({cell_area.x + padding, text_y}, text, color, cell_area.width - (2 * padding));
             };
-            cell(core::api::LibraryColumn::Artist, track.artist, text_color);
-            cell(core::api::LibraryColumn::Title, track.title, text_color);
-            cell(core::api::LibraryColumn::Genre, track.genre, secondary_text_color);
+            const Color primary   = track.missing ? missing_text_color : text_color;
+            const Color secondary = track.missing ? missing_text_color : secondary_text_color;
+            cell(core::api::LibraryColumn::Artist, track.artist, primary);
+            cell(core::api::LibraryColumn::Title, track.title, primary);
+            cell(core::api::LibraryColumn::Genre, track.genre, secondary);
             cell(core::api::LibraryColumn::Year, track.year != 0 ? std::to_string(track.year) : std::string{},
-                 secondary_text_color);
-            cell(core::api::LibraryColumn::Duration, formatDuration(track.duration_seconds), secondary_text_color);
+                 secondary);
+            cell(core::api::LibraryColumn::Duration, formatDuration(track.duration_seconds), secondary);
         }
         canvas.setClip(std::nullopt);
     }

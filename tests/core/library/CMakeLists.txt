@@ -10,6 +10,7 @@ add_executable(djw_core_library_tests
     test_tag_writer.cpp
     test_track_store.cpp
     test_folder_scanner.cpp
+    test_missing_files.cpp
     test_library_service.cpp
 )
 djw_set_options(djw_core_library_tests TEST)

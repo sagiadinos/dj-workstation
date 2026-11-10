@@ -40,6 +40,7 @@ add_library(djw_player_sdl_ui STATIC
     time_format.cpp
     deck_view.cpp
     text_field.cpp
+    text_button.cpp
     track_columns.cpp
     column_header.cpp
     track_list.cpp

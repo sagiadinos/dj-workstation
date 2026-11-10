@@ -37,6 +37,8 @@ add_library(djw_core_library STATIC
     search_query.cpp
     track_store.cpp
     folder_scanner.cpp
+    missing_files.cpp
+    missing_files.cpp
     library_service.cpp
     open_library.cpp
 )

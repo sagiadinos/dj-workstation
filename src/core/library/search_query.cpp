@@ -152,6 +152,10 @@ namespace djw::core::library
         {
             add("t.genre_key GLOB ?", globPattern(query.genre));
         }
+        if (query.only_missing)
+        {
+            conditions.emplace_back("t.missing = 1");
+        }
         if (!query.year.empty())
         {
             add("t.year != 0 AND CAST(t.year AS TEXT) GLOB ?", globPattern(query.year));

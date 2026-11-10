@@ -270,3 +270,36 @@ TEST_CASE("Library: tag edits are written during a scan, not after it")
     CHECK(status.files_found < 200);
     CHECK(waitForScan(*library).tracks_total == 201);
 }
+
+TEST_CASE("Library: a scan marks deleted files as missing, removeMissing takes them out")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::filesystem::copy_file(audio_dir / "tagged_id3v2.mp3", music.path() / "kept.mp3");
+    std::filesystem::copy_file(audio_dir / "tagged_vorbis.flac", music.path() / "deleted.flac");
+    auto library = openLibrary(data.path() / "library.db");
+    REQUIRE(library->addFolder(music.path()).has_value());
+    REQUIRE(waitForScan(*library).missing_total == 0);
+
+    std::filesystem::remove(music.path() / "deleted.flac");
+    library->rescan();
+    const api::LibraryStatus scanned = waitForScan(*library);
+
+    CHECK(scanned.missing_total == 1);
+    CHECK(scanned.tracks_total == 2);
+    const auto missing = library->search({.only_missing = true}).value();
+    REQUIRE(missing.size() == 1);
+    CHECK(missing.front().title == "Ünïcode Title");
+
+    library->removeMissing();
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+    while (library->status().revision == scanned.revision && std::chrono::steady_clock::now() < deadline)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{2});
+    }
+    const api::LibraryStatus removed = library->status();
+
+    CHECK(removed.missing_total == 0);
+    CHECK(removed.tracks_total == 1);
+    CHECK(library->search({}).value().front().title == "Tagged Title");
+}

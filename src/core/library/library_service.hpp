@@ -25,7 +25,7 @@ namespace djw::core::library
      * Two connections to the database: one for the caller's thread (search, folders) and one for the library thread,
      * which scans and writes tag edits. WAL mode lets the search read while the library thread writes. Scan requests
      * that come in during a scan are merged into one more scan afterwards; tag edits are written in order, during a
-     * scan between two of its files.
+     * scan between two of its files. Every scan ends with the dead link check.
      */
     class LibraryService final : public api::Library
     {
@@ -44,6 +44,7 @@ namespace djw::core::library
             std::expected<void, std::string> addFolder(const std::filesystem::path &folder) override;
             void                             rescan() override;
             void                             updateTags(std::int64_t track_id, api::LibraryTagChange change) override;
+            void                             removeMissing() override;
             [[nodiscard]] std::vector<std::filesystem::path> folders() const override;
             [[nodiscard]] api::LibraryStatus                 status() const override;
             [[nodiscard]] std::expected<std::vector<api::LibraryTrack>, std::string>
@@ -61,7 +62,10 @@ namespace djw::core::library
             void run();  // library thread
             void scan(); // library thread
             /// Writes all queued edits; returns at once if there are none
-            void writePendingEdits(); // library thread
+            void writePendingEdits();   // library thread
+            void removeMissingTracks(); // library thread
+            /// Track counts after a change, under the mutex
+            void updateCounts(); // library thread
             /// During a scan, between two files: commits the scan's batch, writes the edits, opens a new batch
             void                             writeEditsDuringScan();     // library thread
             std::expected<void, std::string> write(const TagEdit &edit); // library thread
@@ -79,9 +83,11 @@ namespace djw::core::library
             mutable std::mutex      mutex;
             std::condition_variable wake;
             // Guarded by mutex
-            bool                scan_requested = false;
-            bool                scanning       = false;
-            std::size_t         tracks_total   = 0;
+            bool                scan_requested   = false;
+            bool                scanning         = false;
+            bool                remove_requested = false;
+            std::size_t         tracks_total     = 0;
+            std::size_t         missing_total    = 0;
             std::deque<TagEdit> edits;
             std::size_t         edits_writing = 0;
             std::uint64_t       revision      = 0;

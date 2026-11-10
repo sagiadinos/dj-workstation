@@ -29,6 +29,14 @@ namespace djw::core::library
             bool operator==(const FileStamp &) const = default;
     };
 
+    /// A track's file as the dead link check sees it
+    struct StoredFile
+    {
+            std::int64_t          track_id = 0;
+            std::filesystem::path path;
+            bool                  missing = false;
+    };
+
     /**
      * The library tables on one database connection: folders, tracks and the full text index over the tracks.
      *
@@ -39,7 +47,7 @@ namespace djw::core::library
     {
         public:
             /// Database schema version, stored as PRAGMA user_version
-            static constexpr std::int64_t schema_version = 2;
+            static constexpr std::int64_t schema_version = 3;
 
             static std::expected<TrackStore, std::string> open(const std::filesystem::path &database_file);
 
@@ -54,6 +62,12 @@ namespace djw::core::library
 
             std::expected<std::vector<api::LibraryTrack>, std::string> search(const api::LibraryQuery &query);
             std::expected<std::size_t, std::string>                    trackCount();
+            std::expected<std::size_t, std::string>                    missingCount();
+            std::expected<std::vector<StoredFile>, std::string>        files();
+            std::expected<void, std::string>                           setMissing(std::int64_t track_id, bool missing);
+            /// Deletes all tracks marked missing
+            std::expected<void, std::string> removeMissing();
+
             /// The file of a track, std::nullopt for an unknown id
             std::expected<std::optional<std::filesystem::path>, std::string> trackPath(std::int64_t track_id);
 
@@ -69,6 +83,10 @@ namespace djw::core::library
                     Statement store;
                     Statement count;
                     Statement path;
+                    Statement files;
+                    Statement set_missing;
+                    Statement missing_count;
+                    Statement remove_missing;
             };
 
             TrackStore(SqliteDatabase database, Statements statements) noexcept
@@ -77,6 +95,7 @@ namespace djw::core::library
             }
 
             static std::expected<void, std::string>       createSchema(SqliteDatabase &database);
+            static std::expected<void, std::string>       migrate(SqliteDatabase &database, std::int64_t from_version);
             static std::expected<void, std::string>       migrateToVersion2(SqliteDatabase &database);
             static std::expected<Statements, std::string> prepareStatements(SqliteDatabase &database);
 

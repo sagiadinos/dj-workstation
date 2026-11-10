@@ -26,6 +26,8 @@ namespace djw::core::api
             std::string           genre{};
             int                   year             = 0;
             double                duration_seconds = 0.0;
+            /// The file was not found at the last check (dead link)
+            bool missing = false;
     };
 
     /// Columns the track list can be sorted by
@@ -55,6 +57,8 @@ namespace djw::core::api
             std::string title{};
             std::string genre{};
             std::string year{};
+            /// Only tracks whose file is missing
+            bool only_missing = false;
 
             LibraryColumn sort_by    = LibraryColumn::Artist;
             bool          descending = false;
@@ -72,9 +76,11 @@ namespace djw::core::api
             /// New or changed files whose tags were read; unchanged files are skipped
             std::size_t files_updated = 0;
             std::size_t tracks_total  = 0;
+            /// Tracks whose file was not found at the last check
+            std::size_t missing_total = 0;
             /// Tag changes waiting to be written
             std::size_t pending_edits = 0;
-            /// Goes up whenever stored tracks change outside a scan (tag edits) and when a scan ends; a view
+            /// Goes up whenever stored tracks change outside a scan (tag edits, removals) and when a scan ends; a view
             /// searches again when it changes
             std::uint64_t revision = 0;
             /// Last error of the scan (e.g. a folder that cannot be read), empty if none
@@ -125,6 +131,13 @@ namespace djw::core::api
              * edit_error. Do not change the file of a track a deck is playing.
              */
             virtual void updateTags(std::int64_t track_id, LibraryTagChange change) = 0;
+
+            /**
+             * Removes the tracks whose file is missing from the library (not from the disk, they are gone already), on
+             * the library thread. Whether a file is missing is checked at the end of every scan; a file that comes
+             * back (e.g. a drive mounted again) loses its mark there.
+             */
+            virtual void removeMissing() = 0;
 
             [[nodiscard]] virtual std::vector<std::filesystem::path> folders() const = 0;
             [[nodiscard]] virtual LibraryStatus                      status() const  = 0;

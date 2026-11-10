@@ -17,7 +17,7 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * Scrollable list of tracks with the columns of track_columns.
+     * Scrollable list of tracks with the columns of track_columns; tracks whose file is missing show in red.
      *
      * Dragging scrolls (touch and mouse alike); a tap selects a row, a second tap on the same row within
      * double_tap_time activates it, e.g. to load it into a deck. Holding a cell still for long_press_time presses it

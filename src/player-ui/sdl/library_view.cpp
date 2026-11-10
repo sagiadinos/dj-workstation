@@ -20,6 +20,9 @@ namespace djw::player_ui::sdl
 
         constexpr Color status_color{160, 160, 160};
 
+        constexpr float missing_button_width = 150.0F;
+        constexpr float remove_button_width  = 220.0F;
+
         /// The value of a column as text, as the editor shows it; std::nullopt for columns that cannot be edited
         std::optional<std::string> editableValue(const core::api::LibraryTrack &track, core::api::LibraryColumn column)
         {
@@ -99,6 +102,8 @@ namespace djw::player_ui::sdl
         }
         router.add(header);
         router.add(list);
+        router.add(missing_button);
+        router.add(remove_button);
         router.add(cell_editor); // on top of the list; without an edit it has no area and catches nothing
     }
 
@@ -282,14 +287,15 @@ namespace djw::player_ui::sdl
     core::api::LibraryQuery LibraryView::currentQuery() const
     {
         return {
-            .text       = search_field.text(),
-            .artist     = filters[0].text(),
-            .title      = filters[1].text(),
-            .genre      = filters[2].text(),
-            .year       = filters[3].text(),
-            .sort_by    = sort_by,
-            .descending = descending,
-            .limit      = result_limit,
+            .text         = search_field.text(),
+            .artist       = filters[0].text(),
+            .title        = filters[1].text(),
+            .genre        = filters[2].text(),
+            .year         = filters[3].text(),
+            .only_missing = only_missing,
+            .sort_by      = sort_by,
+            .descending   = descending,
+            .limit        = result_limit,
         };
     }
 
@@ -306,6 +312,7 @@ namespace djw::player_ui::sdl
         }
         applySortTap();
         const core::api::LibraryStatus status = library->status();
+        updateMissingButtons(status);
 
         const core::api::LibraryQuery query            = currentQuery();
         const bool                    query_changed    = !has_searched || query != searched;
@@ -323,6 +330,51 @@ namespace djw::player_ui::sdl
         {
             load(list.tracks()[*row]);
         }
+    }
+
+    void LibraryView::updateMissingButtons(const core::api::LibraryStatus &status)
+    {
+        if (missing_button.takePress())
+        {
+            only_missing = !only_missing;
+            confirm_remove_until.reset();
+        }
+        if (remove_button.takePress())
+        {
+            if (confirm_remove_until && clock() <= *confirm_remove_until)
+            {
+                library->removeMissing();
+                confirm_remove_until.reset();
+                only_missing = false;
+            }
+            else
+            {
+                confirm_remove_until = clock() + confirm_time;
+            }
+        }
+        if (confirm_remove_until && clock() > *confirm_remove_until)
+        {
+            confirm_remove_until.reset();
+        }
+        if (status.missing_total == 0)
+        {
+            only_missing = false; // nothing left to show there
+            confirm_remove_until.reset();
+        }
+
+        // Right-aligned in the status line, the remove button left of the missing button
+        const bool show_missing = status.missing_total > 0;
+        const bool show_remove  = show_missing && only_missing;
+        const Rect missing_area{status_area.x + status_area.width - missing_button_width, status_area.y,
+                                missing_button_width, status_area.height};
+        missing_button.setBounds(show_missing ? missing_area : Rect{});
+        missing_button.setLabel("Missing: " + std::to_string(status.missing_total));
+        missing_button.setHighlighted(only_missing);
+        remove_button.setBounds(show_remove ? Rect{missing_area.x - remove_button_width - gap, status_area.y,
+                                                   remove_button_width, status_area.height}
+                                            : Rect{});
+        remove_button.setLabel(confirm_remove_until ? "Tap again to remove " + std::to_string(status.missing_total)
+                                                    : std::string{"Remove missing"});
     }
 
     void LibraryView::search(const core::api::LibraryQuery &query, bool keep_position)
@@ -378,8 +430,14 @@ namespace djw::player_ui::sdl
         {
             cell_editor.draw(canvas);
         }
+        // The status text leaves room for the buttons right of it
+        const float buttons_left = remove_button.bounds().width > 0.0F    ? remove_button.bounds().x
+                                   : missing_button.bounds().width > 0.0F ? missing_button.bounds().x
+                                                                          : status_area.x + status_area.width;
         canvas.textElided({status_area.x, status_area.y + ((status_area.height - canvas.textHeight()) / 2)},
-                          status_text, status_color, status_area.width);
+                          status_text, status_color, std::max(0.0F, buttons_left - gap - status_area.x));
+        missing_button.draw(canvas);
+        remove_button.draw(canvas);
     }
 
     void LibraryView::wheel(Point position, float dy)

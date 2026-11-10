@@ -35,7 +35,9 @@ namespace djw::core::library
                 title_key  TEXT NOT NULL,
                 genre_key  TEXT NOT NULL,
                 -- artist, title, album, genre and file name, one per line, for wildcard words of the search text
-                any_key    TEXT NOT NULL
+                any_key    TEXT NOT NULL,
+                -- 1 when the file was not found at the last check (dead link)
+                missing    INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX tracks_by_artist_title ON tracks (artist_key, title_key);
 
@@ -70,8 +72,12 @@ namespace djw::core::library
             CREATE INDEX tracks_by_artist_title ON tracks (artist_key, title_key);
         )sql";
 
+        // Version 2 had no missing flag
+        constexpr std::string_view migration_to_3 =
+            "ALTER TABLE tracks ADD COLUMN missing INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 3;";
+
         constexpr std::string_view track_columns =
-            "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, t.duration";
+            "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, t.duration, t.missing";
 
         constexpr std::string_view update_keys =
             "UPDATE tracks SET artist_key = ?, title_key = ?, genre_key = ?, any_key = ? WHERE id = ?";
@@ -106,6 +112,7 @@ namespace djw::core::library
                 .genre            = row.text(5),
                 .year             = static_cast<int>(row.integer(6)),
                 .duration_seconds = row.real(7),
+                .missing          = row.integer(8) != 0,
             };
         }
 
@@ -130,6 +137,18 @@ namespace djw::core::library
                 }
                 rows.push_back(read(query));
             }
+        }
+
+        /// The single number a count(*) query returns
+        std::expected<std::size_t, std::string> countOf(Statement &query)
+        {
+            const auto counts =
+                collectRows(query, [](const Statement &row) { return static_cast<std::size_t>(row.integer(0)); });
+            if (!counts)
+            {
+                return std::unexpected{counts.error()};
+            }
+            return counts->empty() ? 0 : counts->front();
         }
 
         std::expected<std::int64_t, std::string> userVersion(SqliteDatabase &database)
@@ -184,9 +203,9 @@ namespace djw::core::library
         {
             result = database.execute(std::string{schema} + "PRAGMA user_version = " + std::to_string(schema_version));
         }
-        else if (*version == 1)
+        else if (*version < schema_version)
         {
-            result = migrateToVersion2(database);
+            result = migrate(database, *version);
         }
         else if (*version != schema_version)
         {
@@ -202,6 +221,18 @@ namespace djw::core::library
             return result;
         }
         return database.execute("COMMIT");
+    }
+
+    std::expected<void, std::string> TrackStore::migrate(SqliteDatabase &database, std::int64_t from_version)
+    {
+        if (from_version < 2)
+        {
+            if (auto migrated = migrateToVersion2(database); !migrated)
+            {
+                return migrated;
+            }
+        }
+        return database.execute(migration_to_3);
     }
 
     std::expected<void, std::string> TrackStore::migrateToVersion2(SqliteDatabase &database)
@@ -248,10 +279,10 @@ namespace djw::core::library
 
     std::expected<TrackStore::Statements, std::string> TrackStore::prepareStatements(SqliteDatabase &database)
     {
-        auto add_folder = database.prepare("INSERT OR IGNORE INTO folders (path) VALUES (?)");
-        auto folders    = database.prepare("SELECT path FROM folders ORDER BY path");
-        auto stamp      = database.prepare("SELECT modified, size FROM tracks WHERE path = ?");
-        auto store      = database.prepare(R"sql(
+        auto add_folder     = database.prepare("INSERT OR IGNORE INTO folders (path) VALUES (?)");
+        auto folders        = database.prepare("SELECT path FROM folders ORDER BY path");
+        auto stamp          = database.prepare("SELECT modified, size FROM tracks WHERE path = ?");
+        auto store          = database.prepare(R"sql(
             INSERT INTO tracks (path, file_name, modified, size, artist, title, album, genre, year, duration,
                                 artist_key, title_key, genre_key, any_key)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -261,10 +292,15 @@ namespace djw::core::library
                 year = excluded.year, duration = excluded.duration, artist_key = excluded.artist_key,
                 title_key = excluded.title_key, genre_key = excluded.genre_key, any_key = excluded.any_key
         )sql");
-        auto count      = database.prepare("SELECT count(*) FROM tracks");
-        auto path       = database.prepare("SELECT path FROM tracks WHERE id = ?");
+        auto count          = database.prepare("SELECT count(*) FROM tracks");
+        auto path           = database.prepare("SELECT path FROM tracks WHERE id = ?");
+        auto files          = database.prepare("SELECT id, path, missing FROM tracks");
+        auto set_missing    = database.prepare("UPDATE tracks SET missing = ? WHERE id = ?");
+        auto missing_count  = database.prepare("SELECT count(*) FROM tracks WHERE missing = 1");
+        auto remove_missing = database.prepare("DELETE FROM tracks WHERE missing = 1");
 
-        for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count, &path})
+        for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count, &path, &files, &set_missing,
+                                      &missing_count, &remove_missing})
         {
             if (!*statement)
             {
@@ -272,12 +308,16 @@ namespace djw::core::library
             }
         }
         return Statements{
-            .add_folder = std::move(*add_folder),
-            .folders    = std::move(*folders),
-            .stamp      = std::move(*stamp),
-            .store      = std::move(*store),
-            .count      = std::move(*count),
-            .path       = std::move(*path),
+            .add_folder     = std::move(*add_folder),
+            .folders        = std::move(*folders),
+            .stamp          = std::move(*stamp),
+            .store          = std::move(*store),
+            .count          = std::move(*count),
+            .path           = std::move(*path),
+            .files          = std::move(*files),
+            .set_missing    = std::move(*set_missing),
+            .missing_count  = std::move(*missing_count),
+            .remove_missing = std::move(*remove_missing),
         };
     }
 
@@ -349,19 +389,28 @@ namespace djw::core::library
 
     std::expected<std::size_t, std::string> TrackStore::trackCount()
     {
-        Statement                              &query  = statements.count;
-        const auto                              row    = query.step();
-        std::expected<std::size_t, std::string> result = std::size_t{0};
-        if (!row)
-        {
-            result = std::unexpected{row.error()};
-        }
-        else if (*row)
-        {
-            result = static_cast<std::size_t>(query.integer(0));
-        }
-        query.reset();
-        return result;
+        return countOf(statements.count);
+    }
+
+    std::expected<std::size_t, std::string> TrackStore::missingCount()
+    {
+        return countOf(statements.missing_count);
+    }
+
+    std::expected<std::vector<StoredFile>, std::string> TrackStore::files()
+    {
+        return collectRows(statements.files, [](const Statement &row)
+                           { return StoredFile{row.integer(0), fromUtf8(row.text(1)), row.integer(2) != 0}; });
+    }
+
+    std::expected<void, std::string> TrackStore::setMissing(std::int64_t track_id, bool missing)
+    {
+        return statements.set_missing.bind(1, std::int64_t{missing ? 1 : 0}).bind(2, track_id).run();
+    }
+
+    std::expected<void, std::string> TrackStore::removeMissing()
+    {
+        return statements.remove_missing.run();
     }
 
     std::expected<std::optional<std::filesystem::path>, std::string> TrackStore::trackPath(std::int64_t track_id)

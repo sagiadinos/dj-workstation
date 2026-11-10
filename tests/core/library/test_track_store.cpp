@@ -271,6 +271,7 @@ TEST_CASE("TrackStore: a version 1 database is migrated, its tracks get their ke
                 ->execute("DROP INDEX tracks_by_artist_title;"
                           "ALTER TABLE tracks DROP COLUMN artist_key; ALTER TABLE tracks DROP COLUMN title_key;"
                           "ALTER TABLE tracks DROP COLUMN genre_key; ALTER TABLE tracks DROP COLUMN any_key;"
+                          "ALTER TABLE tracks DROP COLUMN missing;"
                           "CREATE INDEX tracks_by_artist_title ON tracks (artist COLLATE NOCASE, title COLLATE NOCASE);"
                           "PRAGMA user_version = 1")
                 .has_value());
@@ -283,4 +284,23 @@ TEST_CASE("TrackStore: a version 1 database is migrated, its tracks get their ke
     CHECK(fixture.titles({.artist = "arzte"}) == std::vector<std::string>{"Westerland"});
     CHECK(fixture.titles("so?e") == std::vector<std::string>{"Westerland"});
     CHECK(fixture.titles({.genre = "punk"}) == std::vector<std::string>{"Westerland"});
+}
+
+TEST_CASE("TrackStore: a version 2 database gets the missing flag, all tracks start as present")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "Kept"});
+    {
+        auto database = djw::core::library::SqliteDatabase::open(fixture.database());
+        REQUIRE(database.has_value());
+        REQUIRE(database->execute("ALTER TABLE tracks DROP COLUMN missing; PRAGMA user_version = 2").has_value());
+    }
+
+    auto migrated = TrackStore::open(fixture.database());
+    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
+    fixture.store = std::move(*migrated);
+
+    CHECK(fixture.titles("kept") == std::vector<std::string>{"Kept"});
+    CHECK(fixture.store.missingCount().value() == 0);
+    CHECK(fixture.titles({.only_missing = true}).empty());
 }

@@ -3,6 +3,7 @@
 
 #include "library/library_service.hpp"
 
+#include "library/missing_files.hpp"
 #include "library/utf8_path.hpp"
 
 #include <system_error>
@@ -31,9 +32,9 @@ namespace djw::core::library
         : reader{std::move(reader)}, writer{std::move(writer)}, read_tags{std::move(read_tags)},
           write_tags{std::move(write_tags)}
     {
-        const auto count = this->reader.trackCount();
-        tracks_total     = count.value_or(0);
-        thread           = std::thread{[this] { run(); }};
+        tracks_total  = this->reader.trackCount().value_or(0);
+        missing_total = this->reader.missingCount().value_or(0);
+        thread        = std::thread{[this] { run(); }};
     }
 
     LibraryService::~LibraryService()
@@ -82,6 +83,15 @@ namespace djw::core::library
         wake.notify_all();
     }
 
+    void LibraryService::removeMissing()
+    {
+        {
+            const std::scoped_lock lock{mutex};
+            remove_requested = true;
+        }
+        wake.notify_all();
+    }
+
     std::vector<std::filesystem::path> LibraryService::folders() const
     {
         return reader.folders().value_or(std::vector<std::filesystem::path>{});
@@ -95,6 +105,7 @@ namespace djw::core::library
             .files_found   = counters.files_found.load(std::memory_order_relaxed),
             .files_updated = counters.files_updated.load(std::memory_order_relaxed),
             .tracks_total  = tracks_total,
+            .missing_total = missing_total,
             .pending_edits = edits.size() + edits_writing,
             .revision      = revision,
             .scan_error    = scan_error,
@@ -115,7 +126,8 @@ namespace djw::core::library
             bool scan_now = false;
             {
                 std::unique_lock lock{mutex};
-                wake.wait(lock, [this] { return scan_requested || !edits.empty() || stopping.load(); });
+                wake.wait(lock,
+                          [this] { return scan_requested || remove_requested || !edits.empty() || stopping.load(); });
                 if (stopping.load())
                 {
                     return;
@@ -129,6 +141,7 @@ namespace djw::core::library
                 }
             }
             writePendingEdits();
+            removeMissingTracks();
             if (scan_now)
             {
                 scan();
@@ -150,13 +163,50 @@ namespace djw::core::library
         {
             error = scanFolders(*folders, writer, read_tags, counters, stopping, [this] { writeEditsDuringScan(); });
         }
-        const auto count = writer.trackCount();
+        if (std::string missing_error = checkMissingFiles(writer, stopping); error.empty())
+        {
+            error = std::move(missing_error);
+        }
+        updateCounts();
 
         const std::scoped_lock lock{mutex};
-        scanning     = false;
-        scan_error   = std::move(error);
-        tracks_total = count.value_or(tracks_total);
+        scanning   = false;
+        scan_error = std::move(error);
         ++revision;
+    }
+
+    void LibraryService::updateCounts() // library thread
+    {
+        const auto tracks  = writer.trackCount();
+        const auto missing = writer.missingCount();
+
+        const std::scoped_lock lock{mutex};
+        tracks_total  = tracks.value_or(tracks_total);
+        missing_total = missing.value_or(missing_total);
+    }
+
+    void LibraryService::removeMissingTracks() // library thread
+    {
+        {
+            const std::scoped_lock lock{mutex};
+            if (!remove_requested)
+            {
+                return;
+            }
+            remove_requested = false;
+        }
+        const auto removed = writer.removeMissing();
+        updateCounts();
+
+        const std::scoped_lock lock{mutex};
+        if (removed)
+        {
+            ++revision;
+        }
+        else
+        {
+            edit_error = removed.error();
+        }
     }
 
     void LibraryService::writeEditsDuringScan() // library thread

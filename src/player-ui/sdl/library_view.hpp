@@ -7,6 +7,7 @@
 #include "api/library.hpp"
 #include "clock.hpp"
 #include "column_header.hpp"
+#include "text_button.hpp"
 #include "text_field.hpp"
 #include "track_list.hpp"
 #include "view.hpp"
@@ -32,6 +33,9 @@ namespace djw::player_ui::sdl
      * Tag editor: a long press on an artist, title, genre or year cell opens an editor in the cell. Enter or touching
      * anything else saves, Escape cancels. The change goes to the library, which writes the file in the background;
      * the row shows the new value at once. Tracks for which in_use is true (loaded in a deck) are not changed.
+     *
+     * Dead links: when tracks are missing, the status line shows a "Missing" button that lists only those; there a
+     * "Remove" button takes them out of the library after a second tap within confirm_time.
      */
     class LibraryView final : public View
     {
@@ -42,6 +46,7 @@ namespace djw::player_ui::sdl
             /// Most tracks listed at once; the search narrows it down
             static constexpr std::size_t               result_limit = 1'000;
             static constexpr std::chrono::milliseconds refresh_interval{1'000};
+            static constexpr std::chrono::milliseconds confirm_time{3'000};
 
             /// The columns with a filter field, in this order
             static constexpr std::array<core::api::LibraryColumn, 4> filter_columns{
@@ -69,6 +74,8 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const core::api::LibraryQuery &query() const noexcept { return searched; }
             [[nodiscard]] bool                           editing() const noexcept { return edit.has_value(); }
             [[nodiscard]] const TextField               &cellEditor() const noexcept { return cell_editor; }
+            [[nodiscard]] const TextButton              &missingButton() const noexcept { return missing_button; }
+            [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
 
         private:
             /// The cell being edited; the track is kept by id, as a refresh may move its row
@@ -80,38 +87,44 @@ namespace djw::player_ui::sdl
             };
 
             /// The field tapped last takes the focus from all others
-            void                                     resolveFocus();
-            void                                     startEdit(const TrackList::Cell &cell);
-            void                                     commitEdit();
-            void                                     cancelEdit();
-            void                                     placeEditor();
+            void resolveFocus();
+            void startEdit(const TrackList::Cell &cell);
+            void commitEdit();
+            void cancelEdit();
+            void placeEditor();
+            /// Shows, labels and handles the dead link buttons for the current status
+            void                                     updateMissingButtons(const core::api::LibraryStatus &status);
             [[nodiscard]] std::optional<std::size_t> rowOf(std::int64_t track_id) const;
             [[nodiscard]] core::api::LibraryQuery    currentQuery() const;
             void                                     applySortTap();
             void                                     search(const core::api::LibraryQuery &query, bool keep_position);
             void                                     updateStatus(const core::api::LibraryStatus &status);
 
-            core::api::Library                   *library;
-            Load                                  load;
-            InUse                                 in_use;
-            Clock                                 clock;
-            TextField                             search_field{"Search"};
-            std::array<TextField, 4>              filters{TextField{"Artist"}, TextField{"Title"}, TextField{"Genre"},
-                                                          TextField{"Year"}};
-            ColumnHeader                          header;
-            TrackList                             list;
-            TextField                             cell_editor;
-            std::optional<CellEdit>               edit;
-            std::string                           edit_message;
-            core::api::LibraryColumn              sort_by    = core::api::LibraryColumn::Artist;
-            bool                                  descending = false;
-            Rect                                  status_area;
-            std::string                           status_text;
-            std::string                           search_error;
-            core::api::LibraryQuery               searched;
-            bool                                  has_searched  = false;
-            std::uint64_t                         seen_revision = 0;
-            std::chrono::steady_clock::time_point last_search;
+            core::api::Library      *library;
+            Load                     load;
+            InUse                    in_use;
+            Clock                    clock;
+            TextField                search_field{"Search"};
+            std::array<TextField, 4> filters{TextField{"Artist"}, TextField{"Title"}, TextField{"Genre"},
+                                             TextField{"Year"}};
+            ColumnHeader             header;
+            TrackList                list;
+            TextField                cell_editor;
+            TextButton               missing_button;
+            TextButton               remove_button;
+            bool                     only_missing = false;
+            std::optional<std::chrono::steady_clock::time_point> confirm_remove_until;
+            std::optional<CellEdit>                              edit;
+            std::string                                          edit_message;
+            core::api::LibraryColumn                             sort_by    = core::api::LibraryColumn::Artist;
+            bool                                                 descending = false;
+            Rect                                                 status_area;
+            std::string                                          status_text;
+            std::string                                          search_error;
+            core::api::LibraryQuery                              searched;
+            bool                                                 has_searched  = false;
+            std::uint64_t                                        seen_revision = 0;
+            std::chrono::steady_clock::time_point                last_search;
     };
 } // namespace djw::player_ui::sdl
 
