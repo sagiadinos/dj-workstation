@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "stepper.hpp"
+#include "look.hpp"
 
 #include <algorithm>
 #include <string>
@@ -64,9 +65,9 @@ namespace djw::player_ui::sdl
         const float side = std::min(area.height, area.width / 3);
         const Rect  minus{area.x, area.y, side, area.height};
         const Rect  plus{area.x + area.width - side, area.y, side, area.height};
-        canvas.fillRect(area, field_color);
-        canvas.fillRect(minus, pressed == Part::Minus ? pressed_color : button_color);
-        canvas.fillRect(plus, pressed == Part::Plus ? pressed_color : button_color);
+        look::sunken(canvas, area, field_color, 5.0F);
+        look::raised(canvas, minus, look::button_gray, pressed == Part::Minus, 5.0F);
+        look::raised(canvas, plus, look::button_gray, pressed == Part::Plus, 5.0F);
 
         const auto  center = [&canvas](const Rect &where, const std::string &text, Color color)
         {

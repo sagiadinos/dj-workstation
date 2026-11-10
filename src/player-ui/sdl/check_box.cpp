@@ -3,6 +3,8 @@
 
 #include "check_box.hpp"
 
+#include "look.hpp"
+
 #include <algorithm>
 
 namespace djw::player_ui::sdl
@@ -37,11 +39,10 @@ namespace djw::player_ui::sdl
         }
         const float size = std::min(box_size, area.height);
         const Rect  box{area.x, area.y + ((area.height - size) / 2), size, size};
-        canvas.fillRect(box, frame_color);
-        canvas.fillRect(box.inset(2.0F), box_color);
+        look::sunken(canvas, box, box_color, 5.0F);
         if (on)
         {
-            canvas.fillRect(box.inset(6.0F), check_color);
+            canvas.fillRoundedRect(box.inset(5.0F), 3.0F, check_color, {0, 150, 70});
         }
         const float text_x = area.x + size + gap;
         canvas.textElided({text_x, area.y + ((area.height - canvas.textHeight()) / 2)}, text, text_color,

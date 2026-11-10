@@ -43,6 +43,14 @@ namespace djw::player_ui::sdl
                 custom_text       = label_color;
             }
 
+            /// A small picture before the label
+            enum class Icon : unsigned char
+            {
+                None,
+                Folder
+            };
+            void setIcon(Icon new_icon) noexcept { icon = new_icon; }
+
             /// True once after a press
             [[nodiscard]] bool takePress() noexcept { return std::exchange(pressed, false); }
             /// True once after the pointer touched the button
@@ -62,6 +70,7 @@ namespace djw::player_ui::sdl
             std::string          text;
             std::optional<Color> custom_background;
             std::optional<Color> custom_text;
+            Icon                 icon        = Icon::None;
             bool                 highlighted = false;
             bool                 enabled     = true;
             bool                 down        = false;

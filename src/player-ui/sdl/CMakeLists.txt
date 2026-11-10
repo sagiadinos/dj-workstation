@@ -56,6 +56,7 @@ add_library(djw_player_sdl_ui STATIC
     check_box.cpp
     stepper.cpp
     drop_down.cpp
+    look.cpp
     menu_bar.cpp
     context_menu.cpp
     track_columns.cpp

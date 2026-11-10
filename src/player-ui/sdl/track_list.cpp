@@ -187,7 +187,14 @@ namespace djw::player_ui::sdl
             const Color background = selection == index ? selected_row_color
                                      : index % 2 == 0   ? row_color
                                                         : alternate_row_color;
-            canvas.fillRect({area.x, y, area.width, row_height}, background);
+            if (selection == index)
+            {
+                canvas.fillRoundedRect({area.x, y, area.width, row_height}, 0.0F, {62, 112, 172}, {36, 72, 118});
+            }
+            else
+            {
+                canvas.fillRect({area.x, y, area.width, row_height}, background);
+            }
 
             const auto &track  = rows[index];
             const float text_y = y + text_dy;

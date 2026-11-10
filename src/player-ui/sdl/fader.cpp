@@ -3,6 +3,8 @@
 
 #include "fader.hpp"
 
+#include "look.hpp"
+
 #include <algorithm>
 
 namespace djw::player_ui::sdl
@@ -11,10 +13,6 @@ namespace djw::player_ui::sdl
     {
         constexpr float knob_height = 24.0F;
 
-        constexpr Color track_color{60, 60, 60};
-        constexpr Color level_color{0, 150, 200};
-        constexpr Color knob_color{220, 220, 220};
-        constexpr Color knob_held_color{255, 255, 255};
     } // namespace
 
     void Fader::setValue(float value) noexcept
@@ -60,12 +58,13 @@ namespace djw::player_ui::sdl
         const Rect &area   = bounds();
         const Rect  range  = track();
         const float knob_y = range.y + (1.0F - current) * range.height;
-        const float slot   = std::max(4.0F, area.width / 6);
+        const float slot   = std::clamp(area.width / 4, 10.0F, 18.0F);
         const float slot_x = area.x + (area.width - slot) / 2;
         const float knob   = std::min(knob_height, area.height);
 
-        canvas.fillRect({slot_x, range.y, slot, range.height}, track_color);
-        canvas.fillRect({slot_x, knob_y, slot, range.y + range.height - knob_y}, level_color);
-        canvas.fillRect({area.x, knob_y - knob / 2, area.width, knob}, held ? knob_held_color : knob_color);
+        // The groove spans the full travel and a little more, so the grip never leaves it
+        const Rect groove{slot_x, area.y, slot, area.height};
+        look::groove(canvas, groove, true, (range.y + range.height - knob_y + (knob / 2)) / std::max(1.0F, area.height));
+        look::knob(canvas, {area.x, knob_y - knob / 2, area.width, knob}, held, true);
     }
 } // namespace djw::player_ui::sdl

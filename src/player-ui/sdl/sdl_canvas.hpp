@@ -22,10 +22,13 @@ namespace djw::player_ui::sdl
                 : renderer{&renderer}, text_renderer{&text}, density{density}
             {
                 text.setDensity(density);
+                // Colors with alpha (the brushed metal, glossy edges) blend with what is below
+                SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
             }
 
             void fillRect(const Rect &rect, Color color) override;
             void fillTriangle(Point first, Point second, Point third, Color color) override;
+            void fillRoundedRect(const Rect &rect, float radius, Color top, Color bottom) override;
             void text(Point position, std::string_view text, Color color) override;
             void textElided(Point position, std::string_view text, Color color, float max_width) override;
             [[nodiscard]] float textHeight() const noexcept override;

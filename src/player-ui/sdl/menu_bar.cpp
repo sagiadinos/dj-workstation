@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "menu_bar.hpp"
+#include "look.hpp"
 
 #include <algorithm>
 
@@ -143,7 +144,7 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        canvas.fillRect(bar, bar_background);
+        canvas.fillRoundedRect(bar, 0.0F, {58, 60, 66}, {30, 31, 35});
         canvas.fillRect({bar.x, bar.y + bar.height - 1.0F, bar.width, 1.0F}, separator);
         const float text_y = (bar.height - canvas.textHeight()) / 2;
         for (std::size_t menu = 0; menu < menus.size(); ++menu)
@@ -151,7 +152,7 @@ namespace djw::player_ui::sdl
             const Rect title = titleArea(menu);
             if (open == menu)
             {
-                canvas.fillRect(title, open_background);
+                canvas.fillRoundedRect(title, 0.0F, {62, 112, 172}, {36, 72, 118});
             }
             const float width = std::min(canvas.textWidth(menus[menu].title), title.width - (2 * padding));
             canvas.textElided({title.x + ((title.width - width) / 2), bar.y + text_y}, menus[menu].title, text_color,
@@ -164,14 +165,15 @@ namespace djw::player_ui::sdl
 
         const Menu &shown = menus[*open];
         const Rect  box   = dropdownArea(*open);
-        canvas.fillRect(box, dropdown_background);
+        canvas.fillRoundedRect(box.inset(-1.0F), 4.0F, look::outline, look::outline);
+        canvas.fillRoundedRect(box, 3.0F, {64, 66, 72}, {44, 46, 51});
         for (std::size_t item = 0; item < shown.items.size(); ++item)
         {
             const MenuItem &entry = shown.items[item];
             const Rect      area  = itemArea(*open, item);
             if (entry.checked)
             {
-                canvas.fillRect(area, open_background);
+                canvas.fillRoundedRect(area, 0.0F, {62, 112, 172}, {36, 72, 118});
             }
             const float text_y    = area.y + ((area.height - canvas.textHeight()) / 2);
             float       available = area.width - (2 * padding);

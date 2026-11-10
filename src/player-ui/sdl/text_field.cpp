@@ -58,9 +58,9 @@ namespace djw::player_ui::sdl
     void TextField::draw(Canvas &canvas) const
     {
         const Rect &area = bounds();
-        canvas.fillRect(area, has_focus ? focus_color : frame_color);
+        canvas.fillRoundedRect(area, 5.0F, has_focus ? focus_color : frame_color, has_focus ? focus_color : frame_color);
         const Rect inner = area.inset(2.0F);
-        canvas.fillRect(inner, fill_color);
+        canvas.fillRoundedRect(inner, 4.0F, {16, 17, 20}, {30, 32, 36});
 
         const float text_y    = area.y + ((area.height - canvas.textHeight()) / 2);
         const float max_width = std::max(0.0F, inner.width - (2 * padding) - cursor_width);

@@ -3,6 +3,7 @@
 
 #include "deck_view.hpp"
 
+#include "look.hpp"
 #include "time_format.hpp"
 
 #include <algorithm>
@@ -32,8 +33,8 @@ namespace djw::player_ui::sdl
         constexpr Color red{225, 40, 40};
         constexpr Color green{40, 215, 70};
         constexpr Color label_color{200, 200, 200};
-        constexpr Color cue_background{215, 35, 35};
-        constexpr Color cue_text{20, 20, 20};
+        constexpr Color cue_background{225, 40, 40};
+        constexpr Color cue_text{250, 250, 250};
 
         /// Pitch range of the fader in percent; the engine clamps to the same
         constexpr float pitch_range = 12.0F;
@@ -77,6 +78,7 @@ namespace djw::player_ui::sdl
         play_button.setPlaying(state.play_state == core::api::PlayState::Playing);
         cue_button.setColors(cue_background, cue_text);
         load_button.setEnabled(false);
+        load_button.setIcon(TextButton::Icon::Folder);
     }
 
     void DeckView::layout(const Rect &area)
@@ -333,7 +335,7 @@ namespace djw::player_ui::sdl
     void DeckView::draw(Canvas &canvas) const
     {
         // The display: Time button, pitch and the large time, remaining with a minus
-        canvas.fillRect(display_area, display_color);
+        look::sunken(canvas, display_area);
         time_button.draw(canvas);
         const std::string pitch = translator->tr("player.pitch", {{"value", signedTenths(shown_pitch)}});
         canvas.textElided({pitch_text_area.x + std::max(0.0F, pitch_text_area.width - canvas.textWidth(pitch)),
@@ -373,7 +375,7 @@ namespace djw::player_ui::sdl
         label(volume_label_area, translator->tr("player.volume"));
         label(headphone_label_area, translator->tr("player.headphones"));
 
-        canvas.fillRect(info_area, display_color);
+        look::sunken(canvas, info_area);
         const float line = canvas.textHeight();
         canvas.textElided({info_area.x + 6.0F, info_area.y + 4.0F}, track_artist, yellow,
                           std::max(0.0F, info_area.width - 12.0F));

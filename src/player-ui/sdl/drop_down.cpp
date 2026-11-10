@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "drop_down.hpp"
+#include "look.hpp"
 
 #include <algorithm>
 
@@ -133,8 +134,7 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        canvas.fillRect(box, frame_color);
-        canvas.fillRect(box.inset(1.0F), box_color);
+        look::raised(canvas, box, look::button_gray, false, 6.0F);
         const float text_y = box.y + ((box.height - canvas.textHeight()) / 2);
         const float room   = box.width - (3 * padding) - arrow_box;
         if (selected && *selected < items.size())
@@ -150,11 +150,18 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        canvas.fillRect(listArea(), frame_color);
+        canvas.fillRoundedRect(listArea(), 4.0F, look::outline, look::outline);
         for (std::size_t index = 0; index < items.size(); ++index)
         {
             const Rect area = itemArea(index);
-            canvas.fillRect(area.inset(1.0F), selected == index ? selected_color : list_color);
+            if (selected == index)
+            {
+                canvas.fillRoundedRect(area.inset(1.0F), 0.0F, {62, 112, 172}, {36, 72, 118});
+            }
+            else
+            {
+                canvas.fillRoundedRect(area.inset(1.0F), 0.0F, {64, 66, 72}, {50, 52, 57});
+            }
             canvas.textElided({area.x + padding, area.y + ((area.height - canvas.textHeight()) / 2)}, items[index],
                               text_color, area.width - (2 * padding));
         }

@@ -84,7 +84,11 @@ TEST_CASE("TextButton: own colors are used for the background and the label")
 {
     struct ColorCanvas final : djw::player_ui::sdl::Canvas
     {
-            void  fillRect(const Rect &, Color color) override { fills.push_back(color); }
+            void  fillRect(const Rect &, Color) override {}
+            void  fillRoundedRect(const Rect &, float, Color top, Color bottom) override
+            {
+                bodies.push_back({top, bottom});
+            }
             void  fillTriangle(Point, Point, Point, Color) override {}
             void  text(Point, std::string_view, Color color) override { inks.push_back(color); }
             void  textElided(Point, std::string_view, Color color, float) override { inks.push_back(color); }
@@ -94,16 +98,18 @@ TEST_CASE("TextButton: own colors are used for the background and the label")
             float largeTextHeight() const noexcept override { return 10; }
             float largeTextWidth(std::string_view) const noexcept override { return 10; }
             void  setClip(std::optional<Rect>) override {}
-            std::vector<Color> fills;
-            std::vector<Color> inks;
+            std::vector<std::pair<Color, Color>> bodies; // top and bottom of every rounded shape
+            std::vector<Color>                   inks;
     } canvas;
 
     TextButton button{"CUE"};
     button.setBounds({0, 0, 100, 40});
     button.setColors(Color{200, 30, 30}, Color{10, 10, 10});
     button.draw(canvas);
-    REQUIRE(canvas.fills.size() == 1);
-    CHECK(canvas.fills[0].red == 200);
+    REQUIRE(canvas.bodies.size() == 2); // outline and body
+    // The body is a gradient around the color asked for: lighter above, darker below
+    CHECK(canvas.bodies.back().first.red > 200);
+    CHECK(canvas.bodies.back().second.red < 200);
     REQUIRE(canvas.inks.size() == 1);
     CHECK(canvas.inks[0].red == 10);
 }

@@ -3,6 +3,8 @@
 
 #include "sdl_window.hpp"
 
+#include "look.hpp"
+
 #include "sdl_canvas.hpp"
 #include "sdl_events.hpp"
 
@@ -135,6 +137,7 @@ namespace djw::player_ui::sdl
         SDL_SetRenderDrawColor(renderer.get(), background.red, background.green, background.blue, background.alpha);
         SDL_RenderClear(renderer.get());
         SdlCanvas canvas{*renderer, *text, SDL_GetWindowPixelDensity(window.get())};
+        look::background(canvas, area());
         view->draw(canvas);
         SDL_RenderPresent(renderer.get());
     }

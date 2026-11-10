@@ -3,6 +3,8 @@
 
 #include "play_button.hpp"
 
+#include "look.hpp"
+
 #include <algorithm>
 #include <utility>
 
@@ -10,7 +12,7 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr Color background{0, 170, 0};
+        constexpr Color background{40, 200, 30};
         constexpr Color background_pressed{70, 215, 70};
         constexpr Color symbol_stopped{15, 15, 15};
         constexpr Color symbol_playing{15, 15, 15};
@@ -37,7 +39,7 @@ namespace djw::player_ui::sdl
     void PlayButton::draw(Canvas &canvas) const
     {
         const Rect &area = bounds();
-        canvas.fillRect(area, pressed ? background_pressed : background);
+        look::raised(canvas, area, pressed ? background_pressed : background, pressed);
 
         const float size = std::min(area.width, area.height) / 2;
         const float left = area.x + (area.width - size) / 2;

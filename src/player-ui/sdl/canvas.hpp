@@ -24,6 +24,12 @@ namespace djw::player_ui::sdl
 
             virtual void fillRect(const Rect &rect, Color color)                           = 0;
             virtual void fillTriangle(Point first, Point second, Point third, Color color) = 0;
+            /// A rectangle with rounded corners, filled with a vertical gradient from top to bottom (the same color
+            /// twice is flat). A canvas that cannot do this draws a plain rectangle in the top color.
+            virtual void fillRoundedRect(const Rect &rect, float /*radius*/, Color top, Color /*bottom*/)
+            {
+                fillRect(rect, top);
+            }
             /// One line of UTF-8 text, position is its top left corner; the line is textHeight() high
             virtual void text(Point position, std::string_view text, Color color) = 0;
             /// Like text(), but cut with "…" if it is wider than max_width

@@ -3,15 +3,14 @@
 
 #include "slider.hpp"
 
+#include "look.hpp"
+
 #include <algorithm>
 
 namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr Color track_color{60, 60, 60};
-        constexpr Color knob_color{220, 220, 220};
-        constexpr Color knob_held_color{255, 255, 255};
     } // namespace
 
     void Slider::setValue(float value) noexcept
@@ -60,11 +59,10 @@ namespace djw::player_ui::sdl
         const Rect  range  = track();
         const float knob   = std::min(knob_width, area.width);
         const float knob_x = range.x + (current * range.width);
-        const float slot   = std::max(4.0F, area.height / 6);
+        const float slot   = std::clamp(area.height / 3, 8.0F, 14.0F);
         const float slot_y = area.y + ((area.height - slot) / 2);
 
-        canvas.fillRect({range.x, slot_y, range.width, slot}, track_color);
-        canvas.fillRect({range.x, slot_y, knob_x - range.x, slot}, accent);
-        canvas.fillRect({knob_x - (knob / 2), area.y, knob, area.height}, is_held ? knob_held_color : knob_color);
+        look::groove(canvas, {area.x, slot_y, area.width, slot}, false, show_fill ? (knob_x - area.x) / std::max(1.0F, area.width) : -1.0F, accent);
+        look::knob(canvas, {knob_x - (knob / 2), area.y, knob, area.height}, is_held, false);
     }
 } // namespace djw::player_ui::sdl

@@ -29,7 +29,23 @@ namespace djw::tests
                     std::string           text;
             };
 
-            void fillRect(const player_ui::sdl::Rect & /*rect*/, player_ui::sdl::Color /*color*/) override {}
+            struct RoundedRect
+            {
+                    player_ui::sdl::Rect  rect;
+                    float                 radius = 0.0F;
+                    player_ui::sdl::Color top;
+                    player_ui::sdl::Color bottom;
+            };
+
+            void fillRect(const player_ui::sdl::Rect &rect, player_ui::sdl::Color /*color*/) override
+            {
+                rects.push_back(rect);
+            }
+            void fillRoundedRect(const player_ui::sdl::Rect &rect, float radius, player_ui::sdl::Color top,
+                                 player_ui::sdl::Color bottom) override
+            {
+                rounded.push_back({rect, radius, top, bottom});
+            }
             void fillTriangle(player_ui::sdl::Point, player_ui::sdl::Point, player_ui::sdl::Point,
                               player_ui::sdl::Color) override
             {
@@ -83,6 +99,8 @@ namespace djw::tests
             }
 
             std::vector<DrawnText>                           texts;
+            std::vector<player_ui::sdl::Rect>                rects;
+            std::vector<RoundedRect>                         rounded;
             std::optional<player_ui::sdl::Rect>              clip;
             std::vector<std::optional<player_ui::sdl::Rect>> clip_changes;
     };

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "column_header.hpp"
+#include "look.hpp"
 
 #include "track_columns.hpp"
 
@@ -71,7 +72,7 @@ namespace djw::player_ui::sdl
 
     void ColumnHeader::draw(Canvas &canvas) const
     {
-        canvas.fillRect(bounds(), background);
+        canvas.fillRoundedRect(bounds(), 0.0F, look::shade(background, 22), look::shade(background, -12));
         for (const core::api::LibraryColumn column : track_columns)
         {
             const Rect  area   = columnArea(bounds(), column);

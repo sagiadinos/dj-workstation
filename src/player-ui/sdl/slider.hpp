@@ -28,6 +28,8 @@ namespace djw::player_ui::sdl
 
             /// Colors of the slider's knob side; the track stays gray
             void setAccent(Color color) noexcept { accent = color; }
+            /// Fill the groove up to the grip (default: no fill, the groove stays dark)
+            void setShowFill(bool on) noexcept { show_fill = on; }
 
             void pointerDown(Point position) override;
             void pointerMove(Point position) override;
@@ -46,6 +48,7 @@ namespace djw::player_ui::sdl
             bool  is_held = false;
             bool  changed = false;
             Color accent{0, 150, 200};
+            bool  show_fill = false;
     };
 } // namespace djw::player_ui::sdl
 
