@@ -11,30 +11,36 @@
 #include "fader.hpp"
 #include "play_button.hpp"
 #include "pointer_router.hpp"
+#include "view.hpp"
 
 #include <optional>
+#include <string>
 
 namespace djw::player_ui::sdl
 {
     /**
-     * One deck on screen: play button, position and channel fader.
+     * One deck on screen: track title, play button, position and channel fader.
      *
      * Turns input into commands for the core and shows the deck's snapshot. A command that does not fit into the
      * queue is kept and sent again on the next update(), so a fader position is never lost. For now the UI is the
      * only one changing the volume, so the fader is the source of truth for it.
      */
-    class DeckView
+    class DeckView final : public View
     {
         public:
             DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot);
 
-            void layout(const Rect &area);
-            void addTo(PointerRouter &router);
+            void layout(const Rect &area) override;
+            void addTo(PointerRouter &router) override;
 
             /// Once per frame: reads the snapshot and sends what the input asked for.
-            void update();
+            void update() override;
 
-            void draw(Canvas &canvas) const;
+            void draw(Canvas &canvas) const override;
+
+            /// What is shown as the loaded track, e.g. "Artist - Title"
+            void                             setTrackTitle(std::string title) { track_title = std::move(title); }
+            [[nodiscard]] const std::string &trackTitle() const noexcept { return track_title; }
 
             [[nodiscard]] const Fader      &fader() const noexcept { return volume_fader; }
             [[nodiscard]] const PlayButton &playButton() const noexcept { return play_button; }
@@ -46,7 +52,9 @@ namespace djw::player_ui::sdl
             core::api::DeckSnapshot           state;
             PlayButton                        play_button;
             Fader                             volume_fader;
+            Rect                              title_area;
             Rect                              position_area;
+            std::string                       track_title;
             float                             sent_volume;
             std::optional<core::api::Command> pending_transport;
     };

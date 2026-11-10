@@ -2,31 +2,75 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "api/core.hpp"
+#include "api/library.hpp"
+#include "command_line.hpp"
 #include "sdl_app.hpp"
 
+#include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3/SDL_stdinc.h>
 
 #include <chrono>
 #include <iostream>
 #include <span>
-#include <string_view>
 #include <thread>
 
 namespace api = djw::core::api;
+namespace sdl = djw::player_ui::sdl;
+
+namespace
+{
+    /// The library database in the user's data folder, e.g. ~/.local/share/djw/library.db on Linux
+    std::optional<std::filesystem::path> libraryFile()
+    {
+        char *folder = SDL_GetPrefPath("", "djw");
+        if (folder == nullptr)
+        {
+            return std::nullopt;
+        }
+        std::filesystem::path file = std::filesystem::path{folder} / "library.db";
+        SDL_free(folder);
+        return file;
+    }
+
+    /// The library, or nullptr (with a message) if it cannot be opened: the player then works without it
+    std::unique_ptr<api::Library> openLibrary(const sdl::CommandLine &command_line)
+    {
+        const auto file = libraryFile();
+        if (!file)
+        {
+            std::cerr << "djw: no data folder for the library: " << SDL_GetError() << '\n';
+            return nullptr;
+        }
+        auto library = api::openLibrary({.database_file = *file});
+        if (!library)
+        {
+            std::cerr << "djw: " << library.error() << '\n';
+            return nullptr;
+        }
+        for (const auto &folder : command_line.add_folders)
+        {
+            if (auto added = (*library)->addFolder(folder); !added)
+            {
+                std::cerr << "djw: " << added.error() << '\n';
+            }
+        }
+        (*library)->rescan(); // picks up what changed since the last start
+        return std::move(*library);
+    }
+} // namespace
 
 int main(int argc, char *argv[])
 {
     const std::span<char *> args{argv, static_cast<std::size_t>(argc)};
-    const bool              headphones = args.size() == 3 && std::string_view{args[1]} == "--headphones";
-    if (args.size() != 2 && !headphones)
+    const auto              command_line = sdl::parseCommandLine(args.subspan(std::min<std::size_t>(1, args.size())));
+    if (!command_line)
     {
-        std::cerr << "usage: djw [--headphones] <audio file>\n"
-                     "  --headphones  master on output channels 1/2, headphones on 3/4 (needs a 4-channel device)\n";
+        std::cerr << "djw: " << command_line.error() << '\n' << sdl::usage;
         return 2;
     }
-    const char *file = args.back();
 
-    auto core = api::createCore({.headphone_output = headphones});
+    auto core = api::createCore({.headphone_output = command_line->headphones});
     if (!core)
     {
         std::cerr << "djw: " << core.error() << '\n';
@@ -34,13 +78,16 @@ int main(int argc, char *argv[])
     }
 
     const api::DeckId deck = (*core)->addDeck();
-    if (auto loaded = (*core)->loadTrack(deck, file); !loaded)
+    if (command_line->file)
     {
-        std::cerr << "djw: " << loaded.error() << '\n';
-        return 1;
+        if (auto loaded = (*core)->loadTrack(deck, *command_line->file); !loaded)
+        {
+            std::cerr << "djw: " << loaded.error() << '\n';
+            return 1;
+        }
     }
 
-    if (headphones && !(*core)->mixerSnapshot().read().headphones_available)
+    if (command_line->headphones && !(*core)->mixerSnapshot().read().headphones_available)
     {
         std::cerr << "djw: the audio device has fewer than 4 channels, playing the master only\n";
     }
@@ -51,13 +98,20 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    auto app = djw::player_ui::sdl::SdlApp::create(**core, deck);
+    const std::unique_ptr<api::Library> library = openLibrary(*command_line);
+
+    auto app = sdl::SdlApp::create(**core, deck, library.get());
     if (!app)
     {
         std::cerr << "djw: " << app.error() << '\n';
         return 1;
     }
+    if (command_line->file)
+    {
+        (*app)->setDeckTitle(command_line->file->filename().string());
+    }
     (*app)->run();
+    app->reset(); // the windows go before the library they show
 
     // Let the pause fade out instead of cutting the sound; with a full queue the sound is cut, fine on exit
     if ((*core)->commandQueue().tryPush(api::DeckPause{deck}))

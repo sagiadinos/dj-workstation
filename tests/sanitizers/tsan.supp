@@ -1,0 +1,10 @@
+# ThreadSanitizer suppressions, used by the linux-tsan test preset (Architecture.md: Memory and threads).
+# Only races inside third-party code, each with the library and the reason.
+
+# SQLite, WAL mode with several connections (library/: search on the frontend's thread, scan on the library thread).
+# The wal-index header in shared memory is read without a lock by design: readers copy it twice and compare the
+# copies plus a checksum, and retry on a mismatch (sqlite3.c, walIndexTryHdr and the comments around it). TSan sees
+# the unlocked memcpy against the writer's update.
+race:walIndexWriteHdr
+race:walIndexTryHdr
+race:walTryBeginRead

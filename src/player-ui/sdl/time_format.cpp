@@ -4,23 +4,35 @@
 #include "time_format.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace djw::player_ui::sdl
 {
+    namespace
+    {
+        /// "m:ss" of whole seconds
+        std::string minutesSeconds(std::int64_t whole_seconds)
+        {
+            const auto  seconds = whole_seconds % 60;
+            std::string text    = std::to_string(whole_seconds / 60) + ':';
+            if (seconds < 10)
+            {
+                text += '0';
+            }
+            return text + std::to_string(seconds);
+        }
+    } // namespace
+
     std::string formatPosition(double seconds)
     {
         // Truncated, not rounded: the display must not show a tenth that has not been played yet
-        const auto tenths  = static_cast<std::int64_t>(std::max(0.0, seconds) * 10.0);
-        const auto minutes = tenths / 600;
-        const auto rest    = tenths % 600;
+        const auto tenths = static_cast<std::int64_t>(std::max(0.0, seconds) * 10.0);
+        return minutesSeconds(tenths / 10) + '.' + std::to_string(tenths % 10);
+    }
 
-        std::string text = std::to_string(minutes) + ':';
-        if (rest < 100)
-        {
-            text += '0';
-        }
-        text += std::to_string(rest / 10) + '.' + std::to_string(rest % 10);
-        return text;
+    std::string formatDuration(double seconds)
+    {
+        return minutesSeconds(std::llround(std::max(0.0, seconds)));
     }
 } // namespace djw::player_ui::sdl

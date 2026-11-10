@@ -5,25 +5,37 @@
 #define DJW_PLAYER_UI_SDL_SDL_CANVAS_HPP
 
 #include "canvas.hpp"
+#include "sdl_text.hpp"
 
 #include <SDL3/SDL_render.h>
 
 namespace djw::player_ui::sdl
 {
-    /// Canvas on an SDL renderer. Text uses SDL's built-in debug font until a real font comes.
+    /**
+     * Canvas on an SDL renderer. The widgets work in points, the renderer in pixels; density (pixels per point, more
+     * than 1 on HiDPI screens) converts between them. Text goes through SdlText at the same density.
+     */
     class SdlCanvas final : public Canvas
     {
         public:
-            explicit SdlCanvas(SDL_Renderer &renderer) noexcept : renderer{&renderer} {}
+            SdlCanvas(SDL_Renderer &renderer, SdlText &text, float density) noexcept
+                : renderer{&renderer}, text_renderer{&text}, density{density}
+            {
+                text.setDensity(density);
+            }
 
-            void                fillRect(const Rect &rect, Color color) override;
-            void                fillTriangle(Point first, Point second, Point third, Color color) override;
-            void                text(Point position, std::string_view text, Color color) override;
+            void fillRect(const Rect &rect, Color color) override;
+            void fillTriangle(Point first, Point second, Point third, Color color) override;
+            void text(Point position, std::string_view text, Color color) override;
+            void textElided(Point position, std::string_view text, Color color, float max_width) override;
             [[nodiscard]] float textHeight() const noexcept override;
             [[nodiscard]] float textWidth(std::string_view text) const noexcept override;
+            void                setClip(std::optional<Rect> clip) override;
 
         private:
             SDL_Renderer *renderer;
+            SdlText      *text_renderer;
+            float         density;
     };
 } // namespace djw::player_ui::sdl
 

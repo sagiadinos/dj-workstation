@@ -3,6 +3,7 @@
 
 #include "sdl_events.hpp"
 
+#include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_touch.h>
 
@@ -84,4 +85,53 @@ TEST_CASE("toPointerEvent: other events are ignored")
     SDL_Event event{};
     event.type = SDL_EVENT_KEY_DOWN;
     CHECK_FALSE(toPointerEvent(event, 100, 100));
+}
+
+TEST_CASE("toKeyboardInput: typed text and the editing keys, nothing else")
+{
+    SDL_Event text{};
+    text.type            = SDL_EVENT_TEXT_INPUT;
+    const char typed[]   = "é";
+    text.text.text       = typed;
+    const auto from_text = toKeyboardInput(text);
+    REQUIRE(from_text.has_value());
+    CHECK(std::get<std::string>(*from_text) == "é");
+
+    const auto key = [](SDL_Keycode code)
+    {
+        SDL_Event event{};
+        event.type    = SDL_EVENT_KEY_DOWN;
+        event.key.key = code;
+        return toKeyboardInput(event);
+    };
+    CHECK(key(SDLK_BACKSPACE) == KeyboardInput{EditKey::Backspace});
+    CHECK(key(SDLK_RETURN) == KeyboardInput{EditKey::Enter});
+    CHECK(key(SDLK_KP_ENTER) == KeyboardInput{EditKey::Enter});
+    CHECK(key(SDLK_ESCAPE) == KeyboardInput{EditKey::Escape});
+    CHECK_FALSE(key(SDLK_A).has_value());
+
+    SDL_Event up{};
+    up.type    = SDL_EVENT_KEY_UP;
+    up.key.key = SDLK_BACKSPACE;
+    CHECK_FALSE(toKeyboardInput(up).has_value());
+}
+
+TEST_CASE("toWheelEvent: position and direction, flipped wheels turned back")
+{
+    SDL_Event event{};
+    event.type            = SDL_EVENT_MOUSE_WHEEL;
+    event.wheel.mouse_x   = 10;
+    event.wheel.mouse_y   = 20;
+    event.wheel.y         = 2;
+    event.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+    const auto normal     = toWheelEvent(event);
+    REQUIRE(normal.has_value());
+    CHECK(normal->position.x == 10);
+    CHECK(normal->position.y == 20);
+    CHECK(normal->dy == 2);
+
+    event.wheel.direction = SDL_MOUSEWHEEL_FLIPPED;
+    CHECK(toWheelEvent(event)->dy == -2);
+
+    CHECK_FALSE(toWheelEvent(SDL_Event{}).has_value());
 }

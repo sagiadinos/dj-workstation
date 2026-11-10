@@ -16,7 +16,7 @@ djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a com
 
 ### Architecture
 - `core/` must never include anything from `player-ui/` or SDL. The core builds and runs headless.
-- The frontends in `player-ui/` talk to the core only through `core/api/`: setup (adding decks, starting audio) through the `api::Core` interface, while running only through the command queue and state snapshots. No direct calls into engine internals.
+- The frontends in `player-ui/` talk to the core only through `core/api/`: setup (adding decks, starting audio) through the `api::Core` interface, while running only through the command queue and state snapshots. The music library through the `api::Library` interface (`api::openLibrary`). No direct calls into engine or library internals.
 - Platform-specific code lives in `platform/` or behind an interface, never scattered with `#ifdef` across the core.
 
 ### Audio thread
@@ -40,7 +40,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 ### Dependencies
 - Only use libraries listed in FEATURES.md section 6.
 - Ask before adding any new dependency.
-- Dependencies are declared via CMake `FetchContent` with pinned versions (tag or commit hash) and `FIND_PACKAGE_ARGS`: an installed system or vcpkg package is used if found, otherwise the pinned version is downloaded. Exception: libraries without a CMake package config (miniaudio) are always downloaded and built from their sources by our own CMake target. Single-header libraries may be vendored in `third_party/` with their license file.
+- Dependencies are declared via CMake `FetchContent` with pinned versions (tag or commit hash) and `FIND_PACKAGE_ARGS`: an installed system or vcpkg package is used if found, otherwise the pinned version is downloaded. Exception: libraries without a CMake package config (miniaudio, SQLite) are always downloaded and built from their sources by our own CMake target; a download by URL is pinned by its SHA-256 hash. Single-header libraries and assets such as the UI font (`third_party/fonts/`) may be vendored in `third_party/` with their license file.
 - Every dependency must be compatible with AGPLv3.
 
 ### Licensing
@@ -147,7 +147,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - Avoid leaks by construction: every resource has an owner (RAII). Heap memory through `std::unique_ptr` or containers, C library handles (miniaudio, SQLite, SDL, ...) in a small RAII wrapper with a deleter, never with manual `free`/`close` calls spread over the code.
 - Leaks are checked, not assumed: LeakSanitizer runs with every ASan test run (`ASAN_OPTIONS=detect_leaks=1` set explicitly in the test environment). A reported leak fails the test.
 - LeakSanitizer is only reliable on Linux (macOS on Apple Silicon and MSVC do not support it), so the Linux ASan run in CI is the authoritative leak check.
-- Leaks inside third-party libraries are suppressed in a suppression file with a comment naming the library and the reason, never by disabling the check.
+- Leaks inside third-party libraries are suppressed in a suppression file with a comment naming the library and the reason, never by disabling the check. The same holds for data races TSan reports inside third-party code (`tests/sanitizers/tsan.supp`, e.g. SQLite's lock-free WAL index header).
 - Long-running paths (deck load/unload, adding/removing decks, library scans) get tests that repeat the operation many times, so a leak per operation shows up even if it is small.
 
 ### General

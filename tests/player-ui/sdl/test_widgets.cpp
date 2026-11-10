@@ -64,6 +64,15 @@ TEST_CASE("PlayButton: one press is reported exactly once")
     CHECK_FALSE(button.takePress());
 }
 
+TEST_CASE("formatDuration: minutes and seconds, rounded")
+{
+    CHECK(formatDuration(0.0) == "0:00");
+    CHECK(formatDuration(4.4) == "0:04");
+    CHECK(formatDuration(59.6) == "1:00");
+    CHECK(formatDuration(245.0) == "4:05");
+    CHECK(formatDuration(-3.0) == "0:00");
+}
+
 TEST_CASE("formatPosition: minutes, seconds and tenths, truncated")
 {
     CHECK(formatPosition(0.0) == "0:00.0");

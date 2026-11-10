@@ -3,20 +3,17 @@
 
 #include "sdl_app.hpp"
 
-#include "sdl_canvas.hpp"
-#include "sdl_events.hpp"
-
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
+#include <algorithm>
+#include <ranges>
 
 namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr int    initial_width  = 360;
-        constexpr int    initial_height = 640;
-        constexpr Uint32 frame_ms       = 16; // fallback pacing without vsync
-
-        constexpr Color background{20, 20, 20};
+        constexpr Uint32 frame_ms = 16; // fallback pacing without vsync
 
         bool initSdl()
         {
@@ -29,19 +26,36 @@ namespace djw::player_ui::sdl
         {
             return std::string{what} + ": " + SDL_GetError();
         }
+
+        /// The UI font, copied next to the binary at build time
+        std::filesystem::path fontFile()
+        {
+            const char *base = SDL_GetBasePath();
+            return std::filesystem::path{base != nullptr ? base : ""} / "fonts" / "NotoSans-Regular.ttf";
+        }
+
+        std::string displayTitle(const core::api::LibraryTrack &track)
+        {
+            return track.artist.empty() ? track.title : track.artist + " - " + track.title;
+        }
     } // namespace
 
-    SdlApp::SdlLibrary::SdlLibrary() : initialized{initSdl()} {}
+    SdlApp::SdlLibraries::SdlLibraries() : sdl_initialized{initSdl()}, ttf_initialized{sdl_initialized && TTF_Init()} {}
 
-    SdlApp::SdlLibrary::~SdlLibrary()
+    SdlApp::SdlLibraries::~SdlLibraries()
     {
-        if (initialized)
+        if (ttf_initialized)
+        {
+            TTF_Quit();
+        }
+        if (sdl_initialized)
         {
             SDL_Quit();
         }
     }
 
-    std::expected<std::unique_ptr<SdlApp>, std::string> SdlApp::create(core::api::Core &core, core::api::DeckId deck)
+    std::expected<std::unique_ptr<SdlApp>, std::string> SdlApp::create(core::api::Core &core, core::api::DeckId deck,
+                                                                       core::api::Library *library)
     {
         core::api::DeckSnapshotBuffer *snapshot = core.deckSnapshot(deck);
         if (snapshot == nullptr)
@@ -50,83 +64,97 @@ namespace djw::player_ui::sdl
         }
 
         std::unique_ptr<SdlApp> app{new SdlApp{core, deck, *snapshot}};
-        if (!app->library.initialized)
+        if (!app->libraries.sdl_initialized)
         {
             return std::unexpected{sdlError("cannot initialize SDL")};
         }
+        if (!app->libraries.ttf_initialized)
+        {
+            return std::unexpected{sdlError("cannot initialize SDL_ttf")};
+        }
 
-        app->window.reset(SDL_CreateWindow("djw", initial_width, initial_height,
-                                           SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY));
-        if (!app->window)
+        const std::filesystem::path font = fontFile();
+        auto                        deck_window =
+            SdlWindow::create({.title = "djw", .width = 360, .height = 640, .vsync = true}, app->deck_view, font);
+        if (!deck_window)
         {
-            return std::unexpected{sdlError("cannot create window")};
+            return std::unexpected{deck_window.error()};
         }
-        app->renderer.reset(SDL_CreateRenderer(app->window.get(), nullptr));
-        if (!app->renderer)
+        app->windows.push_back(std::move(*deck_window));
+
+        if (library != nullptr)
         {
-            return std::unexpected{sdlError("cannot create renderer")};
+            SdlApp *owner     = app.get();
+            app->library_view = std::make_unique<LibraryView>(*library, [owner](const core::api::LibraryTrack &track)
+                                                              { owner->load(track); });
+            auto library_window =
+                SdlWindow::create({.title = "djw - Library", .width = 720, .height = 640}, *app->library_view, font);
+            if (!library_window)
+            {
+                return std::unexpected{library_window.error()};
+            }
+            (*library_window)->placeRightOf(*app->windows.front());
+            app->windows.push_back(std::move(*library_window));
         }
-        app->vsync = SDL_SetRenderVSync(app->renderer.get(), 1);
         return app;
     }
 
     SdlApp::SdlApp(core::api::Core &core, core::api::DeckId deck, core::api::DeckSnapshotBuffer &snapshot)
-        : deck_view{deck, core.commandQueue(), snapshot}
+        : core{&core}, deck{deck}, deck_view{deck, core.commandQueue(), snapshot}
     {
-        deck_view.addTo(router);
+    }
+
+    void SdlApp::load(const core::api::LibraryTrack &track)
+    {
+        if (auto loaded = core->loadTrack(deck, track.path); loaded)
+        {
+            deck_view.setTrackTitle(displayTitle(track));
+        }
+        else
+        {
+            deck_view.setTrackTitle("Cannot load: " + loaded.error());
+        }
     }
 
     void SdlApp::run()
     {
-        bool running = true;
+        const bool paced   = std::ranges::any_of(windows, [](const auto &window) { return window->paced(); });
+        bool       running = true;
         while (running)
         {
-            deck_view.layout(windowArea());
             processEvents(running);
-            deck_view.update();
-            drawFrame();
-            if (!vsync)
+            for (const auto &window : windows)
+            {
+                window->frame();
+            }
+            if (!paced)
             {
                 SDL_Delay(frame_ms);
             }
         }
     }
 
-    Rect SdlApp::windowArea() const
-    {
-        int width  = 0;
-        int height = 0;
-        SDL_GetWindowSize(window.get(), &width, &height);
-        return {0.0F, 0.0F, static_cast<float>(width), static_cast<float>(height)};
-    }
-
     void SdlApp::processEvents(bool &running)
     {
-        const Rect area = windowArea();
-        SDL_Event  event;
+        SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            if (event.type == SDL_EVENT_QUIT)
+            if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
                 running = false;
+                continue;
             }
-            if (const auto pointer = toPointerEvent(event, area.width, area.height))
+            SDL_Window *target = SDL_GetWindowFromEvent(&event);
+            if (target == nullptr)
             {
-                router.handle(*pointer);
+                continue;
+            }
+            const SDL_WindowID id = SDL_GetWindowID(target);
+            const auto found = std::ranges::find_if(windows, [id](const auto &window) { return window->id() == id; });
+            if (found != windows.end())
+            {
+                (*found)->handle(event);
             }
         }
-    }
-
-    void SdlApp::drawFrame()
-    {
-        // Layout is in points; the renderer works in pixels, which differ on HiDPI screens
-        const float density = SDL_GetWindowPixelDensity(window.get());
-        SDL_SetRenderScale(renderer.get(), density, density);
-
-        SDL_SetRenderDrawColor(renderer.get(), background.red, background.green, background.blue, background.alpha);
-        SDL_RenderClear(renderer.get());
-        SdlCanvas canvas{*renderer};
-        deck_view.draw(canvas);
-        SDL_RenderPresent(renderer.get());
     }
 } // namespace djw::player_ui::sdl

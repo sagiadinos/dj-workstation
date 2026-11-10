@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Niko Sagiadinos
+
+#include "track_list.hpp"
+
+#include "time_format.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <utility>
+
+namespace djw::player_ui::sdl
+{
+    namespace
+    {
+        constexpr float padding = 10.0F;
+
+        constexpr Color row_color{28, 28, 28};
+        constexpr Color alternate_row_color{34, 34, 34};
+        constexpr Color selected_row_color{40, 75, 120};
+        constexpr Color text_color{230, 230, 230};
+        constexpr Color secondary_text_color{160, 160, 160};
+
+        /// Share of the row width per column: artist, title, genre; the duration gets what is left
+        constexpr float artist_share = 0.3F;
+        constexpr float title_share  = 0.4F;
+        constexpr float genre_share  = 0.18F;
+    } // namespace
+
+    void TrackList::setTracks(std::vector<core::api::LibraryTrack> tracks, bool keep_position)
+    {
+        rows = std::move(tracks);
+        if (!keep_position)
+        {
+            offset = 0.0F;
+            selection.reset();
+            last_tap_row.reset();
+        }
+        else if (selection && *selection >= rows.size())
+        {
+            selection.reset();
+        }
+        offset = std::clamp(offset, 0.0F, maxOffset());
+    }
+
+    std::optional<std::size_t> TrackList::takeActivated() noexcept
+    {
+        return std::exchange(activated, std::nullopt);
+    }
+
+    void TrackList::scrollBy(float dy) noexcept
+    {
+        offset = std::clamp(offset - dy, 0.0F, maxOffset());
+    }
+
+    float TrackList::maxOffset() const noexcept
+    {
+        return std::max(0.0F, (static_cast<float>(rows.size()) * row_height) - bounds().height);
+    }
+
+    std::optional<std::size_t> TrackList::rowAt(Point position) const noexcept
+    {
+        if (!bounds().contains(position))
+        {
+            return std::nullopt;
+        }
+        const auto row = static_cast<std::size_t>((position.y - bounds().y + offset) / row_height);
+        return row < rows.size() ? std::optional{row} : std::nullopt;
+    }
+
+    void TrackList::pointerDown(Point position)
+    {
+        start        = position;
+        start_offset = offset;
+        dragging     = false;
+    }
+
+    void TrackList::pointerMove(Point position)
+    {
+        if (!dragging && std::abs(position.y - start.y) > tap_slop)
+        {
+            dragging = true;
+        }
+        if (dragging)
+        {
+            offset = std::clamp(start_offset - (position.y - start.y), 0.0F, maxOffset());
+        }
+    }
+
+    void TrackList::pointerUp(Point position)
+    {
+        if (!dragging)
+        {
+            tap(position);
+        }
+        dragging = false;
+    }
+
+    void TrackList::tap(Point position)
+    {
+        const auto row = rowAt(position);
+        if (!row)
+        {
+            return;
+        }
+        const auto now = clock();
+        if (last_tap_row == row && now - last_tap_time <= double_tap_time)
+        {
+            activated = row;
+            last_tap_row.reset(); // a third tap starts a new double tap
+        }
+        else
+        {
+            last_tap_row  = row;
+            last_tap_time = now;
+        }
+        selection = row;
+    }
+
+    void TrackList::draw(Canvas &canvas) const
+    {
+        const Rect &area = bounds();
+        canvas.setClip(area);
+
+        const auto  first   = static_cast<std::size_t>(offset / row_height);
+        const float text_dy = (row_height - canvas.textHeight()) / 2;
+        const float width   = area.width - (2 * padding);
+        for (std::size_t index = first; index < rows.size(); ++index)
+        {
+            const float y = area.y + (static_cast<float>(index) * row_height) - offset;
+            if (y >= area.y + area.height)
+            {
+                break;
+            }
+            const Color background = selection == index ? selected_row_color
+                                     : index % 2 == 0   ? row_color
+                                                        : alternate_row_color;
+            canvas.fillRect({area.x, y, area.width, row_height}, background);
+
+            const auto &track  = rows[index];
+            float       x      = area.x + padding;
+            const float text_y = y + text_dy;
+            const auto  column = [&](const std::string &text, float share, Color color)
+            {
+                const float column_width = width * share;
+                canvas.textElided({x, text_y}, text, color, column_width - padding);
+                x += column_width;
+            };
+            column(track.artist, artist_share, text_color);
+            column(track.title, title_share, text_color);
+            column(track.genre, genre_share, secondary_text_color);
+
+            const std::string duration = formatDuration(track.duration_seconds);
+            canvas.text({area.x + area.width - padding - canvas.textWidth(duration), text_y}, duration,
+                        secondary_text_color);
+        }
+        canvas.setClip(std::nullopt);
+    }
+} // namespace djw::player_ui::sdl

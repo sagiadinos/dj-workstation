@@ -3,6 +3,7 @@
 
 #include "sdl_events.hpp"
 
+#include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_touch.h>
 
@@ -56,5 +57,39 @@ namespace djw::player_ui::sdl
             default:
                 return std::nullopt;
         }
+    }
+
+    std::optional<KeyboardInput> toKeyboardInput(const SDL_Event &event)
+    {
+        if (event.type == SDL_EVENT_TEXT_INPUT && event.text.text != nullptr)
+        {
+            return KeyboardInput{std::string{event.text.text}};
+        }
+        if (event.type != SDL_EVENT_KEY_DOWN)
+        {
+            return std::nullopt;
+        }
+        switch (event.key.key)
+        {
+            case SDLK_BACKSPACE:
+                return KeyboardInput{EditKey::Backspace};
+            case SDLK_RETURN:
+            case SDLK_KP_ENTER:
+                return KeyboardInput{EditKey::Enter};
+            case SDLK_ESCAPE:
+                return KeyboardInput{EditKey::Escape};
+            default:
+                return std::nullopt;
+        }
+    }
+
+    std::optional<WheelEvent> toWheelEvent(const SDL_Event &event)
+    {
+        if (event.type != SDL_EVENT_MOUSE_WHEEL)
+        {
+            return std::nullopt;
+        }
+        const float dy = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -event.wheel.y : event.wheel.y;
+        return WheelEvent{{event.wheel.mouse_x, event.wheel.mouse_y}, dy};
     }
 } // namespace djw::player_ui::sdl

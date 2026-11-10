@@ -6,6 +6,7 @@
 
 #include "geometry.hpp"
 
+#include <optional>
 #include <string_view>
 
 namespace djw::player_ui::sdl
@@ -23,10 +24,15 @@ namespace djw::player_ui::sdl
 
             virtual void fillRect(const Rect &rect, Color color)                           = 0;
             virtual void fillTriangle(Point first, Point second, Point third, Color color) = 0;
-            /// Simple text; character height is textHeight()
-            virtual void                text(Point position, std::string_view text, Color color) = 0;
-            [[nodiscard]] virtual float textHeight() const noexcept                              = 0;
-            [[nodiscard]] virtual float textWidth(std::string_view text) const noexcept          = 0;
+            /// One line of UTF-8 text, position is its top left corner; the line is textHeight() high
+            virtual void text(Point position, std::string_view text, Color color) = 0;
+            /// Like text(), but cut with "…" if it is wider than max_width
+            virtual void textElided(Point position, std::string_view text, Color color, float max_width) = 0;
+            [[nodiscard]] virtual float textHeight() const noexcept                                      = 0;
+            [[nodiscard]] virtual float textWidth(std::string_view text) const noexcept                  = 0;
+
+            /// Drawing outside clip is cut off until the next setClip(); std::nullopt draws everywhere again
+            virtual void setClip(std::optional<Rect> clip) = 0;
     };
 } // namespace djw::player_ui::sdl
 

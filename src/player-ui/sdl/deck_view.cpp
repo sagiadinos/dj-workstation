@@ -27,11 +27,12 @@ namespace djw::player_ui::sdl
     void DeckView::layout(const Rect &area)
     {
         const Rect  inner         = area.inset(margin);
-        const float button_height = std::min(inner.width, inner.height * 0.3F);
         const float text_height   = 24.0F;
+        const float button_height = std::min(inner.width, inner.height * 0.3F);
 
-        play_button.setBounds({inner.x, inner.y, inner.width, button_height});
-        position_area = {inner.x, inner.y + button_height + gap, inner.width, text_height};
+        title_area = {inner.x, inner.y, inner.width, text_height};
+        play_button.setBounds({inner.x, inner.y + text_height + gap, inner.width, button_height});
+        position_area = {inner.x, play_button.bounds().y + button_height + gap, inner.width, text_height};
 
         const float fader_top = position_area.y + text_height + gap;
         volume_fader.setBounds({inner.x, fader_top, inner.width, std::max(0.0F, inner.y + inner.height - fader_top)});
@@ -74,6 +75,8 @@ namespace djw::player_ui::sdl
 
     void DeckView::draw(Canvas &canvas) const
     {
+        canvas.textElided({title_area.x, title_area.y + (title_area.height - canvas.textHeight()) / 2}, track_title,
+                          text_color, title_area.width);
         play_button.draw(canvas);
 
         const std::string position = formatPosition(state.position_seconds);

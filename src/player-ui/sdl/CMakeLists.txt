@@ -17,6 +17,21 @@ FetchContent_Declare(SDL3
 )
 FetchContent_MakeAvailable(SDL3)
 
+# SDL3_ttf for text: taken from vcpkg or the system if available, otherwise downloaded with FreeType and HarfBuzz
+set(SDLTTF_VENDORED ON CACHE BOOL "" FORCE)
+set(SDLTTF_HARFBUZZ ON CACHE BOOL "" FORCE)
+set(SDLTTF_PLUTOSVG OFF CACHE BOOL "" FORCE)
+set(SDLTTF_SAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(SDL3_ttf
+    GIT_REPOSITORY    https://github.com/libsdl-org/SDL_ttf.git
+    GIT_TAG           release-3.2.2
+    GIT_SHALLOW       TRUE
+    GIT_SUBMODULES    external/freetype external/harfbuzz
+    SYSTEM
+    FIND_PACKAGE_ARGS 3.2 CONFIG
+)
+FetchContent_MakeAvailable(SDL3_ttf)
+
 # Everything except main(), so the tests can link it. Only the sdl_* files use SDL; the widgets draw on a Canvas.
 add_library(djw_player_sdl_ui STATIC
     pointer_router.cpp
@@ -24,13 +39,19 @@ add_library(djw_player_sdl_ui STATIC
     play_button.cpp
     time_format.cpp
     deck_view.cpp
+    text_field.cpp
+    track_list.cpp
+    library_view.cpp
+    command_line.cpp
     sdl_events.cpp
+    sdl_text.cpp
     sdl_canvas.cpp
+    sdl_window.cpp
     sdl_app.cpp
 )
 djw_set_options(djw_player_sdl_ui)
 target_include_directories(djw_player_sdl_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(djw_player_sdl_ui PUBLIC djw::core SDL3::SDL3)
+target_link_libraries(djw_player_sdl_ui PUBLIC djw::core SDL3::SDL3 SDL3_ttf::SDL3_ttf)
 
 add_executable(djw_player_sdl
     main.cpp
@@ -38,3 +59,12 @@ add_executable(djw_player_sdl
 set_target_properties(djw_player_sdl PROPERTIES OUTPUT_NAME djw)
 djw_set_options(djw_player_sdl)
 target_link_libraries(djw_player_sdl PRIVATE djw_player_sdl_ui)
+
+# The UI font next to the binary, where SdlApp looks for it
+add_custom_command(TARGET djw_player_sdl POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:djw_player_sdl>/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${PROJECT_SOURCE_DIR}/third_party/fonts/NotoSans-Regular.ttf
+        ${PROJECT_SOURCE_DIR}/third_party/fonts/NotoSans-OFL.txt
+        $<TARGET_FILE_DIR:djw_player_sdl>/fonts
+)
