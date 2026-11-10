@@ -3,6 +3,7 @@
 
 #include "engine/deck.hpp"
 
+#include "signal_analysis.hpp"
 #include "test_sources.hpp"
 
 #include <doctest/doctest.h>
@@ -12,6 +13,7 @@
 using djw::core::api::DeckId;
 using djw::core::engine::Deck;
 using djw::tests::BufferSource;
+using djw::tests::SineSource;
 
 TEST_CASE("Deck: a paused deck renders silence and does not move")
 {
@@ -338,4 +340,107 @@ TEST_CASE("Deck pitch bend: changes the speed while held and adds to the pitch")
     deck.setPitchBend(0);
     CHECK(deck.speed() == doctest::Approx(1.10));
     CHECK(deck.pitchPercent() == 10.0F);
+}
+
+namespace
+{
+    /// Plays a 440 Hz sine for a second at the pitch and returns what comes out after the start-up
+    std::vector<float> playSine(Deck &deck, SineSource &source, float pitch_percent, bool keylock)
+    {
+        deck.attach(&source);
+        deck.setPitch(pitch_percent);
+        deck.setKeylock(keylock);
+        deck.play();
+        std::vector<float> all;
+        std::vector<float> block(480 * 2);
+        for (int i = 0; i < 110; ++i)
+        {
+            deck.render(block);
+            all.insert(all.end(), block.begin(), block.end());
+        }
+        return {all.begin() + 4'800 * 2, all.end()};
+    }
+} // namespace
+
+TEST_CASE("Deck: the pitch fader changes tempo and pitch together without keylock")
+{
+    SineSource source{440.0, 48'000, 0.5F};
+    Deck       deck{DeckId{1}, 0};
+    const auto output = playSine(deck, source, 8.0F, false);
+    CHECK(djw::tests::frequencyOf(output, 48'000) == doctest::Approx(440.0 * 1.08).epsilon(0.01));
+}
+
+TEST_CASE("Deck: with keylock the pitch fader changes the tempo only")
+{
+    SineSource source{440.0, 48'000, 0.5F};
+    Deck       deck{DeckId{1}, 0};
+    const auto output = playSine(deck, source, 8.0F, true);
+    CHECK(deck.keylock());
+    CHECK(djw::tests::frequencyOf(output, 48'000) == doctest::Approx(440.0).epsilon(0.02));
+    // The track moved at 1.08: 1.1 s of output are 1.188 s of track, less what the stretcher holds back
+    CHECK(deck.positionFrames() > 1.1 * 1.08 * 48'000 - 3'000);
+    CHECK(deck.positionFrames() < 1.1 * 1.08 * 48'000 + 500);
+}
+
+TEST_CASE("Deck: turning keylock on or off keeps the position")
+{
+    SineSource source{440.0, 48'000, 0.5F};
+    Deck       deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.play();
+    std::vector<float> block(480 * 2);
+    for (int i = 0; i < 20; ++i)
+    {
+        deck.render(block);
+    }
+    const double before = deck.positionFrames();
+
+    deck.setKeylock(true);
+    CHECK(deck.positionFrames() == doctest::Approx(before).epsilon(1.0 / before));
+    deck.render(block);
+    CHECK(deck.positionFrames() > before);
+
+    const double during = deck.positionFrames();
+    deck.setKeylock(false);
+    CHECK(deck.positionFrames() == doctest::Approx(during).epsilon(1.0 / during));
+}
+
+TEST_CASE("Deck: seek and CUE work with keylock")
+{
+    BufferSource source{djw::tests::ramp(48'000)};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.setKeylock(true);
+
+    deck.seek(10'000);
+    CHECK(deck.positionFrames() == 10'000);
+    deck.cue(true); // stopped away from the cue point: sets the cue point here
+    deck.cue(false);
+    CHECK(deck.cueFrame() == 10'000);
+    deck.play();
+    std::vector<float> block(480 * 2);
+    for (int i = 0; i < 10; ++i)
+    {
+        deck.render(block);
+    }
+    CHECK(deck.positionFrames() > 10'000);
+    deck.cue(true);
+    CHECK_FALSE(deck.isPlaying());
+    CHECK(deck.positionFrames() == 10'000);
+}
+
+TEST_CASE("Deck: a track plays out to its end with keylock and the deck stops")
+{
+    BufferSource source{djw::tests::ramp(12'000)};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.setPitch(10.0F);
+    deck.setKeylock(true);
+    deck.play();
+    std::vector<float> block(480 * 2);
+    for (int i = 0; i < 100 && deck.isPlaying(); ++i)
+    {
+        deck.render(block);
+    }
+    CHECK_FALSE(deck.isPlaying());
 }

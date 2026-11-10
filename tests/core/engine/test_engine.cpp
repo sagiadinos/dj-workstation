@@ -254,9 +254,11 @@ TEST_CASE("Engine: CUE, pitch and pitch bend arrive at the deck and show in the 
     REQUIRE(queue.tryPush(api::DeckCue{deck, false}));
     REQUIRE(queue.tryPush(api::DeckSetPitch{deck, -6.5F}));
     REQUIRE(queue.tryPush(api::DeckPitchBend{deck, 1}));
+    REQUIRE(queue.tryPush(api::DeckSetKeylock{deck, true}));
     engine.render(output);
 
     const api::DeckSnapshot state = engine.deckSnapshot(deck)->read();
+    CHECK(state.keylock);
     CHECK(state.cue_seconds == doctest::Approx(0.5));
     CHECK(state.pitch_percent == doctest::Approx(-6.5F));
     CHECK(state.play_state == api::PlayState::Stopped);

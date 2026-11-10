@@ -107,6 +107,18 @@ TEST_CASE("MiniaudioDecoder: MP3 has the length and level of the source")
     CHECK(rmsMatches(samples, stereo_amplitude, 0.1));
 }
 
+TEST_CASE("MiniaudioDecoder: Ogg Vorbis has the length and level of the source")
+{
+    const auto samples = decodeAll(audio_dir / "sine_440hz_48k_stereo.ogg", 48'000);
+
+    // Vorbis decodes whole blocks; the file may end a little after the source
+    CHECK(samples.size() >= (file_frames - 100) * 2);
+    CHECK(samples.size() <= (file_frames + 2'048) * 2);
+    CHECK(channelsEqual(samples));
+    INFO("rms " << rms(samples) << ", frames " << samples.size() / 2);
+    CHECK(rmsMatches(samples, stereo_amplitude, 0.1));
+}
+
 TEST_CASE("MiniaudioDecoder: mono 44.1 kHz is converted to stereo at the requested rate")
 {
     const auto samples = decodeAll(audio_dir / "sine_440hz_44k1_mono.wav", 48'000);

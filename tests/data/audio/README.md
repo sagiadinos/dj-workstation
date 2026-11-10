@@ -7,6 +7,7 @@ Q="-hide_banner -loglevel error -y -bitexact"
 ffmpeg $Q -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=0.25" -ac 2 -c:a pcm_s16le -map_metadata -1 sine_440hz_48k_stereo.wav
 ffmpeg $Q -i sine_440hz_48k_stereo.wav -c:a flac -map_metadata -1 sine_440hz_48k_stereo.flac
 ffmpeg $Q -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=0.25" -ac 2 -c:a libmp3lame -b:a 128k -map_metadata -1 sine_440hz_48k_stereo.mp3
+ffmpeg $Q -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=0.25" -ac 2 -c:a libvorbis -q:a 4 -map_metadata -1 sine_440hz_48k_stereo.ogg
 ffmpeg $Q -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=0.25" -ac 1 -c:a pcm_s16le -map_metadata -1 sine_440hz_44k1_mono.wav
 ```
 

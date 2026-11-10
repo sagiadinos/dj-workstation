@@ -11,6 +11,7 @@
 #include "fader.hpp"
 #include "play_button.hpp"
 #include "pointer_router.hpp"
+#include "text_button.hpp"
 #include "view.hpp"
 
 #include <optional>
@@ -19,7 +20,8 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * One deck on screen: track title, play button, position and channel fader.
+     * One deck on screen: track title, play button, position, channel fader, pitch fader with the KEY (keylock) and
+     * 0 (pitch zero) buttons and the pitch in percent.
      *
      * Turns input into commands for the core and shows the deck's snapshot. A command that does not fit into the
      * queue is kept and sent again on the next update(), so a fader position is never lost. For now the UI is the
@@ -44,6 +46,13 @@ namespace djw::player_ui::sdl
 
             [[nodiscard]] const Fader      &fader() const noexcept { return volume_fader; }
             [[nodiscard]] const PlayButton &playButton() const noexcept { return play_button; }
+            [[nodiscard]] const Fader      &pitchFader() const noexcept { return pitch_fader; }
+            [[nodiscard]] const TextButton &keylockButton() const noexcept { return keylock_button; }
+            [[nodiscard]] const TextButton &pitchZeroButton() const noexcept { return zero_button; }
+
+            /// The pitch the fader stands for, in percent (+ is faster); the top of the fader is the fastest
+            [[nodiscard]] static float pitchOf(float fader_value) noexcept;
+            [[nodiscard]] static float faderValueOf(float pitch_percent) noexcept;
 
         private:
             core::api::DeckId                 deck;
@@ -52,11 +61,17 @@ namespace djw::player_ui::sdl
             core::api::DeckSnapshot           state;
             PlayButton                        play_button;
             Fader                             volume_fader;
+            Fader                             pitch_fader;
+            TextButton                        keylock_button{"KEY"};
+            TextButton                        zero_button{"0"};
+            Rect                              pitch_text_area;
             Rect                              title_area;
             Rect                              position_area;
             std::string                       track_title;
             float                             sent_volume;
+            float                             sent_pitch = 0.0F;
             std::optional<core::api::Command> pending_transport;
+            std::optional<core::api::Command> pending_keylock;
     };
 } // namespace djw::player_ui::sdl
 

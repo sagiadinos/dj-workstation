@@ -12,6 +12,7 @@ add_library(djw_core_engine STATIC
     headphone_bus.cpp
     output_routing.cpp
     resampler.cpp
+    time_stretcher.cpp
     engine.cpp
     reclaimer.cpp
 )
@@ -19,4 +20,4 @@ add_library(djw::core::engine ALIAS djw_core_engine)
 djw_set_options(djw_core_engine)
 
 target_include_directories(djw_core_engine PUBLIC ${PROJECT_SOURCE_DIR}/src/core)
-target_link_libraries(djw_core_engine PUBLIC djw::core::api)
+target_link_libraries(djw_core_engine PUBLIC djw::core::api PRIVATE djw::soundtouch)

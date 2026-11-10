@@ -50,6 +50,16 @@ namespace djw::core::api
             std::int8_t direction;
     };
 
+    /**
+     * Keylock (master tempo): with it on, the pitch fader and the bend buttons change the tempo only and the key
+     * stays; with it off they change tempo and pitch together, like a turntable. The position of the track stays.
+     */
+    struct DeckSetKeylock
+    {
+            DeckId deck;
+            bool   enabled;
+    };
+
     /// Jumps to a position of the loaded track; clamped to the track
     struct DeckSeek
     {
@@ -129,7 +139,8 @@ namespace djw::core::api
      * the audio thread.
      */
     using Command =
-        std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckSetPitch, DeckPitchBend, MixerSetChannelVolume,
+        std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckSetPitch, DeckPitchBend, DeckSetKeylock,
+                     MixerSetChannelVolume,
                      MixerAssignCrossfader, MixerSetCrossfader, MixerCrossfaderMomentary, MixerSetMasterVolume,
                      MixerSetHeadphoneCue, MixerSetHeadphoneLevel, MixerSetCueMix, MixerSetHeadphoneVolume>;
 

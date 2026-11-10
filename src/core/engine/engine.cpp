@@ -16,11 +16,11 @@ namespace djw::core::engine
         constexpr double pause_fade_seconds = 0.005;
 
         // Engine::apply handles every command; a new command must be added there
-        static_assert(std::variant_size_v<api::Command> == 15, "handle the new command in Engine::apply");
+        static_assert(std::variant_size_v<api::Command> == 16, "handle the new command in Engine::apply");
     } // namespace
 
     Engine::DeckSlot::DeckSlot(api::DeckId id, std::uint32_t sample_rate)
-        : deck{id, static_cast<std::size_t>(pause_fade_seconds * sample_rate)}, channel{sample_rate},
+        : deck{id, static_cast<std::size_t>(pause_fade_seconds * sample_rate), sample_rate}, channel{sample_rate},
           snapshot{api::DeckSnapshot{.deck = id}}
     {
     }
@@ -192,6 +192,8 @@ namespace djw::core::engine
                                            { slot.deck.setPitch(pitch.percent); }) ||
             applyToDeck<api::DeckPitchBend>(list, command, [](DeckSlot &slot, const api::DeckPitchBend &bend)
                                             { slot.deck.setPitchBend(bend.direction); }) ||
+            applyToDeck<api::DeckSetKeylock>(list, command, [](DeckSlot &slot, const api::DeckSetKeylock &keylock)
+                                             { slot.deck.setKeylock(keylock.enabled); }) ||
             applyToDeck<api::DeckSeek>(list, command,
                                        [rate = config.sample_rate](DeckSlot &slot, const api::DeckSeek &seek)
                                        {
@@ -275,6 +277,7 @@ namespace djw::core::engine
                 .duration_seconds = static_cast<double>(deck.lengthFrames()) / rate,
                 .cue_seconds      = static_cast<double>(deck.cueFrame()) / rate,
                 .pitch_percent    = deck.pitchPercent(),
+                .keylock          = deck.keylock(),
                 .crossfader_side  = slot->channel.crossfaderSide(),
                 .level            = slot->channel.level(),
                 .headphone_cue    = slot->channel.headphoneCue(),

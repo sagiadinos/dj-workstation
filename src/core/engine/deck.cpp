@@ -9,7 +9,10 @@
 
 namespace djw::core::engine
 {
-    Deck::Deck(api::DeckId id, std::size_t pause_fade_frames) : deck_id{id}, pause_fade_frames{pause_fade_frames} {}
+    Deck::Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate)
+        : deck_id{id}, stretcher{sample_rate}, pause_fade_frames{pause_fade_frames}
+    {
+    }
 
     void Deck::attach(AudioSource *track) noexcept // [audio-thread]
     {
@@ -24,6 +27,29 @@ namespace djw::core::engine
         cue_preview    = false;
         return_to_cue  = false;
         resampler.reset(0);
+        stretcher.reset(0);
+    }
+
+    double Deck::playbackPosition() const noexcept
+    {
+        return keylock_on ? stretcher.position() : resampler.position();
+    }
+
+    void Deck::restartAt(std::uint64_t frame) noexcept
+    {
+        source->seek(frame);
+        resampler.reset(frame);
+        stretcher.reset(frame);
+    }
+
+    std::size_t Deck::produce(std::span<float> output) noexcept
+    {
+        return keylock_on ? stretcher.process(*source, speed(), output) : resampler.process(*source, speed(), output);
+    }
+
+    bool Deck::drained() const noexcept
+    {
+        return keylock_on ? stretcher.drained() : resampler.drained();
     }
 
     std::uint64_t Deck::lengthFrames() const noexcept
@@ -80,7 +106,7 @@ namespace djw::core::engine
         }
         else if (!atCue())
         {
-            cue_frame = static_cast<std::uint64_t>(std::llround(resampler.position()));
+            cue_frame = static_cast<std::uint64_t>(std::llround(playbackPosition()));
         }
         else
         {
@@ -109,7 +135,7 @@ namespace djw::core::engine
 
     bool Deck::atCue() const noexcept
     {
-        return std::llround(resampler.position()) == static_cast<long long>(cue_frame);
+        return std::llround(playbackPosition()) == static_cast<long long>(cue_frame);
     }
 
     void Deck::seek(std::uint64_t frame) noexcept // [audio-thread]
@@ -120,8 +146,7 @@ namespace djw::core::engine
         }
         const std::uint64_t length = source->lengthFrames();
         const std::uint64_t target = length > 0 ? std::min(frame, length) : frame;
-        source->seek(target);
-        resampler.reset(target);
+        restartAt(target);
     }
 
     void Deck::setPitch(float percent) noexcept // [audio-thread]
@@ -134,13 +159,31 @@ namespace djw::core::engine
         bend_direction = std::clamp(direction, -1, 1);
     }
 
+    void Deck::setKeylock(bool on) noexcept // [audio-thread]
+    {
+        if (on == keylock_on)
+        {
+            return;
+        }
+        if (source == nullptr)
+        {
+            keylock_on = on;
+            return;
+        }
+        // The other player takes over from where this one is
+        const auto frame = static_cast<std::uint64_t>(std::llround(playbackPosition()));
+        keylock_on       = on;
+        const std::uint64_t length = source->lengthFrames();
+        restartAt(length > 0 ? std::min(frame, length) : frame); // a length of 0 is unknown
+    }
+
     void Deck::render(std::span<float> output) noexcept // [audio-thread]
     {
         std::size_t produced = 0;
         if (state == State::Playing)
         {
-            produced = resampler.process(*source, speed(), output);
-            if (produced * stereo_channels < output.size() && resampler.drained())
+            produced = produce(output);
+            if (produced * stereo_channels < output.size() && drained())
             {
                 state       = State::Stopped;
                 cue_preview = false;
@@ -156,7 +199,7 @@ namespace djw::core::engine
     std::size_t Deck::renderFadeOut(std::span<float> output) noexcept // [audio-thread]
     {
         const std::size_t wanted   = std::min(output.size() / stereo_channels, fade_remaining);
-        const std::size_t produced = resampler.process(*source, speed(), output.first(wanted * stereo_channels));
+        const std::size_t produced = produce(output.first(wanted * stereo_channels));
 
         // Linear from the current level down to 0.0, reached on the last frame of the fade
         for (std::size_t frame = 0; frame < produced; ++frame)

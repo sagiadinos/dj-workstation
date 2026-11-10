@@ -48,6 +48,8 @@ namespace djw::core::api
             double    cue_seconds      = 0.0;
             /// Pitch fader, without a held pitch bend
             float          pitch_percent   = 0.0F;
+            /// Keylock: the pitch fader changes the tempo only
+            bool           keylock         = false;
             CrossfaderSide crossfader_side = CrossfaderSide::None;
             /// Level before the channel fader, so a deck can be watched with the fader down
             StereoLevel level{};

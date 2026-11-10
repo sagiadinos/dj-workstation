@@ -6,6 +6,7 @@
 
 include(DjwMiniaudio)
 include(DjwSqlite)
+include(DjwSoundTouch)
 
 add_subdirectory(api)
 add_subdirectory(engine)
