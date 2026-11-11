@@ -128,7 +128,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Pitch bend | M | +/- buttons for temporary nudging. |
 | Pitch zero | M | Reset fader to 0 with a double tap on the pitch fader. |
 | Keylock (master tempo) | M | Tempo change without pitch change via SoundTouch. |
-| Seek with audible scrub | M | Short loop at the current position while seeking. |
+| Seek with audible scrub | M | Touching the waveform of a playing deck jumps there at once; on a deck that stands, dragging plays a short loop where the finger is. |
 | Waveform overview | M | Whole track, click/touch to jump. |
 | Scrolling waveform | 1 | Zoomable, with beatgrid. |
 | BPM display | M | From analysis, manually correctable (tap, halve/double). |

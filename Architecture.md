@@ -176,7 +176,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
   - build and all tests with `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan`, with warnings as errors and GCC 13 (the minimum)
   - Clang with libc++ is not in the CI; it is built on the Mac
   - clang-format check and clang-tidy
-  - line coverage of `src/` with gcovr; the report is attached to the run
+  - line coverage of `src/` with gcovr; the report is attached to the run. On `main` the coverage badge (an SVG made by `.github/scripts/coverage_badge.py`, no external service) is committed to the branch `badges`, from which the README shows it
 - The CI does not start the SDL player, so leaks in system graphics drivers (seen locally with Mesa/EGL) do not show up there. A LeakSanitizer suppression file is added once a CI job runs the player.
 
 ## Workflow
