@@ -47,12 +47,20 @@ namespace djw::core::control
         return std::string{port.substr(0, space)};
     }
 
+    bool ControllerHub::isSystemPort(std::string_view port)
+    {
+        return port.starts_with("Midi Through");
+    }
+
     std::vector<std::string> ControllerHub::ports() const
     {
         std::vector<std::string> names;
         for (const std::string &port : midi->ports())
         {
-            names.push_back(stablePortName(port));
+            if (!isSystemPort(port))
+            {
+                names.push_back(stablePortName(port));
+            }
         }
         return names;
     }
@@ -104,6 +112,10 @@ namespace djw::core::control
         std::vector<std::string> errors;
         for (const std::string &port : midi->ports())
         {
+            if (isSystemPort(port))
+            {
+                continue;
+            }
             const Mapping    *mapping = nullptr;
             const std::string stable  = stablePortName(port);
             if (const auto chosen = assigned.find(stable); chosen != assigned.end())

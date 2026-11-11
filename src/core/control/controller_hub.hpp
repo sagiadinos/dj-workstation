@@ -31,6 +31,8 @@ namespace djw::core::control
             /// A port's name without the numbers ALSA adds at the end ("Starlight MIDI 1 24:0" → "Starlight MIDI 1"),
             /// which change when the device is plugged in again; other names stay as they are
             [[nodiscard]] static std::string stablePortName(std::string_view port);
+            /// A port of the system that is no controller: ALSA's "Midi Through", which passes on what is sent to it
+            [[nodiscard]] static bool isSystemPort(std::string_view port);
 
             ControllerHub(std::unique_ptr<MidiSystem> midi, std::vector<Mapping> mappings);
             ~ControllerHub() override;

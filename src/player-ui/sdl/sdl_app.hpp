@@ -35,6 +35,9 @@
 
 namespace djw::player_ui::sdl
 {
+    /// The program's name, in the title of the one window
+    inline constexpr std::string_view program_name = "Nick's DJ-Workstation";
+
     /**
      * The SDL3 player: a window for each deck (the player), and, if there is a library, the library window, which is
      * the main window. The playlist and the crossfader window open from the View menu (the playlist also from the

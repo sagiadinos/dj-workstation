@@ -1254,6 +1254,7 @@ TEST_CASE("SdlApp: without a saved layout the program starts in the one window w
     CHECK(app->windowMode() == WindowMode::Mdi);
     CHECK(app->nextWindowMode() == WindowMode::Mdi);
     CHECK(openWindows() == 1);
+    CHECK(std::string_view{SDL_GetWindowTitle(SDL_GetWindowFromID(app->libraryWindowId()))} == program_name);
     CHECK(app->deckCount() == 2);
     CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
     REQUIRE(app->runFrame());

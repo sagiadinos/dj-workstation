@@ -300,7 +300,7 @@ namespace djw::player_ui::sdl
 
     bool SdlApp::openHost(bool fullscreen)
     {
-        auto created = SdlWindow::create({.title      = "djw",
+        auto created = SdlWindow::create({.title      = std::string{program_name},
                                           .width      = library_size.width,
                                           .height     = library_size.height,
                                           .vsync      = true,
