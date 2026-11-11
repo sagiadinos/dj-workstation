@@ -46,7 +46,7 @@ namespace djw::core::engine
 
     double Deck::playbackPosition() const noexcept
     {
-        if (state == State::Scrubbing)
+        if (state == State::Scrubbing || state == State::ScrubFadingOut)
         {
             return static_cast<double>(scrub_target);
         }
@@ -86,9 +86,10 @@ namespace djw::core::engine
         {
             return;
         }
-        if (state == State::Scrubbing)
+        if (state == State::Scrubbing || state == State::ScrubFadingOut)
         {
             // The loop of a deck that stood ends, the deck plays from there
+            fade_remaining = 0;
             restartAt(scrub_target);
         }
         // Play while CUE is held: the deck keeps playing after CUE is released
@@ -120,13 +121,21 @@ namespace djw::core::engine
         }
         if (state == State::Scrubbing)
         {
-            // The loop of a deck that stood ends; where it played becomes the cue point
+            // The loop of a deck that stood fades out and ends; where it played becomes the cue point
             if (pressed)
             {
-                state     = State::Stopped;
                 cue_frame = scrub_target;
                 ++cue_sets;
-                restartAt(scrub_target);
+                if (pause_fade_frames > 0)
+                {
+                    state          = State::ScrubFadingOut;
+                    fade_remaining = pause_fade_frames;
+                }
+                else
+                {
+                    state = State::Stopped;
+                    restartAt(scrub_target);
+                }
             }
             return;
         }
@@ -189,6 +198,12 @@ namespace djw::core::engine
             // The loop moves there
             scrub(frame, true);
             return;
+        }
+        if (state == State::ScrubFadingOut)
+        {
+            // The rest of the fade would go on at the loop; the deck stops at the new position instead
+            state          = State::Stopped;
+            fade_remaining = 0;
         }
         restartAt(clampToTrack(frame));
     }
@@ -283,6 +298,10 @@ namespace djw::core::engine
         {
             produced = renderScrub(output);
         }
+        else if (state == State::ScrubFadingOut)
+        {
+            produced = renderScrubFadeOut(output);
+        }
         std::ranges::fill(output.subspan(produced * stereo_channels), 0.0F);
     }
 
@@ -330,21 +349,40 @@ namespace djw::core::engine
         return written;
     }
 
-    std::size_t Deck::renderFadeOut(std::span<float> output) noexcept // [audio-thread]
+    void Deck::applyFadeOut(std::span<float> output) const noexcept // [audio-thread]
     {
-        const std::size_t wanted   = std::min(output.size() / stereo_channels, fade_remaining);
-        const std::size_t produced = produce(output.first(wanted * stereo_channels));
-
         // Linear from the current level down to 0.0, reached on the last frame of the fade
-        for (std::size_t frame = 0; frame < produced; ++frame)
+        const std::size_t frames = output.size() / stereo_channels;
+        for (std::size_t frame = 0; frame < frames; ++frame)
         {
             const float gain = static_cast<float>(fade_remaining - frame - 1) / static_cast<float>(pause_fade_frames);
             for (std::size_t channel = 0; channel < stereo_channels; ++channel)
             {
-                output[frame * stereo_channels + channel] *= gain;
+                output[(frame * stereo_channels) + channel] *= gain;
             }
         }
+    }
 
+    std::size_t Deck::renderScrubFadeOut(std::span<float> output) noexcept // [audio-thread]
+    {
+        const std::size_t wanted   = std::min(output.size() / stereo_channels, fade_remaining);
+        const std::size_t produced = renderScrub(output.first(wanted * stereo_channels));
+        applyFadeOut(output.first(produced * stereo_channels));
+        fade_remaining -= wanted;
+        if (fade_remaining == 0 || produced < wanted)
+        {
+            fade_remaining = 0;
+            state          = State::Stopped;
+            restartAt(scrub_target);
+        }
+        return produced;
+    }
+
+    std::size_t Deck::renderFadeOut(std::span<float> output) noexcept // [audio-thread]
+    {
+        const std::size_t wanted   = std::min(output.size() / stereo_channels, fade_remaining);
+        const std::size_t produced = produce(output.first(wanted * stereo_channels));
+        applyFadeOut(output.first(produced * stereo_channels));
         fade_remaining -= wanted;
         if (fade_remaining == 0 || produced < wanted)
         {

@@ -159,7 +159,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - Avoid leaks by construction: every resource has an owner (RAII). Heap memory through `std::unique_ptr` or containers, C library handles (miniaudio, SQLite, SDL, ...) in a small RAII wrapper with a deleter, never with manual `free`/`close` calls spread over the code.
 - Leaks are checked, not assumed: LeakSanitizer runs with every ASan test run (`ASAN_OPTIONS=detect_leaks=1` set explicitly in the test environment). A reported leak fails the test.
 - LeakSanitizer is only reliable on Linux (macOS on Apple Silicon and MSVC do not support it), so the Linux ASan run in CI is the authoritative leak check.
-- Leaks inside third-party libraries are suppressed in a suppression file with a comment naming the library and the reason, never by disabling the check. The same holds for data races TSan reports inside third-party code (`tests/sanitizers/tsan.supp`, e.g. SQLite's lock-free WAL index header).
+- Leaks inside third-party libraries are suppressed in a suppression file with a comment naming the library and the reason, never by disabling the check. The same holds for data races TSan reports inside third-party code (`tests/sanitizers/tsan.supp`, e.g. SQLite's lock-free WAL index header) and for undefined behavior UBSan finds there (`tests/sanitizers/ubsan.supp`, e.g. TagLib writing an empty block through a null pointer).
 - Long-running paths (deck load/unload, adding/removing decks, library scans) get tests that repeat the operation many times, so a leak per operation shows up even if it is small.
 
 ### General

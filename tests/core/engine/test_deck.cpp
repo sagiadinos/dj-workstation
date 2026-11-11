@@ -649,6 +649,62 @@ TEST_CASE("Deck: the loop of a deck that stood runs on until CUE sets the cue po
     CHECK(output == std::vector<float>(output.size(), 0.0F)); // stopped at the cue point
 }
 
+TEST_CASE("Deck: CUE fades the loop of a deck that stood out like a pause, then the deck stands at the cue point")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 480};
+    deck.attach(&source);
+    std::vector<float> output(2 * 1'000);
+    deck.scrub(10'000, true);
+    deck.render(output); // in the middle of the loop now, at full level
+
+    deck.cue(true);
+    CHECK_FALSE(deck.scrubbing());
+    CHECK_FALSE(deck.isPlaying());
+    CHECK(deck.cueFrame() == 10'000);
+    CHECK(deck.cueSetCount() == 1);
+    CHECK(deck.positionFrames() == 10'000);
+    deck.cue(false);
+
+    deck.render(output);
+    // The loop goes on from where it was, falling linearly to silence over the pause fade
+    CHECK(valueAtFrame(output, 0) == doctest::Approx(trackValue(10'000 + 1'000) * 479.0F / 480.0F).epsilon(0.001));
+    CHECK(valueAtFrame(output, 240) == doctest::Approx(trackValue(10'000 + 1'240) * 239.0F / 480.0F).epsilon(0.001));
+    CHECK(valueAtFrame(output, 480) == 0.0F);
+    CHECK(valueAtFrame(output, 999) == 0.0F);
+    CHECK(deck.positionFrames() == 10'000);
+
+    deck.play();
+    deck.render(output);
+    CHECK(valueAtFrame(output, 0) == doctest::Approx(trackValue(10'000)).epsilon(0.001));
+}
+
+TEST_CASE("Deck: play or a seek during the fade after CUE take over at once")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 480};
+    deck.attach(&source);
+    std::vector<float> output(2 * 100);
+    deck.scrub(10'000, true);
+    deck.render(output);
+    deck.cue(true);
+    deck.render(output); // part of the fade
+
+    deck.seek(20'000);
+    CHECK(deck.positionFrames() == 20'000);
+    deck.render(output);
+    CHECK(output == std::vector<float>(output.size(), 0.0F)); // stands at the new position
+
+    deck.scrub(10'000, true);
+    deck.render(output);
+    deck.cue(true);
+    deck.render(output);
+    deck.play();
+    CHECK(deck.isPlaying());
+    deck.render(output);
+    CHECK(valueAtFrame(output, 0) == doctest::Approx(trackValue(10'000)).epsilon(0.001));
+}
+
 TEST_CASE("Deck: play ends the loop of a deck that stood and plays from there")
 {
     BufferSource source{positionTrack()};

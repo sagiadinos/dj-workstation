@@ -1,0 +1,7 @@
+# UndefinedBehaviorSanitizer suppressions, used by the linux-asan test preset (Architecture.md: Memory and threads).
+# Only findings inside third-party code, each with the library and the reason.
+
+# TagLib, saving a FLAC file (FileStream::removeBlock): the last block it moves can be empty, and it writes it with
+# fwrite(buffer.data(), 1, 0, file), where the empty ByteVector's data() is null. Nothing is written; it only shows
+# where TagLib is built from source with the sanitizers (the CI).
+nonnull-attribute:tfilestream.cpp

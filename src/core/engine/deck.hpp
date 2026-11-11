@@ -83,8 +83,9 @@ namespace djw::core::engine
             void seek(std::uint64_t frame) noexcept; // [audio-thread]
             /// Scrub: plays a short loop at frame while active, with every call the loop moves there; when it ends
             /// (active false) the deck continues at frame, playing if it played before. The loop of a deck that
-            /// stood also ends with play (the deck plays from there) and with CUE (it stops there, and that becomes
-            /// the cue point); a seek moves it. For a deck that played these wait until the scrub is over.
+            /// stood also ends with play (the deck plays from there) and with CUE (it fades out like a pause and
+            /// stops there, and that becomes the cue point); a seek moves it. For a deck that played these wait until
+            /// the scrub is over.
             void scrub(std::uint64_t frame, bool active) noexcept; // [audio-thread]
             void setPitch(float percent) noexcept;                 // [audio-thread]
             void setPitchBend(int direction) noexcept;             // [audio-thread]
@@ -101,7 +102,9 @@ namespace djw::core::engine
                 Stopped,
                 Playing,
                 FadingOut,
-                Scrubbing
+                Scrubbing,
+                /// The scrub loop of a deck that stood fades out after CUE, then the deck stops at the loop
+                ScrubFadingOut
             };
 
             /// Position of the next frame, in frames of the track
@@ -118,8 +121,11 @@ namespace djw::core::engine
             void               stopAtCue() noexcept; // [audio-thread]
             [[nodiscard]] bool atCue() const noexcept;
 
-            std::size_t renderFadeOut(std::span<float> output) noexcept; // [audio-thread]
-            std::size_t renderScrub(std::span<float> output) noexcept;   // [audio-thread]
+            std::size_t renderFadeOut(std::span<float> output) noexcept;      // [audio-thread]
+            std::size_t renderScrub(std::span<float> output) noexcept;        // [audio-thread]
+            std::size_t renderScrubFadeOut(std::span<float> output) noexcept; // [audio-thread]
+            /// Multiplies output with the pause fade from fade_remaining on
+            void applyFadeOut(std::span<float> output) const noexcept; // [audio-thread]
 
             api::DeckId   deck_id;
             AudioSource  *source = nullptr;

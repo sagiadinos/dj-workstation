@@ -155,6 +155,11 @@ namespace djw::player_ui::sdl
 
     float SdlText::width(std::string_view text, Size size) const
     {
+        // SDL_ttf compares an empty text with its empty cache entry through a null pointer (memcmp of length 0)
+        if (text.empty())
+        {
+            return 0.0F;
+        }
         const Face &which = face(size);
         std::string key{text};
         if (const auto found = which.widths.find(key); found != which.widths.end())

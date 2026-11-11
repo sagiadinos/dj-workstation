@@ -180,7 +180,7 @@ namespace djw::player_ui::sdl
             /// The pitch shown: what the fader says
             float shown_pitch = 0.0F;
             /// Commands that go out in this order
-            std::deque<core::api::Command>    pending;
+            std::deque<core::api::Command> pending;
             /// The latest position chosen on the waveform (a jump or a scrub), sent after the list
             std::optional<core::api::Command> pending_position;
     };

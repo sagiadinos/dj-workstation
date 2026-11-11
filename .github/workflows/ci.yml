@@ -128,7 +128,9 @@ jobs:
       - name: Report
         run: |
           mkdir -p coverage
-          gcovr --gcov-executable gcov-13 --root . --filter 'src/' \
+          # The fetched dependencies are built with --coverage as well; gcov fails on some of their generated
+          # sources (harfbuzz), and they are not reported anyway
+          gcovr --gcov-executable gcov-13 --root . --filter 'src/' --gcov-exclude-directories '.*/_deps/.*' \
                 --html-details coverage/index.html --txt coverage/summary.txt \
                 --json-summary coverage/summary.json build/linux-debug
           python3 .github/scripts/coverage_badge.py coverage/summary.json coverage/coverage.svg
