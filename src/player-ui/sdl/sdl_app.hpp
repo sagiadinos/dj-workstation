@@ -54,6 +54,9 @@ namespace djw::player_ui::sdl
      * they stay where the user put them, a part opened later takes a free place, until View > Arrange automatically.
      * Closing that window ends the program. Each mode keeps its own layout in the layout file.
      *
+     * While a player plays nothing that would stop it closes: not that player, and not the main window (the library
+     * window, or the one window of the MDI mode); a quit is ignored as well.
+     *
      * Declaration order is destruction order in reverse: windows before the views they show, SDL itself last.
      */
     class SdlApp
@@ -156,6 +159,8 @@ namespace djw::player_ui::sdl
             }
             /// The Cue-Load option of the deck at index; for tests
             void setDeckCueLoad(std::size_t index, bool on) { decks.at(index)->view->setCueLoad(on); }
+            /// Some player plays: then the program does not end and the playing players do not close
+            [[nodiscard]] bool anyPlaying() const;
             /// Whether the deck at index plays, as of the last frame; for tests
             [[nodiscard]] bool deckPlaying(std::size_t index) const { return decks.at(index)->view->playing(); }
             [[nodiscard]] const DeckView &deckView(std::size_t index) const { return *decks.at(index)->view; }
@@ -258,7 +263,7 @@ namespace djw::player_ui::sdl
             [[nodiscard]] Placement fitToDisplay(const Placement &place) const;
             /// Adds a deck to the core and opens its window
             void addDeck(std::optional<Placement> where = std::nullopt);
-            /// Closes the window of a deck, then removes the deck from the core
+            /// Closes the window of a deck, then removes the deck from the core; not while the deck plays
             void                      closeDeck(core::api::DeckId deck);
             [[nodiscard]] DeckWindow *deckWindow(core::api::DeckId deck) noexcept;
             [[nodiscard]] DeckWindow *deckOfWindow(SDL_WindowID window) noexcept;

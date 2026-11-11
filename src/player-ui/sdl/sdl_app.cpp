@@ -770,12 +770,17 @@ namespace djw::player_ui::sdl
         return writeLayout(layout);
     }
 
+    bool SdlApp::anyPlaying() const
+    {
+        return std::ranges::any_of(decks, [](const auto &candidate) { return candidate->view->playing(); });
+    }
+
     void SdlApp::closeDeck(core::api::DeckId deck)
     {
         const DeckWindow *closing = deckWindow(deck);
-        if (closing == nullptr)
+        if (closing == nullptr || closing->view->playing())
         {
-            return;
+            return; // a player that plays is not closed
         }
         if (host_window != nullptr)
         {
@@ -1233,7 +1238,11 @@ namespace djw::player_ui::sdl
             }
             if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
-                running = false;
+                // The main window (or a quit) ends the program, but not while a player plays
+                if (!anyPlaying())
+                {
+                    running = false;
+                }
                 continue;
             }
             if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_N &&

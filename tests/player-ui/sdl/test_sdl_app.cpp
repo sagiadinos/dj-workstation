@@ -1122,3 +1122,74 @@ TEST_CASE("SdlApp: in the MDI mode the menu bar runs across the top of the windo
     REQUIRE(app->runFrame());
     CHECK_FALSE(app->fullscreen());
 }
+
+TEST_CASE("SdlApp: while a player plays it does not close, nor does the main window, nor does a quit end the program")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = makeWav(folder, "one.wav");
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library);
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 2);
+    app->load(trackOf(file));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, true));
+    CHECK(app->anyPlaying());
+
+    // The playing player stays, the other one closes
+    Fixture::closeWindow(app->deckWindowId(0));
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 2);
+    Fixture::closeWindow(app->deckWindowId(1));
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 1);
+
+    // The library window and a quit do not end the program
+    Fixture::closeWindow(app->libraryWindowId());
+    CHECK(app->runFrame());
+    SDL_Event quit{};
+    quit.type = SDL_EVENT_QUIT;
+    SDL_PushEvent(&quit);
+    CHECK(app->runFrame());
+
+    // Stopped, all of it works again
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPause{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, false));
+    CHECK_FALSE(app->anyPlaying());
+    Fixture::closeWindow(app->libraryWindowId());
+    CHECK_FALSE(app->runFrame());
+}
+
+TEST_CASE("SdlApp: in the MDI mode the close button of a playing player and closing the window do nothing")
+{
+    const djw::tests::TempDir folder;
+    const auto                layout_file = folder.path() / "layout";
+    const auto                file        = makeWav(folder, "one.wav");
+    writeMdiLayout(layout_file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, layout_file);
+    REQUIRE(app->runFrame());
+    app->load(trackOf(file));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, true));
+
+    const Rect button = app->deckFrame(0)->closeButton().bounds();
+    click(app->libraryWindowId(), {button.x + (button.width / 2), button.y + (button.height / 2)});
+    REQUIRE(app->runFrame());
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 2);
+
+    Fixture::closeWindow(app->libraryWindowId());
+    CHECK(app->runFrame());
+
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPause{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, false));
+    click(app->libraryWindowId(), {button.x + (button.width / 2), button.y + (button.height / 2)});
+    REQUIRE(app->runFrame());
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 1);
+}
