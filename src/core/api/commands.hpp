@@ -67,6 +67,19 @@ namespace djw::core::api
             double position_seconds;
     };
 
+    /**
+     * Scrub: while active the deck plays a short piece of the track at the position over and over, so the user hears
+     * where they are while dragging; send it again with each new position. A deck that played goes on playing from the
+     * last position when the scrub ends (active false, with that position); a deck that stood stays there. Play,
+     * pause and CUE are ignored during the scrub. The position is clamped to the track.
+     */
+    struct DeckScrub
+    {
+            DeckId deck;
+            double position_seconds;
+            bool   active;
+    };
+
     /// Channel fader of a deck, 0.0 (silent) to 1.0 (full). Values outside are clamped by the engine.
     struct MixerSetChannelVolume
     {
@@ -139,7 +152,7 @@ namespace djw::core::api
      * the audio thread.
      */
     using Command =
-        std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckSetPitch, DeckPitchBend, DeckSetKeylock,
+        std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckScrub, DeckSetPitch, DeckPitchBend, DeckSetKeylock,
                      MixerSetChannelVolume,
                      MixerAssignCrossfader, MixerSetCrossfader, MixerCrossfaderMomentary, MixerSetMasterVolume,
                      MixerSetHeadphoneCue, MixerSetHeadphoneLevel, MixerSetCueMix, MixerSetHeadphoneVolume>;

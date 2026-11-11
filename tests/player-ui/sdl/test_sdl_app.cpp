@@ -12,6 +12,8 @@
 #include <doctest/doctest.h>
 
 #include <chrono>
+#include <fstream>
+#include <sstream>
 #include <cmath>
 #include <memory>
 #include <thread>
@@ -34,9 +36,9 @@ namespace
                 REQUIRE(core->start().has_value()); // the audio thread runs, with no sound
             }
 
-            std::unique_ptr<SdlApp> openApp(api::Library *library = nullptr)
+            std::unique_ptr<SdlApp> openApp(api::Library *library = nullptr, const std::filesystem::path &layout_file = {})
             {
-                auto app = SdlApp::create(*core, deck, library, Language::English);
+                auto app = SdlApp::create(*core, deck, library, Language::English, {}, layout_file);
                 REQUIRE(app.has_value());
                 return std::move(*app);
             }
@@ -501,4 +503,132 @@ TEST_CASE("SdlApp: the tempo and waveform of an analyzed track show in the playe
     app->load(outside); // player 1 plays, so it goes to player 2 again
     CHECK_FALSE(app->deckView(1).bpm().has_value());
     CHECK_FALSE(app->deckView(1).waveform().hasWaveform());
+}
+
+namespace
+{
+    Placement placementOfWindow(SDL_WindowID id)
+    {
+        SDL_Window *window = SDL_GetWindowFromID(id);
+        REQUIRE(window != nullptr);
+        Placement where;
+        SDL_GetWindowPosition(window, &where.x, &where.y);
+        SDL_GetWindowSize(window, &where.width, &where.height);
+        return where;
+    }
+} // namespace
+
+TEST_CASE("SdlApp: without a saved layout two players and the crossfader window open, player 1 and 2 on the sides")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library, folder.path() / "layout");
+
+    CHECK(app->deckCount() == 2);
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Playlist));
+    for (int i = 0; i < 3; ++i)
+    {
+        REQUIRE(app->runFrame()); // the sides reach the decks
+        std::this_thread::sleep_for(std::chrono::milliseconds{20});
+    }
+    CHECK(app->deckView(0).crossfaderSide() == api::CrossfaderSide::A);
+    CHECK(app->deckView(1).crossfaderSide() == api::CrossfaderSide::B);
+
+    // Player 1, the crossfader window, player 2: from left to right
+    const Placement first  = placementOfWindow(app->deckWindowId(0));
+    const Placement mixer  = placementOfWindow(app->toolWindowId(SdlApp::Tool::Mixer));
+    const Placement second = placementOfWindow(app->deckWindowId(1));
+    CHECK(first.x < mixer.x);
+    CHECK(mixer.x < second.x);
+}
+
+TEST_CASE("SdlApp: a saved layout brings back the players, their sides and the crossfader window")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    Layout                    saved;
+    // Inside the 1024 x 768 of SDL's dummy display, so nothing is moved
+    saved.players  = {{{20, 30, 380, 514}, api::CrossfaderSide::None},
+                      {{120, 30, 380, 514}, api::CrossfaderSide::B},
+                      {{220, 30, 380, 514}, api::CrossfaderSide::A},
+                      {{320, 30, 380, 514}, api::CrossfaderSide::None},
+                      {{420, 30, 380, 514}, api::CrossfaderSide::None}};
+    saved.library  = {100, 100, 720, 640};
+    saved.mixer    = {.open = true, .place = {300, 300, 440, 250}};
+    saved.playlist = {.open = false, .place = {900, 100, 560, 640}};
+    std::ofstream{file} << formatLayout(saved);
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+
+    CHECK(app->deckCount() == 5);
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    for (int i = 0; i < 3; ++i)
+    {
+        REQUIRE(app->runFrame());
+        std::this_thread::sleep_for(std::chrono::milliseconds{20});
+    }
+    CHECK(app->deckView(1).crossfaderSide() == api::CrossfaderSide::B); // "player 2 and player 3 fade"
+    CHECK(app->deckView(2).crossfaderSide() == api::CrossfaderSide::A);
+    CHECK(app->deckView(0).crossfaderSide() == api::CrossfaderSide::None);
+    CHECK(placementOfWindow(app->deckWindowId(2)).x == 220);
+}
+
+TEST_CASE("SdlApp: View > Save layout writes what is open now, the next start finds it again")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    {
+        Fixture                 fixture;
+        djw::tests::FakeLibrary library;
+        auto                    app = fixture.openApp(&library, file); // the default: two players, the crossfader window
+        REQUIRE(app->runFrame());
+
+        Fixture::ctrlN(); // a third player
+        REQUIRE(app->runFrame());
+        REQUIRE(app->deckCount() == 3);
+        app->requestToolWindow(SdlApp::Tool::Mixer, false);
+        REQUIRE(app->runFrame());
+        CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Mixer));
+
+        CHECK(app->saveLayout());
+    }
+    const auto text = [&file]
+    {
+        std::ifstream      in{file};
+        std::ostringstream out;
+        out << in.rdbuf();
+        return out.str();
+    }();
+    const auto layout = parseLayout(text);
+    REQUIRE(layout.has_value());
+    CHECK(layout->players.size() == 3);
+    CHECK_FALSE(layout->mixer.open);
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    CHECK(app->deckCount() == 3);
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Mixer));
+}
+
+TEST_CASE("SdlApp: a damaged layout file falls back to the default, no layout file keeps the plain start")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    std::ofstream{file} << "garbage\n";
+    {
+        Fixture                 fixture;
+        djw::tests::FakeLibrary library;
+        auto                    app = fixture.openApp(&library, file);
+        CHECK(app->deckCount() == 2);
+    }
+    Fixture fixture;
+    auto    app = fixture.openApp();
+    CHECK(app->deckCount() == 1);
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    CHECK_FALSE(app->saveLayout()); // nowhere to write
 }

@@ -26,6 +26,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.add_track", "Προσθήκη επιλεγμένου κομματιού"},
             {"menu.view.clear_filters", "Εκκαθάριση αναζήτησης και φίλτρων"},
             {"menu.view.missing_only", "Εμφάνιση μόνο των κομματιών που λείπουν"},
+            {"menu.view.save_layout", "Αποθήκευση διάταξης"},
             {"menu.view.new_deck", "Νέο player"},
             {"menu.view.playlist_window", "Παράθυρο λίστας"},
             {"search.placeholder", "Αναζήτηση"},
@@ -86,6 +87,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.select_first", "επιλέξτε πρώτα ένα κομμάτι στη βιβλιοθήκη"},
             {"library.notice.all_playing", "όλα τα player παίζουν"},
             {"library.notice.player_playing", "αυτό το player παίζει"},
+            {"library.notice.layout_saved", "η διάταξη αποθηκεύτηκε"},
+            {"library.notice.layout_failed", "η διάταξη δεν αποθηκεύτηκε"},
             {"deck.cannot_load", "Αδυναμία φόρτωσης: {error}"},
         };
     } // namespace

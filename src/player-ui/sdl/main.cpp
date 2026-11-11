@@ -48,6 +48,19 @@ namespace
         return file;
     }
 
+    /// The file with the window layout, e.g. ~/.local/share/djw/layout on Linux
+    std::filesystem::path layoutFile()
+    {
+        char *folder = SDL_GetPrefPath("", "djw");
+        if (folder == nullptr)
+        {
+            return {};
+        }
+        std::filesystem::path file = std::filesystem::path{folder} / "layout";
+        SDL_free(folder);
+        return file;
+    }
+
     /// The language chosen before, otherwise the first language of the system's locales that we have, otherwise English
     sdl::Language startLanguage()
     {
@@ -155,7 +168,7 @@ int main(int argc, char *argv[])
 
     const std::unique_ptr<api::Library> library = openLibrary(*command_line);
 
-    auto app = sdl::SdlApp::create(**core, deck, library.get(), startLanguage(), saveLanguage);
+    auto app = sdl::SdlApp::create(**core, deck, library.get(), startLanguage(), saveLanguage, layoutFile());
     if (!app)
     {
         std::cerr << "djw: " << app.error() << '\n';

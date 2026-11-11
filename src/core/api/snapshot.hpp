@@ -46,6 +46,8 @@ namespace djw::core::api
             double    position_seconds = 0.0;
             double    duration_seconds = 0.0;
             double    cue_seconds      = 0.0;
+            /// How much of the loaded track is in memory (0 to 1): the player shows it while a track is loading
+            float     loaded_fraction  = 1.0F;
             /// Goes up each time the cue point is set with the CUE button (not when a track is loaded), so a frontend
             /// can tell a cue point the user set from one that came with the track
             std::uint32_t cue_set_count = 0;

@@ -40,13 +40,28 @@ namespace djw::core::engine
             /// create it outside the audio thread.
             Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate = 48'000);
 
+            /// Length of the piece a scrub plays over and over, in seconds
+            static constexpr double scrub_loop_seconds = 0.06;
+            /// Fade at both ends of that piece, in seconds, so the loop does not click
+            static constexpr double scrub_ramp_seconds = 0.004;
+
             /// Sets the track; a different track than before starts stopped at its beginning with the cue point
             /// there. nullptr unloads. The pitch stays, like a fader.
             void attach(AudioSource *track) noexcept; // [audio-thread]
 
             [[nodiscard]] api::DeckId   id() const noexcept { return deck_id; }
             [[nodiscard]] bool          hasTrack() const noexcept { return source != nullptr; }
-            [[nodiscard]] bool          isPlaying() const noexcept { return state == State::Playing; }
+            /// Playing, also while a scrub interrupts a deck that played
+            [[nodiscard]] bool isPlaying() const noexcept
+            {
+                return state == State::Playing || (state == State::Scrubbing && resume_playing);
+            }
+            [[nodiscard]] bool scrubbing() const noexcept { return state == State::Scrubbing; }
+            /// How much of the track is in memory (1 without a track)
+            [[nodiscard]] float loadedFraction() const noexcept
+            {
+                return source != nullptr ? source->decodedFraction() : 1.0F;
+            }
             [[nodiscard]] double        positionFrames() const noexcept { return playbackPosition(); }
             [[nodiscard]] std::uint64_t cueFrame() const noexcept { return cue_frame; }
             /// How often the cue point was set with the CUE button; a track's start position does not count
@@ -61,6 +76,9 @@ namespace djw::core::engine
             void pause() noexcept;                     // [audio-thread]
             void cue(bool pressed) noexcept;           // [audio-thread]
             void seek(std::uint64_t frame) noexcept;   // [audio-thread]
+            /// Scrub: plays a short loop at frame while active, with every call the loop moves there; when it ends
+            /// (active false) the deck continues at frame, playing if it played before.
+            void scrub(std::uint64_t frame, bool active) noexcept; // [audio-thread]
             void setPitch(float percent) noexcept;     // [audio-thread]
             void setPitchBend(int direction) noexcept; // [audio-thread]
             /// Keylock: the pitch fader and the bend buttons change the tempo only. The position stays.
@@ -75,7 +93,8 @@ namespace djw::core::engine
             {
                 Stopped,
                 Playing,
-                FadingOut
+                FadingOut,
+                Scrubbing
             };
 
             /// Position of the next frame, in frames of the track
@@ -91,6 +110,7 @@ namespace djw::core::engine
             [[nodiscard]] bool atCue() const noexcept;
 
             std::size_t renderFadeOut(std::span<float> output) noexcept; // [audio-thread]
+            std::size_t renderScrub(std::span<float> output) noexcept;   // [audio-thread]
 
             api::DeckId   deck_id;
             AudioSource  *source = nullptr;
@@ -106,6 +126,12 @@ namespace djw::core::engine
             bool          return_to_cue  = false; ///< jump to the cue point when the fade has ended
             float         pitch_percent  = 0.0F;
             int           bend_direction = 0;
+            std::size_t   scrub_loop_frames;
+            std::size_t   scrub_ramp_frames;
+            std::uint64_t scrub_target  = 0;     ///< where the loop lies, and where the deck goes on afterwards
+            std::size_t   scrub_offset  = 0;     ///< frames of the loop played so far
+            bool          scrub_moved   = false; ///< the loop must start over at scrub_target
+            bool          resume_playing = false; ///< the deck played before the scrub
     };
 } // namespace djw::core::engine
 

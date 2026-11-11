@@ -362,14 +362,29 @@ TEST_CASE("DeckView: the waveform shows the position and the cue point and seeks
     // While held the waveform keeps the finger's position
     CHECK(fixture.view.waveform().position() == doctest::Approx(0.75F).epsilon(0.02));
 
-    const auto commands = fixture.drain();
-    const auto *seek    = find<api::DeckSeek>(commands);
-    REQUIRE(seek != nullptr);
-    CHECK(seek->position_seconds == doctest::Approx(150.0).epsilon(0.02));
+    auto        commands = fixture.drain();
+    const auto *scrub    = find<api::DeckScrub>(commands);
+    REQUIRE(scrub != nullptr);
+    CHECK(scrub->active);
+    CHECK(scrub->position_seconds == doctest::Approx(150.0).epsilon(0.02));
 
-    fixture.router.handle({{1, 1}, PointerPhase::Up, {target, bar.y + 5}});
-    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 150.0, .duration_seconds = 200.0});
-    CHECK(fixture.view.waveform().position() == doctest::Approx(0.75F));
+    // Dragging on moves the loop, letting go ends the scrub at the last position
+    const float further = inner.x + (inner.width * 0.9F);
+    fixture.router.handle({{1, 1}, PointerPhase::Move, {further, bar.y + 5}});
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckScrub>(commands) != nullptr);
+    CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(180.0).epsilon(0.02));
+
+    fixture.router.handle({{1, 1}, PointerPhase::Up, {further, bar.y + 5}});
+    fixture.view.update();
+    commands = fixture.drain();
+    scrub    = find<api::DeckScrub>(commands);
+    REQUIRE(scrub != nullptr);
+    CHECK_FALSE(scrub->active);
+    CHECK(scrub->position_seconds == doctest::Approx(180.0).epsilon(0.02));
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 180.0, .duration_seconds = 200.0});
+    CHECK(fixture.view.waveform().position() == doctest::Approx(0.9F));
 }
 
 TEST_CASE("DeckView: without a track the waveform does not seek")
@@ -378,7 +393,7 @@ TEST_CASE("DeckView: without a track the waveform does not seek")
     const Rect &bar = fixture.view.waveform().bounds();
     fixture.router.handle({{1, 1}, PointerPhase::Down, {bar.x + 100, bar.y + 5}});
     fixture.view.update();
-    CHECK(find<api::DeckSeek>(fixture.drain()) == nullptr);
+    CHECK(find<api::DeckScrub>(fixture.drain()) == nullptr);
 }
 
 TEST_CASE("DeckView: the display shows the elapsed time, the Time button switches to the remaining time")
@@ -604,4 +619,38 @@ TEST_CASE("DeckView: the whole layout grows with the window in both directions, 
     CHECK(fixture.view.playButton().bounds().width == doctest::Approx(play_small.width));
     CHECK(fixture.view.playButton().bounds().height == doctest::Approx(play_small.height * 2));
     CHECK(fixture.view.scale() == doctest::Approx(1.0F));
+}
+
+TEST_CASE("DeckView: a tap on the waveform sends the scrub start and end, so the deck jumps there")
+{
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 0.0, .duration_seconds = 100.0});
+    const Rect &bar = fixture.view.waveform().bounds();
+    const Rect  inner = bar.inset(3.0F);
+    const Point at{inner.x + (inner.width * 0.5F), bar.y + 5};
+    fixture.tap(at);
+    fixture.view.update();
+
+    const auto  commands = fixture.drain();
+    std::vector<api::DeckScrub> scrubs;
+    for (const auto &command : commands)
+    {
+        if (const auto *scrub = std::get_if<api::DeckScrub>(&command))
+        {
+            scrubs.push_back(*scrub);
+        }
+    }
+    REQUIRE_FALSE(scrubs.empty());
+    CHECK_FALSE(scrubs.back().active);
+    CHECK(scrubs.back().position_seconds == doctest::Approx(50.0).epsilon(0.02));
+}
+
+TEST_CASE("DeckView: while a track loads the waveform shows how far it is")
+{
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .duration_seconds = 100.0, .loaded_fraction = 0.4F});
+    CHECK(fixture.view.waveform().loaded() == doctest::Approx(0.4F));
+
+    fixture.show({.deck = deck, .track_loaded = true, .duration_seconds = 100.0});
+    CHECK(fixture.view.waveform().loaded() == doctest::Approx(1.0F));
 }

@@ -16,7 +16,7 @@ namespace djw::core::engine
         constexpr double pause_fade_seconds = 0.005;
 
         // Engine::apply handles every command; a new command must be added there
-        static_assert(std::variant_size_v<api::Command> == 16, "handle the new command in Engine::apply");
+        static_assert(std::variant_size_v<api::Command> == 17, "handle the new command in Engine::apply");
     } // namespace
 
     Engine::DeckSlot::DeckSlot(api::DeckId id, std::uint32_t sample_rate)
@@ -188,6 +188,13 @@ namespace djw::core::engine
             applyToDeck<api::DeckPause>(list, command, [](DeckSlot &slot, const auto &) { slot.deck.pause(); }) ||
             applyToDeck<api::DeckCue>(list, command,
                                       [](DeckSlot &slot, const api::DeckCue &cue) { slot.deck.cue(cue.pressed); }) ||
+            applyToDeck<api::DeckScrub>(list, command,
+                                        [rate = config.sample_rate](DeckSlot &slot, const api::DeckScrub &scrub)
+                                        {
+                                            const double frame = std::max(0.0, scrub.position_seconds) * rate;
+                                            slot.deck.scrub(static_cast<std::uint64_t>(std::llround(frame)),
+                                                            scrub.active);
+                                        }) ||
             applyToDeck<api::DeckSetPitch>(list, command, [](DeckSlot &slot, const api::DeckSetPitch &pitch)
                                            { slot.deck.setPitch(pitch.percent); }) ||
             applyToDeck<api::DeckPitchBend>(list, command, [](DeckSlot &slot, const api::DeckPitchBend &bend)
@@ -276,6 +283,7 @@ namespace djw::core::engine
                 .position_seconds = deck.positionFrames() / rate,
                 .duration_seconds = static_cast<double>(deck.lengthFrames()) / rate,
                 .cue_seconds      = static_cast<double>(deck.cueFrame()) / rate,
+                .loaded_fraction  = deck.loadedFraction(),
                 .cue_set_count    = deck.cueSetCount(),
                 .pitch_percent    = deck.pitchPercent(),
                 .keylock          = deck.keylock(),

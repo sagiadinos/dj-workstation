@@ -165,3 +165,15 @@ TEST_CASE("MemoryTrack: can be destroyed while the worker is still decoding")
     }
     CHECK(std::chrono::steady_clock::now() - start < std::chrono::seconds{2});
 }
+
+TEST_CASE("MemoryTrack: the decoded fraction grows from the first chunk to the whole track")
+{
+    // Slow decoding, so the fraction can be seen on its way
+    auto track = makeTrack({.total_frames = 10'000, .read_delay = std::chrono::milliseconds{5}}, 1'000);
+    const float first = track->decodedFraction();
+    CHECK(first > 0.0F);
+    CHECK(first < 1.0F);
+
+    REQUIRE(waitForAll(*track));
+    CHECK(track->decodedFraction() == doctest::Approx(1.0F));
+}

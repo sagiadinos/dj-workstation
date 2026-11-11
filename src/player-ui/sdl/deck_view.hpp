@@ -169,7 +169,9 @@ namespace djw::player_ui::sdl
             float shown_pitch = 0.0F;
             /// Commands that go out in this order
             std::deque<core::api::Command> pending;
-            std::optional<core::api::Command> pending_seek;
+            std::optional<core::api::Command> pending_scrub;
+            double                            scrub_seconds = 0.0;
+            bool                              scrub_active  = false;
             bool                              cue_held  = false;
             int                               bend_sent = 0;
     };

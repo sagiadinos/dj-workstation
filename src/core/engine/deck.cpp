@@ -10,7 +10,9 @@
 namespace djw::core::engine
 {
     Deck::Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate)
-        : deck_id{id}, stretcher{sample_rate}, pause_fade_frames{pause_fade_frames}
+        : deck_id{id}, stretcher{sample_rate}, pause_fade_frames{pause_fade_frames},
+          scrub_loop_frames{static_cast<std::size_t>(scrub_loop_seconds * sample_rate)},
+          scrub_ramp_frames{std::max<std::size_t>(1, static_cast<std::size_t>(scrub_ramp_seconds * sample_rate))}
     {
     }
 
@@ -22,6 +24,7 @@ namespace djw::core::engine
         }
         source         = track;
         state          = State::Stopped;
+        resume_playing = false;
         fade_remaining = 0;
         cue_frame      = 0;
         cue_preview    = false;
@@ -43,6 +46,10 @@ namespace djw::core::engine
 
     double Deck::playbackPosition() const noexcept
     {
+        if (state == State::Scrubbing)
+        {
+            return static_cast<double>(scrub_target);
+        }
         return keylock_on ? stretcher.position() : resampler.position();
     }
 
@@ -75,7 +82,7 @@ namespace djw::core::engine
 
     void Deck::play() noexcept // [audio-thread]
     {
-        if (source == nullptr)
+        if (source == nullptr || state == State::Scrubbing)
         {
             return;
         }
@@ -87,6 +94,10 @@ namespace djw::core::engine
 
     void Deck::pause() noexcept // [audio-thread]
     {
+        if (state == State::Scrubbing)
+        {
+            return;
+        }
         cue_preview = false;
         if (state != State::Playing)
         {
@@ -98,7 +109,7 @@ namespace djw::core::engine
 
     void Deck::cue(bool pressed) noexcept // [audio-thread]
     {
-        if (source == nullptr)
+        if (source == nullptr || state == State::Scrubbing)
         {
             return;
         }
@@ -161,6 +172,44 @@ namespace djw::core::engine
         restartAt(target);
     }
 
+    void Deck::scrub(std::uint64_t frame, bool active) noexcept // [audio-thread]
+    {
+        if (source == nullptr)
+        {
+            return;
+        }
+        const std::uint64_t length = source->lengthFrames();
+        const std::uint64_t target = length > 0 ? std::min(frame, length) : frame;
+        if (active)
+        {
+            if (state != State::Scrubbing)
+            {
+                // A deck fading out to a stop counts as stopped; the scrub starts from what it was doing
+                resume_playing = state == State::Playing;
+                cue_preview    = false;
+                return_to_cue  = false;
+                fade_remaining = 0;
+                state          = State::Scrubbing;
+                scrub_offset   = scrub_loop_frames; // the loop starts at once
+                scrub_moved    = true;
+            }
+            if (target != scrub_target)
+            {
+                scrub_moved = true; // the loop moves there at once
+            }
+            scrub_target = target;
+            return;
+        }
+        if (state != State::Scrubbing)
+        {
+            seek(target);
+            return;
+        }
+        state = resume_playing ? State::Playing : State::Stopped;
+        restartAt(target);
+        resume_playing = false;
+    }
+
     void Deck::setPitch(float percent) noexcept // [audio-thread]
     {
         pitch_percent = std::clamp(percent, -max_pitch_percent, max_pitch_percent);
@@ -205,7 +254,55 @@ namespace djw::core::engine
         {
             produced = renderFadeOut(output);
         }
+        else if (state == State::Scrubbing)
+        {
+            produced = renderScrub(output);
+        }
         std::ranges::fill(output.subspan(produced * stereo_channels), 0.0F);
+    }
+
+    std::size_t Deck::renderScrub(std::span<float> output) noexcept // [audio-thread]
+    {
+        const std::size_t wanted  = output.size() / stereo_channels;
+        std::size_t       written = 0;
+        while (written < wanted)
+        {
+            if (scrub_moved || scrub_offset >= scrub_loop_frames)
+            {
+                source->seek(scrub_target);
+                scrub_offset = 0;
+                scrub_moved  = false;
+            }
+            const std::size_t room = std::min(wanted - written, scrub_loop_frames - scrub_offset);
+            const std::size_t read = source->read(output.subspan(written * stereo_channels, room * stereo_channels));
+            if (read == 0)
+            {
+                // Nothing there (not decoded yet, or the end): silence, and try the position again next time
+                scrub_offset = scrub_loop_frames;
+                break;
+            }
+            // Fade in at the start of the loop and out at its end, so the repeats do not click
+            for (std::size_t frame = 0; frame < read; ++frame)
+            {
+                const std::size_t at   = scrub_offset + frame;
+                const float       in   = std::min(1.0F, static_cast<float>(at) / static_cast<float>(scrub_ramp_frames));
+                const float       out  = std::min(1.0F, static_cast<float>(scrub_loop_frames - at) /
+                                                            static_cast<float>(scrub_ramp_frames));
+                const float       gain = std::min(in, out);
+                for (std::size_t channel = 0; channel < stereo_channels; ++channel)
+                {
+                    output[((written + frame) * stereo_channels) + channel] *= gain;
+                }
+            }
+            scrub_offset += read;
+            written += read;
+            if (read < room)
+            {
+                scrub_offset = scrub_loop_frames;
+                break;
+            }
+        }
+        return written;
     }
 
     std::size_t Deck::renderFadeOut(std::span<float> output) noexcept // [audio-thread]

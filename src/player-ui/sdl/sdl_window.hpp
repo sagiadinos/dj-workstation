@@ -6,6 +6,7 @@
 
 #include "pointer_router.hpp"
 #include "sdl_text.hpp"
+#include "layout.hpp"
 #include "view.hpp"
 
 #include <SDL3/SDL_events.h>
@@ -52,6 +53,10 @@ namespace djw::player_ui::sdl
             void placeRightOf(const SdlWindow &other);
             /// Moves this window a little down and to the right of other, so both can be told apart
             void cascadeFrom(const SdlWindow &other);
+            /// Moves and resizes the window
+            void place(const Placement &where);
+            /// Where the window is and how big
+            [[nodiscard]] Placement placement() const;
             /// Makes this window the one that waits for the display (vsync) or not
             void setPaced(bool paced);
 

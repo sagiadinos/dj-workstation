@@ -35,6 +35,7 @@ namespace djw::player_ui::sdl
             TogglePlaylistWindow,
             NewDeckEntry,
             ToggleMixerWindow,
+            SaveLayoutEntry,
             language_base = 100
         };
 
@@ -553,7 +554,10 @@ namespace djw::player_ui::sdl
                           {.id      = MissingOnly,
                            .label   = tr("menu.view.missing_only"),
                            .enabled = status.missing_total > 0 || only_missing,
-                           .checked = only_missing}}});
+                           .checked = only_missing},
+                          {.id      = SaveLayoutEntry,
+                           .label   = tr("menu.view.save_layout"),
+                           .enabled = static_cast<bool>(save_layout)}}});
         menu.setMenus(std::move(menus));
         menu.setRightToLeft(translator->rightToLeft());
 
@@ -589,6 +593,12 @@ namespace djw::player_ui::sdl
                 break;
             case AnalyzeAll:
                 library->analyzeAll();
+                break;
+            case SaveLayoutEntry:
+                if (save_layout)
+                {
+                    setNotice(save_layout() ? "library.notice.layout_saved" : "library.notice.layout_failed");
+                }
                 break;
             case ToggleMixerWindow:
                 if (mixer_toggle)

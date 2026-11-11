@@ -519,3 +519,127 @@ TEST_CASE("Deck: the cue point set with CUE is counted, the one that comes with 
     deck.cue(false);
     CHECK(deck.cueSetCount() == 2);
 }
+
+namespace
+{
+    constexpr std::size_t scrub_track_frames = 20'000;
+
+    /// A track whose frame n has the value 0.1 + n * 0.0001 on both channels, so a position can be told from the audio
+    std::vector<float> positionTrack()
+    {
+        std::vector<float> samples;
+        for (std::size_t frame = 0; frame < scrub_track_frames; ++frame)
+        {
+            const float value = 0.1F + (static_cast<float>(frame) * 0.0001F);
+            samples.push_back(value);
+            samples.push_back(value);
+        }
+        return samples;
+    }
+
+    float valueAtFrame(const std::vector<float> &output, std::size_t frame)
+    {
+        return output[frame * 2];
+    }
+
+    /// The value of the track's frame, as a scrub started there plays it
+    float trackValue(std::size_t frame)
+    {
+        return 0.1F + (static_cast<float>(frame) * 0.0001F);
+    }
+} // namespace
+
+TEST_CASE("Deck: scrubbing a stopped deck plays a short loop at the position, over and over")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+
+    deck.scrub(10'000, true);
+    CHECK(deck.scrubbing());
+    CHECK_FALSE(deck.isPlaying()); // it did not play before
+    CHECK(deck.positionFrames() == 10'000);
+
+    std::vector<float> output(2 * 6'000);
+    deck.render(output);
+    // After the fade-in the loop plays the track from the position on
+    CHECK(valueAtFrame(output, 1'000) == doctest::Approx(trackValue(10'000 + 1'000)).epsilon(0.001));
+    // One loop later the same piece again
+    const std::size_t loop = static_cast<std::size_t>(Deck::scrub_loop_seconds * 48'000);
+    CHECK(valueAtFrame(output, loop + 1'000) == doctest::Approx(trackValue(10'000 + 1'000)).epsilon(0.001));
+    // The ends of the loop are faded, so the repeat does not click
+    CHECK(valueAtFrame(output, 0) < 0.2F * trackValue(10'000));
+    CHECK(valueAtFrame(output, loop - 1) < 0.2F * trackValue(10'000 + loop));
+    CHECK(deck.positionFrames() == 10'000); // the position is where the finger is
+}
+
+TEST_CASE("Deck: moving the scrub moves the loop, ending it leaves the deck stopped at the position")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    std::vector<float> output(2 * 1'500);
+
+    deck.scrub(2'000, true);
+    deck.render(output);
+    deck.scrub(15'000, true);
+    deck.render(output);
+    CHECK(valueAtFrame(output, 1'000) == doctest::Approx(trackValue(15'000 + 1'000)).epsilon(0.001));
+    CHECK(deck.positionFrames() == 15'000);
+
+    deck.scrub(16'000, false);
+    CHECK_FALSE(deck.scrubbing());
+    CHECK_FALSE(deck.isPlaying());
+    CHECK(deck.positionFrames() == 16'000);
+    deck.render(output);
+    CHECK(output == std::vector<float>(output.size(), 0.0F)); // stopped: silence
+
+    deck.play();
+    deck.render(output);
+    CHECK(valueAtFrame(output, 0) == doctest::Approx(trackValue(16'000)).epsilon(0.001));
+}
+
+TEST_CASE("Deck: a deck that played goes on playing after the scrub, from the new position")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    std::vector<float> output(2 * 100);
+    deck.play();
+    deck.render(output);
+
+    deck.scrub(8'000, true);
+    CHECK(deck.isPlaying()); // seen from outside it still plays
+    deck.pause();            // transport commands wait until the scrub is over: ignored
+    deck.cue(true);
+    deck.play();
+    CHECK(deck.scrubbing());
+    CHECK(deck.isPlaying());
+
+    deck.scrub(9'000, false);
+    CHECK_FALSE(deck.scrubbing());
+    CHECK(deck.isPlaying());
+    deck.render(output);
+    CHECK(valueAtFrame(output, 0) == doctest::Approx(trackValue(9'000)).epsilon(0.001));
+    CHECK(deck.positionFrames() == doctest::Approx(9'100));
+}
+
+TEST_CASE("Deck: a scrub past the end is clamped, without a track or without a scrub going on it does no harm")
+{
+    Deck deck{DeckId{1}, 0};
+    deck.scrub(100, true); // no track
+    deck.scrub(100, false);
+    CHECK_FALSE(deck.scrubbing());
+
+    BufferSource source{positionTrack()};
+    deck.attach(&source);
+    deck.scrub(1'000'000, true);
+    CHECK(deck.positionFrames() == scrub_track_frames);
+    std::vector<float> output(2 * 4'000);
+    deck.render(output); // nothing to read at the end: silence, no crash
+    CHECK(output == std::vector<float>(output.size(), 0.0F));
+
+    deck.scrub(500, false); // ending without a scrub: a seek
+    deck.scrub(700, false);
+    CHECK(deck.positionFrames() == 700);
+}

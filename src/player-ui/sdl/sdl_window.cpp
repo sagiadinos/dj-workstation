@@ -72,6 +72,20 @@ namespace djw::player_ui::sdl
         SDL_SetWindowPosition(window.get(), x + offset, y + offset);
     }
 
+    void SdlWindow::place(const Placement &where)
+    {
+        SDL_SetWindowSize(window.get(), where.width, where.height);
+        SDL_SetWindowPosition(window.get(), where.x, where.y);
+    }
+
+    Placement SdlWindow::placement() const
+    {
+        Placement where;
+        SDL_GetWindowPosition(window.get(), &where.x, &where.y);
+        SDL_GetWindowSize(window.get(), &where.width, &where.height);
+        return where;
+    }
+
     void SdlWindow::setPaced(bool paced)
     {
         vsync = paced && SDL_SetRenderVSync(renderer.get(), 1);

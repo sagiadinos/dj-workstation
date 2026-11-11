@@ -6,6 +6,7 @@
 #include "look.hpp"
 
 #include <algorithm>
+#include <algorithm>
 #include <cmath>
 
 namespace djw::player_ui::sdl
@@ -19,11 +20,24 @@ namespace djw::player_ui::sdl
         constexpr float bar_width     = 1.4F;
 
         constexpr Color unplayed_color{40, 140, 245};
+        constexpr Color loading_color{105, 108, 115};
         constexpr Color played_color{255, 205, 0};
         constexpr Color idle_line{70, 72, 78};
         constexpr Color playhead_color{255, 255, 255};
         constexpr Color cue_color{235, 55, 55};
     } // namespace
+
+    void WaveformBar::setWaveform(std::vector<std::uint8_t> peaks)
+    {
+        waveform            = std::move(peaks);
+        const auto loudest  = waveform.empty() ? std::uint8_t{0} : *std::ranges::max_element(waveform);
+        normalize           = loudest > 0 ? 255.0F / static_cast<float>(loudest) : 1.0F;
+    }
+
+    void WaveformBar::setLoaded(float fraction) noexcept
+    {
+        loaded_share = std::clamp(fraction, 0.0F, 1.0F);
+    }
 
     void WaveformBar::setPosition(float fraction) noexcept
     {
@@ -69,9 +83,12 @@ namespace djw::player_ui::sdl
         const float middle   = area.y + (area.height / 2);
         const float played_x = area.x + (played * area.width);
 
+        const float loaded_x = area.x + (loaded_share * area.width);
         if (waveform.empty())
         {
+            // No waveform (yet): a line, blue as far as the track is loaded
             canvas.fillRect({area.x, middle - 1.0F, area.width, 2.0F}, idle_line);
+            canvas.fillRect({area.x, middle - 1.5F, loaded_x - area.x, 3.0F}, unplayed_color);
         }
         else
         {
@@ -87,10 +104,12 @@ namespace djw::player_ui::sdl
                 {
                     peak = std::max(peak, waveform[index]);
                 }
-                const float height = std::max(2.0F, static_cast<float>(peak) / 255.0F * area.height * 0.92F);
+                const float height = std::max(
+                    2.0F, std::min(1.0F, static_cast<float>(peak) * normalize / 255.0F) * area.height * 0.92F);
                 const float x      = area.x + (static_cast<float>(bar) * area.width / static_cast<float>(bars));
-                canvas.fillRect({x, middle - (height / 2), bar_width * grow, height},
-                                x < played_x ? played_color : unplayed_color);
+                // Yellow: played; blue: in memory; gray: still loading
+                const Color color = x >= loaded_x ? loading_color : (x < played_x ? played_color : unplayed_color);
+                canvas.fillRect({x, middle - (height / 2), bar_width * grow, height}, color);
             }
         }
 

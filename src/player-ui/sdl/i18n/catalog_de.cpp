@@ -26,6 +26,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.add_track", "Gewählten Titel hinzufügen"},
             {"menu.view.clear_filters", "Suche und Filter zurücksetzen"},
             {"menu.view.missing_only", "Nur fehlende Titel anzeigen"},
+            {"menu.view.save_layout", "Layout speichern"},
             {"menu.view.new_deck", "Neuer Player"},
             {"menu.view.playlist_window", "Playlist-Fenster"},
             {"search.placeholder", "Suche"},
@@ -86,6 +87,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.select_first", "wähle zuerst einen Titel in der Bibliothek"},
             {"library.notice.all_playing", "alle Player spielen"},
             {"library.notice.player_playing", "dieser Player spielt"},
+            {"library.notice.layout_saved", "Layout gespeichert"},
+            {"library.notice.layout_failed", "Layout konnte nicht gespeichert werden"},
             {"deck.cannot_load", "Laden nicht möglich: {error}"},
         };
     } // namespace

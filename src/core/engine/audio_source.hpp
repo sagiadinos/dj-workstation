@@ -43,6 +43,11 @@ namespace djw::core::engine
             /// The read position is at the end; nothing more will come without a seek.
             [[nodiscard]] virtual bool atEnd() const noexcept = 0; // [audio-thread]
 
+            /// How much of the track is in memory and can be played without waiting, 0 to 1; 1 for a source that has
+            /// everything at hand or does not load in parts. Counts the decoded chunks, so it need not be exact when
+            /// the user jumped ahead.
+            [[nodiscard]] virtual float decodedFraction() const noexcept { return 1.0F; } // [audio-thread]
+
             /// Where a deck starts when it takes this source and where it puts its cue point (0: the beginning), e.g.
             /// the first sound. Set before the source is handed to the engine; the engine only reads it.
             void                        setStartFrame(std::uint64_t frame) noexcept { start_frame = frame; }

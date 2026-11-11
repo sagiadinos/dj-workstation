@@ -90,6 +90,16 @@ namespace djw::core::decode
         return frame < length && ready[static_cast<std::size_t>(frame / chunk_frames)].load(std::memory_order_acquire);
     }
 
+    float MemoryTrack::decodedFraction() const noexcept
+    {
+        const std::size_t chunks = chunkCount();
+        if (chunks == 0)
+        {
+            return 1.0F;
+        }
+        return static_cast<float>(ready_chunks.load(std::memory_order_acquire)) / static_cast<float>(chunks);
+    }
+
     bool MemoryTrack::fullyDecoded() const noexcept
     {
         for (std::size_t chunk = 0; chunk < chunkCount(); ++chunk)
@@ -165,6 +175,7 @@ namespace djw::core::decode
         std::fill(target + filled * stereo, target + frames * stereo, 0.0F);
 
         ready[chunk].store(true, std::memory_order_release);
+        ready_chunks.fetch_add(1, std::memory_order_release);
         decoder_chunk = chunk + 1;
     }
 

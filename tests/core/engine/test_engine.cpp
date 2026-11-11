@@ -241,6 +241,36 @@ TEST_CASE("Engine: DeckSeek jumps to the position in seconds")
     CHECK(engine.deckSnapshot(deck)->read().position_seconds == doctest::Approx(24'002.0 / sample_rate));
 }
 
+TEST_CASE("Engine: DeckScrub plays a loop at the position and goes on playing from the last one after it")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    constexpr float    step  = 1.0F / 65'536;
+    const api::DeckId  deck  = playingDeck(engine, queue, std::make_unique<BufferSource>(ramp(sample_rate, step)));
+    std::vector<float> output(2 * 2'000);
+
+    REQUIRE(queue.tryPush(api::DeckScrub{deck, 0.5, true}));
+    engine.render(output);
+    api::DeckSnapshot state = engine.deckSnapshot(deck)->read();
+    CHECK(state.play_state == api::PlayState::Playing); // it played before the scrub
+    CHECK(state.position_seconds == doctest::Approx(0.5));
+    CHECK(output[2 * 1'000] == doctest::Approx(25'000 * step).epsilon(0.001)); // audio of the position, after the fade-in
+
+    REQUIRE(queue.tryPush(api::DeckScrub{deck, 0.75, false}));
+    engine.render(output);
+    state = engine.deckSnapshot(deck)->read();
+    CHECK(state.play_state == api::PlayState::Playing);
+    CHECK(output[0] == doctest::Approx(36'000 * step).epsilon(0.001));
+    CHECK(state.position_seconds > 0.75);
+}
+
+TEST_CASE("Engine: the snapshot tells how much of the track is loaded")
+{
+    engine::Engine    engine{smallBlocks()};
+    const api::DeckId deck = engine.addDeck();
+    CHECK(engine.deckSnapshot(deck)->read().loaded_fraction == 1.0F);
+}
+
 TEST_CASE("Engine: CUE, pitch and pitch bend arrive at the deck and show in the snapshot")
 {
     engine::Engine     engine{smallBlocks()};

@@ -74,6 +74,8 @@ namespace djw::player_ui::sdl
             using PlaylistShown   = std::function<bool()>;
             using LanguageChosen = std::function<void(Language language)>;
             using NewDeck        = std::function<void()>;
+            /// Saves the window layout; true when it was saved
+            using SaveLayout     = std::function<bool()>;
             using Toggle         = std::function<void()>;
             using Shown          = std::function<bool()>;
 
@@ -116,6 +118,8 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton              &missingButton() const noexcept { return missing_button; }
             [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
             [[nodiscard]] const TextButton              &addButton() const noexcept { return add_button; }
+            /// What View > Save layout does; without it the entry is off
+            void setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
             [[nodiscard]] const MenuBar                 &menuBar() const noexcept { return menu; }
             [[nodiscard]] const ContextMenu             &contextMenu() const noexcept { return context_menu; }
 
@@ -184,6 +188,7 @@ namespace djw::player_ui::sdl
             Clock                    clock;
             MenuBar                  menu;
             ContextMenu              context_menu;
+            SaveLayout               save_layout;
             std::int64_t             context_track = 0; // the track the context menu is about
             TextField                search_field;
             std::array<TextField, 4> filters;

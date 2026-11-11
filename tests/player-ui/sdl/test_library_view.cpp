@@ -838,3 +838,22 @@ TEST_CASE("LibraryView: Analyze all tracks in the Database menu queues the analy
     fixture.view.update();
     CHECK(fixture.view.statusText().find("analyzing") == std::string::npos);
 }
+
+TEST_CASE("LibraryView: View > Save layout is off without a handler, with one it saves and says so")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 4, 5);
+    CHECK(fixture.view.menuBar().isOpen()); // disabled: stays open
+    fixture.view.keyboard(EditKey::Escape);
+
+    int saves = 0;
+    fixture.view.setSaveLayout([&saves] { return ++saves == 1; });
+    fixture.view.update();
+    chooseEntry(fixture, 4, 5);
+    CHECK(saves == 1);
+    CHECK(fixture.view.statusText().find("layout saved") != std::string::npos);
+
+    chooseEntry(fixture, 4, 5);
+    CHECK(saves == 2);
+    CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
+}

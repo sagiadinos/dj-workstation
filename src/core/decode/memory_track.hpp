@@ -48,6 +48,8 @@ namespace djw::core::decode
             [[nodiscard]] std::uint64_t lengthFrames() const noexcept override { return length; }
             [[nodiscard]] bool          atEnd() const noexcept override { return read_position >= length; }
 
+            [[nodiscard]] float decodedFraction() const noexcept override;
+
             /// The audio at frame is decoded and can be read
             [[nodiscard]] bool isDecoded(std::uint64_t frame) const noexcept;
             /// The whole track is decoded
@@ -81,6 +83,7 @@ namespace djw::core::decode
             std::vector<std::atomic<bool>> ready;
             /// Set by the audio thread when it needs a chunk that is not decoded yet
             std::atomic<std::size_t> wanted_chunk{no_chunk};
+            std::atomic<std::size_t> ready_chunks{0};
             std::atomic<bool>        decode_failed{false};
             std::atomic<bool>        stop_requested{false};
 

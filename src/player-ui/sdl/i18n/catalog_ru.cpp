@@ -26,6 +26,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.add_track", "Добавить выбранный трек"},
             {"menu.view.clear_filters", "Сбросить поиск и фильтры"},
             {"menu.view.missing_only", "Показать только отсутствующие треки"},
+            {"menu.view.save_layout", "Сохранить расположение"},
             {"menu.view.new_deck", "Новый плеер"},
             {"menu.view.playlist_window", "Окно плейлиста"},
             {"search.placeholder", "Поиск"},
@@ -86,6 +87,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.select_first", "сначала выберите трек в библиотеке"},
             {"library.notice.all_playing", "все плееры играют"},
             {"library.notice.player_playing", "этот плеер играет"},
+            {"library.notice.layout_saved", "расположение сохранено"},
+            {"library.notice.layout_failed", "не удалось сохранить расположение"},
             {"deck.cannot_load", "Не удалось загрузить: {error}"},
         };
     } // namespace

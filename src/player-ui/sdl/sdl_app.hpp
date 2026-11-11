@@ -8,6 +8,7 @@
 #include "api/library.hpp"
 #include "deck_view.hpp"
 #include "i18n/translator.hpp"
+#include "layout.hpp"
 #include "library_view.hpp"
 #include "mixer_view.hpp"
 #include "playlist_view.hpp"
@@ -59,7 +60,7 @@ namespace djw::player_ui::sdl
             /// library may be nullptr: then there is no library window. The texts start in language.
             static std::expected<std::unique_ptr<SdlApp>, std::string>
             create(core::api::Core &core, core::api::DeckId deck, core::api::Library *library, Language language,
-                   LanguageChanged language_changed = {});
+                   LanguageChanged language_changed = {}, std::filesystem::path layout_file = {});
 
             /// Runs until the program is to end (see above)
             void run();
@@ -96,6 +97,14 @@ namespace djw::player_ui::sdl
             [[nodiscard]] bool toolWindowOpen(Tool tool) const noexcept { return tools[index(tool)].window != nullptr; }
             /// Opens or closes a tool window at the end of the next frame
             void requestToolWindow(Tool tool, bool open);
+
+            /**
+             * The windows as they are now: players with their crossfader sides, the library, the crossfader and the
+             * playlist window. What View > Save layout writes.
+             */
+            [[nodiscard]] Layout currentLayout() const;
+            /// Writes currentLayout() to the layout file; false without a layout file or if writing fails
+            bool saveLayout();
 
         private:
             /// SDL_Init and TTF_Init, undone in reverse
@@ -143,6 +152,8 @@ namespace djw::player_ui::sdl
                     int              width  = 0;
                     int              height = 0;
                     Request          request = Request::None;
+                    /// Where the window was or is to be; std::nullopt: next to the library window
+                    std::optional<Placement> placement{};
             };
 
             static constexpr std::size_t index(Tool tool) noexcept { return static_cast<std::size_t>(tool); }
@@ -150,9 +161,14 @@ namespace djw::player_ui::sdl
             explicit SdlApp(core::api::Core &core);
 
             /// Opens the window of a deck the core has; false (with a message in the log) if that fails
-            bool openDeckWindow(core::api::DeckId deck);
+            /// where: the placement the window opens at; without it the window is cascaded from the one before
+            bool openDeckWindow(core::api::DeckId deck, std::optional<Placement> where = std::nullopt);
+            /// The saved layout, or the default one when there is none (or it is damaged)
+            [[nodiscard]] Layout readLayout() const;
+            /// The placement moved inside the work area of the display it lies on
+            [[nodiscard]] Placement fitToDisplay(const Placement &place) const;
             /// Adds a deck to the core and opens its window
-            void addDeck();
+            void addDeck(std::optional<Placement> where = std::nullopt);
             /// Closes the window of a deck, then removes the deck from the core
             void closeDeck(core::api::DeckId deck);
             [[nodiscard]] DeckWindow *deckWindow(core::api::DeckId deck) noexcept;
@@ -185,6 +201,7 @@ namespace djw::player_ui::sdl
             LanguageChanged   language_changed;
             core::api::Core    *core;
             core::api::Library *library = nullptr;
+            std::filesystem::path layout_file; ///< where View > Save layout writes; empty: no layout is kept
             std::uint64_t       seen_library_revision = 0;
             /// Views come before the windows that show them: destroyed after them
             std::vector<std::unique_ptr<DeckWindow>> decks;
