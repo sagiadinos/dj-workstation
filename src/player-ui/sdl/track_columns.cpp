@@ -11,7 +11,7 @@ namespace djw::player_ui::sdl
     namespace
     {
         /// Share of the width per column, in the order of track_columns
-        constexpr std::array<float, track_columns.size()> shares{0.28F, 0.31F, 0.18F, 0.12F, 0.11F};
+        constexpr std::array<float, track_columns.size()> shares{0.25F, 0.26F, 0.15F, 0.10F, 0.12F, 0.12F};
 
     } // namespace
 
@@ -30,6 +30,8 @@ namespace djw::player_ui::sdl
                 return "Genre";
             case core::api::LibraryColumn::Year:
                 return "Year";
+            case core::api::LibraryColumn::Bpm:
+                return "BPM";
             case core::api::LibraryColumn::Duration:
                 return "Time";
             case core::api::LibraryColumn::Artist:

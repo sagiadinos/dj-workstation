@@ -91,6 +91,7 @@ namespace djw::player_ui::sdl
             void setDeckCueLoad(std::size_t index, bool on) { decks.at(index)->view->setCueLoad(on); }
             /// Whether the deck at index plays, as of the last frame; for tests
             [[nodiscard]] bool deckPlaying(std::size_t index) const { return decks.at(index)->view->playing(); }
+            [[nodiscard]] const DeckView &deckView(std::size_t index) const { return *decks.at(index)->view; }
 
             [[nodiscard]] bool toolWindowOpen(Tool tool) const noexcept { return tools[index(tool)].window != nullptr; }
             /// Opens or closes a tool window at the end of the next frame
@@ -122,6 +123,8 @@ namespace djw::player_ui::sdl
                     std::filesystem::path loaded_file;
                     /// The library track loaded, 0 for a file from outside the library; its cue point is stored
                     std::int64_t track_id = 0;
+                    /// The tempo and waveform of the track are in the view (the analysis was done when it was read)
+                    bool analysis_shown = false;
             };
 
             enum class Request : std::uint8_t
@@ -161,6 +164,10 @@ namespace djw::player_ui::sdl
             void loadSelectedInto(core::api::DeckId deck);
             /// Loads into a player that does not play; false (the library says why) if not
             bool loadInto(DeckWindow &target, const core::api::LibraryTrack &track);
+            /// Takes the tempo and waveform of the deck's track from the library, if it is analyzed
+            void showAnalysis(DeckWindow &target);
+            /// Once the library's revision changed: shows analyses that finished since
+            void refreshAnalyses();
             [[nodiscard]] std::vector<MixerDeck> mixerDecks() const;
 
             void setLanguage(Language language);
@@ -178,6 +185,7 @@ namespace djw::player_ui::sdl
             LanguageChanged   language_changed;
             core::api::Core    *core;
             core::api::Library *library = nullptr;
+            std::uint64_t       seen_library_revision = 0;
             /// Views come before the windows that show them: destroyed after them
             std::vector<std::unique_ptr<DeckWindow>> decks;
             int                                      deck_counter = 0;

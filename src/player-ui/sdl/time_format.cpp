@@ -40,6 +40,12 @@ namespace djw::player_ui::sdl
                two(whole % 60) + ':' + two(hundredths % 100);
     }
 
+    std::string formatBpm(double bpm)
+    {
+        const long tenths = std::lround(std::max(0.0, bpm) * 10.0);
+        return std::to_string(tenths / 10) + '.' + std::to_string(tenths % 10);
+    }
+
     std::string formatDuration(double seconds)
     {
         return minutesSeconds(std::llround(std::max(0.0, seconds)));

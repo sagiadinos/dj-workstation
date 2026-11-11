@@ -126,7 +126,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Time display | M | Toggle elapsed/remaining. |
 | Pitch | M | Fader with range ±12 %, display in percent. Formant correction comes later. |
 | Pitch bend | M | +/- buttons for temporary nudging. |
-| Pitch zero | M | Reset fader to 0. |
+| Pitch zero | M | Reset fader to 0 with a double tap on the pitch fader. |
 | Keylock (master tempo) | M | Tempo change without pitch change via SoundTouch. |
 | Seek with audible scrub | M | Short loop at the current position while seeking. |
 | Waveform overview | M | Whole track, click/touch to jump. |

@@ -69,6 +69,8 @@ namespace djw::core::library
                     return std::string{"t.year = 0, t.year"} + direction + ", t.artist_key, t.title_key";
                 case api::LibraryColumn::Duration:
                     return std::string{"t.duration = 0, t.duration"} + direction + ", t.artist_key, t.title_key";
+                case api::LibraryColumn::Bpm:
+                    return std::string{"t.bpm IS NULL, t.bpm"} + direction + ", t.artist_key, t.title_key";
                 case api::LibraryColumn::Artist:
                     break;
             }

@@ -456,3 +456,49 @@ TEST_CASE("SdlApp: a track loaded from the library is analyzed, a file from outs
     app->load(outside);
     CHECK(library.analyzed == std::vector<std::int64_t>{7});
 }
+
+TEST_CASE("SdlApp: the tempo and waveform of an analyzed track show in the player, the others when their analysis is done")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = gapWav(folder);
+    djw::tests::FakeLibrary   library;
+    library.library_tracks.push_back({.id = 7, .path = file, .artist = "Artist", .title = "Title", .bpm = 128.0, .analyzed = true});
+    library.library_tracks.push_back({.id = 8, .path = file, .artist = "Other", .title = "Other"});
+    library.waveforms[7] = {5, 100, 255};
+    auto app             = fixture.openApp(&library);
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 2);
+
+    api::LibraryTrack analyzed = trackOf(file);
+    analyzed.id                = 7;
+    app->load(analyzed);
+    CHECK(app->deckView(0).bpm() == 128.0);
+    CHECK(app->deckView(0).waveform().peaks() == std::vector<std::uint8_t>{5, 100, 255});
+
+    // Not analyzed yet: asked for, nothing to show until the library says it is done
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, true));
+    api::LibraryTrack waiting = trackOf(file);
+    waiting.id                = 8;
+    app->load(waiting);
+    CHECK(library.analyzed.back() == 8);
+    CHECK_FALSE(app->deckView(1).bpm().has_value());
+    CHECK_FALSE(app->deckView(1).waveform().hasWaveform());
+
+    library.library_tracks.back().analyzed = true;
+    library.library_tracks.back().bpm      = 90.5;
+    library.waveforms[8]                   = {1, 2};
+    ++library.library_status.revision;
+    static_cast<void>(app->runFrame());
+    CHECK(app->deckView(1).bpm() == 90.5);
+    CHECK(app->deckView(1).waveform().peaks() == std::vector<std::uint8_t>{1, 2});
+
+    // A file from outside the library takes the place of the old track: nothing of the old one stays
+    api::LibraryTrack outside = trackOf(file);
+    outside.id                = 0;
+    app->load(outside); // player 1 plays, so it goes to player 2 again
+    CHECK_FALSE(app->deckView(1).bpm().has_value());
+    CHECK_FALSE(app->deckView(1).waveform().hasWaveform());
+}

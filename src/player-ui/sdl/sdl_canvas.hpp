@@ -22,6 +22,7 @@ namespace djw::player_ui::sdl
                 : renderer{&renderer}, text_renderer{&text}, density{density}
             {
                 text.setDensity(density);
+                text.setScale(1.0F);
                 // Colors with alpha (the brushed metal, glossy edges) blend with what is below
                 SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
             }
@@ -37,6 +38,7 @@ namespace djw::player_ui::sdl
             [[nodiscard]] float largeTextHeight() const noexcept override;
             [[nodiscard]] float largeTextWidth(std::string_view text) const noexcept override;
             void                setClip(std::optional<Rect> clip) override;
+            void                setTextScale(float scale) override { text_renderer->setScale(scale); }
 
         private:
             SDL_Renderer *renderer;

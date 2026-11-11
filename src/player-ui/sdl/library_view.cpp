@@ -38,8 +38,8 @@ namespace djw::player_ui::sdl
             language_base = 100
         };
 
-        constexpr std::array<std::string_view, 5> column_keys{"column.artist", "column.title", "column.genre",
-                                                              "column.year", "column.time"};
+        constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
+                                                              "column.year",   "column.bpm",   "column.time"};
 
         constexpr Color status_color{160, 160, 160};
 
@@ -60,6 +60,7 @@ namespace djw::player_ui::sdl
                     return track.genre;
                 case core::api::LibraryColumn::Year:
                     return track.year != 0 ? std::to_string(track.year) : std::string{};
+                case core::api::LibraryColumn::Bpm:
                 case core::api::LibraryColumn::Duration:
                     break;
             }
@@ -284,6 +285,7 @@ namespace djw::player_ui::sdl
                     return;
                 }
                 break;
+            case core::api::LibraryColumn::Bpm:
             case core::api::LibraryColumn::Duration:
                 return;
         }

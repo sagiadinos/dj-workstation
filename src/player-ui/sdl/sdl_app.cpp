@@ -48,8 +48,8 @@ namespace djw::player_ui::sdl
             return (number < 10 ? "0" : "") + std::to_string(number);
         }
 
-        constexpr int player_width  = 380;
-        constexpr int player_height = 480;
+        constexpr int player_width  = static_cast<int>(DeckView::design_width);
+        constexpr int player_height = static_cast<int>(DeckView::design_height);
     } // namespace
 
     SdlApp::SdlLibraries::SdlLibraries() : sdl_initialized{initSdl()}, ttf_initialized{sdl_initialized && TTF_Init()} {}
@@ -291,14 +291,48 @@ namespace djw::player_ui::sdl
         }
         target.loaded_file = track.path;
         target.track_id    = track.id;
+        target.view->setWaveform({});
+        target.view->setBpm(std::nullopt);
+        target.analysis_shown = false;
         if (library != nullptr && track.id != 0)
         {
             library->analyze(track.id); // tempo and waveform, unless the track was analyzed before
+            showAnalysis(target);
         }
         // A file without tags shows its name
         const std::string title = track.title.empty() ? track.path.stem().string() : track.title;
         target.view->setTrack(track.artist, title);
         return true;
+    }
+
+    void SdlApp::showAnalysis(DeckWindow &target)
+    {
+        const auto track = library->track(target.track_id);
+        if (!track || !track->analyzed)
+        {
+            return;
+        }
+        target.view->setBpm(track->bpm);
+        target.view->setWaveform(library->waveform(track->id));
+        target.analysis_shown = true;
+    }
+
+    void SdlApp::refreshAnalyses()
+    {
+        // The analysis of a track just loaded finishes in the background: the library's revision tells when to look
+        const std::uint64_t revision = library->status().revision;
+        if (revision == seen_library_revision)
+        {
+            return;
+        }
+        seen_library_revision = revision;
+        for (const auto &deck : decks)
+        {
+            if (deck->track_id != 0 && !deck->analysis_shown)
+            {
+                showAnalysis(*deck);
+            }
+        }
     }
 
     void SdlApp::load(const core::api::LibraryTrack &track)
@@ -502,6 +536,10 @@ namespace djw::player_ui::sdl
             return false; // a quit, or the last deck window was closed and there is no library to work in
         }
         dialogs.deliver();
+        if (library != nullptr)
+        {
+            refreshAnalyses();
+        }
         for (const auto &window : windows)
         {
             window->frame();

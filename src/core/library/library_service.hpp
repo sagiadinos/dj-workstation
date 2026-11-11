@@ -62,6 +62,7 @@ namespace djw::core::library
             [[nodiscard]] api::LibraryStatus                 status() const override;
             [[nodiscard]] std::expected<std::vector<api::LibraryTrack>, std::string>
             search(const api::LibraryQuery &query) const override;
+            [[nodiscard]] std::optional<api::LibraryTrack> track(std::int64_t track_id) const override;
 
             // api::Playlists
             [[nodiscard]] std::expected<std::vector<api::Playlist>, std::string> list() const override;

@@ -14,9 +14,9 @@
 namespace djw::player_ui::sdl
 {
     /// The columns of the track list, left to right
-    inline constexpr std::array<core::api::LibraryColumn, 5> track_columns{
+    inline constexpr std::array<core::api::LibraryColumn, 6> track_columns{
         core::api::LibraryColumn::Artist, core::api::LibraryColumn::Title, core::api::LibraryColumn::Genre,
-        core::api::LibraryColumn::Year, core::api::LibraryColumn::Duration};
+        core::api::LibraryColumn::Year,   core::api::LibraryColumn::Bpm,   core::api::LibraryColumn::Duration};
 
     [[nodiscard]] std::string_view columnName(core::api::LibraryColumn column);
 

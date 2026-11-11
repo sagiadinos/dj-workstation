@@ -49,6 +49,9 @@ namespace djw::player_ui::sdl
             /// Pixels per point of the window; call before drawing when it may have changed
             void setDensity(float density);
 
+            /// Makes the text this many times as big (1: normal); the player window scales with its size
+            void setScale(float new_scale);
+
             /// Draws at position (points); the renderer works in pixels with a render scale of 1
             void draw(Point position, std::string_view text, Color color, Size size = Size::Normal);
             /// Draws at most max_width points of text, cut with "…"
@@ -81,6 +84,7 @@ namespace djw::player_ui::sdl
             Face            normal;
             Face            large;
             float           density = 1.0F;
+            float           scale   = 1.0F;
     };
 } // namespace djw::player_ui::sdl
 

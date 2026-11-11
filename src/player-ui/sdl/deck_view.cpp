@@ -19,13 +19,12 @@ namespace djw::player_ui::sdl
 
         constexpr float top_row_height  = 44.0F;
         constexpr float display_height  = 118.0F;
-        constexpr float slider_height   = 26.0F;
+        constexpr float waveform_height = 60.0F;
         constexpr float transport_height = 70.0F;
         constexpr float column_width    = 56.0F;
         constexpr float small_button    = 26.0F;
         constexpr float label_height    = 20.0F;
         constexpr float info_height     = 62.0F;
-        constexpr float zero_width      = 62.0F;
         constexpr float bend_width      = 48.0F;
 
         constexpr Color display_color{0, 0, 0};
@@ -81,62 +80,70 @@ namespace djw::player_ui::sdl
         load_button.setIcon(TextButton::Icon::Folder);
     }
 
-    void DeckView::layout(const Rect &area)
+    void DeckView::layout(const Rect &window)
     {
-        const Rect  inner   = area.inset(margin);
-        const float column  = std::min(column_width, inner.width / 5);
-        const float left_w  = std::max(0.0F, inner.width - column - gap);
+        // Laid out in design units, then every rect is stretched to the window: both directions grow, as does the text
+        const float sx = window.width / design_width;
+        const float sy = window.height / design_height;
+        text_scale     = std::clamp(std::min(sx, sy), 0.5F, 6.0F);
+        const auto stretch = [&](const Rect &design)
+        {
+            return Rect{window.x + (design.x * sx), window.y + (design.y * sy), design.width * sx, design.height * sy};
+        };
+
+        const Rect  inner   = Rect{0, 0, design_width, design_height}.inset(margin);
+        const float column  = column_width;
+        const float left_w  = inner.width - column - gap;
         const float right_x = inner.x + left_w + gap;
         const float bottom  = inner.y + inner.height;
         float       y       = inner.y;
 
         // Load, pitch bend, KEY
-        load_button.setBounds({inner.x, y, left_w * 0.42F, top_row_height});
-        bend_up_button.setBounds({inner.x + std::max(0.0F, left_w - bend_width), y, bend_width, top_row_height});
-        bend_down_button.setBounds(
-            {inner.x + std::max(0.0F, left_w - (2 * bend_width) - gap), y, bend_width, top_row_height});
-        keylock_button.setBounds({right_x, y, column, top_row_height});
+        load_button.setBounds(stretch({inner.x, y, left_w * 0.42F, top_row_height}));
+        bend_up_button.setBounds(stretch({inner.x + left_w - bend_width, y, bend_width, top_row_height}));
+        bend_down_button.setBounds(stretch({inner.x + left_w - (2 * bend_width) - gap, y, bend_width, top_row_height}));
+        keylock_button.setBounds(stretch({right_x, y, column, top_row_height}));
         y += top_row_height + gap;
 
-        // The black display: Time button, pitch, the large time
+        // The black display: Time button, pitch, the large time, the tempo
         const float display_top = y;
-        display_area            = {inner.x, y, left_w, display_height};
-        time_button.setBounds({display_area.x + 6.0F, display_area.y + 6.0F, 88.0F, small_button});
-        pitch_text_area = {display_area.x + 102.0F, display_area.y + 6.0F, std::max(0.0F, left_w - 102.0F - 8.0F),
-                           small_button};
-        time_area       = {display_area.x, display_area.y + 38.0F, left_w, display_height - 44.0F};
+        const Rect  display     = {inner.x, y, left_w, display_height};
+        display_area            = stretch(display);
+        time_button.setBounds(stretch({display.x + 6.0F, display.y + 6.0F, 88.0F, small_button}));
+        pitch_text_area = stretch({display.x + 102.0F, display.y + 6.0F, left_w - 102.0F - 8.0F, small_button});
+        time_area       = stretch({display.x, display.y + 32.0F, left_w, display_height - 58.0F});
+        bpm_area        = stretch({display.x, display.y + display_height - 26.0F, left_w, 22.0F});
         y += display_height + gap;
 
-        // Position slider and pitch zero
-        position_slider.setBounds({inner.x, y, std::max(0.0F, left_w - zero_width - gap), slider_height});
-        zero_button.setBounds({inner.x + std::max(0.0F, left_w - zero_width), y, zero_width, slider_height});
-        y += slider_height + gap;
+        // The waveform
+        waveform_bar.setBounds(stretch({inner.x, y, left_w, waveform_height}));
+        y += waveform_height + gap;
 
         // State, CUE, play
         const float state_width = left_w * 0.28F;
-        const float rest        = std::max(0.0F, left_w - state_width - (2 * gap));
-        state_area              = {inner.x, y, state_width, transport_height};
-        cue_button.setBounds({inner.x + state_width + gap, y, rest / 2, transport_height});
-        play_button.setBounds({inner.x + state_width + gap + (rest / 2) + gap, y, rest / 2, transport_height});
+        const float rest        = left_w - state_width - (2 * gap);
+        state_area              = stretch({inner.x, y, state_width, transport_height});
+        cue_button.setBounds(stretch({inner.x + state_width + gap, y, rest / 2, transport_height}));
+        play_button.setBounds(stretch({inner.x + state_width + gap + (rest / 2) + gap, y, rest / 2, transport_height}));
         // The pitch fader runs from the display down to the transport row
-        pitch_fader.setBounds({right_x, display_top, column, std::max(0.0F, y + transport_height - display_top)});
+        pitch_fader.setBounds(stretch({right_x, display_top, column, y + transport_height - display_top}));
         y += transport_height + gap;
 
         // Below: channel and headphone faders with labels, the track display and the Cue-Load option
         const float faders_height = std::max(0.0F, bottom - y - label_height);
         const float head_x        = inner.x + column_width + gap;
-        volume_fader.setBounds({inner.x, y, column_width, faders_height});
+        volume_fader.setBounds(stretch({inner.x, y, column_width, faders_height}));
         const float hp_height = std::min(small_button + 4.0F, faders_height);
-        headphone_button.setBounds({head_x, y, column_width, hp_height});
+        headphone_button.setBounds(stretch({head_x, y, column_width, hp_height}));
         headphone_fader.setBounds(
-            {head_x, y + hp_height + 4.0F, column_width, std::max(0.0F, faders_height - hp_height - 4.0F)});
-        volume_label_area    = {inner.x, y + faders_height, column_width, label_height};
-        headphone_label_area = {head_x, y + faders_height, column_width, label_height};
+            stretch({head_x, y + hp_height + 4.0F, column_width, std::max(0.0F, faders_height - hp_height - 4.0F)}));
+        volume_label_area    = stretch({inner.x, y + faders_height, column_width, label_height});
+        headphone_label_area = stretch({head_x, y + faders_height, column_width, label_height});
 
         const float info_x = head_x + column_width + gap;
-        const float info_w = std::max(0.0F, inner.x + inner.width - info_x);
-        info_area          = {info_x, y, info_w, std::min(info_height, std::max(0.0F, bottom - y))};
-        cue_load_box.setBounds({info_x, y + info_height + gap, info_w, std::min(28.0F, std::max(0.0F, bottom - y - info_height - gap))});
+        const float info_w = inner.x + inner.width - info_x;
+        info_area          = stretch({info_x, y, info_w, info_height});
+        cue_load_box.setBounds(stretch({info_x, y + info_height + gap, info_w, 28.0F}));
     }
 
     void DeckView::addTo(PointerRouter &router)
@@ -146,8 +153,7 @@ namespace djw::player_ui::sdl
         router.add(bend_up_button);
         router.add(keylock_button);
         router.add(time_button);
-        router.add(position_slider);
-        router.add(zero_button);
+        router.add(waveform_bar);
         router.add(cue_button);
         router.add(play_button);
         router.add(pitch_fader);
@@ -196,7 +202,6 @@ namespace djw::player_ui::sdl
     {
         load_button.setLabel(translator->tr("player.load"));
         time_button.setLabel(translator->tr("player.time"));
-        zero_button.setLabel(translator->tr("player.zero"));
         keylock_button.setLabel(translator->tr("player.keylock"));
         cue_button.setLabel(translator->tr("player.cue"));
         headphone_button.setLabel(translator->tr("player.headphones_button"));
@@ -258,23 +263,26 @@ namespace djw::player_ui::sdl
         {
             show_remaining = !show_remaining;
         }
-        if (zero_button.takePress())
+        // A double tap on the pitch fader sets the pitch to 0
+        if (pitch_fader.takeDoubleTap())
         {
             pitch_fader.setValue(0.5F);
         }
         static_cast<void>(cue_load_box.takeToggled());
 
-        // The position slider follows the track unless the finger is on it
-        if (!position_slider.held())
+        // The waveform shows the track's position and cue point unless the finger is on it
+        if (!waveform_bar.held())
         {
-            position_slider.setValue(state.duration_seconds > 0.0
+            waveform_bar.setPosition(state.duration_seconds > 0.0
                                          ? static_cast<float>(state.position_seconds / state.duration_seconds)
                                          : 0.0F);
         }
-        if (position_slider.takeChanged() && state.duration_seconds > 0.0)
+        waveform_bar.setCue(state.track_loaded && state.duration_seconds > 0.0
+                                ? std::optional{static_cast<float>(state.cue_seconds / state.duration_seconds)}
+                                : std::nullopt);
+        if (const auto chosen = waveform_bar.takeSeek(); chosen && state.duration_seconds > 0.0)
         {
-            pending_seek = core::api::DeckSeek{
-                deck, static_cast<double>(position_slider.value()) * state.duration_seconds};
+            pending_seek = core::api::DeckSeek{deck, static_cast<double>(*chosen) * state.duration_seconds};
         }
 
         keylock_button.setHighlighted(state.keylock);
@@ -332,8 +340,18 @@ namespace djw::player_ui::sdl
         sendFaders();
     }
 
+    std::optional<double> DeckView::shownBpm() const noexcept
+    {
+        if (!track_bpm)
+        {
+            return std::nullopt;
+        }
+        return *track_bpm * (1.0 + (static_cast<double>(shown_pitch) / 100.0));
+    }
+
     void DeckView::draw(Canvas &canvas) const
     {
+        canvas.setTextScale(text_scale);
         // The display: Time button, pitch and the large time, remaining with a minus
         look::sunken(canvas, display_area);
         time_button.draw(canvas);
@@ -348,8 +366,15 @@ namespace djw::player_ui::sdl
                           time_area.y + std::max(0.0F, (time_area.height - canvas.largeTextHeight()) / 2)},
                          clock, yellow);
 
-        position_slider.draw(canvas);
-        zero_button.draw(canvas);
+        if (const auto tempo = shownBpm())
+        {
+            const std::string text = translator->tr("player.bpm", {{"value", formatBpm(*tempo)}});
+            canvas.textElided({bpm_area.x + std::max(0.0F, (bpm_area.width - canvas.textWidth(text)) / 2),
+                               bpm_area.y + ((bpm_area.height - canvas.textHeight()) / 2)},
+                              text, yellow, bpm_area.width);
+        }
+
+        waveform_bar.draw(canvas);
 
         const std::string status = stateText();
         canvas.textElided({state_area.x, state_area.y + ((state_area.height - canvas.textHeight()) / 2)}, status,

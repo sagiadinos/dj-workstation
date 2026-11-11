@@ -25,7 +25,9 @@ namespace djw::core::api
         Title,
         Genre,
         Year,
-        Duration
+        Duration,
+        /// The tempo from the analysis; tracks without one come last in either direction
+        Bpm
     };
 
     /**
@@ -172,6 +174,10 @@ namespace djw::core::api
              */
             [[nodiscard]] virtual std::expected<std::vector<LibraryTrack>, std::string>
             search(const LibraryQuery &query) const = 0;
+
+            /// One track by its id, e.g. to see its tempo once the analysis has stored it; std::nullopt if the library
+            /// has no such track (any more)
+            [[nodiscard]] virtual std::optional<LibraryTrack> track(std::int64_t track_id) const = 0;
     };
 
     struct LibraryConfig

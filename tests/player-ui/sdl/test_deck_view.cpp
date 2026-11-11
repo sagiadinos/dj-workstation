@@ -35,7 +35,7 @@ namespace
             Fixture()
             {
                 view.setOnLoad([this] { ++loads; });
-                view.layout({0, 0, 380, 480});
+                view.layout({0, 0, 380, 514});
                 view.addTo(router);
                 view.update();
             }
@@ -94,7 +94,7 @@ namespace
 TEST_CASE("DeckView: the Load button is at the top left, everything lies inside the window")
 {
     Fixture     fixture;
-    const Rect  window{0, 0, 380, 480};
+    const Rect  window{0, 0, 380, 514};
     const Rect &load = fixture.view.loadButton().bounds();
     CHECK(load.width > 0);
     CHECK(load.height > 0);
@@ -104,9 +104,9 @@ TEST_CASE("DeckView: the Load button is at the top left, everything lies inside 
     for (const Rect *area :
          {&fixture.view.loadButton().bounds(), &fixture.view.bendDownButton().bounds(),
           &fixture.view.bendUpButton().bounds(), &fixture.view.keylockButton().bounds(),
-          &fixture.view.timeButton().bounds(), &fixture.view.pitchZeroButton().bounds(),
+          &fixture.view.timeButton().bounds(),
           &fixture.view.cueButton().bounds(), &fixture.view.playButton().bounds(),
-          &fixture.view.headphoneButton().bounds(), &fixture.view.positionSlider().bounds(),
+          &fixture.view.headphoneButton().bounds(), &fixture.view.waveform().bounds(),
           &fixture.view.fader().bounds(), &fixture.view.headphoneFader().bounds(), &fixture.view.pitchFader().bounds(),
           &fixture.view.cueLoadBox().bounds()})
     {
@@ -116,11 +116,11 @@ TEST_CASE("DeckView: the Load button is at the top left, everything lies inside 
     }
 }
 
-TEST_CASE("DeckView: the pitch fader sits right of the display, the transport row below the position slider")
+TEST_CASE("DeckView: the pitch fader sits right of the display, the transport row below the waveform")
 {
     Fixture fixture;
     CHECK(fixture.view.pitchFader().bounds().x > fixture.view.playButton().bounds().x + fixture.view.playButton().bounds().width);
-    CHECK(fixture.view.cueButton().bounds().y > fixture.view.positionSlider().bounds().y);
+    CHECK(fixture.view.cueButton().bounds().y > fixture.view.waveform().bounds().y);
     CHECK(fixture.view.playButton().bounds().y == fixture.view.cueButton().bounds().y);
     CHECK(fixture.view.fader().bounds().y > fixture.view.cueButton().bounds().y + fixture.view.cueButton().bounds().height);
 }
@@ -132,7 +132,7 @@ TEST_CASE("DeckView: tiny areas give empty widgets instead of negative sizes")
     CHECK(fixture.view.playButton().bounds().width >= 0);
     CHECK(fixture.view.fader().bounds().height >= 0);
     CHECK(fixture.view.pitchFader().bounds().height >= 0);
-    CHECK(fixture.view.positionSlider().bounds().width >= 0);
+    CHECK(fixture.view.waveform().bounds().width >= 0);
     CHECK(fixture.view.cueLoadBox().bounds().height >= 0);
 }
 
@@ -234,7 +234,9 @@ TEST_CASE("DeckView: the pitch fader sends the pitch once per change, Zero puts 
     REQUIRE(std::holds_alternative<api::DeckSetPitch>(commands[0]));
     CHECK(std::get<api::DeckSetPitch>(commands[0]).percent > 10.0F);
 
-    fixture.tapCenter(fixture.view.pitchZeroButton().bounds());
+    // A double tap on the pitch fader sets the pitch to 0
+    fixture.tapCenter(fixture.view.pitchFader().bounds());
+    fixture.tapCenter(fixture.view.pitchFader().bounds());
     fixture.view.update();
     commands = fixture.drain();
     REQUIRE(commands.size() == 1);
@@ -341,35 +343,40 @@ TEST_CASE("DeckView: the bend buttons act while held")
     CHECK(std::get<api::DeckPitchBend>(commands[0]).direction == -1);
 }
 
-TEST_CASE("DeckView: the position slider shows the position and seeks when the user moves it")
+TEST_CASE("DeckView: the waveform shows the position and the cue point and seeks when the user touches it")
 {
     Fixture fixture;
-    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 50.0, .duration_seconds = 200.0});
-    CHECK(fixture.view.positionSlider().value() == doctest::Approx(0.25F));
+    fixture.show({.deck         = deck,
+                  .track_loaded = true,
+                  .position_seconds = 50.0,
+                  .duration_seconds = 200.0,
+                  .cue_seconds      = 100.0});
+    CHECK(fixture.view.waveform().position() == doctest::Approx(0.25F));
 
-    const Rect &slider = fixture.view.positionSlider().bounds();
-    // Three quarters along the track of the slider
-    const float target = slider.x + (Slider::knob_width / 2) + ((slider.width - Slider::knob_width) * 0.75F);
-    fixture.router.handle({{1, 1}, PointerPhase::Down, {target, slider.y + 5}});
+    const Rect &bar   = fixture.view.waveform().bounds();
+    const Rect  inner = bar.inset(3.0F);
+    // Three quarters along the track
+    const float target = inner.x + (inner.width * 0.75F);
+    fixture.router.handle({{1, 1}, PointerPhase::Down, {target, bar.y + 5}});
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 51.0, .duration_seconds = 200.0});
-    // While held the slider keeps the finger's value
-    CHECK(fixture.view.positionSlider().value() == doctest::Approx(0.75F).epsilon(0.02));
+    // While held the waveform keeps the finger's position
+    CHECK(fixture.view.waveform().position() == doctest::Approx(0.75F).epsilon(0.02));
 
     const auto commands = fixture.drain();
     const auto *seek    = find<api::DeckSeek>(commands);
     REQUIRE(seek != nullptr);
     CHECK(seek->position_seconds == doctest::Approx(150.0).epsilon(0.02));
 
-    fixture.router.handle({{1, 1}, PointerPhase::Up, {target, slider.y + 5}});
+    fixture.router.handle({{1, 1}, PointerPhase::Up, {target, bar.y + 5}});
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 150.0, .duration_seconds = 200.0});
-    CHECK(fixture.view.positionSlider().value() == doctest::Approx(0.75F));
+    CHECK(fixture.view.waveform().position() == doctest::Approx(0.75F));
 }
 
-TEST_CASE("DeckView: without a track the slider does not seek")
+TEST_CASE("DeckView: without a track the waveform does not seek")
 {
     Fixture fixture;
-    const Rect &slider = fixture.view.positionSlider().bounds();
-    fixture.router.handle({{1, 1}, PointerPhase::Down, {slider.x + 100, slider.y + 5}});
+    const Rect &bar = fixture.view.waveform().bounds();
+    fixture.router.handle({{1, 1}, PointerPhase::Down, {bar.x + 100, bar.y + 5}});
     fixture.view.update();
     CHECK(find<api::DeckSeek>(fixture.drain()) == nullptr);
 }
@@ -549,4 +556,52 @@ TEST_CASE("DeckView: the texts follow the language")
     fixture.translator.setLanguage(Language::Russian);
     fixture.view.update();
     CHECK(fixture.view.loadButton().label() == "Загрузить");
+}
+
+TEST_CASE("DeckView: the waveform of the track and its tempo are shown, the tempo follows the pitch")
+{
+    Fixture fixture;
+    CHECK_FALSE(fixture.view.shownBpm().has_value());
+    CHECK_FALSE(fixture.view.waveform().hasWaveform());
+
+    fixture.view.setWaveform({10, 200, 30});
+    fixture.view.setBpm(125.0);
+    CHECK(fixture.view.waveform().hasWaveform());
+    REQUIRE(fixture.view.shownBpm().has_value());
+    CHECK(*fixture.view.shownBpm() == doctest::Approx(125.0));
+
+    fixture.show({.deck = deck, .track_loaded = true, .pitch_percent = 8.0F});
+    // The fader shows what was sent last: drag it to +8 %
+    const Rect &fader = fixture.view.pitchFader().bounds();
+    const float y     = fader.y + 12.0F + ((fader.height - 24.0F) * (1.0F - DeckView::faderValueOf(8.0F)));
+    fixture.router.handle({{1, 1}, PointerPhase::Down, {fader.x + (fader.width / 2), y}});
+    fixture.view.update();
+    CHECK(*fixture.view.shownBpm() == doctest::Approx(125.0 * 1.08).epsilon(0.01));
+
+    djw::tests::RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("135.0 BPM"));
+}
+
+TEST_CASE("DeckView: the whole layout grows with the window in both directions, text included")
+{
+    Fixture fixture;
+    const Rect play_small = fixture.view.playButton().bounds();
+    const Rect cue_small  = fixture.view.cueButton().bounds();
+    CHECK(fixture.view.scale() == doctest::Approx(1.0F));
+
+    fixture.view.layout({0, 0, 760, 1028}); // twice as big
+    const Rect play_big = fixture.view.playButton().bounds();
+    CHECK(play_big.x == doctest::Approx(play_small.x * 2));
+    CHECK(play_big.y == doctest::Approx(play_small.y * 2));
+    CHECK(play_big.width == doctest::Approx(play_small.width * 2));
+    CHECK(play_big.height == doctest::Approx(play_small.height * 2)); // the buttons grow downwards too
+    CHECK(fixture.view.cueButton().bounds().height == doctest::Approx(cue_small.height * 2));
+    CHECK(fixture.view.scale() == doctest::Approx(2.0F));
+
+    // Taller only: heights grow, widths stay, the text follows the smaller direction
+    fixture.view.layout({0, 0, 380, 1028});
+    CHECK(fixture.view.playButton().bounds().width == doctest::Approx(play_small.width));
+    CHECK(fixture.view.playButton().bounds().height == doctest::Approx(play_small.height * 2));
+    CHECK(fixture.view.scale() == doctest::Approx(1.0F));
 }

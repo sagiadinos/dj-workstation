@@ -211,6 +211,7 @@ namespace djw::player_ui::sdl
             cell(core::api::LibraryColumn::Genre, track.genre, secondary);
             cell(core::api::LibraryColumn::Year, track.year != 0 ? std::to_string(track.year) : std::string{},
                  secondary);
+            cell(core::api::LibraryColumn::Bpm, track.bpm ? formatBpm(*track.bpm) : std::string{}, secondary);
             cell(core::api::LibraryColumn::Duration, formatDuration(track.duration_seconds), secondary);
         }
         canvas.setClip(std::nullopt);

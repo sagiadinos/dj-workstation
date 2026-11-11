@@ -534,6 +534,25 @@ namespace djw::core::library
         return !rows->empty() && rows->front();
     }
 
+    std::expected<std::optional<api::LibraryTrack>, std::string> TrackStore::track(std::int64_t track_id)
+    {
+        auto prepared = database->prepare("SELECT " + std::string{track_columns} + " FROM tracks t WHERE t.id = ?");
+        if (!prepared)
+        {
+            return std::unexpected{prepared.error()};
+        }
+        auto found = collectRows(prepared->bind(1, track_id), readTrack);
+        if (!found)
+        {
+            return std::unexpected{found.error()};
+        }
+        if (found->empty())
+        {
+            return std::nullopt;
+        }
+        return std::move(found->front());
+    }
+
     std::expected<std::vector<StoredFile>, std::string> TrackStore::unanalyzed()
     {
         return collectRows(statements.unanalyzed, [](const Statement &row)

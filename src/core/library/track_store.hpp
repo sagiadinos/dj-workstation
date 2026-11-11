@@ -83,6 +83,8 @@ namespace djw::core::library
             std::expected<std::vector<std::uint8_t>, std::string> waveform(std::int64_t track_id);
             /// Whether a track has been analyzed; false for an unknown track
             std::expected<bool, std::string> isAnalyzed(std::int64_t track_id);
+            /// A track by its id, std::nullopt for an unknown id
+            std::expected<std::optional<api::LibraryTrack>, std::string> track(std::int64_t track_id);
             /// The tracks not analyzed yet whose file is not missing
             std::expected<std::vector<StoredFile>, std::string> unanalyzed();
             /// Deletes all tracks marked missing

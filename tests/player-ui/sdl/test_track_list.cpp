@@ -218,3 +218,16 @@ TEST_CASE("TrackList: a row can be replaced in place")
     CHECK(fixture.list.tracks()[2].title == "Edited");
     CHECK(fixture.list.tracks().size() == 20);
 }
+
+TEST_CASE("TrackList: the BPM column shows the tempo with one decimal, nothing for a track without one")
+{
+    Fixture fixture;
+    auto    rows = tracks(2);
+    rows[0].bpm  = 127.96;
+    fixture.list.setTracks(rows);
+
+    djw::tests::RecordingCanvas canvas;
+    fixture.list.draw(canvas);
+    CHECK(canvas.drew("128.0"));
+    CHECK(std::ranges::count_if(canvas.texts, [](const auto &drawn) { return drawn.text.find('.') != std::string::npos && drawn.text != "4:05"; }) == 1);
+}

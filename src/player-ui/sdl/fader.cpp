@@ -22,6 +22,16 @@ namespace djw::player_ui::sdl
 
     void Fader::pointerDown(Point position)
     {
+        const auto now = clock();
+        if (last_down && now - *last_down <= double_tap_time)
+        {
+            double_tapped = true;
+            last_down.reset();
+        }
+        else
+        {
+            last_down = now;
+        }
         held = true;
         follow(position);
     }

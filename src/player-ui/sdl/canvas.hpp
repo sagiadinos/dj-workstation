@@ -42,6 +42,11 @@ namespace djw::player_ui::sdl
             [[nodiscard]] virtual float largeTextHeight() const noexcept                                   = 0;
             [[nodiscard]] virtual float largeTextWidth(std::string_view text) const noexcept               = 0;
 
+            /// Makes all text (normal and large) this many times as big, until set again; 1 is the normal size. The sizes
+            /// textHeight(), textWidth() and so on then report are those of the scaled text. A canvas that cannot scale
+            /// text ignores it.
+            virtual void setTextScale(float /*scale*/) {}
+
             /// Drawing outside clip is cut off until the next setClip(); std::nullopt draws everywhere again
             virtual void setClip(std::optional<Rect> clip) = 0;
     };

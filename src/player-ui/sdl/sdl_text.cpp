@@ -5,6 +5,9 @@
 
 #include <SDL3/SDL_error.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace djw::player_ui::sdl
 {
     namespace
@@ -60,7 +63,23 @@ namespace djw::player_ui::sdl
         density = pixel_density;
         for (Face *which : {&normal, &large})
         {
-            TTF_SetFontSize(which->font, which->points * density);
+            TTF_SetFontSize(which->font, which->points * density * scale);
+            clearCache(*which);
+        }
+    }
+
+    void SdlText::setScale(float new_scale)
+    {
+        // Rounded, so a window being dragged to size does not rebuild the font for every pixel
+        new_scale = std::max(0.25F, std::round(new_scale * 20.0F) / 20.0F);
+        if (new_scale == scale)
+        {
+            return;
+        }
+        scale = new_scale;
+        for (Face *which : {&normal, &large})
+        {
+            TTF_SetFontSize(which->font, which->points * density * scale);
             clearCache(*which);
         }
     }

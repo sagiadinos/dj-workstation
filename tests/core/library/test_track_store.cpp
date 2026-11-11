@@ -414,3 +414,25 @@ TEST_CASE("TrackStore: a version 5 database gets the analysis columns, its track
     CHECK_FALSE(tracks.front().bpm.has_value());
     CHECK(fixture.store.unanalyzed().value().size() == 1);
 }
+
+TEST_CASE("TrackStore: sorting by tempo puts tracks without one last in both directions, a track comes back by its id")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    fixture.add("b.mp3", {.title = "b"});
+    fixture.add("c.mp3", {.title = "c"});
+    auto tracks = fixture.store.search({.sort_by = api::LibraryColumn::Title}).value();
+    REQUIRE(fixture.store.setAnalysis(tracks[0].id, 140.0, std::vector<std::uint8_t>{1}).has_value());
+    REQUIRE(fixture.store.setAnalysis(tracks[2].id, 90.0, std::vector<std::uint8_t>{1}).has_value());
+
+    CHECK(fixture.titles({.sort_by = api::LibraryColumn::Bpm}) == std::vector<std::string>{"c", "a", "b"});
+    CHECK(fixture.titles({.sort_by = api::LibraryColumn::Bpm, .descending = true}) ==
+          std::vector<std::string>{"a", "c", "b"});
+
+    const auto found = fixture.store.track(tracks[0].id);
+    REQUIRE(found.has_value());
+    REQUIRE(found->has_value());
+    CHECK((*found)->title == "a");
+    CHECK((*found)->bpm == 140.0);
+    CHECK_FALSE(fixture.store.track(4711).value().has_value());
+}

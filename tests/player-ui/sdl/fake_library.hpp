@@ -42,7 +42,11 @@ namespace djw::tests
             void analyze(std::int64_t track_id) override { analyzed.push_back(track_id); }
             void analyzeAll() override { ++analyze_all_requests; }
             void rescanTrack(std::int64_t track_id) override { rescanned.push_back(track_id); }
-            std::vector<std::uint8_t> waveform(std::int64_t) const override { return {}; }
+            std::vector<std::uint8_t> waveform(std::int64_t track_id) const override
+            {
+                const auto found = waveforms.find(track_id);
+                return found != waveforms.end() ? found->second : std::vector<std::uint8_t>{};
+            }
 
             void setCuePoint(std::int64_t track_id, std::optional<double> seconds) override
             {
@@ -72,6 +76,12 @@ namespace djw::tests
                     }
                 }
                 return found;
+            }
+
+            std::optional<core::api::LibraryTrack> track(std::int64_t track_id) const override
+            {
+                const auto found = std::ranges::find(library_tracks, track_id, &core::api::LibraryTrack::id);
+                return found != library_tracks.end() ? std::optional{*found} : std::nullopt;
             }
 
             // api::Playlists
@@ -182,6 +192,7 @@ namespace djw::tests
             std::vector<std::int64_t>                                         analyzed;
             std::vector<std::int64_t>                                         rescanned;
             int                                                               analyze_all_requests = 0;
+            std::map<std::int64_t, std::vector<std::uint8_t>>                 waveforms;
             bool                                                              fail     = false;
             mutable int                                                       searches = 0;
             mutable core::api::LibraryQuery                                   last_query;

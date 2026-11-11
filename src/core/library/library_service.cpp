@@ -282,6 +282,12 @@ namespace djw::core::library
         return reader.tracks.search(query);
     }
 
+    std::optional<api::LibraryTrack> LibraryService::track(std::int64_t track_id) const
+    {
+        auto found = reader.tracks.track(track_id);
+        return found ? std::move(*found) : std::nullopt;
+    }
+
     std::expected<std::vector<api::Playlist>, std::string> LibraryService::list() const
     {
         return reader.playlists.list();
