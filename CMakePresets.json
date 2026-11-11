@@ -55,21 +55,30 @@
             }
         },
         {
+            "name": "linux-release-base",
+            "hidden": true,
+            "description": "Release with link-time optimization; unused code is dropped and the symbols are stripped. -Wno-stringop-overread at the link: with LTO GCC reports reads that do not happen (std::string concatenation, SQLite's strlen); compiled without LTO the same code is quiet",
+            "inherits": "linux-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+                "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG -ffunction-sections -fdata-sections",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -ffunction-sections -fdata-sections",
+                "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-Wl,--gc-sections -s -Wno-stringop-overread"
+            }
+        },
+        {
             "name": "linux-release",
             "displayName": "linux-release",
             "description": "Linux x86_64, release",
-            "inherits": "linux-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
-            }
+            "inherits": "linux-release-base"
         },
         {
             "name": "linux-arm64-release",
             "displayName": "linux-arm64-release",
             "description": "Native build on Raspberry Pi 4/5 (arm64), tuned for the Pi 4 baseline",
-            "inherits": "linux-base",
+            "inherits": "linux-release-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_CXX_FLAGS": "-mcpu=cortex-a72"
             }
         },
