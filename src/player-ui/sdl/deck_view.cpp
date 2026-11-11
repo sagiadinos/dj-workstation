@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -316,6 +317,61 @@ namespace djw::player_ui::sdl
         else
         {
             pending_position = core::api::DeckScrub{deck, seconds, true};
+        }
+    }
+
+    void DeckView::control(const core::control::ControlEvent &event)
+    {
+        using core::control::Action;
+        switch (event.action)
+        {
+            case Action::DeckPlay:
+                play_key = play_key || event.pressed;
+                break;
+            case Action::DeckCue:
+                pending.emplace_back(core::api::DeckCue{deck, event.pressed});
+                break;
+            case Action::DeckLoad:
+                load_key = load_key || event.pressed;
+                break;
+            case Action::DeckKeylock:
+                if (event.pressed)
+                {
+                    pending.emplace_back(core::api::DeckSetKeylock{deck, !state.keylock});
+                }
+                break;
+            case Action::DeckHeadphones:
+                if (event.pressed)
+                {
+                    pending.emplace_back(core::api::MixerSetHeadphoneCue{deck, !state.headphone_cue});
+                }
+                break;
+            case Action::DeckBendDown:
+            case Action::DeckBendUp:
+            {
+                const std::int8_t direction = event.action == Action::DeckBendUp ? 1 : -1;
+                pending.emplace_back(core::api::DeckPitchBend{deck, event.pressed ? direction : std::int8_t{0}});
+                break;
+            }
+            case Action::DeckPitch:
+                pitch_fader.setValue(event.value);
+                break;
+            case Action::DeckVolume:
+                volume_fader.setValue(event.value);
+                break;
+            case Action::DeckHeadphoneLevel:
+                headphone_fader.setValue(event.value);
+                break;
+            case Action::DeckSeek:
+                for (int step = 0; step < std::abs(event.steps); ++step)
+                {
+                    keyboard(event.steps > 0 ? EditKey::Right : EditKey::Left);
+                }
+                break;
+            case Action::Shift:
+            case Action::Crossfader:
+            case Action::LibraryMove:
+                break; // not a player's
         }
     }
 

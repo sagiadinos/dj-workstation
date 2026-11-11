@@ -74,6 +74,9 @@ namespace djw::player_ui::sdl
             [[nodiscard]] static float positionOf(float slider_value) noexcept { return (slider_value * 2.0F) - 1.0F; }
             [[nodiscard]] static float sliderValueOf(float position) noexcept { return (position + 1.0F) / 2.0F; }
 
+            /// The crossfader set from outside (a controller): 0 side A to 1 side B; sent at once, also while the
+            /// window is closed; ends a fade
+            void setCrossfader(float value);
             /// The master meter: where it is, the level last read and whether its clip lamp is lit; for tests
             [[nodiscard]] const Rect            &masterMeterArea() const noexcept { return meter_area; }
             [[nodiscard]] core::api::StereoLevel masterLevel() const noexcept { return master_level; }

@@ -6,6 +6,7 @@
 
 #include "api/core.hpp"
 #include "api/library.hpp"
+#include "control/controller_hub.hpp"
 #include "deck_view.hpp"
 #include "devices_dialog.hpp"
 #include "i18n/translator.hpp"
@@ -145,6 +146,11 @@ namespace djw::player_ui::sdl
             }
             /// The frame of a tool in the MDI mode, nullptr before it first opened; for tests
             [[nodiscard]] const PaneFrame *toolFrame(Tool tool) const { return tools[index(tool)].frame.get(); }
+            /// The controllers whose events the app carries out, taken once per frame; without it there are none
+            void setControllers(std::unique_ptr<core::control::ControllerHub> hub);
+            /// Carries out one control event: a player's goes to the player with that number (counted in the order
+            /// they were opened; none if there are fewer), the crossfader to the crossfader, browsing to the library
+            void handleControl(const core::control::ControlEvent &event);
             /// Where Settings > Devices keeps its settings for the next start; without it the entry is off
             void setSettingsFile(std::filesystem::path file);
             /// Settings > Devices: opens the dialog over the library window (in the MDI mode the one window)
@@ -331,6 +337,8 @@ namespace djw::player_ui::sdl
             std::optional<MdiPlaces> hand_places;
             /// MDI mode: the one window covers the display
             bool host_fullscreen = true;
+            /// The controllers; destroyed after the views their events go to are no longer needed
+            std::unique_ptr<core::control::ControllerHub> controllers;
 
             /// Asked for from a menu or the keyboard; done between frames
             int new_decks_requested = 0;

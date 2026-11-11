@@ -1103,6 +1103,32 @@ namespace djw::player_ui::sdl
         tools[index(tool)].request = open ? Request::Open : Request::Close;
     }
 
+    void SdlApp::setControllers(std::unique_ptr<core::control::ControllerHub> hub)
+    {
+        controllers = std::move(hub);
+    }
+
+    void SdlApp::handleControl(const core::control::ControlEvent &event)
+    {
+        using core::control::Action;
+        if (event.deck)
+        {
+            if (*event.deck < decks.size())
+            {
+                decks[*event.deck]->view->control(event);
+            }
+            return;
+        }
+        if (event.action == Action::Crossfader && mixer_view)
+        {
+            mixer_view->setCrossfader(event.value);
+        }
+        else if (event.action == Action::LibraryMove && library_view)
+        {
+            library_view->moveSelection(event.steps);
+        }
+    }
+
     void SdlApp::setSettingsFile(std::filesystem::path file)
     {
         settings_file = std::move(file);
@@ -1249,6 +1275,13 @@ namespace djw::player_ui::sdl
         if (library != nullptr)
         {
             refreshAnalyses();
+        }
+        if (controllers)
+        {
+            for (const core::control::ControlEvent &event : controllers->poll())
+            {
+                handleControl(event);
+            }
         }
         if (host_window != nullptr)
         {

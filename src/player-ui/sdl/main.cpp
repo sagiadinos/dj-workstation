@@ -4,6 +4,9 @@
 #include "api/core.hpp"
 #include "api/library.hpp"
 #include "command_line.hpp"
+#include "control/controller_hub.hpp"
+#include "control/mapping.hpp"
+#include "control/midi_system.hpp"
 #include "sdl_app.hpp"
 #include "settings.hpp"
 
@@ -18,9 +21,11 @@
 #include <span>
 #include <sstream>
 #include <thread>
+#include <vector>
 
-namespace api = djw::core::api;
-namespace sdl = djw::player_ui::sdl;
+namespace api  = djw::core::api;
+namespace sdl  = djw::player_ui::sdl;
+namespace core = djw::core;
 
 namespace
 {
@@ -48,6 +53,41 @@ namespace
         std::filesystem::path file = std::filesystem::path{folder} / "language";
         SDL_free(folder);
         return file;
+    }
+
+    /// The controller mappings: those that come with the program (next to it), then the user's own
+    /// (e.g. ~/.local/share/djw/mappings on Linux)
+    std::vector<std::filesystem::path> mappingFolders()
+    {
+        std::vector<std::filesystem::path> folders;
+        if (const char *base = SDL_GetBasePath(); base != nullptr)
+        {
+            folders.push_back(std::filesystem::path{base} / "mappings");
+        }
+        if (char *folder = SDL_GetPrefPath("", "djw"); folder != nullptr)
+        {
+            folders.push_back(std::filesystem::path{folder} / "mappings");
+            SDL_free(folder);
+        }
+        return folders;
+    }
+
+    /// The MIDI controllers with a mapping, connected; what goes wrong is reported, the program starts anyway
+    std::unique_ptr<core::control::ControllerHub> openControllers()
+    {
+        std::vector<std::string> errors;
+        auto                     mappings = core::control::readMappings(mappingFolders(), errors);
+        auto                     hub =
+            std::make_unique<core::control::ControllerHub>(core::control::createMidiSystem(), std::move(mappings));
+        for (const std::string &error : hub->connect())
+        {
+            errors.push_back(error);
+        }
+        for (const std::string &error : errors)
+        {
+            std::cerr << "djw: " << error << '\n';
+        }
+        return hub;
     }
 
     /// The file with the settings of Settings > Devices, e.g. ~/.local/share/djw/settings on Linux
@@ -202,6 +242,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     (*app)->setSettingsFile(settings_file);
+    (*app)->setControllers(openControllers());
     if (command_line->file)
     {
         (*app)->setDeckTrack(std::filesystem::absolute(*command_line->file), command_line->file->filename().string());

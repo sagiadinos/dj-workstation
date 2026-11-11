@@ -97,4 +97,6 @@ add_custom_command(TARGET djw_player_sdl POST_BUILD
         ${PROJECT_SOURCE_DIR}/third_party/fonts/NotoSans-Regular.ttf
         ${PROJECT_SOURCE_DIR}/third_party/fonts/NotoSans-OFL.txt
         $<TARGET_FILE_DIR:djw_player_sdl>/fonts
+    # The controller mappings that come with the program
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/mappings $<TARGET_FILE_DIR:djw_player_sdl>/mappings
 )

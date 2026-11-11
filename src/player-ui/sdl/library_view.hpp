@@ -176,6 +176,8 @@ namespace djw::player_ui::sdl
                 layout_editing    = std::move(editing);
                 arrange_automatic = std::move(automatic);
             }
+            /// Moves the selection in the list by rows (a controller's browse knob), scrolled into view
+            void moveSelection(int rows) { list.moveSelection(rows); }
             /// The track selected in the list, std::nullopt if none
             [[nodiscard]] std::optional<core::api::LibraryTrack> selectedTrack() const
             {

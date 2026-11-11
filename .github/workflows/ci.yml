@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build libasound2-dev
 
       # The runner kernel randomizes mmap with more bits than TSan's memory layout allows
       - name: Reduce address space randomization for TSan
@@ -74,7 +74,7 @@ jobs:
 
       - name: Install tools
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build libasound2-dev
           python3 -m venv "$RUNNER_TEMP/lint"
           "$RUNNER_TEMP/lint/bin/pip" install --quiet -r .github/lint-requirements.txt
           echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
@@ -108,7 +108,7 @@ jobs:
 
       - name: Install tools
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build libasound2-dev
           python3 -m venv "$RUNNER_TEMP/lint"
           "$RUNNER_TEMP/lint/bin/pip" install --quiet -r .github/lint-requirements.txt
           echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"

@@ -151,7 +151,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Crossfader curve | 1 | Linear, constant power, cut. |
 | Crossfader zero | M | Fader to center position. |
 | Momentary A/B | M | From the original version: tap and hold jumps to one side and back on release. |
-| Headphone cue | M | Per deck, cue/master mix, headphone volume. |
+| Headphone cue | M | Per deck, headphone volume. |
 | Master limiter | M | Prevents clipping. |
 | 3-band EQ with kill | 1 | |
 | Filter | 1 | One knob per deck: lowpass to the left, highpass to the right. |

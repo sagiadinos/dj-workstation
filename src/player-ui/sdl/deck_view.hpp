@@ -5,6 +5,7 @@
 #define DJW_PLAYER_UI_SDL_DECK_VIEW_HPP
 
 #include "api/commands.hpp"
+#include "control/controller.hpp"
 #include "api/deck_id.hpp"
 #include "api/snapshot.hpp"
 #include "canvas.hpp"
@@ -78,6 +79,10 @@ namespace djw::player_ui::sdl
             /// shift_step_seconds, as a touch on the waveform there would (a playing deck jumps, a standing one
             /// scrubs). P, C and L do what play/pause, CUE (while held) and Load do.
             void keyboard(const KeyboardInput &input) override;
+            /// A control of a controller for this player, done like the button or fader it stands for: play/pause,
+            /// CUE while held, load, keylock, headphone cue, pitch bend while held; the pitch, channel and headphone
+            /// faders follow absolute values (0 to 1); seek steps like the cursor keys
+            void control(const core::control::ControlEvent &event);
             /// One scrub loop
             static constexpr double key_step_seconds   = core::api::scrub_loop_seconds;
             static constexpr double shift_step_seconds = 10.0;

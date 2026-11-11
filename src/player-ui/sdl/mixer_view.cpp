@@ -168,6 +168,13 @@ namespace djw::player_ui::sdl
         }
     }
 
+    void MixerView::setCrossfader(float value)
+    {
+        fade.reset();
+        slider.setValue(std::clamp(value, 0.0F, 1.0F));
+        send();
+    }
+
     void MixerView::send()
     {
         while (!pending.empty() && queue->tryPush(pending.front()))
