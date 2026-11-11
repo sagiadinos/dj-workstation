@@ -29,8 +29,8 @@ env:
   SDL_CONFIGURE_FLAGS: -DSDL_UNIX_CONSOLE_BUILD=ON
 
 jobs:
-  # Warnings are errors. gcc-13 is the minimum GCC from Architecture.md. Clang is built against libc++ as
-  # Architecture.md expects; clang-18 with libstdc++ has no std::expected.
+  # Warnings are errors. gcc-13 is the minimum GCC from Architecture.md; gcc-14 builds in the sanitizer jobs, Clang
+  # with libc++ is built on the Mac.
   build:
     name: Build and test (${{ matrix.cxx }})
     runs-on: ubuntu-24.04
@@ -39,8 +39,6 @@ jobs:
       matrix:
         include:
           - { cc: gcc-13, cxx: g++-13 }
-          - { cc: gcc-14, cxx: g++-14 }
-          - { cc: clang-18, cxx: clang++-18, cxxflags: -stdlib=libc++, packages: libc++-18-dev libc++abi-18-dev }
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}

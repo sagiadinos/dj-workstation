@@ -173,8 +173,9 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - clang-format and clang-tidy are pinned to one version in `.github/lint-requirements.txt` and installed with pip, so local runs and CI give the same result. Use the same version locally: `python3 -m venv .venv-lint && .venv-lint/bin/pip install -r .github/lint-requirements.txt`.
 - Duplicated code is caught in review, there is no separate duplicate detection tool.
 - CI (`.github/workflows/ci.yml`) runs for every push to `main` and every pull request, for now on Linux x86_64 only:
-  - build and `ctest` with warnings as errors, with GCC 13 (the minimum), GCC 14 and Clang 18
-  - all tests with `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan`
+  - build and `ctest` with warnings as errors, with GCC 13 (the minimum)
+  - all tests with `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan`, built with GCC 14
+  - Clang with libc++ is not in the CI; it is built on the Mac
   - clang-format check and clang-tidy
   - line coverage of `src/` with gcovr; the report is attached to the run
 - The CI does not start the SDL player, so leaks in system graphics drivers (seen locally with Mesa/EGL) do not show up there. A LeakSanitizer suppression file is added once a CI job runs the player.

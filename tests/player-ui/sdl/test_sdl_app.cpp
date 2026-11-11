@@ -328,11 +328,12 @@ TEST_CASE("SdlApp: the track a player was started with shows as its track")
 
 namespace
 {
-    /// A WAV file of two seconds: half a second of silence, then a tone
-    std::filesystem::path gapWav(const djw::tests::TempDir &folder)
+    /// A WAV file of seconds (two by default): half a second of silence, then a tone
+    std::filesystem::path gapWav(const djw::tests::TempDir &folder, std::size_t seconds = 2)
     {
-        djw::tests::StereoAudio audio{.sample_rate = 48'000, .samples = std::vector<float>(48'000 * 2 * 2, 0.0F)};
-        for (std::size_t frame = 24'000; frame < 96'000; ++frame)
+        constexpr std::size_t   rate = 48'000;
+        djw::tests::StereoAudio audio{.sample_rate = rate, .samples = std::vector<float>(rate * seconds * 2, 0.0F)};
+        for (std::size_t frame = rate / 2; frame < rate * seconds; ++frame)
         {
             const auto value = static_cast<float>(
                 0.4 * std::sin(2.0 * 3.14159265358979 * 440.0 * static_cast<double>(frame) / 48'000.0));
@@ -361,8 +362,9 @@ TEST_CASE(
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
-    const auto                file = gapWav(folder);
-    auto                      app  = fixture.openApp();
+    // Long enough to play on until the end of the test, also on a slow machine: a player that ended is free again
+    const auto file = gapWav(folder, 30);
+    auto       app  = fixture.openApp();
     Fixture::ctrlN();
     Fixture::ctrlN();
     REQUIRE(app->runFrame());
@@ -466,7 +468,7 @@ TEST_CASE(
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
-    const auto                file = gapWav(folder);
+    const auto                file = gapWav(folder, 30); // plays on until the end of the test
     djw::tests::FakeLibrary   library;
     library.library_tracks.push_back(
         {.id = 7, .path = file, .artist = "Artist", .title = "Title", .bpm = 128.0, .analyzed = true});
@@ -641,7 +643,7 @@ TEST_CASE("SdlApp: a file dropped on a player window is loaded into that player,
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
-    const auto                file = gapWav(folder);
+    const auto                file = gapWav(folder, 30); // plays on until the end of the test
     auto                      app  = fixture.openApp();
     Fixture::ctrlN();
     REQUIRE(app->runFrame());
