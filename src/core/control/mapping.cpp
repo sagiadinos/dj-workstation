@@ -73,13 +73,21 @@ namespace djw::core::control
             return "line " + std::to_string(node.source().begin.line);
         }
 
-        std::expected<Control, std::string> controlOf(const toml::table &entry)
+        /// The message of midi = { type, channel, number }
+        struct Midi
         {
-            Control            control;
+                MidiKind     kind;
+                int          channel;
+                std::uint8_t number;
+        };
+
+        std::expected<Midi, std::string> midiOf(const toml::table &entry, std::string_view what)
+        {
             const toml::table *midi = entry["midi"].as_table();
             if (midi == nullptr)
             {
-                return std::unexpected{where(entry) + ": a control needs midi = { type, channel, number }"};
+                return std::unexpected{where(entry) + ": a " + std::string{what} +
+                                       " needs midi = { type, channel, number }"};
             }
             const auto type    = (*midi)["type"].value<std::string>();
             const auto channel = (*midi)["channel"].value<std::int64_t>();
@@ -90,9 +98,55 @@ namespace djw::core::control
                 return std::unexpected{where(*midi) + ": midi needs type \"note\" or \"cc\", channel 1 to 16 and "
                                                       "number 0 to 127"};
             }
-            control.kind    = *type == "note" ? MidiKind::Note : MidiKind::ControlChange;
-            control.channel = static_cast<int>(*channel);
-            control.number  = static_cast<std::uint8_t>(*number);
+            return Midi{.kind    = *type == "note" ? MidiKind::Note : MidiKind::ControlChange,
+                        .channel = static_cast<int>(*channel),
+                        .number  = static_cast<std::uint8_t>(*number)};
+        }
+
+        std::expected<Light, std::string> lightOfEntry(const toml::table &entry)
+        {
+            const auto midi = midiOf(entry, "light");
+            if (!midi)
+            {
+                return std::unexpected{midi.error()};
+            }
+            const auto what   = entry["what"].value<std::string>();
+            const auto source = what ? lightOf(*what) : std::nullopt;
+            if (!source)
+            {
+                return std::unexpected{where(entry) + ": unknown light \"" + what.value_or("") + "\""};
+            }
+            const auto deck = entry["deck"].value<std::int64_t>();
+            if (!deck || *deck < 1)
+            {
+                return std::unexpected{where(entry) + ": a light needs the player, deck = 1 or more"};
+            }
+            const auto on  = entry["on"].value_or(std::int64_t{0x7F});
+            const auto off = entry["off"].value_or(std::int64_t{0x00});
+            if (on < 0 || on > 127 || off < 0 || off > 127)
+            {
+                return std::unexpected{where(entry) + ": on and off are 0 to 127"};
+            }
+            return Light{.source  = *source,
+                         .deck    = static_cast<std::size_t>(*deck - 1),
+                         .kind    = midi->kind,
+                         .channel = midi->channel,
+                         .number  = midi->number,
+                         .on      = static_cast<std::uint8_t>(on),
+                         .off     = static_cast<std::uint8_t>(off)};
+        }
+
+        std::expected<Control, std::string> controlOf(const toml::table &entry)
+        {
+            Control    control;
+            const auto midi = midiOf(entry, "control");
+            if (!midi)
+            {
+                return std::unexpected{midi.error()};
+            }
+            control.kind    = midi->kind;
+            control.channel = midi->channel;
+            control.number  = midi->number;
 
             const auto action_name = entry["action"].value<std::string>();
             const auto action      = action_name ? actionOf(*action_name) : std::nullopt;
@@ -131,6 +185,32 @@ namespace djw::core::control
             return control;
         }
     } // namespace
+
+    std::string_view lightName(LightSource source) noexcept
+    {
+        switch (source)
+        {
+            case LightSource::DeckPlaying:
+                return "deck.playing";
+            case LightSource::DeckCue:
+                return "deck.cue";
+            case LightSource::DeckHeadphones:
+                return "deck.headphones";
+        }
+        return {};
+    }
+
+    std::optional<LightSource> lightOf(std::string_view name) noexcept
+    {
+        for (const LightSource source : {LightSource::DeckPlaying, LightSource::DeckCue, LightSource::DeckHeadphones})
+        {
+            if (lightName(source) == name)
+            {
+                return source;
+            }
+        }
+        return std::nullopt;
+    }
 
     std::string_view actionName(Action action) noexcept
     {
@@ -198,6 +278,23 @@ namespace djw::core::control
                     return std::unexpected{control.error()};
                 }
                 mapping.controls.push_back(*control);
+            }
+        }
+        if (const toml::array *lights = root["light"].as_array())
+        {
+            for (const toml::node &node : *lights)
+            {
+                const toml::table *entry = node.as_table();
+                if (entry == nullptr)
+                {
+                    return std::unexpected{where(node) + ": [[light]] entries must be tables"};
+                }
+                auto light = lightOfEntry(*entry);
+                if (!light)
+                {
+                    return std::unexpected{light.error()};
+                }
+                mapping.lights.push_back(*light);
             }
         }
         return mapping;

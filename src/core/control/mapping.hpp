@@ -66,7 +66,40 @@ namespace djw::core::control
      *     mode   = "button"    # button, absolute, absolute14, relative; button if left out
      *     shift  = false
      *     invert = false       # absolute modes: 1 - value
+     *
+     *     [[light]]
+     *     what = "deck.playing"    # deck.playing, deck.cue (as a CDJ: lit at the cue point, blinking when paused
+     *                              # elsewhere) or deck.headphones
+     *     deck = 1
+     *     midi = { type = "note", channel = 2, number = 0x07 }
+     *     on   = 0x7F              # the values sent; these if left out
+     *     off  = 0x00
      */
+    /// What a light of a controller shows (see api::DeckLights)
+    enum class LightSource : std::uint8_t
+    {
+        DeckPlaying,   ///< the player plays
+        DeckCue,       ///< the CUE light, as a CDJ shows it
+        DeckHeadphones ///< the player's headphone cue is on
+    };
+
+    [[nodiscard]] std::string_view           lightName(LightSource source) noexcept;
+    [[nodiscard]] std::optional<LightSource> lightOf(std::string_view name) noexcept;
+
+    /// A light (LED) of a controller: the message that switches it, with the value for on and for off
+    struct Light
+    {
+            LightSource  source  = LightSource::DeckPlaying;
+            std::size_t  deck    = 0; ///< the player, from 0
+            MidiKind     kind    = MidiKind::Note;
+            int          channel = 1;
+            std::uint8_t number  = 0;
+            std::uint8_t on      = 0x7F;
+            std::uint8_t off     = 0x00;
+
+            bool operator==(const Light &) const = default;
+    };
+
     struct Mapping
     {
             std::string              name;
@@ -75,6 +108,8 @@ namespace djw::core::control
             std::vector<Control>     controls;
             /// The file it was read from; empty for one made in code
             std::filesystem::path file;
+            /// The controller's lights the program switches
+            std::vector<Light> lights{};
 
             /// Whether the mapping is for a MIDI port of this name (one of match is part of it, ignoring case)
             [[nodiscard]] bool matches(std::string_view port) const;

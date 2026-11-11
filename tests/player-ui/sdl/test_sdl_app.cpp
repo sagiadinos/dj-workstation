@@ -1338,7 +1338,10 @@ namespace
                 return Imported{.name = "Pad (Mixxx)", .taken = 7, .scripted = 3, .unknown = 20};
             }
 
-            std::vector<std::filesystem::path> imported;
+            void setLights(const std::vector<djw::core::api::DeckLights> &decks) override { lights = decks; }
+
+            std::vector<std::filesystem::path>      imported;
+            std::vector<djw::core::api::DeckLights> lights;
 
             std::vector<djw::core::api::ControlEvent> events;
             std::vector<Assignments>                  connected;
@@ -1361,6 +1364,8 @@ TEST_CASE("SdlApp: controller events are carried out each frame; OK in Settings 
     fake.events.push_back({.action = Action::LibraryMove, .deck = {}, .pressed = true, .value = 0.0F, .steps = 1});
     REQUIRE(app->runFrame());
     CHECK(app->libraryView().trackList().selected() == 0U);
+    // Each frame the controllers get the players' lights, one per player
+    CHECK(fake.lights.size() == app->deckCount());
 
     // The dialog lists the controller's port with its mapping; OK applies the choice at once
     app->setSettingsFile(folder.path() / "settings");

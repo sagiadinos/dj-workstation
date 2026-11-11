@@ -69,14 +69,60 @@ namespace djw::core::control
         closeAll();
     }
 
+    namespace
+    {
+        /// The message that sets a light to value
+        MidiMessage messageOf(const Light &light, std::uint8_t value)
+        {
+            const auto kind = light.kind == MidiKind::Note ? 0x90U : 0xB0U;
+            return {.status = static_cast<std::uint8_t>(kind | static_cast<unsigned int>(light.channel - 1)),
+                    .data1  = light.number,
+                    .data2  = value};
+        }
+    } // namespace
+
     void ControllerHub::closeAll()
     {
-        // The inputs first: after that no callback can reach a controller any more
+        // The inputs first: after that no callback can reach a controller any more. The lights go out.
         for (const auto &open : open_ports)
         {
             open->input.reset();
+            if (open->output)
+            {
+                for (const Light &light : open->controller.mapping().lights)
+                {
+                    open->output->send(messageOf(light, light.off));
+                }
+            }
         }
         open_ports.clear();
+    }
+
+    void ControllerHub::setLights(const std::vector<api::DeckLights> &decks)
+    {
+        for (const auto &open : open_ports)
+        {
+            if (!open->output)
+            {
+                continue;
+            }
+            const std::vector<Light> &lights = open->controller.mapping().lights;
+            open->sent.resize(lights.size());
+            for (std::size_t index = 0; index < lights.size(); ++index)
+            {
+                const Light          &light = lights[index];
+                const api::DeckLights state = light.deck < decks.size() ? decks[light.deck] : api::DeckLights{};
+                const bool            lit   = light.source == LightSource::DeckPlaying ? state.playing
+                                              : light.source == LightSource::DeckCue   ? state.cue
+                                                                                       : state.headphones;
+                const std::uint8_t    value = lit ? light.on : light.off;
+                if (open->sent[index] != value)
+                {
+                    open->output->send(messageOf(light, value));
+                    open->sent[index] = value;
+                }
+            }
+        }
     }
 
     std::string ControllerHub::stablePortName(std::string_view port)
@@ -199,6 +245,25 @@ namespace djw::core::control
                 continue;
             }
             where.input = std::move(*input);
+            // The output of the same name, for the lights
+            if (!mapping->lights.empty())
+            {
+                for (const std::string &output : midi->outputPorts())
+                {
+                    if (stablePortName(output) == stable)
+                    {
+                        if (auto opened = midi->openOutput(output))
+                        {
+                            where.output = std::move(*opened);
+                        }
+                        else
+                        {
+                            errors.push_back(opened.error());
+                        }
+                        break;
+                    }
+                }
+            }
             open_ports.push_back(std::move(added));
         }
         return errors;

@@ -913,3 +913,42 @@ TEST_CASE("DeckView: a controller's faders set the player's faders, the jog whee
     REQUIRE(find<api::DeckScrub>(commands) != nullptr);
     CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(10.0 + (3 * DeckView::key_step_seconds)));
 }
+
+TEST_CASE("DeckView: the lights: play while playing, headphones, CUE as on a CDJ")
+{
+    using Action = djw::core::api::ControlAction;
+    Fixture fixture;
+    // No track: all dark, blinking or not
+    CHECK(fixture.view.lights(true) == djw::core::api::DeckLights{});
+
+    // At the cue point: CUE lit; elsewhere paused: blinking with the phase
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
+                  .position_seconds = 10.0,
+                  .duration_seconds = 100.0,
+                  .cue_seconds      = 10.0,
+                  .headphone_cue    = true});
+    CHECK(fixture.view.lights(false).cue);
+    CHECK(fixture.view.lights(false).headphones);
+    CHECK_FALSE(fixture.view.lights(false).playing);
+    fixture.show(
+        {.deck = deck, .track_loaded = true, .position_seconds = 20.0, .duration_seconds = 100.0, .cue_seconds = 10.0});
+    CHECK(fixture.view.lights(true).cue);
+    CHECK_FALSE(fixture.view.lights(false).cue);
+
+    // Playing: play lit, CUE dark unless CUE is held (playing from the cue point)
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
+                  .play_state       = api::PlayState::Playing,
+                  .position_seconds = 20.0,
+                  .duration_seconds = 100.0,
+                  .cue_seconds      = 10.0});
+    CHECK(fixture.view.lights(true).playing);
+    CHECK_FALSE(fixture.view.lights(true).cue);
+    fixture.view.control(controlEvent(Action::DeckCue));
+    CHECK(fixture.view.lights(false).cue);
+    fixture.view.control(controlEvent(Action::DeckCue, false));
+    CHECK_FALSE(fixture.view.lights(false).cue);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Cue, true});
+    CHECK(fixture.view.lights(false).cue);
+}

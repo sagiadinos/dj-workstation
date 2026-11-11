@@ -5,6 +5,7 @@
 # mapping. The Starlight handles Shift itself: with Shift held, deck A sends on channel 5 and deck B on channel 6.
 # Faders are 14 bit (the CC and its fine part CC + 32). Pitch fader up (away from you) is faster, as on screen.
 # The Starlight has no load buttons and no browse knob: Shift + Play loads the track selected in the library.
+# Its lights (play, cue, headphones) answer to the same notes as their buttons: 0x7F on, 0x00 off.
 
 [device]
 name  = "Hercules DJControl Starlight"
@@ -105,3 +106,35 @@ midi   = { type = "cc", channel = 3, number = 0x09 }
 action = "deck.seek"
 deck   = 2
 mode   = "relative"
+
+# Lights of deck A
+[[light]]
+what = "deck.playing"
+deck = 1
+midi = { type = "note", channel = 2, number = 0x07 }
+
+[[light]]
+what = "deck.cue"
+deck = 1
+midi = { type = "note", channel = 2, number = 0x06 }
+
+[[light]]
+what = "deck.headphones"
+deck = 1
+midi = { type = "note", channel = 2, number = 0x0C }
+
+# Lights of deck B
+[[light]]
+what = "deck.playing"
+deck = 2
+midi = { type = "note", channel = 3, number = 0x07 }
+
+[[light]]
+what = "deck.cue"
+deck = 2
+midi = { type = "note", channel = 3, number = 0x06 }
+
+[[light]]
+what = "deck.headphones"
+deck = 2
+midi = { type = "note", channel = 3, number = 0x0C }

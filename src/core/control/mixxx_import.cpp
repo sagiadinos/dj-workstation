@@ -184,6 +184,54 @@ namespace djw::core::control
             return Taken::Yes;
         }
 
+        /// A Mixxx output for a light djw switches: play_indicator, cue_indicator or pfl of a player
+        void takeLight(std::string_view block, Mapping &mapping)
+        {
+            const std::string_view     group  = trim(element(block, "group").value_or(std::string_view{}));
+            const std::string_view     key    = trim(element(block, "key").value_or(std::string_view{}));
+            const auto                 status = numberOf(element(block, "status").value_or(std::string_view{}));
+            const auto                 number = numberOf(element(block, "midino").value_or(std::string_view{}));
+            const auto                 on     = numberOf(element(block, "on").value_or("0x7F"));
+            const auto                 off    = numberOf(element(block, "off").value_or("0x00"));
+            const auto                 deck   = deckOf(group);
+            std::optional<LightSource> source;
+            if (key == "play_indicator")
+            {
+                source = LightSource::DeckPlaying;
+            }
+            else if (key == "cue_indicator")
+            {
+                source = LightSource::DeckCue;
+            }
+            else if (key == "pfl")
+            {
+                source = LightSource::DeckHeadphones;
+            }
+            if (!source || !deck || !status || !number || !on || !off || *number < 0 || *number > 127 || *on < 0 ||
+                *on > 127 || *off < 0 || *off > 127)
+            {
+                return;
+            }
+            const auto status_byte = static_cast<unsigned int>(*status);
+            const auto kind_bits   = status_byte & 0xF0U;
+            if (kind_bits != 0x90U && kind_bits != 0x80U && kind_bits != 0xB0U)
+            {
+                return;
+            }
+            const Light light{.source  = *source,
+                              .deck    = *deck,
+                              .kind    = kind_bits == 0xB0U ? MidiKind::ControlChange : MidiKind::Note,
+                              .channel = static_cast<int>(status_byte & 0x0FU) + 1,
+                              .number  = static_cast<std::uint8_t>(*number),
+                              .on      = static_cast<std::uint8_t>(*on),
+                              .off     = static_cast<std::uint8_t>(*off)};
+            if (std::ranges::none_of(mapping.lights, [&light](const Light &other)
+                                     { return other.source == light.source && other.deck == light.deck; }))
+            {
+                mapping.lights.push_back(light);
+            }
+        }
+
         std::string quoted(std::string_view text)
         {
             std::string result{"\""};
@@ -274,6 +322,19 @@ namespace djw::core::control
             }
             controls = controls.substr(end);
         }
+
+        // The lights: the outputs for play, cue and headphones
+        std::string_view outputs = element(xml, "outputs").value_or(std::string_view{});
+        for (std::size_t at = outputs.find("<output>"); at != std::string_view::npos; at = outputs.find("<output>"))
+        {
+            const std::size_t end = outputs.find("</output>", at);
+            if (end == std::string_view::npos)
+            {
+                break;
+            }
+            takeLight(outputs.substr(at, end - at), result.mapping);
+            outputs = outputs.substr(end);
+        }
         return result;
     }
 
@@ -314,6 +375,15 @@ namespace djw::core::control
             {
                 out << "invert = true\n";
             }
+        }
+        for (const Light &light : mapping.lights)
+        {
+            out << "\n[[light]]\n";
+            out << "what = " << quoted(lightName(light.source)) << '\n';
+            out << "deck = " << (light.deck + 1) << '\n';
+            out << std::format("midi = {{ type = \"{}\", channel = {}, number = 0x{:02X} }}\n",
+                               light.kind == MidiKind::Note ? "note" : "cc", light.channel, light.number);
+            out << std::format("on   = 0x{:02X}\noff  = 0x{:02X}\n", light.on, light.off);
         }
         return out.str();
     }

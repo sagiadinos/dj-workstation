@@ -224,7 +224,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Hotplug | 1 | Connect and disconnect controllers while running. |
 | Declarative mapping | M | TOML: note/CC → action (play, cue, load, keylock, headphones, pitch bend, pitch, volume, headphone level, seek, crossfader, library browse), type (button, absolute, 14-bit, relative), deck index, shift layer, invert. In `mappings/` next to the program and in the user's folder; Settings > Devices assigns them to the MIDI ports. |
 | Script mapping | 1 | Lua for jog acceleration, scratching, device-specific behavior. Runs on the control thread. |
-| LED feedback | 1 | Core state → MIDI out, in the same mapping file. |
+| LED feedback | M | Player state → MIDI out, in the same mapping file (`[[light]]`): play while playing, headphone cue, CUE as on a CDJ (lit at the cue point and while held, blinking when paused elsewhere). The Mixxx import takes the play, cue and headphone outputs over. |
 | MIDI learn | 1 | In the UI, writes the mapping file. |
 | Mixxx import | M | Settings > Devices turns a Mixxx mapping (.midi.xml) into ours: its direct bindings to functions djw has; what its script does is left out and counted. Saved in the user's mapping folder. |
 | Reference controller | M | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. |

@@ -27,7 +27,22 @@ namespace djw::core::control
             virtual ~MidiPort()                   = default;
     };
 
-    /// The MIDI inputs of the system (RtMidi on the desktop); tests use a fake
+    /// An open MIDI output port, e.g. to switch a controller's lights; it closes when destroyed
+    class MidiOutput
+    {
+        public:
+            MidiOutput()                              = default;
+            MidiOutput(const MidiOutput &)            = delete;
+            MidiOutput &operator=(const MidiOutput &) = delete;
+            MidiOutput(MidiOutput &&)                 = delete;
+            MidiOutput &operator=(MidiOutput &&)      = delete;
+            virtual ~MidiOutput()                     = default;
+
+            /// Sends one message; a message that cannot be sent is dropped
+            virtual void send(const MidiMessage &message) = 0;
+    };
+
+    /// The MIDI inputs and outputs of the system (RtMidi on the desktop); tests use a fake
     class MidiSystem
     {
         public:
@@ -45,6 +60,11 @@ namespace djw::core::control
             /// Opens the port of that name; its messages go to receive, on a thread of the MIDI system
             [[nodiscard]] virtual std::expected<std::unique_ptr<MidiPort>, std::string> open(std::string_view port,
                                                                                              Receive receive) = 0;
+            /// The names of the MIDI output ports there are now
+            [[nodiscard]] virtual std::vector<std::string> outputPorts() = 0;
+            /// Opens the output port of that name
+            [[nodiscard]] virtual std::expected<std::unique_ptr<MidiOutput>, std::string>
+            openOutput(std::string_view port) = 0;
     };
 
     /// The system's MIDI (RtMidi); a system without MIDI gives one without ports

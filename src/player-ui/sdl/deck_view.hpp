@@ -79,6 +79,9 @@ namespace djw::player_ui::sdl
             /// shift_step_seconds, as a touch on the waveform there would (a playing deck jumps, a standing one
             /// scrubs). P, C and L do what play/pause, CUE (while held) and Load do.
             void keyboard(const KeyboardInput &input) override;
+            /// The player's lights on a controller: play while it plays, headphone cue, and CUE as on a CDJ: lit at the
+            /// cue point, blinking (with blink_on) when paused elsewhere, dark while playing or without a track
+            [[nodiscard]] core::api::DeckLights lights(bool blink_on) const;
             /// A control of a controller for this player, done like the button or fader it stands for: play/pause,
             /// CUE while held, load, keylock, headphone cue, pitch bend while held; the pitch, channel and headphone
             /// faders follow absolute values (0 to 1); seek steps like the cursor keys
@@ -198,6 +201,7 @@ namespace djw::player_ui::sdl
             std::deque<core::api::Command> pending;
             bool                           play_key = false; ///< P was pressed, handled like the play button
             bool                           load_key = false; ///< L was pressed, handled like the Load button
+            bool                           cue_held = false; ///< CUE is held on the keyboard (C) or a controller
             /// A position chosen on the waveform or with the keys: a playing deck jumps there, a standing one scrubs
             void choosePosition(double seconds);
             /// The latest position chosen on the waveform (a jump or a scrub), sent after the list

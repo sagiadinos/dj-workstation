@@ -50,6 +50,16 @@ namespace djw::core::api
             bool operator==(const ControlEvent &) const = default;
     };
 
+    /// What a player's lights on a controller show
+    struct DeckLights
+    {
+            bool playing    = false; ///< the play light
+            bool cue        = false; ///< the CUE light, already blinking where a CDJ blinks it
+            bool headphones = false; ///< the headphone cue light
+
+            bool operator==(const DeckLights &) const = default;
+    };
+
     /**
      * The MIDI controllers: their ports, the mappings found and which port uses which, and the events of the
      * connected ones. Messages are turned into events on MIDI threads; the frontend takes them once per frame with
@@ -102,6 +112,9 @@ namespace djw::core::api
             /// Turns a Mixxx mapping (.midi.xml) into one of ours, saves it in the user's mapping folder (the last
             /// folder given) and reads all mappings again; connect() then puts it to use
             virtual std::expected<Imported, std::string> importMixxx(const std::filesystem::path &file) = 0;
+            /// The players' state for the controllers' lights, the first player first; a light is sent only when it
+            /// changes. Called once per frame from the frontend's thread.
+            virtual void setLights(const std::vector<DeckLights> &decks) = 0;
     };
 
     /// The controllers of the system (RtMidi) with the mappings (*.toml) of the folders, first folder first. Files

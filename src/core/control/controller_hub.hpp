@@ -59,6 +59,7 @@ namespace djw::core::control
             [[nodiscard]] std::vector<Connection>  connections() const override;
             [[nodiscard]] std::string              controllerAudio() const override;
             std::expected<Imported, std::string>   importMixxx(const std::filesystem::path &file) override;
+            void                                   setLights(const std::vector<api::DeckLights> &decks) override;
 
             [[nodiscard]] const std::vector<Mapping> &mappings() const noexcept { return all; }
             /// The mapping a port gets without an assignment: the first that matches its name; nullptr for none
@@ -73,6 +74,10 @@ namespace djw::core::control
                     std::string               port;
                     Controller                controller;
                     std::unique_ptr<MidiPort> input; ///< closed first, then the controller goes
+                    /// The controller's output for its lights; nullptr if it has none or no lights are mapped
+                    std::unique_ptr<MidiOutput> output{};
+                    /// The value each light of the mapping was last sent, std::nullopt before the first
+                    std::vector<std::optional<std::uint8_t>> sent{};
             };
 
             void received(Open &open, const MidiMessage &message);

@@ -49,6 +49,9 @@ namespace djw::player_ui::sdl
             return std::filesystem::path{base != nullptr ? base : ""} / "fonts" / "NotoSans-Regular.ttf";
         }
 
+        /// Half the period of a blinking CUE light, in milliseconds
+        constexpr std::uint64_t cue_blink_half_period = 250;
+
         constexpr int player_width  = static_cast<int>(DeckView::design_width);
         constexpr int player_height = static_cast<int>(DeckView::design_height);
 
@@ -1335,6 +1338,15 @@ namespace djw::player_ui::sdl
             {
                 handleControl(event);
             }
+            // The lights, as the players showed themselves at the last frame; CUE blinks twice a second
+            const bool                         blink_on = (SDL_GetTicks() / cue_blink_half_period) % 2 == 0;
+            std::vector<core::api::DeckLights> lights;
+            lights.reserve(decks.size());
+            for (const auto &deck : decks)
+            {
+                lights.push_back(deck->view->lights(blink_on));
+            }
+            controllers->setLights(lights);
         }
         if (host_window != nullptr)
         {

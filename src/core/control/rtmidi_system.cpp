@@ -5,6 +5,7 @@
 
 #include <RtMidi.h>
 
+#include <array>
 #include <utility>
 
 namespace djw::core::control
@@ -60,9 +61,80 @@ namespace djw::core::control
                 MidiSystem::Receive       receive;
         };
 
+        class RtMidiOutput final : public MidiOutput
+        {
+            public:
+                explicit RtMidiOutput(std::unique_ptr<RtMidiOut> output) : output{std::move(output)} {}
+                ~RtMidiOutput() override { output->closePort(); }
+                RtMidiOutput(const RtMidiOutput &)            = delete;
+                RtMidiOutput &operator=(const RtMidiOutput &) = delete;
+                RtMidiOutput(RtMidiOutput &&)                 = delete;
+                RtMidiOutput &operator=(RtMidiOutput &&)      = delete;
+
+                void send(const MidiMessage &message) override
+                {
+                    const std::array<unsigned char, 3> bytes{message.status, message.data1, message.data2};
+                    try
+                    {
+                        output->sendMessage(bytes.data(), bytes.size());
+                    }
+                    catch (const RtMidiError &)
+                    {
+                        return; // the device is gone; the next connect() finds out
+                    }
+                }
+
+            private:
+                std::unique_ptr<RtMidiOut> output;
+        };
+
         class RtMidiSystem final : public MidiSystem
         {
             public:
+                std::vector<std::string> outputPorts() override
+                {
+                    std::vector<std::string> names;
+                    try
+                    {
+                        RtMidiOut probe{RtMidi::UNSPECIFIED, client_name};
+                        probe.setErrorCallback(&quiet);
+                        const unsigned int count = probe.getPortCount();
+                        for (unsigned int index = 0; index < count; ++index)
+                        {
+                            names.push_back(probe.getPortName(index));
+                        }
+                    }
+                    catch (const RtMidiError &)
+                    {
+                        names.clear(); // no MIDI on this system: no ports
+                    }
+                    return names;
+                }
+
+                std::expected<std::unique_ptr<MidiOutput>, std::string> openOutput(std::string_view port) override
+                {
+                    try
+                    {
+                        auto output = std::make_unique<RtMidiOut>(RtMidi::UNSPECIFIED, client_name);
+                        output->setErrorCallback(&quiet);
+                        const unsigned int count = output->getPortCount();
+                        for (unsigned int index = 0; index < count; ++index)
+                        {
+                            if (output->getPortName(index) == port)
+                            {
+                                output->openPort(index, client_name);
+                                return std::make_unique<RtMidiOutput>(std::move(output));
+                            }
+                        }
+                        return std::unexpected{"no MIDI output " + std::string{port}};
+                    }
+                    catch (const RtMidiError &error)
+                    {
+                        return std::unexpected{"cannot open MIDI output " + std::string{port} + ": " +
+                                               error.getMessage()};
+                    }
+                }
+
                 std::vector<std::string> ports() override
                 {
                     std::vector<std::string> names;

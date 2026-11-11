@@ -138,6 +138,8 @@ TEST_CASE("Mapping: the mappings that come with the program can all be read; the
     REQUIRE(starlight != mappings.end());
     CHECK(starlight->matches("DJControl Starlight:DJControl Starlight MIDI 1 16:0"));
     CHECK(starlight->audio == "DJControl Starlight");
+    // Its play, cue and headphone lights for both players
+    CHECK(starlight->lights.size() == 6);
     // Both players have play, CUE, headphones, load, volume, pitch and the jog wheel
     for (const std::size_t deck : {0U, 1U})
     {
@@ -150,4 +152,39 @@ TEST_CASE("Mapping: the mappings that come with the program can all be read; the
                                       { return control.action == action && control.deck == deck; }));
         }
     }
+}
+
+TEST_CASE("Mapping: lights are read with their values for on and off; damaged ones say where")
+{
+    const std::string device = "[device]\nname = \"x\"\nmatch = [\"x\"]\n";
+    const auto        mapping =
+        parseMapping(device + "[[light]]\nwhat = \"deck.cue\"\ndeck = 2\nmidi = { type = \"note\", channel = 3, "
+                              "number = 0x06 }\n\n[[light]]\nwhat = \"deck.playing\"\ndeck = 1\nmidi = { type = "
+                              "\"cc\", channel = 2, number = 7 }\non = 0x40\noff = 0x01\n");
+    REQUIRE_MESSAGE(mapping.has_value(), (mapping ? "" : mapping.error()));
+    REQUIRE(mapping->lights.size() == 2);
+    CHECK(mapping->lights[0] == Light{.source  = LightSource::DeckCue,
+                                      .deck    = 1,
+                                      .kind    = MidiKind::Note,
+                                      .channel = 3,
+                                      .number  = 6,
+                                      .on      = 0x7F,
+                                      .off     = 0x00});
+    CHECK(mapping->lights[1].kind == MidiKind::ControlChange);
+    CHECK(mapping->lights[1].on == 0x40);
+    CHECK(mapping->lights[1].off == 0x01);
+
+    const auto error = [&device](std::string_view light)
+    {
+        const auto broken = parseMapping(device + "[[light]]\n" + std::string{light});
+        REQUIRE_FALSE(broken.has_value());
+        return broken.error();
+    };
+    CHECK(error("what = \"deck.glow\"\ndeck = 1\nmidi = { type = \"note\", channel = 1, number = 1 }\n")
+              .find("unknown light") != std::string::npos);
+    CHECK(error("what = \"deck.cue\"\nmidi = { type = \"note\", channel = 1, number = 1 }\n").find("player") !=
+          std::string::npos);
+    CHECK(error("what = \"deck.cue\"\ndeck = 1\nmidi = { type = \"note\", channel = 1, number = 1 }\non = 300\n")
+              .find("0 to 127") != std::string::npos);
+    CHECK(error("what = \"deck.cue\"\ndeck = 1\n").find("midi") != std::string::npos);
 }

@@ -194,6 +194,24 @@ namespace djw::player_ui::sdl
         return "player.state.paused";
     }
 
+    core::api::DeckLights DeckView::lights(bool blink_on) const
+    {
+        core::api::DeckLights shown{.playing = playing(), .cue = false, .headphones = state.headphone_cue};
+        if (!state.track_loaded)
+        {
+            return shown;
+        }
+        if (playing())
+        {
+            shown.cue = cue_button.held() || cue_held; // playing from the cue point while CUE is held
+        }
+        else
+        {
+            shown.cue = std::abs(state.position_seconds - state.cue_seconds) < same_place || blink_on;
+        }
+        return shown;
+    }
+
     void DeckView::setNotice(std::string_view key)
     {
         notice.show(key);
@@ -329,6 +347,7 @@ namespace djw::player_ui::sdl
                 play_key = play_key || event.pressed;
                 break;
             case Action::DeckCue:
+                cue_held = event.pressed;
                 pending.emplace_back(core::api::DeckCue{deck, event.pressed});
                 break;
             case Action::DeckLoad:
@@ -389,6 +408,7 @@ namespace djw::player_ui::sdl
                     load_key = true;
                     break;
                 case PlayerKey::Key::Cue:
+                    cue_held = player_key->down;
                     pending.emplace_back(core::api::DeckCue{deck, player_key->down});
                     break;
             }

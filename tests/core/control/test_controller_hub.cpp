@@ -28,6 +28,9 @@ namespace
                     std::vector<std::string>       ports;
                     std::map<std::string, Receive> open;
                     std::vector<std::string>       failing;
+                    std::vector<std::string>       outputs;
+                    /// What was sent to each output, in order, also after it closed
+                    std::map<std::string, std::vector<MidiMessage>> sent;
             };
 
             explicit FakeMidiSystem(std::shared_ptr<State> state) : state{std::move(state)} {}
@@ -44,7 +47,28 @@ namespace
                 return std::make_unique<Port>(state, std::string{port});
             }
 
+            std::vector<std::string> outputPorts() override { return state->outputs; }
+
+            std::expected<std::unique_ptr<MidiOutput>, std::string> openOutput(std::string_view port) override
+            {
+                return std::make_unique<Output>(state, std::string{port});
+            }
+
         private:
+            class Output final : public MidiOutput
+            {
+                public:
+                    Output(std::shared_ptr<State> state, std::string name)
+                        : state{std::move(state)}, name{std::move(name)}
+                    {
+                    }
+                    void send(const MidiMessage &message) override { state->sent[name].push_back(message); }
+
+                private:
+                    std::shared_ptr<State> state;
+                    std::string            name;
+            };
+
             class Port final : public MidiPort
             {
                 public:
@@ -192,4 +216,58 @@ TEST_CASE("ControllerHub: an imported Mixxx mapping is saved in the last folder 
     CHECK_FALSE(hub.importMixxx(folder.path() / "missing.midi.xml").has_value());
     ControllerHub no_folder{std::make_unique<FakeMidiSystem>(state), {}};
     CHECK_FALSE(no_folder.importMixxx(mixxx).has_value());
+}
+
+TEST_CASE("ControllerHub: lights go to the output of the same name, only when they change, and out at the end")
+{
+    auto state      = std::make_shared<FakeMidiSystem::State>();
+    state->ports    = {"Pad 20:0"};
+    state->outputs  = {"Pad 20:1"};
+    Mapping mapping = mappingFor("Pad", "pad");
+    mapping.lights  = {{.source  = LightSource::DeckPlaying,
+                        .deck    = 0,
+                        .kind    = MidiKind::Note,
+                        .channel = 2,
+                        .number  = 7,
+                        .on      = 0x7F,
+                        .off     = 0x00},
+                       {.source  = LightSource::DeckCue,
+                        .deck    = 1,
+                        .kind    = MidiKind::Note,
+                        .channel = 3,
+                        .number  = 6,
+                        .on      = 0x7F,
+                        .off     = 0x00}};
+    {
+        ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mapping}};
+        CHECK(hub.connect().empty());
+        hub.setLights({{.playing = true, .cue = false, .headphones = false}}); // no second player: its light off
+        auto &sent = state->sent["Pad 20:1"];
+        REQUIRE(sent.size() == 2);
+        CHECK(sent[0] == MidiMessage{.status = 0x91, .data1 = 7, .data2 = 0x7F});
+        CHECK(sent[1] == MidiMessage{.status = 0x92, .data1 = 6, .data2 = 0x00});
+        hub.setLights({{.playing = true, .cue = false, .headphones = false}});
+        CHECK(sent.size() == 2); // nothing changed, nothing sent
+        hub.setLights({{.playing = false, .cue = false, .headphones = false},
+                       {.playing = false, .cue = true, .headphones = false}});
+        REQUIRE(sent.size() == 4);
+        CHECK(sent[2].data2 == 0x00);
+        CHECK(sent[3] == MidiMessage{.status = 0x92, .data1 = 6, .data2 = 0x7F});
+    }
+    // Closed: every light off
+    const auto &sent = state->sent["Pad 20:1"];
+    REQUIRE(sent.size() == 6);
+    CHECK(sent[4].data2 == 0x00);
+    CHECK(sent[5].data2 == 0x00);
+}
+
+TEST_CASE("ControllerHub: a mapping without lights opens no output")
+{
+    auto state     = std::make_shared<FakeMidiSystem::State>();
+    state->ports   = {"Pad 20:0"};
+    state->outputs = {"Pad 20:0"};
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mappingFor("Pad", "pad")}};
+    static_cast<void>(hub.connect());
+    hub.setLights({{.playing = true, .cue = true, .headphones = true}});
+    CHECK(state->sent.empty());
 }

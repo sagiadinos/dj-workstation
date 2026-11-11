@@ -86,7 +86,30 @@ namespace
                 <options><normal/></options>
             </control>
         </controls>
-        <outputs></outputs>
+        <outputs>
+            <output>
+                <group>[Channel1]</group>
+                <key>play_indicator</key>
+                <status>0x91</status>
+                <midino>0x07</midino>
+                <on>0x7f</on>
+                <off>0x0</off>
+            </output>
+            <output>
+                <group>[Channel2]</group>
+                <key>cue_indicator</key>
+                <status>0x92</status>
+                <midino>0x06</midino>
+                <on>0x40</on>
+                <off>0x01</off>
+            </output>
+            <output>
+                <group>[Channel1]</group>
+                <key>sync_enabled</key>
+                <status>0x91</status>
+                <midino>0x05</midino>
+            </output>
+        </outputs>
     </controller>
 </MixxxMIDIPreset>
 )";
@@ -130,6 +153,7 @@ TEST_CASE("Mixxx import: the result written as TOML reads back the same")
     CHECK(again->name == result->mapping.name);
     CHECK(again->match == result->mapping.match);
     CHECK(again->controls == result->mapping.controls);
+    CHECK(again->lights == result->mapping.lights);
 }
 
 TEST_CASE("Mixxx import: what is not a Mixxx mapping, or names no controller, is refused")
@@ -137,4 +161,22 @@ TEST_CASE("Mixxx import: what is not a Mixxx mapping, or names no controller, is
     CHECK_FALSE(importMixxx("<html></html>").has_value());
     CHECK_FALSE(
         importMixxx("<MixxxMIDIPreset><controller><controls></controls></controller></MixxxMIDIPreset>").has_value());
+}
+
+TEST_CASE("Mixxx import: the outputs for play, cue and headphones become lights, others are left out")
+{
+    const auto result = importMixxx(mixxx);
+    REQUIRE(result.has_value());
+    REQUIRE(result->mapping.lights.size() == 2);
+    CHECK(result->mapping.lights[0] == Light{.source  = LightSource::DeckPlaying,
+                                             .deck    = 0,
+                                             .kind    = MidiKind::Note,
+                                             .channel = 2,
+                                             .number  = 7,
+                                             .on      = 0x7F,
+                                             .off     = 0x00});
+    CHECK(result->mapping.lights[1].source == LightSource::DeckCue);
+    CHECK(result->mapping.lights[1].deck == 1U);
+    CHECK(result->mapping.lights[1].on == 0x40);
+    CHECK(result->mapping.lights[1].off == 0x01);
 }
