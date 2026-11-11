@@ -42,7 +42,13 @@ namespace djw::player_ui::sdl
                     content.clear();
                     break;
                 case EditKey::Enter:
-                    break;
+                case EditKey::Tab:
+                case EditKey::BackTab:
+                case EditKey::Up:
+                case EditKey::Down:
+                case EditKey::PageUp:
+                case EditKey::PageDown:
+                    break; // the view moves between fields and rows
             }
         }
         return content != before;

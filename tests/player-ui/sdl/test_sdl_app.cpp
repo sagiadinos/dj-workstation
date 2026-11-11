@@ -980,7 +980,7 @@ TEST_CASE("SdlApp: in the MDI mode the parts can be arranged by hand, keep their
     const auto mixer = app->paneArea(*app->toolFrame(SdlApp::Tool::Mixer));
     REQUIRE(mixer.has_value());
     CHECK(mixer->x == doctest::Approx(0));
-    CHECK(mixer->y == doctest::Approx(0));
+    CHECK(mixer->y == doctest::Approx(MenuBar::bar_height)); // below the menu bar
     REQUIRE(app->handPlaces()->mixer.has_value());
     CHECK(*app->handPlaces()->mixer != old_mixer);
 
@@ -1006,8 +1006,9 @@ TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the part
                            .mixer_open    = false,
                            .playlist_open = false,
                            .fullscreen    = true,
-                           // Made in a window twice as big as the test's: everything comes at half the size
-                           .places = MdiPlaces{.area     = Placement{0, 0, 2048, 1536},
+                           // Made in a window twice as big as the test's (1024 x 768, less the menu bar of 40):
+                           // everything comes at half the size, below the menu bar
+                           .places = MdiPlaces{.area     = Placement{0, 0, 2048, 1456},
                                                .players  = {Placement{1200, 0, 600, 800}, Placement{0, 0, 600, 800}},
                                                .mixer    = std::nullopt,
                                                .playlist = std::nullopt,
@@ -1028,7 +1029,8 @@ TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the part
     CHECK(first->x == doctest::Approx(600));
     CHECK(first->width == doctest::Approx(300));
     CHECK(second->x == doctest::Approx(0));
-    CHECK(library_part->y == doctest::Approx(420));
+    CHECK(first->y == doctest::Approx(MenuBar::bar_height));
+    CHECK(library_part->y == doctest::Approx(MenuBar::bar_height + 420));
     CHECK(library_part->height == doctest::Approx(300));
 }
 
@@ -1053,10 +1055,11 @@ TEST_CASE("SdlApp: in the MDI mode the window switches between fullscreen and a 
     REQUIRE(saved->mdi.has_value());
     CHECK_FALSE(saved->mdi->fullscreen);
 
-    // F11 switches back
+    // Ctrl+F switches back
     SDL_Event event{};
     event.type       = SDL_EVENT_KEY_DOWN;
-    event.key.key    = SDLK_F11;
+    event.key.key    = SDLK_F;
+    event.key.mod    = SDL_KMOD_CTRL;
     event.key.repeat = false;
     SDL_PushEvent(&event);
     REQUIRE(app->runFrame());
@@ -1067,7 +1070,7 @@ TEST_CASE("SdlApp: in the MDI mode the window switches between fullscreen and a 
     CHECK(saved->mdi->fullscreen);
 }
 
-TEST_CASE("SdlApp: in separate windows there is no fullscreen and F11 does nothing")
+TEST_CASE("SdlApp: in separate windows there is no fullscreen and Ctrl+F does nothing")
 {
     Fixture fixture;
     auto    app = fixture.openApp();
@@ -1076,8 +1079,46 @@ TEST_CASE("SdlApp: in separate windows there is no fullscreen and F11 does nothi
     CHECK_FALSE(app->fullscreen());
     SDL_Event event{};
     event.type    = SDL_EVENT_KEY_DOWN;
-    event.key.key = SDLK_F11;
+    event.key.key = SDLK_F;
+    event.key.mod = SDL_KMOD_CTRL;
     SDL_PushEvent(&event);
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->fullscreen());
+}
+
+TEST_CASE("SdlApp: in the MDI mode the menu bar runs across the top of the window and its menus drop down over it")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame());
+    REQUIRE(app->menuStrip() != nullptr);
+    const MenuBar &menu = app->libraryView().menuBar();
+    CHECK(menu.bounds().y == doctest::Approx(0));
+    CHECK(menu.bounds().height == doctest::Approx(MenuBar::bar_height));
+    // The parts lie below it
+    CHECK(app->paneArea(*app->deckFrame(0))->y >= MenuBar::bar_height);
+    CHECK(app->paneArea(*app->libraryFrame())->y > MenuBar::bar_height);
+    // The library has no bar of its own: its search field is right below its title bar
+    CHECK(app->libraryView().searchField().bounds().y <
+          app->paneArea(*app->libraryFrame())->y + PaneFrame::title_height + 20);
+
+    // View > Fullscreen, the last entry: the menu drops down over the players, the entry is reachable
+    constexpr std::size_t view_menu  = 4;
+    constexpr std::size_t fullscreen = 10;
+    const Rect            title      = menu.titleArea(view_menu);
+    click(app->libraryWindowId(), {title.x + 10, title.y + 10});
+    REQUIRE(app->runFrame());
+    REQUIRE(menu.isOpen());
+    const Rect entry = menu.itemArea(view_menu, fullscreen);
+    CHECK(entry.y + entry.height <= 768);
+    CHECK(app->fullscreen());
+    click(app->libraryWindowId(), {entry.x + 10, entry.y + 10});
+    REQUIRE(app->runFrame());
     REQUIRE(app->runFrame());
     CHECK_FALSE(app->fullscreen());
 }

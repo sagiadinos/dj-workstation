@@ -255,3 +255,17 @@ TEST_CASE("PlaylistView: a double tap loads a track, errors of the library show 
     CHECK(canvas.drew("gamma"));
     CHECK(canvas.drew("Export"));
 }
+
+TEST_CASE("PlaylistView: the cursor keys move the selection, Enter loads it; not while the name is typed")
+{
+    Fixture fixture;
+    fixture.library.addPlaylist("Set", {3, 1});
+    ++fixture.library.library_status.revision;
+    fixture.view.update();
+    fixture.view.keyboard(EditKey::Down);
+    fixture.view.keyboard(EditKey::Down);
+    CHECK(fixture.view.trackList().selected() == 1U);
+    fixture.view.keyboard(EditKey::Enter);
+    REQUIRE(fixture.loaded.size() == 1);
+    CHECK(fixture.loaded[0].title == "alpha");
+}

@@ -103,8 +103,12 @@ namespace djw::player_ui::sdl
 
     void LibraryView::layout(const Rect &area)
     {
-        const float bar_height = std::min(MenuBar::bar_height, area.height);
-        menu.place({area.x, area.y, area.width, bar_height}, area);
+        // A menu bar shown elsewhere (the top of the one window) takes no room here
+        const float bar_height = menu_elsewhere ? 0.0F : std::min(MenuBar::bar_height, area.height);
+        if (!menu_elsewhere)
+        {
+            menu.place({area.x, area.y, area.width, bar_height}, area);
+        }
         context_menu.place(area);
         const Rect below{area.x, area.y + bar_height, area.width, area.height - bar_height};
         const Rect inner = below.inset(margin);
@@ -143,7 +147,10 @@ namespace djw::player_ui::sdl
         router.add(add_button);
         router.add(cell_editor);  // on top of the list; without an edit it has no area and catches nothing
         router.add(context_menu); // covers the window while open
-        router.add(menu);         // on top of everything: an open menu covers the window
+        if (!menu_elsewhere)
+        {
+            router.add(menu); // on top of everything: an open menu covers the window
+        }
     }
 
     void LibraryView::resolveFocus()
@@ -169,6 +176,27 @@ namespace djw::player_ui::sdl
         if (edit && requested != &cell_editor)
         {
             commitEdit(); // another field took over
+        }
+    }
+
+    void LibraryView::focusNextField(bool forward)
+    {
+        // The search field, then the filters from left to right
+        const std::array<TextField *, 5> fields{&search_field, &filters[0], &filters[1], &filters[2], &filters[3]};
+        const auto  focused = std::ranges::find_if(fields, [](const TextField *field) { return field->focused(); });
+        std::size_t next    = 0;
+        if (focused == fields.end())
+        {
+            next = forward ? 0 : fields.size() - 1;
+        }
+        else
+        {
+            const auto at = static_cast<std::size_t>(focused - fields.begin());
+            next          = forward ? (at + 1) % fields.size() : (at + fields.size() - 1) % fields.size();
+        }
+        for (std::size_t index = 0; index < fields.size(); ++index)
+        {
+            fields.at(index)->setFocused(index == next);
         }
     }
 
@@ -209,6 +237,20 @@ namespace djw::player_ui::sdl
                 load(list.tracks()[*row]);
             }
             return;
+        }
+        if (const auto *key = std::get_if<EditKey>(&input); key != nullptr)
+        {
+            // Tab and Shift+Tab go round the search fields; the cursor keys and pages move in the list, also while
+            // a search field takes the typing
+            if (*key == EditKey::Tab || *key == EditKey::BackTab)
+            {
+                focusNextField(*key == EditKey::Tab);
+                return;
+            }
+            if (list.navigate(*key))
+            {
+                return;
+            }
         }
         static_cast<void>(search_field.input(input));
         for (TextField &filter : filters)
@@ -572,7 +614,7 @@ namespace djw::player_ui::sdl
                            .label    = tr("menu.view.fullscreen"),
                            .enabled  = static_cast<bool>(fullscreen_toggle),
                            .checked  = fullscreen_shown && fullscreen_shown(),
-                           .shortcut = "F11"}}});
+                           .shortcut = "Ctrl+F"}}});
         menu.setMenus(std::move(menus));
         menu.setRightToLeft(translator->rightToLeft());
 
@@ -763,7 +805,10 @@ namespace djw::player_ui::sdl
         remove_button.draw(canvas);
         add_button.draw(canvas);
         context_menu.draw(canvas);
-        menu.draw(canvas); // last, so an open menu lies over everything
+        if (!menu_elsewhere)
+        {
+            menu.draw(canvas); // last, so an open menu lies over everything
+        }
     }
 
     void LibraryView::wheel(Point position, float dy)

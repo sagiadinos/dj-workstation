@@ -392,6 +392,47 @@ TEST_CASE("ViewHost arranging: Done and Escape end it, the wheel, the right butt
     CHECK(fixture.first.widget.downs == 1); // the views work again
 }
 
+TEST_CASE("ViewHost: a view always on top is drawn last and gets the pointer first, also over views added later")
+{
+    ViewHost host;
+    FakeView top{"top"};
+    FakeView below{"below"};
+    host.add(top, Rect{0, 0, 800, 600}, true);
+    host.add(below, Rect{0, 0, 800, 600});
+    host.layout(window);
+
+    RecordingCanvas canvas;
+    host.draw(canvas);
+    REQUIRE(canvas.texts.size() == 2);
+    CHECK(canvas.texts[1].text == "top");
+
+    tap(host, {100, 100});
+    CHECK(top.widget.downs == 1);
+    CHECK(below.widget.downs == 0);
+}
+
+TEST_CASE("ViewHost arranging: the work area bounds the moves, views always on top are not arranged")
+{
+    ArrangeFixture fixture;
+    FakeView       bar{"bar"};
+    fixture.host.add(bar, Rect{0, 0, 800, 40}, true);
+    fixture.host.setWorkArea(Rect{0, 40, 800, 560});
+    fixture.host.layout(window);
+
+    // The first view (at the top of the window) dragged up: it stays below the bar, on the grid from 40
+    fixture.drag({100, 100}, {100, 50});
+    fixture.release({100, 50});
+    REQUIRE(fixture.moved_view == &fixture.first);
+    CHECK(shifted(fixture.moved_to, {0, 40, 300, 200}, {}));
+
+    // A press on the bar drags nothing
+    fixture.moved_view = nullptr;
+    fixture.drag({750, 20}, {750, 300});
+    CHECK_FALSE(fixture.host.dragTarget().has_value());
+    fixture.release({750, 300});
+    CHECK(fixture.moved_view == nullptr);
+}
+
 TEST_CASE("Views use the area they are given, not the window: the player")
 {
     api::DeckSnapshotBuffer snapshot{api::DeckSnapshot{.deck = api::DeckId{1}, .track_loaded = true}};

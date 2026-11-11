@@ -46,6 +46,62 @@ namespace djw::player_ui::sdl
         return std::exchange(activated, std::nullopt);
     }
 
+    void TrackList::moveSelection(std::ptrdiff_t by) noexcept
+    {
+        if (rows.empty())
+        {
+            return;
+        }
+        const auto last = static_cast<std::ptrdiff_t>(rows.size()) - 1;
+        const auto from = selection ? static_cast<std::ptrdiff_t>(*selection) : (by > 0 ? -1 : last + 1);
+        const auto row  = static_cast<std::size_t>(std::clamp(from + by, std::ptrdiff_t{0}, last));
+        selection       = row;
+        // Into view: at the top edge going up, at the bottom edge going down
+        const float top    = static_cast<float>(row) * row_height;
+        const float bottom = top + row_height;
+        if (top < offset)
+        {
+            offset = top;
+        }
+        else if (bottom > offset + bounds().height)
+        {
+            offset = bottom - bounds().height;
+        }
+        offset = std::clamp(offset, 0.0F, maxOffset());
+    }
+
+    std::size_t TrackList::pageRows() const noexcept
+    {
+        return std::max<std::size_t>(1, static_cast<std::size_t>(bounds().height / row_height));
+    }
+
+    bool TrackList::navigate(EditKey key) noexcept
+    {
+        const auto page = static_cast<std::ptrdiff_t>(pageRows());
+        switch (key)
+        {
+            case EditKey::Up:
+                moveSelection(-1);
+                return true;
+            case EditKey::Down:
+                moveSelection(1);
+                return true;
+            case EditKey::PageUp:
+                moveSelection(-page);
+                return true;
+            case EditKey::PageDown:
+                moveSelection(page);
+                return true;
+            case EditKey::Backspace:
+            case EditKey::Enter:
+            case EditKey::Escape:
+            case EditKey::Tab:
+            case EditKey::BackTab:
+                break;
+        }
+        return false;
+    }
+
     void TrackList::scrollBy(float dy) noexcept
     {
         offset = std::clamp(offset - dy, 0.0F, maxOffset());

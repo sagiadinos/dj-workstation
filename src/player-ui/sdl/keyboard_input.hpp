@@ -10,12 +10,20 @@
 
 namespace djw::player_ui::sdl
 {
-    /// Keys that edit text, apart from typing
+    /// Keys that edit text or move around, apart from typing
     enum class EditKey : std::uint8_t
     {
         Backspace,
         Enter,
-        Escape
+        Escape,
+        /// To the next field
+        Tab,
+        /// Shift+Tab: to the field before
+        BackTab,
+        Up,
+        Down,
+        PageUp,
+        PageDown
     };
 
     /// Typed text (UTF-8, from a physical or on-screen keyboard, after input methods) or an editing key

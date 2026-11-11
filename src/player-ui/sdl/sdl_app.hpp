@@ -10,6 +10,7 @@
 #include "i18n/translator.hpp"
 #include "layout.hpp"
 #include "library_view.hpp"
+#include "menu_strip.hpp"
 #include "mixer_view.hpp"
 #include "pane_frame.hpp"
 #include "playlist_view.hpp"
@@ -46,7 +47,8 @@ namespace djw::player_ui::sdl
      * Window modes (View menu, from the next start on): each part in a window of its own as above, or all in one
      * window that covers the main display (MDI). There every part has a title bar, players and the crossfader and
      * playlist with a close button, and the parts are arranged automatically without overlapping (see arrangeMdi).
-     * The one window covers the display or, switched with View > Fullscreen or F11, is a maximized normal window
+     * The menu bar of the library runs across the top of the one window, its menus drop down over all parts.
+     * The one window covers the display or, switched with View > Fullscreen or Ctrl+F, is a maximized normal window
      * with a title bar; parts placed by hand are scaled with its size. View > Edit layout lets the user move and resize
      * them by hand on a grid (see ViewHost, arranging); from then on
      * they stay where the user put them, a part opened later takes a free place, until View > Arrange automatically.
@@ -124,7 +126,7 @@ namespace djw::player_ui::sdl
             {
                 return host_window != nullptr && host_window->views().arranging();
             }
-            /// MDI mode: the one window covers the display, or is a normal window with a title bar (View menu, F11);
+            /// MDI mode: the one window covers the display, or is a normal window with a title bar (View menu, Ctrl+F);
             /// saved with the layout
             void               setFullscreen(bool on);
             [[nodiscard]] bool fullscreen() const noexcept { return host_window != nullptr && host_fullscreen; }
@@ -139,6 +141,10 @@ namespace djw::player_ui::sdl
             }
             /// The frame of a tool in the MDI mode, nullptr before it first opened; for tests
             [[nodiscard]] const PaneFrame *toolFrame(Tool tool) const { return tools[index(tool)].frame.get(); }
+            /// The library view; for tests (there must be a library)
+            [[nodiscard]] const LibraryView &libraryView() const { return *library_view; }
+            /// The menu bar on top of the one window in the MDI mode, nullptr in the other; for tests
+            [[nodiscard]] const MenuStrip *menuStrip() const noexcept { return menu_strip.get(); }
             /// The frame of the library in the MDI mode, nullptr in the other; for tests
             [[nodiscard]] const PaneFrame *libraryFrame() const noexcept { return library_frame.get(); }
             /// The SDL id of the window of a tool window that is open; for tests
@@ -241,6 +247,8 @@ namespace djw::player_ui::sdl
             bool openHost(bool fullscreen);
             /// MDI mode: gives every part shown its area in the one window, for the window's size now
             void arrangeHost();
+            /// MDI mode: where the parts go, the window without the menu bar on top
+            [[nodiscard]] Rect workArea() const;
             /// MDI mode, arranged by hand: every part at its place; a part without one gets a free place, kept from
             /// then
             void arrangeByHand();
@@ -289,6 +297,7 @@ namespace djw::player_ui::sdl
             int                                      deck_counter = 0;
             std::unique_ptr<LibraryView>             library_view;
             std::unique_ptr<PaneFrame>               library_frame; ///< MDI mode only
+            std::unique_ptr<MenuStrip>               menu_strip;    ///< MDI mode only: the menus on top
             std::unique_ptr<PlaylistView>            playlist_view;
             std::unique_ptr<MixerView>               mixer_view;
             std::vector<std::unique_ptr<SdlWindow>>  windows;

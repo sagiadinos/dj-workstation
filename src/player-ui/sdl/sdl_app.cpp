@@ -190,6 +190,10 @@ namespace djw::player_ui::sdl
                 app->library_frame = std::make_unique<PaneFrame>(
                     *app->library_view, [owner] { return paneTitle(owner->translator.tr("window.library")); });
                 app->host_window->views().add(*app->library_frame);
+                // The menus go to the top of the window, over everything, and drop down over the whole window
+                app->menu_strip = std::make_unique<MenuStrip>(app->library_view->moveMenuBarOut(),
+                                                              [owner] { return owner->host_window->area(); });
+                app->host_window->views().add(*app->menu_strip, Rect{}, true);
                 app->library_view->setFullscreen([owner] { owner->setFullscreen(!owner->fullscreen()); },
                                                  [owner] { return owner->fullscreen(); });
                 app->library_view->setLayoutEditing([owner] { owner->startArranging(); },
@@ -322,8 +326,29 @@ namespace djw::player_ui::sdl
         host_window->setFullscreen(on);
     }
 
+    Rect SdlApp::workArea() const
+    {
+        Rect area = host_window->area();
+        if (menu_strip)
+        {
+            const float bar = std::min(MenuBar::bar_height, area.height);
+            area.y += bar;
+            area.height -= bar;
+        }
+        return area;
+    }
+
     void SdlApp::arrangeHost()
     {
+        // The menu bar across the top, the parts below it
+        ViewHost &host = host_window->views();
+        if (menu_strip)
+        {
+            const Rect window = host_window->area();
+            host.place(*menu_strip,
+                       Rect{window.x, window.y, window.width, std::min(MenuBar::bar_height, window.height)});
+        }
+        host.setWorkArea(workArea());
         if (hand_places)
         {
             arrangeByHand();
@@ -331,7 +356,7 @@ namespace djw::player_ui::sdl
         }
         const ToolWindow    &mixer    = tools[index(Tool::Mixer)];
         const ToolWindow    &playlist = tools[index(Tool::Playlist)];
-        const MdiArrangement placed   = arrangeMdi(host_window->area(),
+        const MdiArrangement placed   = arrangeMdi(workArea(),
                                                    {.players  = decks.size(),
                                                     .mixer    = mixer.in_host,
                                                     .playlist = playlist.in_host,
@@ -416,7 +441,7 @@ namespace djw::player_ui::sdl
             return;
         }
         ViewHost        &views  = host_window->views();
-        const Rect       window = host_window->area();
+        const Rect       window = workArea();
         MdiPlaces       &places = hand_places.value();
         const PlaceScale scale{places, window};
         places.players.resize(decks.size());
@@ -496,7 +521,7 @@ namespace djw::player_ui::sdl
     void SdlApp::paneMoved(const View &frame, const Rect &area)
     {
         ViewHost  &views  = host_window->views();
-        const Rect window = host_window->area();
+        const Rect window = workArea();
         if (!hand_places)
         {
             // The first part moved by hand: all the others stay where the automatic arrangement put them, in a
@@ -1217,10 +1242,10 @@ namespace djw::player_ui::sdl
                 ++new_decks_requested; // Ctrl+N in any window
                 continue;
             }
-            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_F11 &&
-                host_window != nullptr)
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_F &&
+                (event.key.mod & SDL_KMOD_CTRL) != 0 && host_window != nullptr)
             {
-                setFullscreen(!host_fullscreen); // F11: the one window between fullscreen and a normal window
+                setFullscreen(!host_fullscreen); // Ctrl+F: the one window between fullscreen and a normal window
                 continue;
             }
             if (event.type == SDL_EVENT_DROP_FILE)

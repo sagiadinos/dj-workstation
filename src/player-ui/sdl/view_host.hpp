@@ -40,8 +40,13 @@ namespace djw::player_ui::sdl
     {
         public:
             /// Adds a view on top of the others; area std::nullopt fills the window. The view must outlive the host
-            /// or be removed first. A view that is already there is not added twice.
-            void add(View &view, std::optional<Rect> area = std::nullopt);
+            /// or be removed first. A view that is already there is not added twice. A view always_on_top stays above
+            /// all others, also those added later (the menu bar of the one window, whose menus drop down over them);
+            /// it is not arranged by hand.
+            void add(View &view, std::optional<Rect> area = std::nullopt, bool always_on_top = false);
+            /// The part of the window the views are arranged in by hand (std::nullopt: the whole window), e.g. the
+            /// window without the menu bar on top; the grid starts at its corner
+            void setWorkArea(std::optional<Rect> area) { work_area = area; }
             /// Removes the view; its widgets get no more input. Unknown views are ignored.
             void remove(const View &view);
             /// Gives the view a new area (std::nullopt: the whole window), used from the next layout()
@@ -96,7 +101,12 @@ namespace djw::player_ui::sdl
                     View               *view = nullptr;
                     std::optional<Rect> area;   ///< as asked for; std::nullopt: the whole window
                     Rect                placed; ///< as laid out
+                    bool                on_top = false;
             };
+            /// Where views are arranged by hand
+            [[nodiscard]] Rect arrangeArea() const noexcept { return work_area.value_or(window_area); }
+            /// The panes in drawing order: the ones always on top last
+            [[nodiscard]] std::vector<const Pane *> inOrder() const;
 
             /// The topmost view whose area holds position; nullptr if none
             [[nodiscard]] View                             *viewAt(Point position) const noexcept;
@@ -123,6 +133,7 @@ namespace djw::player_ui::sdl
             View             *focus = nullptr;
 
             Rect                     window_area;
+            std::optional<Rect>      work_area;
             std::optional<Arranging> arrange;
             std::optional<Drag>      drag;
             TextButton               done_button;

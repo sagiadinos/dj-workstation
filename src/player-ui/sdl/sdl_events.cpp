@@ -78,6 +78,16 @@ namespace djw::player_ui::sdl
                 return KeyboardInput{EditKey::Enter};
             case SDLK_ESCAPE:
                 return KeyboardInput{EditKey::Escape};
+            case SDLK_TAB:
+                return KeyboardInput{(event.key.mod & SDL_KMOD_SHIFT) != 0 ? EditKey::BackTab : EditKey::Tab};
+            case SDLK_UP:
+                return KeyboardInput{EditKey::Up};
+            case SDLK_DOWN:
+                return KeyboardInput{EditKey::Down};
+            case SDLK_PAGEUP:
+                return KeyboardInput{EditKey::PageUp};
+            case SDLK_PAGEDOWN:
+                return KeyboardInput{EditKey::PageDown};
             default:
                 return std::nullopt;
         }

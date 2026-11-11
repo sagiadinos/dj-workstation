@@ -232,3 +232,42 @@ TEST_CASE("TrackList: the BPM column shows the tempo with one decimal, nothing f
     CHECK(std::ranges::count_if(canvas.texts, [](const auto &drawn)
                                 { return drawn.text.find('.') != std::string::npos && drawn.text != "4:05"; }) == 1);
 }
+
+TEST_CASE("TrackList: the cursor keys move the selection a row, the page keys a page, and it stays in view")
+{
+    Fixture fixture; // 20 rows, 5 in view
+    CHECK(fixture.list.pageRows() == 5);
+
+    // Without a selection Down starts at the first row, Up at the last
+    CHECK(fixture.list.navigate(EditKey::Down));
+    CHECK(fixture.list.selected() == 0U);
+    fixture.list.navigate(EditKey::Up); // at the top: stays
+    CHECK(fixture.list.selected() == 0U);
+
+    fixture.list.navigate(EditKey::PageDown);
+    CHECK(fixture.list.selected() == 5U);
+    // Row 5 is the sixth: scrolled so it is the last one in view
+    CHECK(fixture.list.scrollOffset() == doctest::Approx(row));
+
+    for (int i = 0; i < 5; ++i)
+    {
+        fixture.list.navigate(EditKey::PageDown);
+    }
+    CHECK(fixture.list.selected() == 19U); // the end, no further
+    CHECK(fixture.list.scrollOffset() == doctest::Approx(15 * row));
+
+    fixture.list.navigate(EditKey::PageUp);
+    CHECK(fixture.list.selected() == 14U);
+    CHECK(fixture.list.scrollOffset() == doctest::Approx(14 * row)); // at the top edge now
+
+    CHECK_FALSE(fixture.list.navigate(EditKey::Enter)); // not a moving key
+
+    TrackList empty;
+    empty.moveSelection(1);
+    CHECK_FALSE(empty.selected().has_value());
+    TrackList fresh;
+    fresh.setBounds({0, 0, 600, 5 * row});
+    fresh.setTracks(tracks(3));
+    fresh.navigate(EditKey::Up);
+    CHECK(fresh.selected() == 2U);
+}

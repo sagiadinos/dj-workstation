@@ -6,9 +6,11 @@
 
 #include "api/library.hpp"
 #include "clock.hpp"
+#include "keyboard_input.hpp"
 #include "widget.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <cstddef>
 #include <optional>
 #include <utility>
@@ -55,6 +57,13 @@ namespace djw::player_ui::sdl
                     selection = row;
                 }
             }
+            /// Moves the selection by rows (negative: up), clamped to the list, and scrolls so it is in view; without
+            /// a selection it starts at the first row (or the last, going up). Nothing without rows.
+            void moveSelection(std::ptrdiff_t by) noexcept;
+            /// The rows that fit in the list at once, at least 1: how far a page goes
+            [[nodiscard]] std::size_t pageRows() const noexcept;
+            /// The cursor keys move the selection a row, Page Up and Page Down a page; true if key was one of them
+            bool navigate(EditKey key) noexcept;
             /// The row activated by a double tap since the last call, if any
             [[nodiscard]] std::optional<std::size_t> takeActivated() noexcept;
             /// The cell held for long_press_time, once per press; call once per frame, as nothing else checks the time

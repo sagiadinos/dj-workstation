@@ -108,7 +108,18 @@ TEST_CASE("toKeyboardInput: typed text and the editing keys, nothing else")
     CHECK(key(SDLK_RETURN) == KeyboardInput{EditKey::Enter});
     CHECK(key(SDLK_KP_ENTER) == KeyboardInput{EditKey::Enter});
     CHECK(key(SDLK_ESCAPE) == KeyboardInput{EditKey::Escape});
+    CHECK(key(SDLK_TAB) == KeyboardInput{EditKey::Tab});
+    CHECK(key(SDLK_UP) == KeyboardInput{EditKey::Up});
+    CHECK(key(SDLK_DOWN) == KeyboardInput{EditKey::Down});
+    CHECK(key(SDLK_PAGEUP) == KeyboardInput{EditKey::PageUp});
+    CHECK(key(SDLK_PAGEDOWN) == KeyboardInput{EditKey::PageDown});
     CHECK_FALSE(key(SDLK_A).has_value());
+
+    SDL_Event back_tab{};
+    back_tab.type    = SDL_EVENT_KEY_DOWN;
+    back_tab.key.key = SDLK_TAB;
+    back_tab.key.mod = SDL_KMOD_LSHIFT;
+    CHECK(toKeyboardInput(back_tab) == KeyboardInput{EditKey::BackTab});
 
     SDL_Event up{};
     up.type    = SDL_EVENT_KEY_UP;

@@ -11,14 +11,31 @@
 
 namespace djw::player_ui::sdl
 {
-    void ViewHost::add(View &view, std::optional<Rect> area)
+    void ViewHost::add(View &view, std::optional<Rect> area, bool always_on_top)
     {
         if (contains(view))
         {
             return;
         }
-        panes.push_back({.view = &view, .area = area, .placed = area.value_or(Rect{})});
+        panes.push_back({.view = &view, .area = area, .placed = area.value_or(Rect{}), .on_top = always_on_top});
         rebuildRouter();
+    }
+
+    std::vector<const ViewHost::Pane *> ViewHost::inOrder() const
+    {
+        std::vector<const Pane *> ordered;
+        ordered.reserve(panes.size());
+        for (const bool top : {false, true})
+        {
+            for (const Pane &pane : panes)
+            {
+                if (pane.on_top == top)
+                {
+                    ordered.push_back(&pane);
+                }
+            }
+        }
+        return ordered;
     }
 
     void ViewHost::remove(const View &view)
@@ -84,8 +101,8 @@ namespace djw::player_ui::sdl
         {
             constexpr float done_width  = 180.0F;
             constexpr float done_height = 48.0F;
-            done_button.setBounds(
-                {window.x + ((window.width - done_width) / 2), window.y + 12.0F, done_width, done_height});
+            const Rect      area        = arrangeArea();
+            done_button.setBounds({area.x + ((area.width - done_width) / 2), area.y + 12.0F, done_width, done_height});
         }
     }
 
@@ -110,9 +127,9 @@ namespace djw::player_ui::sdl
 
     void ViewHost::draw(Canvas &canvas) const
     {
-        for (const Pane &pane : panes)
+        for (const Pane *pane : inOrder())
         {
-            pane.view->draw(canvas);
+            pane->view->draw(canvas);
         }
         if (arrange)
         {
@@ -158,7 +175,7 @@ namespace djw::player_ui::sdl
                 }
                 for (const Pane &pane : std::views::reverse(panes))
                 {
-                    if (pane.area && pane.placed.contains(at))
+                    if (pane.area && !pane.on_top && pane.placed.contains(at))
                     {
                         const Rect &area = pane.placed;
                         const bool  corner =
@@ -184,12 +201,16 @@ namespace djw::player_ui::sdl
                     const float dx    = at.x - drag->from.x;
                     const float dy    = at.y - drag->from.y;
                     const Rect &start = drag->start;
-                    drag->target =
-                        drag->resize ? snapResize({start.x, start.y, start.width + dx, start.height + dy}, window_area)
-                                     : snapMove({start.x + dx, start.y + dy, start.width, start.height}, window_area);
-                    drag->fits = std::ranges::none_of(
-                        panes, [this](const Pane &other)
-                        { return other.view != drag->view && other.area && overlap(drag->target, other.placed); });
+                    const Rect  area  = arrangeArea();
+                    drag->target      = drag->resize
+                                            ? snapResize({start.x, start.y, start.width + dx, start.height + dy}, area)
+                                            : snapMove({start.x + dx, start.y + dy, start.width, start.height}, area);
+                    drag->fits        = std::ranges::none_of(panes,
+                                                             [this](const Pane &other)
+                                                             {
+                                                          return other.view != drag->view && other.area &&
+                                                                 !other.on_top && overlap(drag->target, other.placed);
+                                                             });
                 }
                 return;
             case PointerPhase::Up:
@@ -219,7 +240,7 @@ namespace djw::player_ui::sdl
 
     void ViewHost::drawArranging(Canvas &canvas) const
     {
-        const Rect &window = window_area;
+        const Rect window = arrangeArea();
         // The views dimmed, so it is clear they do not react, with the grid over them
         canvas.fillRect(window, {0, 0, 0, 110});
         constexpr Color grid_color{255, 255, 255, 22};
@@ -244,7 +265,7 @@ namespace djw::player_ui::sdl
         };
         for (const Pane &pane : panes)
         {
-            if (!pane.area)
+            if (!pane.area || pane.on_top)
             {
                 continue;
             }
@@ -348,9 +369,9 @@ namespace djw::player_ui::sdl
     void ViewHost::rebuildRouter()
     {
         router = PointerRouter{};
-        for (const Pane &pane : panes)
+        for (const Pane *pane : inOrder())
         {
-            pane.view->addTo(router);
+            pane->view->addTo(router); // added later lies on top
         }
     }
 } // namespace djw::player_ui::sdl

@@ -367,6 +367,19 @@ namespace djw::player_ui::sdl
     {
         if (!name_field.focused())
         {
+            // The list: cursor keys and pages move the selection, Enter loads the track selected
+            if (const auto *key = std::get_if<EditKey>(&input); key != nullptr)
+            {
+                if (*key == EditKey::Enter)
+                {
+                    if (const auto row = list.selected(); row && load)
+                    {
+                        load(list.tracks()[*row]);
+                    }
+                    return;
+                }
+                static_cast<void>(list.navigate(*key));
+            }
             return;
         }
         if (const auto *key = std::get_if<EditKey>(&input); key != nullptr && *key == EditKey::Enter)

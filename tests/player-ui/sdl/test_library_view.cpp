@@ -961,9 +961,49 @@ TEST_CASE("LibraryView: View offers editing the layout and the automatic arrange
     RecordingCanvas shown;
     fixture.view.draw(shown);
     CHECK(shown.drew("Fullscreen"));
-    CHECK(shown.drew("F11"));
+    CHECK(shown.drew("Ctrl+F"));
     fixture.view.keyboard(EditKey::Escape);
     chooseEntry(fixture, view_menu, fullscreen_entry);
     CHECK(switches == 1);
     CHECK_FALSE(full);
+}
+
+TEST_CASE("LibraryView: Tab goes round the search field and the filters, Shift+Tab backwards")
+{
+    Fixture fixture;
+    CHECK_FALSE(fixture.view.wantsTextInput());
+    fixture.view.keyboard(EditKey::Tab);
+    CHECK(fixture.view.searchField().focused());
+    for (std::size_t filter = 0; filter < LibraryView::filter_columns.size(); ++filter)
+    {
+        fixture.view.keyboard(EditKey::Tab);
+        CHECK(fixture.view.filterField(filter).focused());
+        CHECK_FALSE(fixture.view.searchField().focused());
+    }
+    fixture.view.keyboard(EditKey::Tab); // round to the search again
+    CHECK(fixture.view.searchField().focused());
+    fixture.view.keyboard(EditKey::BackTab);
+    CHECK(fixture.view.filterField(LibraryView::filter_columns.size() - 1).focused());
+
+    // Typing goes to the field with the focus only
+    fixture.view.keyboard(std::string{"x"});
+    CHECK(fixture.view.filterField(LibraryView::filter_columns.size() - 1).text() == "x");
+    CHECK(fixture.view.searchField().text().empty());
+}
+
+TEST_CASE("LibraryView: the cursor keys move the selection in the list, also while a search field has the focus")
+{
+    Fixture fixture;
+    REQUIRE(fixture.view.trackList().tracks().size() >= 2);
+    fixture.view.keyboard(EditKey::Tab); // the search field takes the typing
+    fixture.view.keyboard(EditKey::Down);
+    CHECK(fixture.view.trackList().selected() == 0U);
+    fixture.view.keyboard(EditKey::Down);
+    CHECK(fixture.view.trackList().selected() == 1U);
+    fixture.view.keyboard(EditKey::Up);
+    CHECK(fixture.view.trackList().selected() == 0U);
+    CHECK(fixture.view.searchField().focused());
+    fixture.view.keyboard(EditKey::Enter);
+    REQUIRE(fixture.loaded.size() == 1);
+    CHECK(fixture.loaded[0].id == fixture.view.trackList().tracks()[0].id);
 }

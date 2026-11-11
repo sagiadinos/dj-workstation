@@ -126,8 +126,16 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
             [[nodiscard]] const TextButton              &addButton() const noexcept { return add_button; }
             /// What View > Save layout does; without it the entry is off
-            void                             setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
-            [[nodiscard]] const MenuBar     &menuBar() const noexcept { return menu; }
+            void                         setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
+            [[nodiscard]] const MenuBar &menuBar() const noexcept { return menu; }
+            /// The menu bar, to be shown elsewhere (the top of the one window, see MenuStrip): from then on the view
+            /// neither places, draws nor routes it, and takes no room for it; it still sets its menus and carries out
+            /// the entries chosen
+            [[nodiscard]] MenuBar &moveMenuBarOut() noexcept
+            {
+                menu_elsewhere = true;
+                return menu;
+            }
             [[nodiscard]] const ContextMenu &contextMenu() const noexcept { return context_menu; }
 
             /// Shows an "Add to playlist" button for the selected track, which hands the track to add
@@ -195,6 +203,8 @@ namespace djw::player_ui::sdl
             /// Builds the menus for the current state and carries out the entry chosen
             void updateMenu(const core::api::LibraryStatus &status);
             void chooseMenuEntry(int id);
+            /// Tab: the focus to the next search field (the search, then the filters), round; Shift+Tab backwards
+            void focusNextField(bool forward);
             void startEdit(const TrackList::Cell &cell);
             void updateContextMenu();
             void commitEdit();
@@ -223,6 +233,7 @@ namespace djw::player_ui::sdl
             Shown                    layout_editing;
             Toggle                   arrange_automatic;
             Toggle                   fullscreen_toggle;
+            bool                     menu_elsewhere = false;
             Shown                    fullscreen_shown;
             std::int64_t             context_track = 0; // the track the context menu is about
             TextField                search_field;
