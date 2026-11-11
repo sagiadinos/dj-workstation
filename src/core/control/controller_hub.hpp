@@ -34,7 +34,9 @@ namespace djw::core::control
             /// A port of the system that is no controller: ALSA's "Midi Through", which passes on what is sent to it
             [[nodiscard]] static bool isSystemPort(std::string_view port);
 
-            ControllerHub(std::unique_ptr<MidiSystem> midi, std::vector<Mapping> mappings);
+            /// folders: where the mappings came from, read again after an import (which saves into the last one)
+            ControllerHub(std::unique_ptr<MidiSystem> midi, std::vector<Mapping> mappings,
+                          std::vector<std::filesystem::path> folders = {});
             ~ControllerHub() override;
             ControllerHub(const ControllerHub &)            = delete;
             ControllerHub &operator=(const ControllerHub &) = delete;
@@ -56,6 +58,7 @@ namespace djw::core::control
             [[nodiscard]] std::string              mappingFor(const std::string &port) const override;
             [[nodiscard]] std::vector<Connection>  connections() const override;
             [[nodiscard]] std::string              controllerAudio() const override;
+            std::expected<Imported, std::string>   importMixxx(const std::filesystem::path &file) override;
 
             [[nodiscard]] const std::vector<Mapping> &mappings() const noexcept { return all; }
             /// The mapping a port gets without an assignment: the first that matches its name; nullptr for none
@@ -77,6 +80,7 @@ namespace djw::core::control
 
             std::unique_ptr<MidiSystem>        midi;
             std::vector<Mapping>               all;
+            std::vector<std::filesystem::path> folders;
             std::vector<std::unique_ptr<Open>> open_ports;
             mutable std::mutex                 lock;
             std::vector<ControlEvent>          queued;

@@ -35,6 +35,12 @@ namespace djw::tests
                 pending      = std::move(chosen);
             }
 
+            void openMixxxMapping(Chosen chosen) override
+            {
+                mixxx_asked = true;
+                pending     = std::move(chosen);
+            }
+
             void choose(const std::filesystem::path &file)
             {
                 REQUIRE(pending);
@@ -43,6 +49,7 @@ namespace djw::tests
             }
 
             bool        opened       = false;
+            bool        mixxx_asked  = false;
             bool        folder_asked = false;
             std::string suggested;
             Chosen      pending;

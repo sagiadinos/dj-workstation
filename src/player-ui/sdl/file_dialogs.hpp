@@ -35,6 +35,8 @@ namespace djw::player_ui::sdl
             virtual void savePlaylist(const std::string &suggested_name, Chosen chosen) = 0;
             /// Lets the user pick an existing folder, e.g. a music folder for the library
             virtual void openFolder(Chosen chosen) = 0;
+            /// Lets the user pick a Mixxx controller mapping (.midi.xml) to import
+            virtual void openMixxxMapping(Chosen chosen) = 0;
     };
 } // namespace djw::player_ui::sdl
 

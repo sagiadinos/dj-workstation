@@ -14,6 +14,7 @@ namespace djw::player_ui::sdl
     namespace
     {
         const std::array<SDL_DialogFileFilter, 1> playlist_filters{{{"Playlists (M3U, M3U8)", "m3u;m3u8"}}};
+        const std::array<SDL_DialogFileFilter, 1> mixxx_filters{{{"Mixxx controller mappings (.midi.xml)", "xml"}}};
     } // namespace
 
     SdlFileDialogs::SdlFileDialogs(SDL_Window *parent) : parent{parent} {}
@@ -57,6 +58,13 @@ namespace djw::player_ui::sdl
     {
         auto *userdata = new std::shared_ptr<Answer>{waitFor(std::move(chosen))};
         SDL_ShowOpenFolderDialog(&onAnswer, userdata, parent, nullptr, false);
+    }
+
+    void SdlFileDialogs::openMixxxMapping(Chosen chosen)
+    {
+        auto *userdata = new std::shared_ptr<Answer>{waitFor(std::move(chosen))};
+        SDL_ShowOpenFileDialog(&onAnswer, userdata, parent, mixxx_filters.data(),
+                               static_cast<int>(mixxx_filters.size()), nullptr, false);
     }
 
     void SdlFileDialogs::deliver()

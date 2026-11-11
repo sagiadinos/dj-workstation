@@ -6,6 +6,7 @@ add_executable(djw_core_control_tests
     test_mapping.cpp
     test_controller.cpp
     test_controller_hub.cpp
+    test_mixxx_import.cpp
 )
 djw_set_options(djw_core_control_tests TEST)
 target_compile_definitions(djw_core_control_tests PRIVATE DJW_MAPPINGS_DIR="${PROJECT_SOURCE_DIR}/mappings")

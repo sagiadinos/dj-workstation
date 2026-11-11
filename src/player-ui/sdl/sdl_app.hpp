@@ -158,6 +158,9 @@ namespace djw::player_ui::sdl
             void setSettingsFile(std::filesystem::path file);
             /// Settings > Devices: opens the dialog over the library window (in the MDI mode the one window)
             void openDevicesDialog();
+            /// Imports a Mixxx mapping (the dialog's import button, after the file was chosen), connects the
+            /// controllers again and opens the dialog again, saying what the import made of it
+            void importMixxxMapping(const std::filesystem::path &file);
             /// The dialog of Settings > Devices while it is open, nullptr otherwise; for tests
             [[nodiscard]] DevicesDialog *devicesDialog() noexcept { return devices_dialog.get(); }
             /// The library view; for tests (there must be a library)
@@ -311,8 +314,9 @@ namespace djw::player_ui::sdl
             LanguageChanged       language_changed;
             core::api::Core      *core;
             core::api::Library   *library = nullptr;
-            std::filesystem::path layout_file;   ///< where View > Save layout writes; empty: no layout is kept
-            std::filesystem::path settings_file; ///< where Settings > Devices writes; empty: the entry is off
+            std::filesystem::path layout_file;     ///< where View > Save layout writes; empty: no layout is kept
+            std::filesystem::path settings_file;   ///< where Settings > Devices writes; empty: the entry is off
+            std::string           devices_message; ///< shown the next time the dialog opens, e.g. an import's result
             std::uint64_t         seen_library_revision = 0;
             /// Views come before the windows that show them: destroyed after them
             std::vector<std::unique_ptr<DeckWindow>> decks;

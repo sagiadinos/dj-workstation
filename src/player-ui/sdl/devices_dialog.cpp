@@ -61,9 +61,10 @@ namespace djw::player_ui::sdl
 
     float DevicesDialog::panelHeight() const noexcept
     {
-        // Title, output, channels, latency, two lines of hint, the controllers' heading and lines, the buttons
+        // Title, output, channels, latency, two lines of hint, the controllers' heading and lines, the import button,
+        // the message, the buttons
         const auto  ports = static_cast<float>(std::max<std::size_t>(choices.ports.size(), 1));
-        const float rows  = 4.0F + 2.0F + 1.0F + ports + 1.0F;
+        const float rows  = 4.0F + 2.0F + 1.0F + ports + 1.0F + 1.0F + 1.0F;
         return (2 * padding) + (rows * row_height) + ((rows - 1) * row_gap);
     }
 
@@ -111,6 +112,8 @@ namespace djw::player_ui::sdl
             port_labels.push_back({inner.x, at, label, row_height});
             mapping_lists.at(port)->place({inner.x + label, at, inner.width - label, row_height}, area);
         }
+        import_button.setBounds({inner.x + label, next(), inner.width - label, row_height});
+        message_area          = {inner.x, next(), inner.width, row_height};
         const float buttons_y = inner.y + inner.height - row_height;
         cancel_button.setBounds({inner.x + inner.width - button_w, buttons_y, button_w, row_height});
         ok_button.setBounds({inner.x + inner.width - (2 * button_w) - 10.0F, buttons_y, button_w, row_height});
@@ -121,6 +124,7 @@ namespace djw::player_ui::sdl
         router.add(blocker); // under everything of the dialog, over everything else
         router.add(ok_button);
         router.add(cancel_button);
+        router.add(import_button);
         // The lists last, the lower ones first: an open list covers the window and lies over the lists below it
         for (const auto &list : std::views::reverse(mapping_lists))
         {
@@ -159,6 +163,7 @@ namespace djw::player_ui::sdl
     {
         ok_button.setLabel(translator->tr("dialog.ok"));
         cancel_button.setLabel(translator->tr("dialog.cancel"));
+        import_button.setLabel(translator->tr("dialog.devices.import_mixxx"));
         takeChoices();
 
         std::vector<std::string> outputs{translator->tr("dialog.devices.output_automatic")};
@@ -204,6 +209,10 @@ namespace djw::player_ui::sdl
         if (cancel_button.takePress())
         {
             outcome = Outcome::Cancelled;
+        }
+        if (import_button.takePress())
+        {
+            outcome = Outcome::ImportMixxx;
         }
     }
 
@@ -259,6 +268,11 @@ namespace djw::player_ui::sdl
         {
             text(port_labels.at(port), choices.ports.at(port), look::text_dim);
         }
+        if (!choices.message.empty())
+        {
+            text(message_area, choices.message, look::text);
+        }
+        import_button.draw(canvas);
         ok_button.draw(canvas);
         cancel_button.draw(canvas);
         // The lists last, the upper ones last: an open list lies over the lists below it

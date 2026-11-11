@@ -1158,11 +1158,41 @@ namespace djw::player_ui::sdl
                 choices.port_defaults.push_back(controllers->mappingFor(port));
             }
         }
-        devices_dialog = std::make_unique<DevicesDialog>(translator, parseSettings(text.str()), core->sampleRate(),
-                                                         std::move(choices));
-        dialog_window  = over;
+        choices.message = std::exchange(devices_message, {});
+        devices_dialog  = std::make_unique<DevicesDialog>(translator, parseSettings(text.str()), core->sampleRate(),
+                                                          std::move(choices));
+        dialog_window   = over;
         over->views().add(*devices_dialog, std::nullopt, true); // over everything, modal
         over->views().setFocus(*devices_dialog);
+    }
+
+    void SdlApp::importMixxxMapping(const std::filesystem::path &file)
+    {
+        if (!controllers)
+        {
+            return;
+        }
+        if (const auto imported = controllers->importMixxx(file))
+        {
+            devices_message =
+                translator.tr("dialog.devices.imported",
+                              {{"name", imported->name},
+                               {"count", static_cast<long long>(imported->taken)},
+                               {"number", static_cast<long long>(imported->scripted + imported->unknown)}});
+            // The new mapping in use where it matches, by the choices kept so far
+            const std::ifstream in{settings_file};
+            std::ostringstream  text;
+            text << in.rdbuf();
+            for (const std::string &error : controllers->connect(parseSettings(text.str()).controllers))
+            {
+                logError(error);
+            }
+        }
+        else
+        {
+            devices_message = translator.tr("dialog.devices.import_failed", {{"error", imported.error()}});
+        }
+        openDevicesDialog();
     }
 
     void SdlApp::applyWindowRequests()
@@ -1191,6 +1221,10 @@ namespace djw::player_ui::sdl
                 dialog_window->views().remove(*devices_dialog);
                 devices_dialog.reset();
                 dialog_window = nullptr;
+                if (*outcome == DevicesDialog::Outcome::ImportMixxx)
+                {
+                    dialogs.openMixxxMapping([this](const std::filesystem::path &file) { importMixxxMapping(file); });
+                }
             }
         }
         for (const core::api::DeckId deck : std::exchange(decks_to_close, {}))

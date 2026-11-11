@@ -3,7 +3,12 @@
 
 #include "control/controller_hub.hpp"
 
+#include "temp_dir.hpp"
+
 #include <doctest/doctest.h>
+
+#include <filesystem>
+#include <fstream>
 
 #include <map>
 #include <memory>
@@ -156,4 +161,35 @@ TEST_CASE("ControllerHub: ALSA's Midi Through port is no controller: not listed,
     CHECK(hub.ports() == std::vector<std::string>{"Pad"});
     static_cast<void>(hub.connect({{"Midi Through:Midi Through Port-0", "Any"}}));
     CHECK_FALSE(state->open.contains("Midi Through:Midi Through Port-0 14:0"));
+}
+
+TEST_CASE("ControllerHub: an imported Mixxx mapping is saved in the last folder and can be used at once")
+{
+    const djw::tests::TempDir folder;
+    const auto                mixxx = folder.path() / "Test Pad.midi.xml";
+    std::ofstream{mixxx} << R"(<MixxxMIDIPreset><info><name>Test Pad</name></info><controller id="Pad"><controls>
+        <control><group>[Channel1]</group><key>play</key><status>0x90</status><midino>0x07</midino>
+        <options><normal/></options></control>
+        <control><group>[Channel1]</group><key>Pad.jog</key><status>0xB0</status><midino>0x0A</midino>
+        <options><script-binding/></options></control>
+        </controls></controller></MixxxMIDIPreset>)";
+    auto state   = std::make_shared<FakeMidiSystem::State>();
+    state->ports = {"Pad 20:0"};
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {}, {folder.path() / "own"}};
+    CHECK(hub.mappingNames().empty());
+
+    const auto imported = hub.importMixxx(mixxx);
+    REQUIRE_MESSAGE(imported.has_value(), (imported ? "" : imported.error()));
+    CHECK(imported->name == "Test Pad (Mixxx)");
+    CHECK(imported->taken == 1);
+    CHECK(imported->scripted == 1);
+    CHECK(std::filesystem::exists(folder.path() / "own" / "Test Pad (Mixxx).toml"));
+    CHECK(hub.mappingNames() == std::vector<std::string>{"Test Pad (Mixxx)"});
+    static_cast<void>(hub.connect());
+    REQUIRE(hub.connections().size() == 1);
+    CHECK(hub.connections()[0].mapping == "Test Pad (Mixxx)");
+
+    CHECK_FALSE(hub.importMixxx(folder.path() / "missing.midi.xml").has_value());
+    ControllerHub no_folder{std::make_unique<FakeMidiSystem>(state), {}};
+    CHECK_FALSE(no_folder.importMixxx(mixxx).has_value());
 }

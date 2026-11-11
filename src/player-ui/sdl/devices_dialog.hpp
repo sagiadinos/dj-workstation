@@ -40,6 +40,8 @@ namespace djw::player_ui::sdl
             std::vector<std::string> mappings;
             /// For each port, the mapping it gets without a choice (empty: none matches)
             std::vector<std::string> port_defaults;
+            /// A line shown above the buttons, e.g. what the last import made; empty for none
+            std::string message{};
     };
 
     /**
@@ -60,7 +62,9 @@ namespace djw::player_ui::sdl
             enum class Outcome : std::uint8_t
             {
                 Accepted,
-                Cancelled
+                Cancelled,
+                /// Import a Mixxx mapping: the owner closes the dialog, asks for the file and opens it again
+                ImportMixxx
             };
 
             static constexpr float panel_width = 640.0F;
@@ -93,6 +97,7 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const DropDown   &mappingList(std::size_t index) const { return *mapping_lists.at(index); }
             [[nodiscard]] const TextButton &okButton() const noexcept { return ok_button; }
             [[nodiscard]] const TextButton &cancelButton() const noexcept { return cancel_button; }
+            [[nodiscard]] const TextButton &importButton() const noexcept { return import_button; }
             [[nodiscard]] const Rect       &panel() const noexcept { return panel_area; }
             /// How high the panel wants to be for what it shows
             [[nodiscard]] float panelHeight() const noexcept;
@@ -123,6 +128,8 @@ namespace djw::player_ui::sdl
             std::vector<std::unique_ptr<DropDown>> mapping_lists;
             TextButton                             ok_button;
             TextButton                             cancel_button;
+            TextButton                             import_button;
+            Rect                                   message_area;
     };
 } // namespace djw::player_ui::sdl
 

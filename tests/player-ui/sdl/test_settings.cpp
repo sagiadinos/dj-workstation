@@ -191,3 +191,29 @@ TEST_CASE("DevicesDialog: an output chosen before that is not there now stays in
     CHECK(dialog.outputList().selectedIndex() == 2U);
     CHECK(dialog.chosen().output_device == "Gone Card");
 }
+
+TEST_CASE("DevicesDialog: the import button asks the owner to import, a message shows above the buttons")
+{
+    Translator    translator;
+    DevicesDialog dialog{translator, Settings{}, 48'000,
+                         DeviceChoices{.outputs       = {},
+                                       .ports         = {},
+                                       .mappings      = {},
+                                       .port_defaults = {},
+                                       .message       = "Pad (Mixxx): 7 controls taken over, 23 left out"}};
+    PointerRouter router;
+    dialog.layout({0, 0, 1000, 900});
+    dialog.addTo(router);
+    dialog.update();
+    RecordingCanvas canvas;
+    dialog.draw(canvas);
+    CHECK(canvas.drew("Import Mixxx mapping…"));
+    CHECK(canvas.drew("Pad (Mixxx): 7 controls taken over, 23 left out"));
+    const Rect button = dialog.importButton().bounds();
+    REQUIRE(button.width > 0);
+    CHECK(button.y + button.height <= dialog.panel().y + dialog.panel().height);
+    router.handle({{1, 1}, PointerPhase::Down, {button.x + 5, button.y + 5}});
+    router.handle({{1, 1}, PointerPhase::Up, {button.x + 5, button.y + 5}});
+    dialog.update();
+    CHECK(dialog.takeOutcome() == DevicesDialog::Outcome::ImportMixxx);
+}

@@ -226,6 +226,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Script mapping | 1 | Lua for jog acceleration, scratching, device-specific behavior. Runs on the control thread. |
 | LED feedback | 1 | Core state → MIDI out, in the same mapping file. |
 | MIDI learn | 1 | In the UI, writes the mapping file. |
+| Mixxx import | M | Settings > Devices turns a Mixxx mapping (.midi.xml) into ours: its direct bindings to functions djw has; what its script does is left out and counted. Saved in the user's mapping folder. |
 | Reference controller | M | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. |
 | Keyboard shortcuts | M | From the original version, in the player that has the keyboard focus: P = play/pause, C = cue (acts while held), L = load. |
 

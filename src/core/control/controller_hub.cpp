@@ -3,14 +3,65 @@
 
 #include "control/controller_hub.hpp"
 
+#include "control/mixxx_import.hpp"
+
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 #include <utility>
 
 namespace djw::core::control
 {
-    ControllerHub::ControllerHub(std::unique_ptr<MidiSystem> midi, std::vector<Mapping> mappings)
-        : midi{std::move(midi)}, all{std::move(mappings)}
+    ControllerHub::ControllerHub(std::unique_ptr<MidiSystem> midi, std::vector<Mapping> mappings,
+                                 std::vector<std::filesystem::path> folders)
+        : midi{std::move(midi)}, all{std::move(mappings)}, folders{std::move(folders)}
     {
+    }
+
+    std::expected<api::Controllers::Imported, std::string> ControllerHub::importMixxx(const std::filesystem::path &file)
+    {
+        if (folders.empty())
+        {
+            return std::unexpected{std::string{"no folder to keep mappings in"}};
+        }
+        const std::ifstream in{file};
+        if (!in)
+        {
+            return std::unexpected{"cannot read " + file.string()};
+        }
+        std::ostringstream text;
+        text << in.rdbuf();
+        auto imported = control::importMixxx(text.str());
+        if (!imported)
+        {
+            return std::unexpected{file.filename().string() + ": " + imported.error()};
+        }
+        // Saved under the Mixxx file's name, so importing it again replaces it
+        std::error_code error;
+        std::filesystem::create_directories(folders.back(), error);
+        std::string stem = file.filename().string();
+        if (const std::size_t at = stem.find(".midi.xml"); at != std::string::npos)
+        {
+            stem.resize(at);
+        }
+        else
+        {
+            stem = file.stem().string();
+        }
+        const std::filesystem::path target = folders.back() / (stem + " (Mixxx).toml");
+        std::ofstream               out{target, std::ios::trunc};
+        out << formatMapping(imported->mapping);
+        if (!out)
+        {
+            return std::unexpected{"cannot write " + target.string()};
+        }
+        out.close();
+        std::vector<std::string> errors;
+        all = readMappings(folders, errors);
+        return Imported{.name     = imported->mapping.name,
+                        .taken    = imported->taken,
+                        .scripted = imported->scripted,
+                        .unknown  = imported->unknown};
     }
 
     ControllerHub::~ControllerHub()
@@ -185,7 +236,7 @@ namespace djw::core::api
     std::unique_ptr<Controllers> openControllers(const std::vector<std::filesystem::path> &mapping_folders,
                                                  std::vector<std::string>                 &errors)
     {
-        return std::make_unique<control::ControllerHub>(control::createMidiSystem(),
-                                                        control::readMappings(mapping_folders, errors));
+        return std::make_unique<control::ControllerHub>(
+            control::createMidiSystem(), control::readMappings(mapping_folders, errors), mapping_folders);
     }
 } // namespace djw::core::api

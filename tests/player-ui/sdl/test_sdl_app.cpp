@@ -1328,6 +1328,17 @@ namespace
             std::string             mappingFor(const std::string             &/*port*/) const override { return "Pad mapping"; }
             std::vector<Connection> connections() const override { return {}; }
             std::string             controllerAudio() const override { return {}; }
+            std::expected<Imported, std::string> importMixxx(const std::filesystem::path &file) override
+            {
+                imported.push_back(file);
+                if (file.extension() != ".xml")
+                {
+                    return std::unexpected{std::string{"not a Mixxx MIDI mapping"}};
+                }
+                return Imported{.name = "Pad (Mixxx)", .taken = 7, .scripted = 3, .unknown = 20};
+            }
+
+            std::vector<std::filesystem::path> imported;
 
             std::vector<djw::core::api::ControlEvent> events;
             std::vector<Assignments>                  connected;
@@ -1366,4 +1377,29 @@ TEST_CASE("SdlApp: controller events are carried out each frame; OK in Settings 
     CHECK(app->devicesDialog() == nullptr);
     REQUIRE(fake.connected.size() == 1);
     CHECK(parseSettings(readFile(folder.path() / "settings")).buffer_frames == default_buffer_frames);
+}
+
+TEST_CASE("SdlApp: a Mixxx mapping imported connects the controllers again and the dialog says what came of it")
+{
+    const djw::tests::TempDir folder;
+    Fixture                   fixture;
+    djw::tests::FakeLibrary   library;
+    auto                      app   = fixture.openApp(&library);
+    auto                      owned = std::make_unique<FakeControllers>();
+    FakeControllers          &fake  = *owned;
+    app->setControllers(std::move(owned));
+    app->setSettingsFile(folder.path() / "settings");
+
+    app->importMixxxMapping(folder.path() / "Pad.midi.xml");
+    REQUIRE(fake.imported.size() == 1);
+    CHECK(fake.connected.size() == 1);
+    REQUIRE(app->devicesDialog() != nullptr);
+    REQUIRE(app->runFrame());
+    // Escape: the dialog closes; a failed import says why
+    app->devicesDialog()->keyboard(EditKey::Escape);
+    REQUIRE(app->runFrame());
+    CHECK(app->devicesDialog() == nullptr);
+    app->importMixxxMapping(folder.path() / "notes.txt");
+    CHECK(fake.connected.size() == 1); // nothing new to connect
+    REQUIRE(app->devicesDialog() != nullptr);
 }

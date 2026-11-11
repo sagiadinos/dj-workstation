@@ -7,6 +7,7 @@ add_library(djw_core_control STATIC
     mapping.cpp
     controller.cpp
     controller_hub.cpp
+    mixxx_import.cpp
     rtmidi_system.cpp
 )
 add_library(djw::core::control ALIAS djw_core_control)

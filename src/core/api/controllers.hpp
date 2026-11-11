@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -67,6 +68,15 @@ namespace djw::core::api
                     std::string mapping;
             };
 
+            /// What an import of a mapping from another program made of it
+            struct Imported
+            {
+                    std::string name;         ///< of the new mapping
+                    std::size_t taken    = 0; ///< controls taken over
+                    std::size_t scripted = 0; ///< controls done by the other program's script, left out
+                    std::size_t unknown  = 0; ///< controls of functions djw does not have, left out
+            };
+
             Controllers()                               = default;
             Controllers(const Controllers &)            = delete;
             Controllers &operator=(const Controllers &) = delete;
@@ -89,6 +99,9 @@ namespace djw::core::api
             /// The sound card of the connected controllers (part of its name, from their mappings); empty if none has
             /// one, e.g. "DJControl Starlight" when a Starlight is connected
             [[nodiscard]] virtual std::string controllerAudio() const = 0;
+            /// Turns a Mixxx mapping (.midi.xml) into one of ours, saves it in the user's mapping folder (the last
+            /// folder given) and reads all mappings again; connect() then puts it to use
+            virtual std::expected<Imported, std::string> importMixxx(const std::filesystem::path &file) = 0;
     };
 
     /// The controllers of the system (RtMidi) with the mappings (*.toml) of the folders, first folder first. Files
