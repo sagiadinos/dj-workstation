@@ -5,6 +5,7 @@
 #include "api/library.hpp"
 #include "command_line.hpp"
 #include "sdl_app.hpp"
+#include "settings.hpp"
 
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_locale.h>
@@ -15,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include <span>
+#include <sstream>
 #include <thread>
 
 namespace api = djw::core::api;
@@ -46,6 +48,28 @@ namespace
         std::filesystem::path file = std::filesystem::path{folder} / "language";
         SDL_free(folder);
         return file;
+    }
+
+    /// The file with the settings of Settings > Devices, e.g. ~/.local/share/djw/settings on Linux
+    std::filesystem::path settingsFile()
+    {
+        char *folder = SDL_GetPrefPath("", "djw");
+        if (folder == nullptr)
+        {
+            return {};
+        }
+        std::filesystem::path file = std::filesystem::path{folder} / "settings";
+        SDL_free(folder);
+        return file;
+    }
+
+    /// The settings saved before; the defaults without a file
+    sdl::Settings startSettings(const std::filesystem::path &file)
+    {
+        const std::ifstream in{file};
+        std::ostringstream  text;
+        text << in.rdbuf();
+        return sdl::parseSettings(text.str());
     }
 
     /// The file with the window layout, e.g. ~/.local/share/djw/layout on Linux
@@ -138,7 +162,10 @@ int main(int argc, char *argv[])
         return 2;
     }
 
-    auto core = api::createCore({.headphone_output = command_line->headphones});
+    const std::filesystem::path settings_file = settingsFile();
+    const sdl::Settings         settings      = startSettings(settings_file);
+    auto                        core =
+        api::createCore({.buffer_frames = settings.buffer_frames, .headphone_output = command_line->headphones});
     if (!core)
     {
         std::cerr << "djw: " << core.error() << '\n';
@@ -174,6 +201,7 @@ int main(int argc, char *argv[])
         std::cerr << "djw: " << app.error() << '\n';
         return 1;
     }
+    (*app)->setSettingsFile(settings_file);
     if (command_line->file)
     {
         (*app)->setDeckTrack(std::filesystem::absolute(*command_line->file), command_line->file->filename().string());

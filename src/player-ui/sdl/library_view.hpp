@@ -162,6 +162,8 @@ namespace djw::player_ui::sdl
             }
             /// Enables View > Edit layout and View > Arrange automatically (the MDI mode): edit starts the editing,
             /// editing tells whether it is on, automatic goes back to the automatic arrangement
+            /// Enables Settings > Devices: open shows the dialog
+            void setDevicesDialog(Toggle open) { devices_dialog = std::move(open); }
             /// Enables View > Fullscreen (the MDI mode): toggle switches, shown tells whether the window is fullscreen
             void setFullscreen(Toggle toggle, Shown shown)
             {
@@ -234,6 +236,7 @@ namespace djw::player_ui::sdl
             Toggle                   arrange_automatic;
             Toggle                   fullscreen_toggle;
             bool                     menu_elsewhere = false;
+            Toggle                   devices_dialog;
             Shown                    fullscreen_shown;
             std::int64_t             context_track = 0; // the track the context menu is about
             TextField                search_field;

@@ -1098,8 +1098,51 @@ namespace djw::player_ui::sdl
         tools[index(tool)].request = open ? Request::Open : Request::Close;
     }
 
+    void SdlApp::setSettingsFile(std::filesystem::path file)
+    {
+        settings_file = std::move(file);
+        if (library_view && !settings_file.empty())
+        {
+            library_view->setDevicesDialog([this] { openDevicesDialog(); });
+        }
+    }
+
+    void SdlApp::openDevicesDialog()
+    {
+        SdlWindow *over = host_window != nullptr ? host_window : library_window;
+        if (devices_dialog || over == nullptr || settings_file.empty())
+        {
+            return;
+        }
+        const std::ifstream file{settings_file};
+        std::ostringstream  text;
+        text << file.rdbuf();
+        devices_dialog = std::make_unique<DevicesDialog>(translator, parseSettings(text.str()), core->sampleRate());
+        dialog_window  = over;
+        over->views().add(*devices_dialog, std::nullopt, true); // over everything, modal
+        over->views().setFocus(*devices_dialog);
+    }
+
     void SdlApp::applyWindowRequests()
     {
+        if (devices_dialog)
+        {
+            if (const auto outcome = devices_dialog->takeOutcome())
+            {
+                if (*outcome == DevicesDialog::Outcome::Accepted)
+                {
+                    std::ofstream file{settings_file, std::ios::trunc};
+                    file << formatSettings(devices_dialog->chosen());
+                    if (!file)
+                    {
+                        logError("cannot write the settings to " + settings_file.string());
+                    }
+                }
+                dialog_window->views().remove(*devices_dialog);
+                devices_dialog.reset();
+                dialog_window = nullptr;
+            }
+        }
         for (const core::api::DeckId deck : std::exchange(decks_to_close, {}))
         {
             closeDeck(deck);

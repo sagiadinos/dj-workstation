@@ -60,6 +60,8 @@ add_library(djw_player_sdl_ui STATIC
     stepper.cpp
     drop_down.cpp
     layout.cpp
+    settings.cpp
+    devices_dialog.cpp
     look.cpp
     waveform_bar.cpp
     menu_bar.cpp

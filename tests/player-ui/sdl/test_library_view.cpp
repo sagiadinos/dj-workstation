@@ -635,15 +635,22 @@ TEST_CASE("LibraryView: Escape closes an open menu")
     CHECK_FALSE(fixture.view.menuBar().isOpen());
 }
 
-TEST_CASE("LibraryView: Settings has nothing to choose yet, the language has its own menu")
+TEST_CASE("LibraryView: Settings offers Devices once the owner can open it, the language has its own menu")
 {
     Fixture fixture;
     chooseEntry(fixture, 2, 0);
-    CHECK(fixture.view.menuBar().isOpen()); // the only entry is disabled
+    CHECK(fixture.view.menuBar().isOpen()); // off without an owner
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
-    CHECK(canvas.drew("No settings yet"));
+    CHECK(canvas.drew("Devices…"));
     CHECK_FALSE(canvas.drew("Deutsch"));
+    fixture.view.keyboard(EditKey::Escape);
+
+    int opened = 0;
+    fixture.view.setDevicesDialog([&opened] { ++opened; });
+    fixture.view.update();
+    chooseEntry(fixture, 2, 0);
+    CHECK(opened == 1);
 }
 
 TEST_CASE("LibraryView: View shows or hides the playlist window and tells whether it is shown")

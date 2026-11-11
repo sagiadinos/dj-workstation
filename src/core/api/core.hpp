@@ -94,6 +94,11 @@ namespace djw::core::api
 
             /// Snapshot of the mixer master section for the frontend (single reader)
             virtual MixerSnapshotBuffer &mixerSnapshot() noexcept = 0;
+
+            /// The sample rate the audio device runs at
+            [[nodiscard]] virtual std::uint32_t sampleRate() const noexcept = 0;
+            /// The audio buffer size the core was created with (CoreConfig::buffer_frames)
+            [[nodiscard]] virtual std::uint32_t bufferFrames() const noexcept = 0;
     };
 
     /// Creates the core with the system's audio output. Implemented in core/runtime.

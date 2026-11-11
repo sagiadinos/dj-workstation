@@ -7,6 +7,7 @@
 #include "api/core.hpp"
 #include "api/library.hpp"
 #include "deck_view.hpp"
+#include "devices_dialog.hpp"
 #include "i18n/translator.hpp"
 #include "layout.hpp"
 #include "library_view.hpp"
@@ -144,6 +145,12 @@ namespace djw::player_ui::sdl
             }
             /// The frame of a tool in the MDI mode, nullptr before it first opened; for tests
             [[nodiscard]] const PaneFrame *toolFrame(Tool tool) const { return tools[index(tool)].frame.get(); }
+            /// Where Settings > Devices keeps its settings for the next start; without it the entry is off
+            void setSettingsFile(std::filesystem::path file);
+            /// Settings > Devices: opens the dialog over the library window (in the MDI mode the one window)
+            void openDevicesDialog();
+            /// The dialog of Settings > Devices while it is open, nullptr otherwise; for tests
+            [[nodiscard]] DevicesDialog *devicesDialog() noexcept { return devices_dialog.get(); }
             /// The library view; for tests (there must be a library)
             [[nodiscard]] const LibraryView &libraryView() const { return *library_view; }
             /// The menu bar on top of the one window in the MDI mode, nullptr in the other; for tests
@@ -295,14 +302,17 @@ namespace djw::player_ui::sdl
             LanguageChanged       language_changed;
             core::api::Core      *core;
             core::api::Library   *library = nullptr;
-            std::filesystem::path layout_file; ///< where View > Save layout writes; empty: no layout is kept
+            std::filesystem::path layout_file;   ///< where View > Save layout writes; empty: no layout is kept
+            std::filesystem::path settings_file; ///< where Settings > Devices writes; empty: the entry is off
             std::uint64_t         seen_library_revision = 0;
             /// Views come before the windows that show them: destroyed after them
             std::vector<std::unique_ptr<DeckWindow>> decks;
             int                                      deck_counter = 0;
             std::unique_ptr<LibraryView>             library_view;
-            std::unique_ptr<PaneFrame>               library_frame; ///< MDI mode only
-            std::unique_ptr<MenuStrip>               menu_strip;    ///< MDI mode only: the menus on top
+            std::unique_ptr<PaneFrame>               library_frame;           ///< MDI mode only
+            std::unique_ptr<MenuStrip>               menu_strip;              ///< MDI mode only: the menus on top
+            std::unique_ptr<DevicesDialog>           devices_dialog;          ///< while Settings > Devices is open
+            SdlWindow                               *dialog_window = nullptr; ///< the window the dialog lies over
             std::unique_ptr<PlaylistView>            playlist_view;
             std::unique_ptr<MixerView>               mixer_view;
             std::vector<std::unique_ptr<SdlWindow>>  windows;

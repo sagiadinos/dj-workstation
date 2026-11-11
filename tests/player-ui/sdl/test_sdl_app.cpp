@@ -5,6 +5,7 @@
 
 #include "fake_library.hpp"
 #include "mdi_arrangement.hpp"
+#include "settings.hpp"
 #include "temp_dir.hpp"
 #include "wav_file.hpp"
 
@@ -1192,4 +1193,44 @@ TEST_CASE("SdlApp: in the MDI mode the close button of a playing player and clos
     REQUIRE(app->runFrame());
     REQUIRE(app->runFrame());
     CHECK(app->deckCount() == 1);
+}
+
+TEST_CASE("SdlApp: Settings > Devices opens a dialog over the library window; OK keeps the latency for the next start")
+{
+    const djw::tests::TempDir folder;
+    const auto                settings_file = folder.path() / "settings";
+    Fixture                   fixture;
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library);
+    app->openDevicesDialog();
+    CHECK(app->devicesDialog() == nullptr); // no place to keep it: off
+
+    app->setSettingsFile(settings_file);
+    app->openDevicesDialog();
+    REQUIRE(app->devicesDialog() != nullptr);
+    REQUIRE(app->runFrame());
+
+    // Escape cancels, nothing is written
+    SDL_Event escape{};
+    escape.type         = SDL_EVENT_KEY_DOWN;
+    escape.key.key      = SDLK_ESCAPE;
+    escape.key.windowID = app->libraryWindowId();
+    SDL_PushEvent(&escape);
+    REQUIRE(app->runFrame());
+    CHECK(app->devicesDialog() == nullptr);
+    CHECK_FALSE(std::filesystem::exists(settings_file));
+
+    // The longest latency and OK
+    app->openDevicesDialog();
+    REQUIRE(app->runFrame());
+    const auto middle = [](const Rect &area) { return Point{area.x + (area.width / 2), area.y + (area.height / 2)}; };
+    click(app->libraryWindowId(), middle(app->devicesDialog()->latencyList().bounds()));
+    REQUIRE(app->runFrame());
+    REQUIRE(app->devicesDialog()->latencyList().isOpen());
+    click(app->libraryWindowId(), middle(app->devicesDialog()->latencyList().itemArea(latency_choices.size() - 1)));
+    REQUIRE(app->runFrame());
+    click(app->libraryWindowId(), middle(app->devicesDialog()->okButton().bounds()));
+    REQUIRE(app->runFrame());
+    CHECK(app->devicesDialog() == nullptr);
+    CHECK(parseSettings(readFile(settings_file)).buffer_frames == latency_choices.back());
 }

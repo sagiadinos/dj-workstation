@@ -40,7 +40,9 @@ namespace djw::core::runtime
             std::expected<void, std::string>             start() override;
             api::CommandQueue                           &commandQueue() noexcept override { return frontend_queue; }
             api::DeckSnapshotBuffer                     *deckSnapshot(api::DeckId deck) noexcept override;
-            api::MixerSnapshotBuffer &mixerSnapshot() noexcept override { return engine.mixerSnapshot(); }
+            api::MixerSnapshotBuffer   &mixerSnapshot() noexcept override { return engine.mixerSnapshot(); }
+            [[nodiscard]] std::uint32_t sampleRate() const noexcept override { return device->sampleRate(); }
+            [[nodiscard]] std::uint32_t bufferFrames() const noexcept override { return buffer_frames; }
 
         private:
             /// Lets the audio device call the engine
@@ -55,6 +57,7 @@ namespace djw::core::runtime
             };
 
             decode::TrackLoadConfig track_config;
+            std::uint32_t           buffer_frames;
             engine::Engine          engine;
             api::CommandQueue      &frontend_queue;
             EngineCallback          callback;

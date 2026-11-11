@@ -41,6 +41,7 @@ namespace djw::player_ui::sdl
             constexpr int edit_layout            = 18;
             constexpr int arrange_automatically  = 19;
             constexpr int fullscreen             = 20;
+            constexpr int devices                = 21;
             constexpr int language_base          = 100;
         } // namespace menu_id
 
@@ -571,8 +572,11 @@ namespace djw::player_ui::sdl
               {.id = menu_id::playlist_import, .label = tr("menu.playlist.import"), .enabled = has_playlists},
               {.id = menu_id::playlist_export, .label = tr("menu.playlist.export"), .enabled = has_playlists},
               {.id = menu_id::playlist_add_track, .label = tr("menu.playlist.add_track"), .enabled = can_add_track}}});
-        // No settings yet but the language, which has its own menu
-        menus.push_back({tr("menu.settings"), {{.id = 0, .label = tr("menu.settings.none"), .enabled = false}}});
+        // The language has a menu of its own
+        menus.push_back({tr("menu.settings"),
+                         {{.id      = menu_id::devices,
+                           .label   = tr("menu.settings.devices"),
+                           .enabled = static_cast<bool>(devices_dialog)}}});
         menus.push_back({tr("menu.language"), std::move(language_items)});
         menus.push_back({tr("menu.view"),
                          {{.id       = menu_id::new_deck_entry,
@@ -669,6 +673,12 @@ namespace djw::player_ui::sdl
                 if (edit_layout)
                 {
                     edit_layout();
+                }
+                break;
+            case menu_id::devices:
+                if (devices_dialog)
+                {
+                    devices_dialog();
                 }
                 break;
             case menu_id::fullscreen:

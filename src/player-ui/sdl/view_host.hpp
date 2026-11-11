@@ -58,6 +58,14 @@ namespace djw::player_ui::sdl
             [[nodiscard]] bool        contains(const View &view) const noexcept;
             /// The area the view was laid out in at the last layout(); std::nullopt for an unknown view
             [[nodiscard]] std::optional<Rect> areaOf(const View &view) const noexcept;
+            /// Typed text goes to view from now on (e.g. a dialog that opened); ignored for a view not shown
+            void setFocus(View &view)
+            {
+                if (contains(view))
+                {
+                    focus = &view;
+                }
+            }
             /// The view typed text goes to; nullptr without views
             [[nodiscard]] View *focused() const noexcept;
 

@@ -356,3 +356,10 @@ TEST_CASE("RuntimeCore: the user setting the cue point is counted, loading a tra
     CHECK(state.cue_set_count == 1);
     CHECK(state.cue_seconds == doctest::Approx(1.0));
 }
+
+TEST_CASE("RuntimeCore: tells the device's sample rate and the buffer size it was created with")
+{
+    Fixture fixture{api::CoreConfig{.buffer_frames = 512}, 44'100};
+    CHECK(fixture.core->sampleRate() == 44'100);
+    CHECK(fixture.core->bufferFrames() == 512);
+}

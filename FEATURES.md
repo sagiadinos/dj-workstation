@@ -168,8 +168,8 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Master/headphones on two devices | 1 | With drift compensation via resampling. |
 | One output per deck | 1 | External mixer mode from the original version: every deck on its own channels, internal mixer bypassed. |
 | DVS inputs | 1 | One input channel pair per deck, see 4.6. |
-| Configurable buffer size | M | Native target: 128 to 256 samples. |
-| Sample rate | M | 44.1 / 48 kHz, float32 internally. |
+| Latency | M | Settings > Devices: buffer size from shortest to safe (128 to 1024 frames, 2.7 to 21 ms at 48 kHz), takes effect at the next start. The dialog is where driver and device are chosen later. |
+| Sample rate | L | The device's rate is used, tracks are converted when loaded; float32 internally. A choice only if a device needs it. |
 | Live switching | 1 | Change devices without restart (the original version required a restart). |
 
 ### 4.4 Automix and playlist
