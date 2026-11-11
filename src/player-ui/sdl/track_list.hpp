@@ -21,9 +21,10 @@ namespace djw::player_ui::sdl
     /**
      * Scrollable list of tracks with the columns of track_columns; tracks whose file is missing show in red.
      *
-     * Dragging scrolls (touch and mouse alike); a tap selects a row, a second tap on the same row within
-     * double_tap_time activates it, e.g. to load it into a deck. Holding a cell still for long_press_time presses it
-     * long, e.g. to edit it; the release then is no tap. A drag never selects anything.
+     * Dragging scrolls (touch and mouse alike) and, let go while moving, the list runs on and slows down (kinetic
+     * scrolling, see advance()); a touch, the wheel or the keys stop it. A tap selects a row, a second tap on the same
+     * row within double_tap_time activates it, e.g. to load it into a deck. Holding a cell still for long_press_time
+     * presses it long, e.g. to edit it; the release then is no tap. A drag never selects anything.
      */
     class TrackList final : public Widget
     {
@@ -32,6 +33,13 @@ namespace djw::player_ui::sdl
             static constexpr float                     tap_slop   = 8.0F;  // movement that still counts as tap
             static constexpr std::chrono::milliseconds double_tap_time{400};
             static constexpr std::chrono::milliseconds long_press_time{500};
+            /// Kinetic scrolling: how fast it slows down (the speed falls to 1/e in this time), the slowest let-go
+            /// speed that starts it and the speed at which it stops, in points per second
+            static constexpr double fling_time_constant = 0.325;
+            static constexpr double fling_min_speed     = 60.0;
+            static constexpr double fling_stop_speed    = 15.0;
+            /// The moves within this time before the finger lifts give the speed
+            static constexpr std::chrono::milliseconds fling_sample_time{100};
 
             /// A cell of the list
             struct Cell
@@ -80,8 +88,13 @@ namespace djw::player_ui::sdl
             [[nodiscard]] std::optional<Rect> cellArea(const Cell &cell) const;
 
             [[nodiscard]] float scrollOffset() const noexcept { return offset; }
-            /// Scrolls by dy points (positive: content moves down, towards the top of the list), clamped
+            /// Scrolls by dy points (positive: content moves down, towards the top of the list), clamped; stops a
+            /// running fling
             void scrollBy(float dy) noexcept;
+            /// Moves a fling on to where it is now; call once per frame
+            void advance();
+            /// The list runs on after a drag
+            [[nodiscard]] bool flinging() const noexcept { return fling.has_value(); }
 
             void pointerDown(Point position) override;
             void pointerMove(Point position) override;
@@ -93,6 +106,7 @@ namespace djw::player_ui::sdl
             [[nodiscard]] float               maxOffset() const noexcept;
             [[nodiscard]] std::optional<Cell> cellAt(Point position) const noexcept;
             void                              tap(Point position);
+            void                              startFling();
 
             Clock                                 clock;
             std::vector<core::api::LibraryTrack>  rows;
@@ -109,6 +123,21 @@ namespace djw::player_ui::sdl
             bool                                  held         = false;
             bool                                  dragging     = false;
             bool                                  long_pressed = false;
+            /// The drag's last positions: when and at which offset, for the speed at let-go
+            struct Sample
+            {
+                    std::chrono::steady_clock::time_point time;
+                    float                                 offset = 0.0F;
+            };
+            std::vector<Sample> samples;
+            /// A list running on after a drag: from where and how fast (points per second, positive towards the end)
+            struct Fling
+            {
+                    std::chrono::steady_clock::time_point start;
+                    float                                 from  = 0.0F;
+                    double                                speed = 0.0;
+            };
+            std::optional<Fling> fling;
     };
 } // namespace djw::player_ui::sdl
 

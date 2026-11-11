@@ -250,7 +250,7 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 | Feature | Prio | Description |
 |---|---|---|
 | Multitouch | M | Several fingers at once, each finger captures a widget on touch down. |
-| Custom widget layer | M | Fader, knob, button, jog, waveform, list with kinetic scrolling, text field. |
+| Custom widget layer | M | Fader, button, waveform, list with kinetic scrolling (it runs on after a drag and slows down), text field. Knob and jog wheel come with M2. |
 | Player windows | M | Core idea of the original version: every player unit is its own OS window, any number can be opened and closed, freely movable and resizable, also across several monitors. On platforms with only one window (KMSDRM kiosk, Android, iOS, Web) the player units are arranged inside the main window. |
 | Saved layouts | M | Save and load position and size of all player windows. |
 | HiDPI | M | Resolution-independent scaling. |
@@ -336,8 +336,8 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Milestone | Scope |
 |---|---|
 | M0 Skeleton | CMake, core/UI separation, miniaudio output, one deck plays a file, SDL3 window with fader and button (multitouch capture) |
-| M1 MVP | N decks, mixer with crossfader and headphone cue, keylock, library with scan and fast search, tag editor, playlist, desktop |
-| M2 Controllers | Starlight via TOML mapping, Lua scripting, LED feedback, MIDI learn, hotplug, jog/scratch |
+| M1 MVP | N decks, mixer with crossfader and headphone cue, keylock, library with scan and fast search, tag editor, playlist, desktop; MIDI controllers through TOML mappings with the Starlight as reference, LED feedback, Mixxx import |
+| M2 Controllers | Lua scripting, MIDI learn, hotplug, jog/scratch with on-screen knob and jog wheel |
 | M3 DVS | xwax timecoder, duplex audio, absolute/relative/internal modes, signal display |
 | M4 Analysis | Beatgrid, scrolling waveform, sync, hot cues, loops, EQ, filter |
 | M5 Mobile | Android, iOS |

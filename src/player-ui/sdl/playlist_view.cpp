@@ -302,6 +302,7 @@ namespace djw::player_ui::sdl
 
     void PlaylistView::update()
     {
+        list.advance(); // a fling runs on
         if (name_field.takeFocusRequest())
         {
             name_field.setFocused(true);

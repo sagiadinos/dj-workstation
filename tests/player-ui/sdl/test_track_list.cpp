@@ -271,3 +271,96 @@ TEST_CASE("TrackList: the cursor keys move the selection a row, the page keys a 
     fresh.navigate(EditKey::Up);
     CHECK(fresh.selected() == 2U);
 }
+
+namespace
+{
+    /// A quick drag upwards (the list scrolls towards its end): 60 points in 30 ms, then let go
+    void flick(Fixture &fixture, float distance = 60.0F)
+    {
+        fixture.list.pointerDown({50, 300});
+        for (int step = 1; step <= 3; ++step)
+        {
+            fixture.now += 10ms;
+            fixture.list.pointerMove({50, 300 - (distance * static_cast<float>(step) / 3)});
+        }
+        fixture.list.pointerUp({50, 300 - distance});
+    }
+} // namespace
+
+TEST_CASE("TrackList: let go while moving, the list runs on, slows down and stops")
+{
+    Fixture fixture; // 20 rows, 5 in view
+    flick(fixture);
+    const float let_go = fixture.list.scrollOffset();
+    CHECK(let_go == doctest::Approx(60.0F));
+    REQUIRE(fixture.list.flinging());
+    CHECK_FALSE(fixture.list.selected().has_value()); // a drag selects nothing
+
+    fixture.now += 100ms;
+    fixture.list.advance();
+    const float after_100 = fixture.list.scrollOffset();
+    CHECK(after_100 > let_go);
+    fixture.now += 100ms;
+    fixture.list.advance();
+    const float after_200 = fixture.list.scrollOffset();
+    CHECK(after_200 > after_100);
+    CHECK(after_200 - after_100 < after_100 - let_go); // slower and slower
+
+    fixture.now += 5s;
+    fixture.list.advance();
+    CHECK_FALSE(fixture.list.flinging());
+    // At 2000 points per second and a time constant of 0.325 s it runs some 650 points at most
+    CHECK(fixture.list.scrollOffset() <= let_go + 650.0F + 1.0F);
+}
+
+TEST_CASE("TrackList: a fling stops at the end of the list, at a touch, at the wheel and at the keys")
+{
+    Fixture fixture;
+    flick(fixture, 90.0F);
+    fixture.now += 3s;
+    fixture.list.advance();
+    CHECK(fixture.list.scrollOffset() == doctest::Approx(15 * row)); // the end: 20 rows, 5 in view
+    CHECK_FALSE(fixture.list.flinging());
+
+    for (const int stop : {0, 1, 2})
+    {
+        CAPTURE(stop);
+        fixture.list.scrollBy(1'000.0F); // back to the top
+        flick(fixture);
+        REQUIRE(fixture.list.flinging());
+        if (stop == 0)
+        {
+            fixture.list.pointerDown({50, 200});
+            fixture.list.pointerUp({50, 200});
+        }
+        else if (stop == 1)
+        {
+            fixture.list.scrollBy(-10.0F);
+        }
+        else
+        {
+            fixture.list.navigate(djw::player_ui::sdl::EditKey::Down);
+        }
+        CHECK_FALSE(fixture.list.flinging());
+    }
+}
+
+TEST_CASE("TrackList: a finger that came to rest before it lifts, or a slow drag, gives no fling")
+{
+    Fixture fixture;
+    fixture.list.pointerDown({50, 300});
+    fixture.now += 10ms;
+    fixture.list.pointerMove({50, 250});
+    fixture.now += 300ms; // held still
+    fixture.list.pointerUp({50, 250});
+    CHECK_FALSE(fixture.list.flinging());
+
+    fixture.list.pointerDown({50, 300});
+    for (int step = 1; step <= 10; ++step)
+    {
+        fixture.now += 100ms;
+        fixture.list.pointerMove({50, 300.0F - static_cast<float>(step) * 3.0F});
+    }
+    fixture.list.pointerUp({50, 270});
+    CHECK_FALSE(fixture.list.flinging()); // 30 points per second: too slow
+}

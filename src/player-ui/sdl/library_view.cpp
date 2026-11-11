@@ -404,6 +404,7 @@ namespace djw::player_ui::sdl
         {
             commitEdit();
         }
+        list.advance(); // a fling runs on
         if (const auto cell = list.takeLongPress())
         {
             startEdit(*cell);

@@ -30,6 +30,7 @@ namespace djw::player_ui::sdl
         rows = std::move(tracks);
         if (!keep_position)
         {
+            fling.reset();
             offset = 0.0F;
             selection.reset();
             last_tap_row.reset();
@@ -48,6 +49,7 @@ namespace djw::player_ui::sdl
 
     void TrackList::moveSelection(std::ptrdiff_t by) noexcept
     {
+        fling.reset(); // the keys take over
         if (rows.empty())
         {
             return;
@@ -108,6 +110,7 @@ namespace djw::player_ui::sdl
 
     void TrackList::scrollBy(float dy) noexcept
     {
+        fling.reset();
         offset = std::clamp(offset - dy, 0.0F, maxOffset());
     }
 
@@ -178,6 +181,8 @@ namespace djw::player_ui::sdl
 
     void TrackList::pointerDown(Point position)
     {
+        fling.reset(); // a touch catches a running list
+        samples.clear();
         start        = position;
         down_time    = clock();
         start_offset = offset;
@@ -195,7 +200,10 @@ namespace djw::player_ui::sdl
         }
         if (dragging)
         {
-            offset = std::clamp(start_offset - (position.y - start.y), 0.0F, maxOffset());
+            offset         = std::clamp(start_offset - (position.y - start.y), 0.0F, maxOffset());
+            const auto now = clock();
+            samples.push_back({.time = now, .offset = offset});
+            std::erase_if(samples, [now](const Sample &sample) { return now - sample.time > fling_sample_time; });
         }
     }
 
@@ -205,8 +213,52 @@ namespace djw::player_ui::sdl
         {
             tap(position);
         }
+        else if (dragging)
+        {
+            startFling();
+        }
         held     = false;
         dragging = false;
+        samples.clear();
+    }
+
+    void TrackList::startFling()
+    {
+        // The speed of the moves just before the finger lifted; a finger that came to rest gives no fling
+        const auto now = clock();
+        std::erase_if(samples, [now](const Sample &sample) { return now - sample.time > fling_sample_time; });
+        if (samples.size() < 2)
+        {
+            return;
+        }
+        const double seconds = std::chrono::duration<double>(samples.back().time - samples.front().time).count();
+        if (seconds <= 0.0)
+        {
+            return;
+        }
+        const double speed = static_cast<double>(samples.back().offset - samples.front().offset) / seconds;
+        if (std::abs(speed) >= fling_min_speed)
+        {
+            fling = Fling{.start = now, .from = offset, .speed = speed};
+        }
+    }
+
+    void TrackList::advance()
+    {
+        if (!fling)
+        {
+            return;
+        }
+        // The speed falls exponentially; the way gone is its integral
+        const double seconds = std::chrono::duration<double>(clock() - fling->start).count();
+        const double fading  = std::exp(-seconds / fling_time_constant);
+        const double way     = fling->speed * fling_time_constant * (1.0 - fading);
+        const float  target  = fling->from + static_cast<float>(way);
+        offset               = std::clamp(target, 0.0F, maxOffset());
+        if (offset != target || std::abs(fling->speed * fading) < fling_stop_speed)
+        {
+            fling.reset(); // at an end of the list, or slow enough to stop
+        }
     }
 
     void TrackList::tap(Point position)
