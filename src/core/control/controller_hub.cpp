@@ -146,7 +146,9 @@ namespace djw::core::control
 
     bool ControllerHub::isSystemPort(std::string_view port)
     {
-        return port.starts_with("Midi Through");
+        // ALSA's pass-through, and the ports of the program itself (this one or another one running)
+        const std::string own = std::string{midi_client_name} + ":";
+        return port.starts_with("Midi Through") || port.starts_with(own);
     }
 
     std::vector<std::string> ControllerHub::ports() const

@@ -15,6 +15,10 @@
 
 namespace djw::core::control
 {
+    /// The name the program's own MIDI client has; its ports (e.g. the output to a controller's lights) show up
+    /// among the system's ports as "djw:..." and are no controller
+    inline constexpr std::string_view midi_client_name = "djw";
+
     /// An open MIDI input port; it closes when destroyed, after which no message arrives any more
     class MidiPort
     {

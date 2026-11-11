@@ -177,10 +177,10 @@ TEST_CASE("ControllerHub: ports are known without the numbers ALSA adds, so an a
     CHECK(hub.connections()[0].mapping == "Second");
 }
 
-TEST_CASE("ControllerHub: ALSA's Midi Through port is no controller: not listed, never opened")
+TEST_CASE("ControllerHub: ALSA's Midi Through and the program's own ports are no controllers: not listed, not opened")
 {
     auto state   = std::make_shared<FakeMidiSystem::State>();
-    state->ports = {"Midi Through:Midi Through Port-0 14:0", "Pad 20:0"};
+    state->ports = {"Midi Through:Midi Through Port-0 14:0", "djw:djw 129:0", "Pad 20:0"};
     ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mappingFor("Any", "")}};
     CHECK(hub.ports() == std::vector<std::string>{"Pad"});
     static_cast<void>(hub.connect({{"Midi Through:Midi Through Port-0", "Any"}}));

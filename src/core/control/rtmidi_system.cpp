@@ -12,7 +12,8 @@ namespace djw::core::control
 {
     namespace
     {
-        constexpr const char *client_name = "djw";
+        constexpr const char *client_name = "djw"; // RtMidi wants a C string
+        static_assert(std::string_view{client_name} == midi_client_name);
 
         /// Errors go to the caller as values, not to the console
         void quiet(RtMidiError::Type /*type*/, const std::string & /*text*/, void * /*user*/) {}
