@@ -131,7 +131,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Seek with audible scrub | M | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
 | Waveform overview | M | Whole track, click/touch to jump. |
 | Scrolling waveform | 1 | Zoomable, with beatgrid. |
-| BPM display | M | From analysis, manually correctable (tap, halve/double). |
+| BPM display | M | From the analysis, with the pitch taken into account. |
 | Beatgrid | 1 | From analysis, manually adjustable. |
 | Sync | 1 | Match tempo and phase to the master deck. |
 | Hot cues | 1 | 4 to 8 per track, stored in the database. |
@@ -176,7 +176,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 
 | Feature | Prio | Description |
 |---|---|---|
-| Playlist/queue | M | Create, reorder via drag and drop, delete entries. Next track highlighted. |
+| Playlist/queue | M | Create, reorder (up/down), delete entries. Next track highlighted. |
 | Double tap to jump | M | The tapped track becomes the next one. |
 | Autoplay | M | Next track starts X seconds before the end of the current one. Source: playlist or selected track in the library. |
 | Autofade | M | Automatic crossfade with configurable duration. |
@@ -199,7 +199,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Column filters | M | From the original version: separate search fields for artist, title, genre and year directly above the columns. |
 | Wildcard search | M | `*` and `?` in search fields. |
 | Sorting | M | By any column. |
-| Columns | M | Artist, title, genre, year, duration, BPM, last played. |
+| Columns | M | Artist, title, genre, year, duration, BPM. |
 | Tag editor | M | Table-based, writes to file and database (TagLib): ID3v2, Vorbis comments, FLAC. |
 | Missing tags | M | Derive artist/title from the file name. |
 | Saved playlists | M | In the database, import/export M3U/M3U8. |
@@ -233,7 +233,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | LED feedback | 1 | Core state → MIDI out, in the same mapping file. |
 | MIDI learn | 1 | In the UI, writes the mapping file. |
 | Reference controller | M | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). |
-| Keyboard shortcuts | M | Configurable. Defaults from the original version: P = play, C = cue, L = load, plus deck selection. |
+| Keyboard shortcuts | M | From the original version, in the player that has the keyboard focus: P = play/pause, C = cue (acts while held), L = load. |
 
 A mapping looks like this:
 ```toml
@@ -257,7 +257,7 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 | Multitouch | M | Several fingers at once, each finger captures a widget on touch down. |
 | Custom widget layer | M | Fader, knob, button, jog, waveform, list with kinetic scrolling, text field. |
 | Player windows | M | Core idea of the original version: every player unit is its own OS window, any number can be opened and closed, freely movable and resizable, also across several monitors. On platforms with only one window (KMSDRM kiosk, Android, iOS, Web) the player units are arranged inside the main window. |
-| Saved layouts | M | Save and load position and size of all player windows per monitor setup. |
+| Saved layouts | M | Save and load position and size of all player windows. |
 | HiDPI | M | Resolution-independent scaling. |
 | Fullscreen/kiosk | M | Borderless, for touch terminals. |
 | On-screen keyboard | M | For search on touch-only devices (SDL3 text input). |

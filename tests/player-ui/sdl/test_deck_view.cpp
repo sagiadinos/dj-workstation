@@ -760,3 +760,42 @@ TEST_CASE("DeckView: on a playing deck the cursor keys jump; without a track or 
     fixture.view.update();
     CHECK(fixture.drain().empty());
 }
+
+TEST_CASE("DeckView: P plays and pauses, C acts as CUE while held, L loads unless the player plays")
+{
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 0.0, .duration_seconds = 100.0});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Play, true});
+    fixture.view.update();
+    auto commands = fixture.drain();
+    REQUIRE(commands.size() == 1);
+    CHECK(std::holds_alternative<api::DeckPlay>(commands[0]));
+
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Cue, true});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Cue, false});
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(commands.size() == 2);
+    CHECK(std::get<api::DeckCue>(commands[0]).pressed);
+    CHECK_FALSE(std::get<api::DeckCue>(commands[1]).pressed);
+
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Load, true});
+    fixture.view.update();
+    CHECK(fixture.loads == 1);
+    fixture.view.update();
+    CHECK(fixture.loads == 1); // once per press
+
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
+                  .play_state       = api::PlayState::Playing,
+                  .position_seconds = 10.0,
+                  .duration_seconds = 100.0});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Load, true});
+    fixture.view.update();
+    CHECK(fixture.loads == 1); // a playing player is not loaded
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Play, true});
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(commands.size() == 1);
+    CHECK(std::holds_alternative<api::DeckPause>(commands[0]));
+}

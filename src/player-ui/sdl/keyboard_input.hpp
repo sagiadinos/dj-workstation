@@ -31,8 +31,26 @@ namespace djw::player_ui::sdl
         ShiftRight
     };
 
-    /// Typed text (UTF-8, from a physical or on-screen keyboard, after input methods) or an editing key
-    using KeyboardInput = std::variant<std::string, EditKey>;
+    /// The keys of a player, from the original version: P play/pause, C cue, L load. Pressed without Ctrl, Alt or the
+    /// system key; C also when let go, since CUE acts while held.
+    struct PlayerKey
+    {
+            enum class Key : std::uint8_t
+            {
+                Play,
+                Cue,
+                Load
+            };
+            Key  key  = Key::Play;
+            bool down = true;
+
+            bool operator==(const PlayerKey &) const = default;
+    };
+
+    /// Typed text (UTF-8, from a physical or on-screen keyboard, after input methods), an editing key or a key of a
+    /// player. A letter of a player key comes as both while a text field takes the typing; the views take what is
+    /// theirs.
+    using KeyboardInput = std::variant<std::string, EditKey, PlayerKey>;
 } // namespace djw::player_ui::sdl
 
 #endif // DJW_PLAYER_UI_SDL_KEYBOARD_INPUT_HPP

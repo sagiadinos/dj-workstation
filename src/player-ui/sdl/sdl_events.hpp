@@ -24,7 +24,8 @@ namespace djw::player_ui::sdl
      */
     std::optional<PointerEvent> toPointerEvent(const SDL_Event &event, float window_width, float window_height);
 
-    /// Typed text and the editing keys (Backspace, Enter, Escape), std::nullopt for all other events
+    /// Typed text, the editing and moving keys (Backspace, Enter, Escape, Tab, cursor and page keys) and the player
+    /// keys (P, C, L; C also when let go), std::nullopt for all other events
     std::optional<KeyboardInput> toKeyboardInput(const SDL_Event &event);
 
     /// Mouse wheel turned at position; positive dy scrolls up, whatever the system's scroll direction

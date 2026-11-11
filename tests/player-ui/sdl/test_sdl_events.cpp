@@ -130,6 +130,29 @@ TEST_CASE("toKeyboardInput: typed text and the editing keys, nothing else")
     CHECK(toKeyboardInput(shifted) == KeyboardInput{EditKey::ShiftLeft});
     shifted.key.key = SDLK_RIGHT;
     CHECK(toKeyboardInput(shifted) == KeyboardInput{EditKey::ShiftRight});
+}
+
+TEST_CASE("toKeyboardInput: P, C and L are player keys, C also when let go; not with Ctrl, not repeated")
+{
+    const auto key = [](SDL_EventType type, SDL_Keycode code, SDL_Keymod mod = SDL_KMOD_NONE, bool repeat = false)
+    {
+        SDL_Event event{};
+        event.type       = type;
+        event.key.key    = code;
+        event.key.mod    = mod;
+        event.key.repeat = repeat;
+        return toKeyboardInput(event);
+    };
+    using Key = PlayerKey::Key;
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_P) == KeyboardInput{PlayerKey{Key::Play, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_L) == KeyboardInput{PlayerKey{Key::Load, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_C) == KeyboardInput{PlayerKey{Key::Cue, true}});
+    CHECK(key(SDL_EVENT_KEY_UP, SDLK_C) == KeyboardInput{PlayerKey{Key::Cue, false}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_LSHIFT) == KeyboardInput{PlayerKey{Key::Play, true}});
+    CHECK_FALSE(key(SDL_EVENT_KEY_UP, SDLK_P).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_LCTRL).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_C, SDL_KMOD_NONE, true).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_L, SDL_KMOD_LALT).has_value());
 
     SDL_Event up{};
     up.type    = SDL_EVENT_KEY_UP;

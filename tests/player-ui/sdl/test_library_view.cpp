@@ -1007,3 +1007,13 @@ TEST_CASE("LibraryView: the cursor keys move the selection in the list, also whi
     REQUIRE(fixture.loaded.size() == 1);
     CHECK(fixture.loaded[0].id == fixture.view.trackList().tracks()[0].id);
 }
+
+TEST_CASE("LibraryView: the player keys do nothing in the library, the letter comes as typed text")
+{
+    Fixture fixture;
+    fixture.view.keyboard(EditKey::Tab); // the search field takes the typing
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Play, true});
+    fixture.view.keyboard(std::string{"p"});
+    CHECK(fixture.view.searchField().text() == "p");
+    CHECK(fixture.loaded.empty());
+}

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <utility>
 
 namespace djw::player_ui::sdl
 {
@@ -217,13 +218,16 @@ namespace djw::player_ui::sdl
     {
         // The Load button asks the owner, which knows the library's selection; a playing player cannot be loaded
         load_button.setEnabled(!playing() && static_cast<bool>(on_load));
-        if (load_button.takePress() && on_load)
+        const bool load_pressed = load_button.takePress();
+        const bool load_typed   = std::exchange(load_key, false) && !playing();
+        if ((load_pressed || load_typed) && on_load)
         {
             on_load();
         }
 
         // Decided on the state the user sees, so a press always does what the button shows
-        if (play_button.takePress())
+        const bool play_pressed = play_button.takePress();
+        if (std::exchange(play_key, false) || play_pressed)
         {
             if (playing())
             {
@@ -313,6 +317,23 @@ namespace djw::player_ui::sdl
 
     void DeckView::keyboard(const KeyboardInput &input)
     {
+        if (const auto *player_key = std::get_if<PlayerKey>(&input))
+        {
+            // Like the buttons: play and load when the frame is updated, CUE at once on press and on release
+            switch (player_key->key)
+            {
+                case PlayerKey::Key::Play:
+                    play_key = true;
+                    break;
+                case PlayerKey::Key::Load:
+                    load_key = true;
+                    break;
+                case PlayerKey::Key::Cue:
+                    pending.emplace_back(core::api::DeckCue{deck, player_key->down});
+                    break;
+            }
+            return;
+        }
         const auto *key = std::get_if<EditKey>(&input);
         if (key == nullptr || !state.track_loaded || state.duration_seconds <= 0.0)
         {

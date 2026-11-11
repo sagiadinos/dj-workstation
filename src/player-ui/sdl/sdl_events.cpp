@@ -65,7 +65,32 @@ namespace djw::player_ui::sdl
         {
             return KeyboardInput{std::string{event.text.text}};
         }
-        if (event.type != SDL_EVENT_KEY_DOWN)
+        if (event.type != SDL_EVENT_KEY_DOWN && event.type != SDL_EVENT_KEY_UP)
+        {
+            return std::nullopt;
+        }
+        const bool down = event.type == SDL_EVENT_KEY_DOWN;
+        // The player keys, as long as no Ctrl, Alt or system key is held (Ctrl+F and the like are something else)
+        if ((event.key.mod & (SDL_KMOD_CTRL | SDL_KMOD_ALT | SDL_KMOD_GUI)) == 0)
+        {
+            switch (event.key.key)
+            {
+                case SDLK_P:
+                    return down && !event.key.repeat
+                               ? std::optional{KeyboardInput{PlayerKey{PlayerKey::Key::Play, true}}}
+                               : std::nullopt;
+                case SDLK_L:
+                    return down && !event.key.repeat
+                               ? std::optional{KeyboardInput{PlayerKey{PlayerKey::Key::Load, true}}}
+                               : std::nullopt;
+                case SDLK_C:
+                    return event.key.repeat ? std::nullopt
+                                            : std::optional{KeyboardInput{PlayerKey{PlayerKey::Key::Cue, down}}};
+                default:
+                    break;
+            }
+        }
+        if (!down)
         {
             return std::nullopt;
         }

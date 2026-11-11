@@ -31,9 +31,9 @@ namespace djw::player_ui::sdl
         {
             content += *typed;
         }
-        else
+        else if (const auto *key = std::get_if<EditKey>(&input))
         {
-            switch (std::get<EditKey>(input))
+            switch (*key)
             {
                 case EditKey::Backspace:
                     popCodePoint(content);
