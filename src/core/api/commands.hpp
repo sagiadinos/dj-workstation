@@ -151,11 +151,10 @@ namespace djw::core::api
      * thread. Keep it that way: a command that needs a string or a buffer (e.g. loading a file) is handled outside
      * the audio thread.
      */
-    using Command =
-        std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckScrub, DeckSetPitch, DeckPitchBend, DeckSetKeylock,
-                     MixerSetChannelVolume,
-                     MixerAssignCrossfader, MixerSetCrossfader, MixerCrossfaderMomentary, MixerSetMasterVolume,
-                     MixerSetHeadphoneCue, MixerSetHeadphoneLevel, MixerSetCueMix, MixerSetHeadphoneVolume>;
+    using Command = std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckScrub, DeckSetPitch, DeckPitchBend,
+                                 DeckSetKeylock, MixerSetChannelVolume, MixerAssignCrossfader, MixerSetCrossfader,
+                                 MixerCrossfaderMomentary, MixerSetMasterVolume, MixerSetHeadphoneCue,
+                                 MixerSetHeadphoneLevel, MixerSetCueMix, MixerSetHeadphoneVolume>;
 
     static_assert(std::is_trivially_copyable_v<Command>);
 

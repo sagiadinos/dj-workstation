@@ -54,7 +54,10 @@ namespace
             std::filesystem::path                 in_use{"/m/b.mp3"};
             djw::tests::FakeDialogs               dialogs;
             Translator                            translator;
-            LibraryView   view{library, dialogs, translator, [this](const api::LibraryTrack &track) { loaded.push_back(track); },
+            LibraryView   view{library,
+                               dialogs,
+                               translator,
+                               [this](const api::LibraryTrack &track) { loaded.push_back(track); },
                                [this](const std::filesystem::path &file) { return file == in_use; },
                                [this] { return now; }};
             PointerRouter router;
@@ -523,7 +526,8 @@ TEST_CASE("LibraryView: the Playlist menu is off without a playlist window, othe
     fixture.view.keyboard(EditKey::Escape);
 
     std::vector<LibraryView::PlaylistCommand> commands;
-    fixture.view.setPlaylistCommands([&commands](LibraryView::PlaylistCommand command) { commands.push_back(command); });
+    fixture.view.setPlaylistCommands([&commands](LibraryView::PlaylistCommand command)
+                                     { commands.push_back(command); });
     fixture.view.update();
     chooseEntry(fixture, 1, 0);
     chooseEntry(fixture, 1, 1);
@@ -534,7 +538,7 @@ TEST_CASE("LibraryView: the Playlist menu is off without a playlist window, othe
 
 TEST_CASE("LibraryView: Add selected track needs a selected track")
 {
-    Fixture fixture;
+    Fixture                   fixture;
     std::vector<std::int64_t> added;
     fixture.view.setAddToPlaylist([&added](const api::LibraryTrack &track) { added.push_back(track.id); });
     fixture.view.setPlaylistCommands([](LibraryView::PlaylistCommand) {});
@@ -552,7 +556,7 @@ TEST_CASE("LibraryView: Add selected track needs a selected track")
 
 TEST_CASE("LibraryView: the Language menu lists the languages and reports the one chosen")
 {
-    Fixture fixture;
+    Fixture               fixture;
     std::vector<Language> chosen;
     fixture.view.setOnLanguage([&chosen](Language language) { chosen.push_back(language); });
     chooseEntry(fixture, 3, 1);
@@ -594,7 +598,7 @@ TEST_CASE("LibraryView: View clears the search and the filters, and shows only m
 TEST_CASE("LibraryView: all texts follow the language at once")
 {
     Fixture fixture;
-    fixture.library.library_status.tracks_total = 1;
+    fixture.library.library_status.tracks_total  = 1;
     fixture.library.library_status.missing_total = 3;
     fixture.view.update();
     CHECK(fixture.view.statusText() == "1 track");
@@ -623,7 +627,7 @@ TEST_CASE("LibraryView: all texts follow the language at once")
 
 TEST_CASE("LibraryView: Escape closes an open menu")
 {
-    Fixture fixture;
+    Fixture    fixture;
     const Rect title = fixture.view.menuBar().titleArea(0);
     fixture.tap({title.x + 10, title.y + 10});
     REQUIRE(fixture.view.menuBar().isOpen());

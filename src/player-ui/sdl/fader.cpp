@@ -74,7 +74,8 @@ namespace djw::player_ui::sdl
 
         // The groove spans the full travel and a little more, so the grip never leaves it
         const Rect groove{slot_x, area.y, slot, area.height};
-        look::groove(canvas, groove, true, (range.y + range.height - knob_y + (knob / 2)) / std::max(1.0F, area.height));
+        look::groove(canvas, groove, true,
+                     (range.y + range.height - knob_y + (knob / 2)) / std::max(1.0F, area.height));
         look::knob(canvas, {area.x, knob_y - knob / 2, area.width, knob}, held, true);
     }
 } // namespace djw::player_ui::sdl

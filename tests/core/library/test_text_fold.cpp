@@ -38,3 +38,12 @@ TEST_CASE("foldText: other scripts, signs and broken UTF-8 pass through unchange
     const std::string broken{"a\xC3"};
     CHECK(foldText(broken) == broken);
 }
+
+TEST_CASE("foldText: the first and last letter of the folded range are folded, their neighbours outside are not")
+{
+    CHECK(foldText("À") == "a");         // À, the first in the table
+    CHECK(foldText("ſ") == "s");         // ſ, the last
+    CHECK(foldText("¿") == "¿");         // ¿, just before the table
+    CHECK(foldText("ƀ") == "ƀ");         // ƀ, just after it
+    CHECK(foldText("xÀyſz") == "xaysz"); // in the middle of other text
+}

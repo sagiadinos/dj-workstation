@@ -16,7 +16,6 @@ namespace djw::player_ui::sdl
 
         constexpr Color frame_color{70, 70, 70};
         constexpr Color focus_color{80, 160, 255};
-        constexpr Color fill_color{35, 35, 35};
         constexpr Color text_color{230, 230, 230};
         constexpr Color placeholder_color{130, 130, 130};
     } // namespace
@@ -58,7 +57,8 @@ namespace djw::player_ui::sdl
     void TextField::draw(Canvas &canvas) const
     {
         const Rect &area = bounds();
-        canvas.fillRoundedRect(area, 5.0F, has_focus ? focus_color : frame_color, has_focus ? focus_color : frame_color);
+        canvas.fillRoundedRect(area, 5.0F, has_focus ? focus_color : frame_color,
+                               has_focus ? focus_color : frame_color);
         const Rect inner = area.inset(2.0F);
         canvas.fillRoundedRect(inner, 4.0F, {16, 17, 20}, {30, 32, 36});
 

@@ -50,9 +50,9 @@ TEST_CASE("Layout: what is saved comes back the same, with any number of players
 
 TEST_CASE("Layout: windows may be at negative positions (a screen left of the main one)")
 {
-    Layout layout = fiveWithMixer();
+    Layout layout             = fiveWithMixer();
     layout.players[0].place.x = -1'800;
-    const auto again = parseLayout(formatLayout(layout));
+    const auto again          = parseLayout(formatLayout(layout));
     REQUIRE(again.has_value());
     CHECK(again->players[0].place.x == -1'800);
 }
@@ -64,9 +64,9 @@ TEST_CASE("Layout: damaged or foreign text is no layout")
     CHECK_FALSE(parseLayout("something else\n").has_value());
     CHECK_FALSE(parseLayout("djw-layout 2\n" + good.substr(good.find('\n') + 1)).has_value());
     CHECK_FALSE(parseLayout(good + "unknown 1 2 3 4\n").has_value());
-    CHECK_FALSE(parseLayout(good + "player A 0 0 50 50\n").has_value());     // too small to be a window
-    CHECK_FALSE(parseLayout(good + "player X 0 0 380 514\n").has_value());   // no such side
-    CHECK_FALSE(parseLayout(good + "player A 0 0 380 abc\n").has_value());   // not a number
+    CHECK_FALSE(parseLayout(good + "player A 0 0 50 50\n").has_value());         // too small to be a window
+    CHECK_FALSE(parseLayout(good + "player X 0 0 380 514\n").has_value());       // no such side
+    CHECK_FALSE(parseLayout(good + "player A 0 0 380 abc\n").has_value());       // not a number
     CHECK_FALSE(parseLayout("djw-layout 1\nlibrary 0 0 700 600\n").has_value()); // no player, no mixer
     // A missing line makes it incomplete
     std::string no_mixer = good.substr(0, good.find("mixer"));

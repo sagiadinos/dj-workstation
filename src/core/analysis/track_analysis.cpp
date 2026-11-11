@@ -39,13 +39,13 @@ namespace djw::core::analysis
         {
             all.push_back(current);
         }
-        const std::size_t columns = std::min(waveform_columns, all.size());
+        const std::size_t         columns = std::min(waveform_columns, all.size());
         std::vector<std::uint8_t> result(columns, 0);
         for (std::size_t column = 0; column < columns; ++column)
         {
             // Block range of this column; every block belongs to exactly one column
-            const std::size_t first = column * all.size() / columns;
-            const std::size_t last  = std::max(first + 1, (column + 1) * all.size() / columns);
+            const std::size_t first   = column * all.size() / columns;
+            const std::size_t last    = std::max(first + 1, (column + 1) * all.size() / columns);
             float             loudest = 0.0F;
             for (std::size_t block = first; block < last; ++block)
             {

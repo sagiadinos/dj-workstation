@@ -27,18 +27,18 @@ namespace djw::player_ui::sdl
     {
         public:
             /// Replaces the waveform; empty for none
-            void setWaveform(std::vector<std::uint8_t> peaks);
-            [[nodiscard]] bool               hasWaveform() const noexcept { return !waveform.empty(); }
+            void                                           setWaveform(std::vector<std::uint8_t> peaks);
+            [[nodiscard]] bool                             hasWaveform() const noexcept { return !waveform.empty(); }
             [[nodiscard]] const std::vector<std::uint8_t> &peaks() const noexcept { return waveform; }
 
             /// How much of the track is in memory (0 to 1); the rest shows in gray
-            void               setLoaded(float fraction) noexcept;
+            void                setLoaded(float fraction) noexcept;
             [[nodiscard]] float loaded() const noexcept { return loaded_share; }
             /// The factor the waveform is drawn with: 255 / loudest value, 1 without a waveform or silence
             [[nodiscard]] float gain() const noexcept { return normalize; }
 
             /// The play position as a share of the track (0 to 1)
-            void               setPosition(float fraction) noexcept;
+            void                setPosition(float fraction) noexcept;
             [[nodiscard]] float position() const noexcept { return played; }
             /// The cue point as a share of the track; std::nullopt for none
             void setCue(std::optional<float> fraction) noexcept { cue = fraction; }
@@ -63,10 +63,10 @@ namespace djw::player_ui::sdl
             std::vector<std::uint8_t> waveform;
             std::optional<float>      cue;
             std::optional<float>      chosen;
-            float                     normalize     = 1.0F;
-            float                     loaded_share  = 1.0F;
-            float                     played  = 0.0F;
-            bool                      is_held = false;
+            float                     normalize    = 1.0F;
+            float                     loaded_share = 1.0F;
+            float                     played       = 0.0F;
+            bool                      is_held      = false;
     };
 } // namespace djw::player_ui::sdl
 

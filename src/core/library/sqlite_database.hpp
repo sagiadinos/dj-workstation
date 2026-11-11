@@ -48,9 +48,9 @@ namespace djw::core::library
             /// Ready to run again; bound values are kept until bound anew
             void reset();
 
-            [[nodiscard]] std::string  text(int column) const;
-            [[nodiscard]] std::int64_t integer(int column) const;
-            [[nodiscard]] double       real(int column) const;
+            [[nodiscard]] std::string               text(int column) const;
+            [[nodiscard]] std::int64_t              integer(int column) const;
+            [[nodiscard]] double                    real(int column) const;
             [[nodiscard]] std::vector<std::uint8_t> blob(int column) const;
             /// The column of the current row is NULL
             [[nodiscard]] bool isNull(int column) const;

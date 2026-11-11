@@ -84,8 +84,8 @@ TEST_CASE("TextButton: own colors are used for the background and the label")
 {
     struct ColorCanvas final : djw::player_ui::sdl::Canvas
     {
-            void  fillRect(const Rect &, Color) override {}
-            void  fillRoundedRect(const Rect &, float, Color top, Color bottom) override
+            void fillRect(const Rect &, Color) override {}
+            void fillRoundedRect(const Rect &, float, Color top, Color bottom) override
             {
                 bodies.push_back({top, bottom});
             }

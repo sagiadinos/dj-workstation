@@ -10,7 +10,9 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <memory>
 #include <thread>
 #include <vector>
 
@@ -24,10 +26,15 @@ using djw::tests::readFrames;
 
 namespace
 {
-    std::unique_ptr<MemoryTrack> makeTrack(const FakeDecoderOptions &options, std::size_t chunk_frames)
+    std::unique_ptr<MemoryTrack> makeTrack(const FakeDecoderOptions &options, std::size_t chunk_frames,
+                                           std::shared_ptr<std::atomic<int>> *seeks = nullptr)
     {
         auto decoder = std::make_unique<FakeDecoder>(options);
-        auto track   = MemoryTrack::create(
+        if (seeks != nullptr)
+        {
+            *seeks = decoder->seekCounter();
+        }
+        auto track = MemoryTrack::create(
             std::move(decoder), options.announced_frames != 0 ? options.announced_frames : options.total_frames,
             chunk_frames);
         REQUIRE(track.has_value());
@@ -79,6 +86,24 @@ TEST_CASE("MemoryTrack: the whole track is decoded in the background and reads b
     CHECK_FALSE(track->failed());
 }
 
+TEST_CASE("MemoryTrack: a decoder that gives a few frames per read still fills every chunk exactly")
+{
+    auto track = makeTrack({.total_frames = 10'000, .max_frames_per_read = 300}, 1'000);
+    REQUIRE(waitForAll(*track));
+    const auto samples = readAll(*track);
+    CHECK(samples.size() == 10'000 * 2);
+    CHECK(isRampFrom(samples, 0));
+    CHECK_FALSE(track->failed());
+}
+
+TEST_CASE("MemoryTrack: decoding in order goes on where the decoder is, without seeking")
+{
+    std::shared_ptr<std::atomic<int>> seeks;
+    auto                              track = makeTrack({.total_frames = 50'000}, 1'000, &seeks);
+    REQUIRE(waitForAll(*track));
+    CHECK(seeks->load() <= 1); // at most the one to the start
+}
+
 TEST_CASE("MemoryTrack: decoded parts can be jumped to in any order without delay")
 {
     auto track = makeTrack({.total_frames = 50'000}, 4'096);
@@ -106,6 +131,11 @@ TEST_CASE("MemoryTrack: a seek into a part not decoded yet is decoded first")
     CHECK_FALSE(track->fullyDecoded());
     CHECK(track->read(output) == 10);
     CHECK(isRampFrom(output, 95'000));
+
+    // Then the rest, the parts before the seek included
+    REQUIRE(waitForAll(*track));
+    track->seek(0);
+    CHECK(isRampFrom(readAll(*track), 0));
 }
 
 TEST_CASE("MemoryTrack: a stream shorter than announced ends in silence")
@@ -169,7 +199,7 @@ TEST_CASE("MemoryTrack: can be destroyed while the worker is still decoding")
 TEST_CASE("MemoryTrack: the decoded fraction grows from the first chunk to the whole track")
 {
     // Slow decoding, so the fraction can be seen on its way
-    auto track = makeTrack({.total_frames = 10'000, .read_delay = std::chrono::milliseconds{5}}, 1'000);
+    auto        track = makeTrack({.total_frames = 10'000, .read_delay = std::chrono::milliseconds{5}}, 1'000);
     const float first = track->decodedFraction();
     CHECK(first > 0.0F);
     CHECK(first < 1.0F);

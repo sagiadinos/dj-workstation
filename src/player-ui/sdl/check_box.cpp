@@ -15,7 +15,6 @@ namespace djw::player_ui::sdl
         constexpr float gap      = 8.0F;
 
         constexpr Color box_color{35, 35, 35};
-        constexpr Color frame_color{150, 150, 150};
         constexpr Color check_color{0, 190, 90};
         constexpr Color text_color{230, 230, 230};
     } // namespace

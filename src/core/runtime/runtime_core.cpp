@@ -56,8 +56,8 @@ namespace djw::core::runtime
         return {};
     }
 
-    std::expected<api::LoadedTrack, std::string> RuntimeCore::loadTrack(api::DeckId deck, const std::filesystem::path &file,
-                                                                        const api::LoadOptions &options)
+    std::expected<api::LoadedTrack, std::string>
+    RuntimeCore::loadTrack(api::DeckId deck, const std::filesystem::path &file, const api::LoadOptions &options)
     {
         engine.collectGarbage();
         if (engine.deckSnapshot(deck) == nullptr)
@@ -71,9 +71,9 @@ namespace djw::core::runtime
         }
 
         // Where the deck starts: the cue point given, else the first sound if wanted and known, else the beginning
-        const double        rate = static_cast<double>(track_config.sample_rate);
+        const auto          rate = static_cast<double>(track_config.sample_rate);
         api::LoadedTrack    loaded;
-        std::uint64_t       start = 0;
+        std::uint64_t       start  = 0;
         const std::uint64_t length = (*track)->lengthFrames();
         if (options.cue_seconds && *options.cue_seconds > 0.0)
         {

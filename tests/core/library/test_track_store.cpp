@@ -382,8 +382,9 @@ TEST_CASE("TrackStore: a changed file loses its analysis, a tag edit keeps it")
     const auto id = fixture.store.search({}).value().front().id;
     REQUIRE(fixture.store.setAnalysis(id, 120.0, std::vector<std::uint8_t>{1, 2, 3}).has_value());
 
-    REQUIRE(fixture.store.store(fixture.folder.path() / "a.mp3", {.modified = 1, .size = 2}, {.title = "a, retagged"}, true)
-                .has_value());
+    REQUIRE(
+        fixture.store.store(fixture.folder.path() / "a.mp3", {.modified = 1, .size = 2}, {.title = "a, retagged"}, true)
+            .has_value());
     auto found = fixture.store.search({}).value();
     CHECK(found.front().title == "a, retagged");
     CHECK(found.front().analyzed);

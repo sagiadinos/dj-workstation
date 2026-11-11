@@ -29,7 +29,7 @@ namespace djw::player_ui::sdl
 
             void setItems(std::vector<std::string> new_items);
             /// The entry shown as selected; std::nullopt for none
-            void                                     setSelected(std::optional<std::size_t> index) noexcept { selected = index; }
+            void setSelected(std::optional<std::size_t> index) noexcept { selected = index; }
             [[nodiscard]] std::optional<std::size_t> selectedIndex() const noexcept { return selected; }
 
             /// Where the closed drop-down lies and the window the list may open over
@@ -39,7 +39,10 @@ namespace djw::player_ui::sdl
             void               close();
 
             /// The index of the entry picked, once
-            [[nodiscard]] std::optional<std::size_t> takeChosen() noexcept { return std::exchange(chosen, std::nullopt); }
+            [[nodiscard]] std::optional<std::size_t> takeChosen() noexcept
+            {
+                return std::exchange(chosen, std::nullopt);
+            }
 
             [[nodiscard]] Rect listArea() const;
             [[nodiscard]] Rect itemArea(std::size_t index) const;

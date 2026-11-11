@@ -257,9 +257,9 @@ TEST_CASE("catalogs: every message formats and takes the arguments of the Englis
             // Formats with every argument given, for all plural forms
             for (const long long n : {0LL, 1LL, 2LL, 3LL, 5LL, 11LL, 21LL, 1'000'000LL})
             {
-                const std::vector<MessageArg> args{{"count", n},   {"number", n}, {"files", "files"},
+                const std::vector<MessageArg> args{{"count", n},         {"number", n},    {"files", "files"},
                                                    {"tracks", "tracks"}, {"name", "name"}, {"not_found", n},
-                                                   {"error", "error"}, {"value", "+1.2"}};
+                                                   {"error", "error"},   {"value", "+1.2"}};
                 const auto                    done = formatMessage(language, translated, args);
                 CHECK_MESSAGE(done.has_value(), (done ? "" : done.error()));
             }

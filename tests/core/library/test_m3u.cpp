@@ -32,6 +32,15 @@ TEST_CASE("parseM3u: file URLs are decoded, UTF-8 paths stay as they are")
 TEST_CASE("parseM3u: a broken percent escape stays as it is")
 {
     CHECK(parseM3u("file:///music/100%.mp3\n", "/") == std::vector<path>{"/music/100%.mp3"});
+    CHECK(parseM3u("file:///music/a%4G.mp3\n", "/") == std::vector<path>{"/music/a%4G.mp3"}); // not a hex digit
+    CHECK(parseM3u("file:///music/b%G4.mp3\n", "/") == std::vector<path>{"/music/b%G4.mp3"});
+    CHECK(parseM3u("file:///music/c%4\n", "/") == std::vector<path>{"/music/c%4"}); // cut off at the end
+}
+
+TEST_CASE("parseM3u: hex digits of both cases and at the ends of their ranges, also at the very end of the line")
+{
+    // 0x30 '0', 0x39 '9', 0x3a/0x3A ':', 0x3f/0x3F '?', 0x41 'A'
+    CHECK(parseM3u("file:///music/%30%39%3a%3A%3f%3F%41\n", "/") == std::vector<path>{"/music/09::??A"});
 }
 
 TEST_CASE("formatM3u: extended M3U with rounded seconds, artist - title and the path")

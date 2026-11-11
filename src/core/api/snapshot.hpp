@@ -47,12 +47,12 @@ namespace djw::core::api
             double    duration_seconds = 0.0;
             double    cue_seconds      = 0.0;
             /// How much of the loaded track is in memory (0 to 1): the player shows it while a track is loading
-            float     loaded_fraction  = 1.0F;
+            float loaded_fraction = 1.0F;
             /// Goes up each time the cue point is set with the CUE button (not when a track is loaded), so a frontend
             /// can tell a cue point the user set from one that came with the track
             std::uint32_t cue_set_count = 0;
             /// Pitch fader, without a held pitch bend
-            float          pitch_percent   = 0.0F;
+            float pitch_percent = 0.0F;
             /// Keylock: the pitch fader changes the tempo only
             bool           keylock         = false;
             CrossfaderSide crossfader_side = CrossfaderSide::None;

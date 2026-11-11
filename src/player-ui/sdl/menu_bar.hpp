@@ -47,20 +47,20 @@ namespace djw::player_ui::sdl
     class MenuBar final : public Widget
     {
         public:
-            static constexpr float bar_height      = 40.0F;
-            static constexpr float title_width     = 150.0F;
-            static constexpr float item_height     = 44.0F;
-            static constexpr float dropdown_width  = 340.0F;
+            static constexpr float bar_height     = 40.0F;
+            static constexpr float title_width    = 150.0F;
+            static constexpr float item_height    = 44.0F;
+            static constexpr float dropdown_width = 340.0F;
 
-            void setMenus(std::vector<Menu> menus_);
+            void setMenus(std::vector<Menu> new_menus);
             void setRightToLeft(bool right_to_left) noexcept { rtl = right_to_left; }
 
             /// Where the bar lies and the window it may drop down over
             void place(const Rect &bar_area, const Rect &window_area);
 
-            [[nodiscard]] bool                        isOpen() const noexcept { return open.has_value(); }
-            [[nodiscard]] std::optional<std::size_t>  openMenu() const noexcept { return open; }
-            void                                      close();
+            [[nodiscard]] bool                       isOpen() const noexcept { return open.has_value(); }
+            [[nodiscard]] std::optional<std::size_t> openMenu() const noexcept { return open; }
+            void                                     close();
 
             /// The id of the entry chosen, once
             [[nodiscard]] std::optional<int> takeChosen() noexcept { return std::exchange(chosen, std::nullopt); }

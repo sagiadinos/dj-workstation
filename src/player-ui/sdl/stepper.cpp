@@ -11,8 +11,6 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr Color button_color{55, 55, 55};
-        constexpr Color pressed_color{85, 85, 85};
         constexpr Color dim_color{110, 110, 110};
         constexpr Color field_color{35, 35, 35};
         constexpr Color text_color{230, 230, 230};
@@ -69,7 +67,7 @@ namespace djw::player_ui::sdl
         look::raised(canvas, minus, look::button_gray, pressed == Part::Minus, 5.0F);
         look::raised(canvas, plus, look::button_gray, pressed == Part::Plus, 5.0F);
 
-        const auto  center = [&canvas](const Rect &where, const std::string &text, Color color)
+        const auto center = [&canvas](const Rect &where, const std::string &text, Color color)
         {
             canvas.text({where.x + ((where.width - canvas.textWidth(text)) / 2),
                          where.y + ((where.height - canvas.textHeight()) / 2)},

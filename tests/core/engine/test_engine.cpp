@@ -254,7 +254,8 @@ TEST_CASE("Engine: DeckScrub plays a loop at the position and goes on playing fr
     api::DeckSnapshot state = engine.deckSnapshot(deck)->read();
     CHECK(state.play_state == api::PlayState::Playing); // it played before the scrub
     CHECK(state.position_seconds == doctest::Approx(0.5));
-    CHECK(output[2 * 1'000] == doctest::Approx(25'000 * step).epsilon(0.001)); // audio of the position, after the fade-in
+    CHECK(output[2 * 1'000] ==
+          doctest::Approx(25'000 * step).epsilon(0.001)); // audio of the position, after the fade-in
 
     REQUIRE(queue.tryPush(api::DeckScrub{deck, 0.75, false}));
     engine.render(output);

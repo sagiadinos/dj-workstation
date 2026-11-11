@@ -75,9 +75,9 @@ namespace
                 }
             }
         }
-        int         count   = 0;
-        SDL_Locale **locales = SDL_GetPreferredLocales(&count);
-        sdl::Language found  = sdl::Language::English;
+        int           count   = 0;
+        SDL_Locale  **locales = SDL_GetPreferredLocales(&count);
+        sdl::Language found   = sdl::Language::English;
         for (int index = 0; locales != nullptr && index < count; ++index)
         {
             if (locales[index]->language != nullptr)
@@ -89,7 +89,7 @@ namespace
                 }
             }
         }
-        SDL_free(locales);
+        SDL_free(static_cast<void *>(locales));
         return found;
     }
 

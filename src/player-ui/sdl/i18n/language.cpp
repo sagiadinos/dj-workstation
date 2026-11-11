@@ -61,8 +61,7 @@ namespace djw::player_ui::sdl
         for (const Language language : languages)
         {
             const std::string_view known = languageCode(language);
-            if (std::ranges::equal(code, known,
-                                   [](char left, char right)
+            if (std::ranges::equal(code, known, [](char left, char right)
                                    { return std::tolower(static_cast<unsigned char>(left)) == right; }))
             {
                 return language;

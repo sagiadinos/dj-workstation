@@ -18,7 +18,7 @@ namespace djw::core::decode
 
     std::optional<std::uint64_t> findFirstSound(Decoder &decoder, std::uint64_t max_frames, float threshold)
     {
-        if (auto moved = decoder.seek(0); !moved)
+        if (const auto moved = decoder.seek(0); !moved)
         {
             return std::nullopt;
         }
@@ -26,8 +26,9 @@ namespace djw::core::decode
         std::uint64_t                                     scanned = 0;
         while (scanned < max_frames)
         {
-            const std::size_t wanted = static_cast<std::size_t>(std::min<std::uint64_t>(block_frames, max_frames - scanned));
-            const auto        read   = decoder.read(std::span{block}.first(wanted * stereo_channels));
+            const std::size_t wanted =
+                static_cast<std::size_t>(std::min<std::uint64_t>(block_frames, max_frames - scanned));
+            const auto read = decoder.read(std::span{block}.first(wanted * stereo_channels));
             if (!read || *read == 0)
             {
                 return std::nullopt; // an error, or the end of the stream with nothing audible

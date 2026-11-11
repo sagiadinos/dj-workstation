@@ -12,9 +12,6 @@ namespace djw::player_ui::sdl
     {
         constexpr float padding = 12.0F;
 
-        constexpr Color frame_color{110, 110, 110};
-        constexpr Color item_color{48, 48, 48};
-        constexpr Color pressed_color{40, 75, 120};
         constexpr Color text_color{230, 230, 230};
         constexpr Color disabled_color{120, 120, 120};
     } // namespace

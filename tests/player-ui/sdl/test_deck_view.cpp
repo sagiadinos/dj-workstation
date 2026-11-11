@@ -7,6 +7,7 @@
 
 #include <doctest/doctest.h>
 
+#include <chrono>
 #include <variant>
 #include <vector>
 
@@ -71,8 +72,7 @@ namespace
             }
     };
 
-    template <typename Command>
-    const Command *find(const std::vector<api::Command> &commands)
+    template <typename Command> const Command *find(const std::vector<api::Command> &commands)
     {
         for (const api::Command &command : commands)
         {
@@ -104,10 +104,9 @@ TEST_CASE("DeckView: the Load button is at the top left, everything lies inside 
     for (const Rect *area :
          {&fixture.view.loadButton().bounds(), &fixture.view.bendDownButton().bounds(),
           &fixture.view.bendUpButton().bounds(), &fixture.view.keylockButton().bounds(),
-          &fixture.view.timeButton().bounds(),
-          &fixture.view.cueButton().bounds(), &fixture.view.playButton().bounds(),
-          &fixture.view.headphoneButton().bounds(), &fixture.view.waveform().bounds(),
-          &fixture.view.fader().bounds(), &fixture.view.headphoneFader().bounds(), &fixture.view.pitchFader().bounds(),
+          &fixture.view.timeButton().bounds(), &fixture.view.cueButton().bounds(), &fixture.view.playButton().bounds(),
+          &fixture.view.headphoneButton().bounds(), &fixture.view.waveform().bounds(), &fixture.view.fader().bounds(),
+          &fixture.view.headphoneFader().bounds(), &fixture.view.pitchFader().bounds(),
           &fixture.view.cueLoadBox().bounds()})
     {
         CHECK(area->width > 0);
@@ -119,10 +118,12 @@ TEST_CASE("DeckView: the Load button is at the top left, everything lies inside 
 TEST_CASE("DeckView: the pitch fader sits right of the display, the transport row below the waveform")
 {
     Fixture fixture;
-    CHECK(fixture.view.pitchFader().bounds().x > fixture.view.playButton().bounds().x + fixture.view.playButton().bounds().width);
+    CHECK(fixture.view.pitchFader().bounds().x >
+          fixture.view.playButton().bounds().x + fixture.view.playButton().bounds().width);
     CHECK(fixture.view.cueButton().bounds().y > fixture.view.waveform().bounds().y);
     CHECK(fixture.view.playButton().bounds().y == fixture.view.cueButton().bounds().y);
-    CHECK(fixture.view.fader().bounds().y > fixture.view.cueButton().bounds().y + fixture.view.cueButton().bounds().height);
+    CHECK(fixture.view.fader().bounds().y >
+          fixture.view.cueButton().bounds().y + fixture.view.cueButton().bounds().height);
 }
 
 TEST_CASE("DeckView: tiny areas give empty widgets instead of negative sizes")
@@ -295,7 +296,7 @@ TEST_CASE("DeckView: without an owner the Load button is off")
 
 TEST_CASE("DeckView: CUE sends its press and its release, also when both come within one frame")
 {
-    Fixture fixture;
+    Fixture     fixture;
     const Point on = centerOf(fixture.view.cueButton().bounds());
     fixture.router.handle({{1, 1}, PointerPhase::Down, on});
     fixture.view.update();
@@ -346,8 +347,8 @@ TEST_CASE("DeckView: the bend buttons act while held")
 TEST_CASE("DeckView: the waveform shows the position and the cue point and seeks when the user touches it")
 {
     Fixture fixture;
-    fixture.show({.deck         = deck,
-                  .track_loaded = true,
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
                   .position_seconds = 50.0,
                   .duration_seconds = 200.0,
                   .cue_seconds      = 100.0});
@@ -389,7 +390,7 @@ TEST_CASE("DeckView: the waveform shows the position and the cue point and seeks
 
 TEST_CASE("DeckView: without a track the waveform does not seek")
 {
-    Fixture fixture;
+    Fixture     fixture;
     const Rect &bar = fixture.view.waveform().bounds();
     fixture.router.handle({{1, 1}, PointerPhase::Down, {bar.x + 100, bar.y + 5}});
     fixture.view.update();
@@ -463,9 +464,9 @@ TEST_CASE("DeckView: the state is loaded, cued, paused or playing")
     CHECK(fixture.view.stateText() == "cued");
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 30.0, .cue_seconds = 12.0});
     CHECK(fixture.view.stateText() == "paused");
-    fixture.show({.deck = deck,
-                  .track_loaded = true,
-                  .play_state   = api::PlayState::Playing,
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
+                  .play_state       = api::PlayState::Playing,
                   .position_seconds = 31.0,
                   .cue_seconds      = 12.0});
     CHECK(fixture.view.stateText() == "playing");
@@ -493,7 +494,7 @@ TEST_CASE("DeckView: the headphone button toggles the cue from the state shown, 
     const Rect &level = fixture.view.headphoneFader().bounds();
     fixture.router.handle({{1, 1}, PointerPhase::Down, {level.x + 5, level.y + level.height - 1}});
     fixture.view.update();
-    commands = fixture.drain();
+    commands         = fixture.drain();
     const auto *sent = find<api::MixerSetHeadphoneLevel>(commands);
     REQUIRE(sent != nullptr);
     CHECK(sent->value == doctest::Approx(0.0F));
@@ -600,7 +601,7 @@ TEST_CASE("DeckView: the waveform of the track and its tempo are shown, the temp
 
 TEST_CASE("DeckView: the whole layout grows with the window in both directions, text included")
 {
-    Fixture fixture;
+    Fixture    fixture;
     const Rect play_small = fixture.view.playButton().bounds();
     const Rect cue_small  = fixture.view.cueButton().bounds();
     CHECK(fixture.view.scale() == doctest::Approx(1.0F));
@@ -625,13 +626,13 @@ TEST_CASE("DeckView: a tap on the waveform sends the scrub start and end, so the
 {
     Fixture fixture;
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 0.0, .duration_seconds = 100.0});
-    const Rect &bar = fixture.view.waveform().bounds();
+    const Rect &bar   = fixture.view.waveform().bounds();
     const Rect  inner = bar.inset(3.0F);
     const Point at{inner.x + (inner.width * 0.5F), bar.y + 5};
     fixture.tap(at);
     fixture.view.update();
 
-    const auto  commands = fixture.drain();
+    const auto                  commands = fixture.drain();
     std::vector<api::DeckScrub> scrubs;
     for (const auto &command : commands)
     {
@@ -653,4 +654,23 @@ TEST_CASE("DeckView: while a track loads the waveform shows how far it is")
 
     fixture.show({.deck = deck, .track_loaded = true, .duration_seconds = 100.0});
     CHECK(fixture.view.waveform().loaded() == doctest::Approx(1.0F));
+}
+
+TEST_CASE("DeckView: a notice replaces the state for a while, then the state shows again")
+{
+    api::CommandQueue       queue;
+    api::DeckSnapshotBuffer snapshot{
+        api::DeckSnapshot{.deck = deck, .track_loaded = true, .play_state = api::PlayState::Playing}};
+    const Translator                      translator;
+    std::chrono::steady_clock::time_point now{};
+    DeckView                              view{deck, queue, snapshot, translator, [&now] { return now; }};
+    view.update();
+    CHECK(view.stateText() == "playing");
+
+    view.setNotice("player.notice.playing");
+    CHECK(view.stateText() == "not loaded");
+    now += DeckView::notice_time - std::chrono::milliseconds{1};
+    CHECK(view.stateText() == "not loaded");
+    now += std::chrono::milliseconds{1};
+    CHECK(view.stateText() == "playing");
 }

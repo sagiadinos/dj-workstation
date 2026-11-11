@@ -3,11 +3,13 @@
 
 #include "i18n/catalog.hpp"
 
+#include <array>
+
 namespace djw::player_ui::sdl::catalogs
 {
     namespace
     {
-        constexpr CatalogEntry entries[] = {
+        constexpr auto entries = std::to_array<CatalogEntry>({
             {"window.library", "djw - Библиотека"},
             {"window.deck", "djw - Плеер {number}"},
             {"window.playlist", "djw - Плейлист"},
@@ -44,7 +46,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.remove_confirm", "Нажмите ещё раз, чтобы удалить: {count}"},
             {"library.scanning", "сканирование, {files}"},
             {"library.saving_tags", "сохранение тегов"},
-            {"library.analyzing", "анализ: {count, plural, one {# трек} few {# трека} many {# треков} other {# трека}}"},
+            {"library.analyzing",
+             "анализ: {count, plural, one {# трек} few {# трека} many {# треков} other {# трека}}"},
             {"context.edit_tags", "Редактировать теги"},
             {"context.rescan_track", "Прочитать заново"},
             {"library.error.in_use", "трек загружен в плеер, его теги не меняются, пока он играет"},
@@ -79,6 +82,7 @@ namespace djw::player_ui::sdl::catalogs
             {"player.state.cued", "на cue"},
             {"player.state.paused", "пауза"},
             {"player.state.playing", "играет"},
+            {"player.notice.playing", "не загружено"},
             {"mixer.player", "Плеер {number}"},
             {"mixer.none", "(нет)"},
             {"mixer.zero", "Ноль"},
@@ -90,7 +94,7 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.layout_saved", "расположение сохранено"},
             {"library.notice.layout_failed", "не удалось сохранить расположение"},
             {"deck.cannot_load", "Не удалось загрузить: {error}"},
-        };
+        });
     } // namespace
 
     std::span<const CatalogEntry> russian()

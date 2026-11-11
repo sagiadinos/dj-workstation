@@ -167,9 +167,7 @@ namespace djw::core::engine
         {
             return;
         }
-        const std::uint64_t length = source->lengthFrames();
-        const std::uint64_t target = length > 0 ? std::min(frame, length) : frame;
-        restartAt(target);
+        restartAt(clampToTrack(frame));
     }
 
     void Deck::scrub(std::uint64_t frame, bool active) noexcept // [audio-thread]
@@ -178,8 +176,7 @@ namespace djw::core::engine
         {
             return;
         }
-        const std::uint64_t length = source->lengthFrames();
-        const std::uint64_t target = length > 0 ? std::min(frame, length) : frame;
+        const std::uint64_t target = clampToTrack(frame);
         if (active)
         {
             if (state != State::Scrubbing)
@@ -234,8 +231,13 @@ namespace djw::core::engine
         // The other player takes over from where this one is
         const auto frame = static_cast<std::uint64_t>(std::llround(playbackPosition()));
         keylock_on       = on;
+        restartAt(clampToTrack(frame));
+    }
+
+    std::uint64_t Deck::clampToTrack(std::uint64_t frame) const noexcept // [audio-thread]
+    {
         const std::uint64_t length = source->lengthFrames();
-        restartAt(length > 0 ? std::min(frame, length) : frame); // a length of 0 is unknown
+        return length > 0 ? std::min(frame, length) : frame;
     }
 
     void Deck::render(std::span<float> output) noexcept // [audio-thread]
@@ -284,11 +286,11 @@ namespace djw::core::engine
             // Fade in at the start of the loop and out at its end, so the repeats do not click
             for (std::size_t frame = 0; frame < read; ++frame)
             {
-                const std::size_t at   = scrub_offset + frame;
-                const float       in   = std::min(1.0F, static_cast<float>(at) / static_cast<float>(scrub_ramp_frames));
-                const float       out  = std::min(1.0F, static_cast<float>(scrub_loop_frames - at) /
-                                                            static_cast<float>(scrub_ramp_frames));
-                const float       gain = std::min(in, out);
+                const std::size_t at = scrub_offset + frame;
+                const float       in = std::min(1.0F, static_cast<float>(at) / static_cast<float>(scrub_ramp_frames));
+                const float       out =
+                    std::min(1.0F, static_cast<float>(scrub_loop_frames - at) / static_cast<float>(scrub_ramp_frames));
+                const float gain = std::min(in, out);
                 for (std::size_t channel = 0; channel < stereo_channels; ++channel)
                 {
                     output[((written + frame) * stereo_channels) + channel] *= gain;

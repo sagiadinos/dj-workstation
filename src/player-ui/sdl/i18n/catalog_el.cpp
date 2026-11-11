@@ -3,11 +3,13 @@
 
 #include "i18n/catalog.hpp"
 
+#include <array>
+
 namespace djw::player_ui::sdl::catalogs
 {
     namespace
     {
-        constexpr CatalogEntry entries[] = {
+        constexpr auto entries = std::to_array<CatalogEntry>({
             {"window.library", "djw - Βιβλιοθήκη"},
             {"window.deck", "djw - Player {number}"},
             {"window.playlist", "djw - Λίστα"},
@@ -79,6 +81,7 @@ namespace djw::player_ui::sdl::catalogs
             {"player.state.cued", "στο cue"},
             {"player.state.paused", "παύση"},
             {"player.state.playing", "παίζει"},
+            {"player.notice.playing", "δεν φορτώθηκε"},
             {"mixer.player", "Player {number}"},
             {"mixer.none", "(κανένα)"},
             {"mixer.zero", "Μηδέν"},
@@ -90,7 +93,7 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.layout_saved", "η διάταξη αποθηκεύτηκε"},
             {"library.notice.layout_failed", "η διάταξη δεν αποθηκεύτηκε"},
             {"deck.cannot_load", "Αδυναμία φόρτωσης: {error}"},
-        };
+        });
     } // namespace
 
     std::span<const CatalogEntry> greek()

@@ -121,11 +121,16 @@ namespace djw::core::analysis
             intervals.push_back(beats[i] - beats[i - 1]);
         }
         const double seconds_per_step = static_cast<double>(impl->step) / impl->rate;
-        double       bpm              = 60.0 / (median(std::move(intervals)) * seconds_per_step);
+        const double bpm              = 60.0 / (median(std::move(intervals)) * seconds_per_step);
         if (!std::isfinite(bpm) || bpm <= 0.0)
         {
             return std::nullopt;
         }
+        return foldIntoRange(bpm);
+    }
+
+    double BpmAnalyzer::foldIntoRange(double bpm) noexcept
+    {
         while (bpm < min_bpm)
         {
             bpm *= 2.0;

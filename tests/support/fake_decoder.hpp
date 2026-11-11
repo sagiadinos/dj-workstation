@@ -28,6 +28,8 @@ namespace djw::tests
             std::uint64_t fail_at_frame = 0;
             /// Delay per read, to make decoding slow enough to watch
             std::chrono::microseconds read_delay{0};
+            /// Frames one read gives at most, like a real decoder that works in packets; 0 means as many as fit
+            std::size_t max_frames_per_read = 0;
     };
 
     /**
@@ -58,8 +60,13 @@ namespace djw::tests
                 {
                     end = std::min(end, options.fail_at_frame);
                 }
-                const auto frames = static_cast<std::size_t>(
-                    std::min<std::uint64_t>(output.size() / 2, end - std::min(end, next_frame)));
+                std::size_t room = output.size() / 2;
+                if (options.max_frames_per_read != 0)
+                {
+                    room = std::min(room, options.max_frames_per_read);
+                }
+                const auto frames =
+                    static_cast<std::size_t>(std::min<std::uint64_t>(room, end - std::min(end, next_frame)));
                 for (std::size_t frame = 0; frame < frames; ++frame)
                 {
                     output[frame * 2]     = static_cast<float>(next_frame);

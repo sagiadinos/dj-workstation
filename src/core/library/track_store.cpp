@@ -345,16 +345,15 @@ namespace djw::core::library
         auto set_cue        = database.prepare("UPDATE tracks SET cue = ? WHERE id = ?");
         auto set_analysis   = database.prepare("UPDATE tracks SET bpm = ?, analyzed = 1 WHERE id = ?");
         auto set_waveform   = database.prepare("INSERT OR REPLACE INTO waveforms (track_id, peaks) VALUES (?, ?)");
-        auto drop_waveform  = database.prepare(
-            "DELETE FROM waveforms WHERE track_id IN (SELECT id FROM tracks WHERE path = ?)");
-        auto waveform       = database.prepare("SELECT peaks FROM waveforms WHERE track_id = ?");
-        auto is_analyzed    = database.prepare("SELECT analyzed FROM tracks WHERE id = ?");
-        auto unanalyzed     = database.prepare("SELECT id, path, missing FROM tracks WHERE analyzed = 0 AND missing = 0");
+        auto drop_waveform =
+            database.prepare("DELETE FROM waveforms WHERE track_id IN (SELECT id FROM tracks WHERE path = ?)");
+        auto waveform    = database.prepare("SELECT peaks FROM waveforms WHERE track_id = ?");
+        auto is_analyzed = database.prepare("SELECT analyzed FROM tracks WHERE id = ?");
+        auto unanalyzed  = database.prepare("SELECT id, path, missing FROM tracks WHERE analyzed = 0 AND missing = 0");
 
         for (const auto *statement : {&add_folder, &folders, &stamp, &store, &count, &path, &files, &set_missing,
-                                      &missing_count, &remove_missing, &id_of_path, &set_cue,
-                                      &set_analysis, &set_waveform, &drop_waveform, &waveform, &is_analyzed,
-                                      &unanalyzed})
+                                      &missing_count, &remove_missing, &id_of_path, &set_cue, &set_analysis,
+                                      &set_waveform, &drop_waveform, &waveform, &is_analyzed, &unanalyzed})
         {
             if (!*statement)
             {
@@ -514,8 +513,8 @@ namespace djw::core::library
 
     std::expected<std::vector<std::uint8_t>, std::string> TrackStore::waveform(std::int64_t track_id)
     {
-        auto rows = collectRows(statements.waveform.bind(1, track_id),
-                                [](const Statement &row) { return row.blob(0); });
+        auto rows =
+            collectRows(statements.waveform.bind(1, track_id), [](const Statement &row) { return row.blob(0); });
         if (!rows)
         {
             return std::unexpected{rows.error()};

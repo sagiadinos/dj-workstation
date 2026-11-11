@@ -29,9 +29,9 @@ namespace djw::player_ui::sdl
 
     void WaveformBar::setWaveform(std::vector<std::uint8_t> peaks)
     {
-        waveform            = std::move(peaks);
-        const auto loudest  = waveform.empty() ? std::uint8_t{0} : *std::ranges::max_element(waveform);
-        normalize           = loudest > 0 ? 255.0F / static_cast<float>(loudest) : 1.0F;
+        waveform           = std::move(peaks);
+        const auto loudest = waveform.empty() ? std::uint8_t{0} : *std::ranges::max_element(waveform);
+        normalize          = loudest > 0 ? 255.0F / static_cast<float>(loudest) : 1.0F;
     }
 
     void WaveformBar::setLoaded(float fraction) noexcept
@@ -104,9 +104,9 @@ namespace djw::player_ui::sdl
                 {
                     peak = std::max(peak, waveform[index]);
                 }
-                const float height = std::max(
-                    2.0F, std::min(1.0F, static_cast<float>(peak) * normalize / 255.0F) * area.height * 0.92F);
-                const float x      = area.x + (static_cast<float>(bar) * area.width / static_cast<float>(bars));
+                const float height =
+                    std::max(2.0F, std::min(1.0F, static_cast<float>(peak) * normalize / 255.0F) * area.height * 0.92F);
+                const float x = area.x + (static_cast<float>(bar) * area.width / static_cast<float>(bars));
                 // Yellow: played; blue: in memory; gray: still loading
                 const Color color = x >= loaded_x ? loading_color : (x < played_x ? played_color : unplayed_color);
                 canvas.fillRect({x, middle - (height / 2), bar_width * grow, height}, color);

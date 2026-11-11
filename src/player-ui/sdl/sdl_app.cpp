@@ -3,6 +3,8 @@
 
 #include "sdl_app.hpp"
 
+#include "player_number.hpp"
+
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
@@ -10,6 +12,7 @@
 #include <fstream>
 #include <ranges>
 #include <sstream>
+#include <string>
 #include <utility>
 
 namespace djw::player_ui::sdl
@@ -44,14 +47,35 @@ namespace djw::player_ui::sdl
             return std::filesystem::path{base != nullptr ? base : ""} / "fonts" / "NotoSans-Regular.ttf";
         }
 
-        /// "01", "12": the number of a player as the windows show it
-        std::string twoDigits(int number)
-        {
-            return (number < 10 ? "0" : "") + std::to_string(number);
-        }
-
         constexpr int player_width  = static_cast<int>(DeckView::design_width);
         constexpr int player_height = static_cast<int>(DeckView::design_height);
+
+        /// The size a window opens at when nothing else is known
+        struct WindowSize
+        {
+                int width  = 0;
+                int height = 0;
+        };
+        constexpr WindowSize library_size{720, 640};
+        constexpr WindowSize mixer_size{440, 250};
+        constexpr WindowSize playlist_size{560, 640};
+
+        /// The part of the display the windows may use (without panels and docks); std::nullopt if unknown
+        std::optional<Placement> usableBounds(SDL_DisplayID display)
+        {
+            SDL_Rect usable{};
+            if (display == 0 || !SDL_GetDisplayUsableBounds(display, &usable) || usable.w <= 0 || usable.h <= 0)
+            {
+                return std::nullopt;
+            }
+            return Placement{usable.x, usable.y, usable.w, usable.h};
+        }
+
+        /// An error worth a line in the log, e.g. a window that cannot be opened
+        void logError(const std::string &message)
+        {
+            SDL_Log("djw: %s", message.c_str()); // NOLINT(cppcoreguidelines-pro-type-vararg): SDL logs printf-style
+        }
     } // namespace
 
     SdlApp::SdlLibraries::SdlLibraries() : sdl_initialized{initSdl()}, ttf_initialized{sdl_initialized && TTF_Init()} {}
@@ -70,7 +94,7 @@ namespace djw::player_ui::sdl
 
     std::expected<std::unique_ptr<SdlApp>, std::string> SdlApp::create(core::api::Core &core, core::api::DeckId deck,
                                                                        core::api::Library *library, Language language,
-                                                                       LanguageChanged language_changed,
+                                                                       LanguageChanged       language_changed,
                                                                        std::filesystem::path layout_file)
     {
         if (core.deckSnapshot(deck) == nullptr)
@@ -112,8 +136,8 @@ namespace djw::player_ui::sdl
         app->tools[index(Tool::Mixer)] = {.view      = app->mixer_view.get(),
                                           .window    = nullptr,
                                           .title_key = "window.mixer",
-                                          .width     = 440,
-                                          .height    = 250};
+                                          .width     = mixer_size.width,
+                                          .height    = mixer_size.height};
 
         if (library != nullptr)
         {
@@ -127,14 +151,16 @@ namespace djw::player_ui::sdl
                 });
             app->library_view->setOnNewDeck([owner] { ++owner->new_decks_requested; });
             app->library_view->setOnLanguage([owner](Language chosen) { owner->setLanguage(chosen); });
-            app->library_view->setPlaylistCommands(
-                [owner](LibraryView::PlaylistCommand command) { owner->runPlaylistCommand(command); },
-                [owner] { return owner->toolWindowOpen(Tool::Playlist); });
+            app->library_view->setPlaylistCommands([owner](LibraryView::PlaylistCommand command)
+                                                   { owner->runPlaylistCommand(command); },
+                                                   [owner] { return owner->toolWindowOpen(Tool::Playlist); });
             app->library_view->setMixerWindow(
                 [owner] { owner->requestToolWindow(Tool::Mixer, !owner->toolWindowOpen(Tool::Mixer)); },
                 [owner] { return owner->toolWindowOpen(Tool::Mixer); });
-            auto library_window = SdlWindow::create(
-                {.title = app->translator.tr("window.library"), .width = 720, .height = 640}, *app->library_view, font);
+            auto library_window = SdlWindow::create({.title  = app->translator.tr("window.library"),
+                                                     .width  = library_size.width,
+                                                     .height = library_size.height},
+                                                    *app->library_view, font);
             if (!library_window)
             {
                 return std::unexpected{library_window.error()};
@@ -151,14 +177,14 @@ namespace djw::player_ui::sdl
             app->windows.push_back(std::move(*library_window));
 
             // The view lives on; only its window comes and goes
-            app->playlist_view = std::make_unique<PlaylistView>(
-                *library, app->dialogs, app->translator,
-                [owner](const core::api::LibraryTrack &track) { owner->load(track); });
+            app->playlist_view =
+                std::make_unique<PlaylistView>(*library, app->dialogs, app->translator,
+                                               [owner](const core::api::LibraryTrack &track) { owner->load(track); });
             app->tools[index(Tool::Playlist)] = {.view      = app->playlist_view.get(),
                                                  .window    = nullptr,
                                                  .title_key = "window.playlist",
-                                                 .width     = 560,
-                                                 .height    = 640};
+                                                 .width     = playlist_size.width,
+                                                 .height    = playlist_size.height};
             app->library_view->setAddToPlaylist([owner](const core::api::LibraryTrack &track)
                                                 { owner->addToPlaylist(track); });
             app->dialogs.setParent(app->library_window->handle());
@@ -208,7 +234,7 @@ namespace djw::player_ui::sdl
 
     std::string SdlApp::deckTitle(const DeckWindow &deck) const
     {
-        return translator.tr("window.deck", {{"number", twoDigits(deck.number)}});
+        return translator.tr("window.deck", {{"number", playerNumber(deck.number)}});
     }
 
     bool SdlApp::openDeckWindow(core::api::DeckId deck, std::optional<Placement> where)
@@ -240,7 +266,7 @@ namespace djw::player_ui::sdl
             font);
         if (!created)
         {
-            SDL_Log("djw: cannot open a deck window: %s", created.error().c_str());
+            logError("cannot open a deck window: " + created.error());
             return false;
         }
         if (where)
@@ -262,7 +288,10 @@ namespace djw::player_ui::sdl
         const core::api::DeckId deck = core->addDeck();
         if (!openDeckWindow(deck, where))
         {
-            static_cast<void>(core->removeDeck(deck));
+            if (auto removed = core->removeDeck(deck); !removed)
+            {
+                logError(removed.error());
+            }
         }
     }
 
@@ -275,36 +304,29 @@ namespace djw::player_ui::sdl
         {
             display = SDL_GetPrimaryDisplay();
         }
-        SDL_Rect usable{};
-        if (display == 0 || !SDL_GetDisplayUsableBounds(display, &usable) || usable.w <= 0 || usable.h <= 0)
+        const auto usable = usableBounds(display);
+        if (!usable)
         {
             return place; // no information about the screens: leave the window where it was
         }
-        return fitInto(place, {usable.x, usable.y, usable.w, usable.h});
+        return fitInto(place, *usable);
     }
 
     Layout SdlApp::readLayout() const
     {
-        std::ifstream      file{layout_file};
-        std::ostringstream text;
+        const std::ifstream file{layout_file};
+        std::ostringstream  text;
         text << file.rdbuf();
         if (auto saved = parseLayout(text.str()))
         {
             return std::move(*saved);
         }
         // Nothing saved, or damaged: two players with the crossfader window between them, on the main display
-        SDL_Rect         usable{};
-        const SDL_DisplayID display = SDL_GetPrimaryDisplay();
-        if (display == 0 || !SDL_GetDisplayUsableBounds(display, &usable) || usable.w <= 0 || usable.h <= 0)
-        {
-            usable = {0, 0, 1920, 1080};
-        }
-        const ToolWindow &mixer = tools[index(Tool::Mixer)];
-        const ToolWindow &list  = tools[index(Tool::Playlist)];
-        static_cast<void>(list);
-        return defaultLayout({usable.x, usable.y, usable.w, usable.h},
-                             {player_width, player_height, mixer.width > 0 ? mixer.width : 440,
-                              mixer.height > 0 ? mixer.height : 250, 720, 640});
+        const Placement   usable = usableBounds(SDL_GetPrimaryDisplay()).value_or(Placement{0, 0, 1920, 1080});
+        const ToolWindow &mixer  = tools[index(Tool::Mixer)];
+        return defaultLayout(usable, {player_width, player_height, mixer.width > 0 ? mixer.width : mixer_size.width,
+                                      mixer.height > 0 ? mixer.height : mixer_size.height, library_size.width,
+                                      library_size.height});
     }
 
     Layout SdlApp::currentLayout() const
@@ -314,7 +336,8 @@ namespace djw::player_ui::sdl
         {
             layout.players.push_back({deck->window->placement(), deck->view->crossfaderSide()});
         }
-        layout.library = library_window != nullptr ? library_window->placement() : Placement{0, 0, 720, 640};
+        layout.library  = library_window != nullptr ? library_window->placement()
+                                                    : Placement{0, 0, library_size.width, library_size.height};
         const auto tool = [this](Tool which, int default_width, int default_height)
         {
             const ToolWindow &entry = tools[index(which)];
@@ -326,8 +349,8 @@ namespace djw::player_ui::sdl
                                  .place = entry.placement.value_or(Placement{0, 0, std::max(entry.width, default_width),
                                                                              std::max(entry.height, default_height)})};
         };
-        layout.mixer    = tool(Tool::Mixer, 440, 250);
-        layout.playlist = tool(Tool::Playlist, 560, 640);
+        layout.mixer    = tool(Tool::Mixer, mixer_size.width, mixer_size.height);
+        layout.playlist = tool(Tool::Playlist, playlist_size.width, playlist_size.height);
         return layout;
     }
 
@@ -344,7 +367,7 @@ namespace djw::player_ui::sdl
 
     void SdlApp::closeDeck(core::api::DeckId deck)
     {
-        DeckWindow *closing = deckWindow(deck);
+        const DeckWindow *closing = deckWindow(deck);
         if (closing == nullptr)
         {
             return;
@@ -353,7 +376,10 @@ namespace djw::player_ui::sdl
         const SdlWindow *window = closing->window;
         std::erase_if(windows, [window](const auto &candidate) { return candidate.get() == window; });
         std::erase_if(decks, [deck](const auto &candidate) { return candidate->id == deck; });
-        static_cast<void>(core->removeDeck(deck));
+        if (auto removed = core->removeDeck(deck); !removed)
+        {
+            logError(removed.error());
+        }
         // The window that paced the frames may be gone
         if (std::ranges::none_of(windows, [](const auto &candidate) { return candidate->paced(); }) && !decks.empty())
         {
@@ -395,6 +421,7 @@ namespace djw::player_ui::sdl
     {
         if (target.view->playing())
         {
+            target.view->setNotice("player.notice.playing");
             if (library_view)
             {
                 library_view->setNotice("library.notice.player_playing");
@@ -478,7 +505,7 @@ namespace djw::player_ui::sdl
             {
                 if (auto added = library->addFolder(path); !added)
                 {
-                    SDL_Log("djw: %s", added.error().c_str());
+                    logError(added.error());
                 }
             }
         }
@@ -557,13 +584,11 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        auto created = SdlWindow::create({.title  = translator.tr(which.title_key),
-                                          .width  = which.width,
-                                          .height = which.height},
-                                         *which.view, font);
+        auto created = SdlWindow::create(
+            {.title = translator.tr(which.title_key), .width = which.width, .height = which.height}, *which.view, font);
         if (!created)
         {
-            SDL_Log("djw: cannot open a window: %s", created.error().c_str());
+            logError("cannot open a window: " + created.error());
             return;
         }
         if (which.placement)
@@ -619,7 +644,9 @@ namespace djw::player_ui::sdl
         // A track chosen with no player open goes into the one just opened
         if (load_after_new_deck && !decks.empty())
         {
-            loadInto(*decks.back(), *std::exchange(load_after_new_deck, std::nullopt));
+            const core::api::LibraryTrack track = std::move(*load_after_new_deck);
+            load_after_new_deck.reset();
+            loadInto(*decks.back(), track);
         }
     }
 
@@ -709,14 +736,14 @@ namespace djw::player_ui::sdl
         {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
-                if (DeckWindow *closing = deckOfWindow(event.window.windowID))
+                if (const DeckWindow *closing = deckOfWindow(event.window.windowID))
                 {
                     closeDeck(closing->id); // only this deck; the program goes on
                     continue;
                 }
-                const auto tool = std::ranges::find_if(tools, [&event](const ToolWindow &candidate)
-                                                       { return candidate.window != nullptr &&
-                                                                candidate.window->id() == event.window.windowID; });
+                const auto tool = std::ranges::find_if(
+                    tools, [&event](const ToolWindow &candidate)
+                    { return candidate.window != nullptr && candidate.window->id() == event.window.windowID; });
                 if (tool != tools.end())
                 {
                     closeTool(static_cast<Tool>(tool - tools.begin())); // only this window; the program goes on

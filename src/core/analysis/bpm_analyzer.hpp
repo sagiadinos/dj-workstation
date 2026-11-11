@@ -37,6 +37,9 @@ namespace djw::core::analysis
             /// The tempo, nullopt if the track is too short or has no beat. Call once, after the last feed().
             [[nodiscard]] std::optional<double> finish();
 
+            /// bpm halved or doubled until it lies in min_bpm to max_bpm; bpm must be above 0
+            [[nodiscard]] static double foldIntoRange(double bpm) noexcept;
+
         private:
             struct Impl;
             std::unique_ptr<Impl> impl;

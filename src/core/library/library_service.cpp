@@ -9,11 +9,62 @@
 #include "library/utf8_path.hpp"
 
 #include <algorithm>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
 namespace djw::core::library
 {
+    namespace
+    {
+        /// Fine if no playlist has the name, or only the playlist allowed to keep it (the one being renamed)
+        std::expected<void, std::string> checkNameFree(PlaylistStore &store, const std::string &name,
+                                                       std::optional<std::int64_t> allowed = std::nullopt)
+        {
+            const auto taken = store.idOf(name);
+            if (!taken)
+            {
+                return std::unexpected{taken.error()};
+            }
+            if (*taken && *taken != allowed)
+            {
+                return std::unexpected{"a playlist named " + name + " exists already"};
+            }
+            return {};
+        }
+
+        /// The file of a track; an error if the track is gone. what says what could not be done, e.g. "scan again"
+        std::expected<std::filesystem::path, std::string> pathOf(TrackStore &store, std::int64_t track_id,
+                                                                 std::string_view what)
+        {
+            auto path = store.trackPath(track_id);
+            if (!path)
+            {
+                return std::unexpected{path.error()};
+            }
+            if (!*path)
+            {
+                return std::unexpected{"cannot " + std::string{what} + ": track " + std::to_string(track_id) +
+                                       " is no longer in the library"};
+            }
+            return std::move(**path);
+        }
+
+        /// Stores the file as it is now: its stamp and its tags; keep_analysis when only the tags changed
+        std::expected<void, std::string> storeAsItIs(TrackStore &store, const std::filesystem::path &file,
+                                                     const TagReader &read_tags, bool keep_analysis = false)
+        {
+            const auto stamp = fileStamp(file);
+            if (!stamp)
+            {
+                return std::unexpected{stamp.error()};
+            }
+            return store.store(file, *stamp, read_tags(file), keep_analysis);
+        }
+    } // namespace
+
     std::expected<LibraryService::Connection, std::string>
     LibraryService::connect(const std::filesystem::path &database_file)
     {
@@ -52,8 +103,8 @@ namespace djw::core::library
         : reader{std::move(reader)}, writer{std::move(writer)}, read_tags{std::move(read_tags)},
           write_tags{std::move(write_tags)}
     {
-        tracks_total  = this->reader.tracks.trackCount().value_or(0);
-        missing_total = this->reader.tracks.missingCount().value_or(0);
+        tracks_total    = this->reader.tracks.trackCount().value_or(0);
+        missing_total   = this->reader.tracks.missingCount().value_or(0);
         thread          = std::thread{[this] { run(); }};
         analysis_thread = std::thread{[this] { analysisLoop(); }};
     }
@@ -123,7 +174,7 @@ namespace djw::core::library
     {
         {
             const std::scoped_lock lock{analysis_mutex};
-            const auto             queued = std::ranges::find(analysis_queue, request.track_id, &AnalysisRequest::track_id);
+            const auto queued = std::ranges::find(analysis_queue, request.track_id, &AnalysisRequest::track_id);
             if (queued != analysis_queue.end())
             {
                 if (in_front && queued != analysis_queue.begin())
@@ -186,26 +237,16 @@ namespace djw::core::library
         queue(
             [this, track_id]() -> std::expected<void, std::string>
             {
-                const auto path = writer.tracks.trackPath(track_id);
+                const auto path = pathOf(writer.tracks, track_id, "scan again");
                 if (!path)
                 {
                     return std::unexpected{path.error()};
                 }
-                if (!*path)
-                {
-                    return std::unexpected{"cannot scan again: track " + std::to_string(track_id) +
-                                           " is no longer in the library"};
-                }
-                const auto stamp = fileStamp(**path);
-                if (!stamp)
-                {
-                    return std::unexpected{stamp.error()};
-                }
-                if (auto stored = writer.tracks.store(**path, *stamp, read_tags(**path)); !stored)
+                if (auto stored = storeAsItIs(writer.tracks, *path, read_tags); !stored)
                 {
                     return stored;
                 }
-                requestAnalysis({track_id, **path}, true);
+                requestAnalysis({track_id, *path}, true);
                 return {};
             });
     }
@@ -227,7 +268,7 @@ namespace djw::core::library
                 {
                     return;
                 }
-                request          = std::move(analysis_queue.front());
+                request = std::move(analysis_queue.front());
                 analysis_queue.pop_front();
                 analysis_running = request.track_id;
             }
@@ -262,17 +303,17 @@ namespace djw::core::library
     {
         const std::scoped_lock lock{mutex};
         return {
-            .scanning       = scanning || scan_requested,
-            .files_found    = counters.files_found.load(std::memory_order_relaxed),
-            .files_updated  = counters.files_updated.load(std::memory_order_relaxed),
-            .tracks_total   = tracks_total,
-            .missing_total  = missing_total,
-            .pending_writes = jobs.size() + jobs_running,
+            .scanning         = scanning || scan_requested,
+            .files_found      = counters.files_found.load(std::memory_order_relaxed),
+            .files_updated    = counters.files_updated.load(std::memory_order_relaxed),
+            .tracks_total     = tracks_total,
+            .missing_total    = missing_total,
+            .pending_writes   = jobs.size() + jobs_running,
             .analysis_pending = analysisPending(),
-            .revision       = revision,
-            .scan_error     = scan_error,
-            .write_error    = write_error,
-            .last_import    = last_import,
+            .revision         = revision,
+            .scan_error       = scan_error,
+            .write_error      = write_error,
+            .last_import      = last_import,
         };
     }
 
@@ -303,14 +344,9 @@ namespace djw::core::library
         queue(
             [this, name = std::move(name)]() -> std::expected<void, std::string>
             {
-                const auto taken = writer.playlists.idOf(name);
-                if (!taken)
+                if (auto free = checkNameFree(writer.playlists, name); !free)
                 {
-                    return std::unexpected{taken.error()};
-                }
-                if (*taken)
-                {
-                    return std::unexpected{"a playlist named " + name + " exists already"};
+                    return free;
                 }
                 const auto created = writer.playlists.create(name);
                 if (!created)
@@ -326,14 +362,9 @@ namespace djw::core::library
         queue(
             [this, playlist_id, name = std::move(name)]() -> std::expected<void, std::string>
             {
-                const auto taken = writer.playlists.idOf(name);
-                if (!taken)
+                if (auto free = checkNameFree(writer.playlists, name, playlist_id); !free)
                 {
-                    return std::unexpected{taken.error()};
-                }
-                if (*taken && **taken != playlist_id)
-                {
-                    return std::unexpected{"a playlist named " + name + " exists already"};
+                    return free;
                 }
                 return writer.playlists.rename(playlist_id, name);
             });
@@ -561,27 +592,17 @@ namespace djw::core::library
     std::expected<void, std::string> LibraryService::writeTags(std::int64_t                 track_id,
                                                                const api::LibraryTagChange &change) // library thread
     {
-        const auto path = writer.tracks.trackPath(track_id);
+        const auto path = pathOf(writer.tracks, track_id, "write tags");
         if (!path)
         {
             return std::unexpected{path.error()};
         }
-        if (!*path)
-        {
-            return std::unexpected{"cannot write tags: track " + std::to_string(track_id) +
-                                   " is no longer in the library"};
-        }
-        if (auto written = write_tags(**path, change); !written)
+        if (auto written = write_tags(*path, change); !written)
         {
             return written;
         }
-        // Read back, so the database holds what is in the file now, with the new stamp of the changed file
-        const auto stamp = fileStamp(**path);
-        if (!stamp)
-        {
-            return std::unexpected{stamp.error()};
-        }
-        // Only tags changed, the audio and so its analysis stay
-        return writer.tracks.store(**path, *stamp, read_tags(**path), true);
+        // Read back, so the database holds what is in the file now, with the new stamp of the changed file. Only
+        // tags changed, the audio and so its analysis stay.
+        return storeAsItIs(writer.tracks, *path, read_tags, true);
     }
 } // namespace djw::core::library

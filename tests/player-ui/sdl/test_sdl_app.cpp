@@ -36,7 +36,8 @@ namespace
                 REQUIRE(core->start().has_value()); // the audio thread runs, with no sound
             }
 
-            std::unique_ptr<SdlApp> openApp(api::Library *library = nullptr, const std::filesystem::path &layout_file = {})
+            std::unique_ptr<SdlApp> openApp(api::Library                *library     = nullptr,
+                                            const std::filesystem::path &layout_file = {})
             {
                 auto app = SdlApp::create(*core, deck, library, Language::English, {}, layout_file);
                 REQUIRE(app.has_value());
@@ -97,8 +98,8 @@ TEST_CASE("SdlApp: Ctrl+N adds a deck with its own window, as many as wanted")
 
 TEST_CASE("SdlApp: Ctrl+N held down does not add a deck for every repeat")
 {
-    Fixture fixture;
-    auto    app = fixture.openApp();
+    Fixture   fixture;
+    auto      app = fixture.openApp();
     SDL_Event event{};
     event.type       = SDL_EVENT_KEY_DOWN;
     event.key.key    = SDLK_N;
@@ -179,9 +180,9 @@ TEST_CASE("SdlApp: a quit event ends the program")
 
 TEST_CASE("SdlApp: with a library the program goes on when all decks are closed and a new deck opens with Ctrl+N")
 {
-    Fixture                fixture;
+    Fixture                   fixture;
     const djw::tests::TempDir folder;
-    auto                   library = api::openLibrary({.database_file = folder.path() / "library.db"});
+    auto                      library = api::openLibrary({.database_file = folder.path() / "library.db"});
     REQUIRE(library.has_value());
     auto app = fixture.openApp(library->get());
 
@@ -257,10 +258,10 @@ TEST_CASE("SdlApp: a chosen track goes into the first player that does not play"
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
-    const auto                one = makeWav(folder, "one.wav");
-    const auto                two = makeWav(folder, "two.wav");
+    const auto                one   = makeWav(folder, "one.wav");
+    const auto                two   = makeWav(folder, "two.wav");
     const auto                three = makeWav(folder, "three.wav");
-    auto                      app = fixture.openApp();
+    auto                      app   = fixture.openApp();
     Fixture::ctrlN();
     Fixture::ctrlN();
     REQUIRE(app->runFrame());
@@ -302,7 +303,7 @@ TEST_CASE("SdlApp: with a library a track chosen with no player open opens one f
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
-    const auto                file = makeWav(folder, "one.wav");
+    const auto                file    = makeWav(folder, "one.wav");
     auto                      library = api::openLibrary({.database_file = folder.path() / "library.db"});
     REQUIRE(library.has_value());
     auto app = fixture.openApp(library->get());
@@ -355,7 +356,8 @@ namespace
     }
 } // namespace
 
-TEST_CASE("SdlApp: without Cue-Load a track starts at the beginning, with it at the stored cue point or the first sound")
+TEST_CASE(
+    "SdlApp: without Cue-Load a track starts at the beginning, with it at the stored cue point or the first sound")
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
@@ -459,13 +461,15 @@ TEST_CASE("SdlApp: a track loaded from the library is analyzed, a file from outs
     CHECK(library.analyzed == std::vector<std::int64_t>{7});
 }
 
-TEST_CASE("SdlApp: the tempo and waveform of an analyzed track show in the player, the others when their analysis is done")
+TEST_CASE(
+    "SdlApp: the tempo and waveform of an analyzed track show in the player, the others when their analysis is done")
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
     const auto                file = gapWav(folder);
     djw::tests::FakeLibrary   library;
-    library.library_tracks.push_back({.id = 7, .path = file, .artist = "Artist", .title = "Title", .bpm = 128.0, .analyzed = true});
+    library.library_tracks.push_back(
+        {.id = 7, .path = file, .artist = "Artist", .title = "Title", .bpm = 128.0, .analyzed = true});
     library.library_tracks.push_back({.id = 8, .path = file, .artist = "Other", .title = "Other"});
     library.waveforms[7] = {5, 100, 255};
     auto app             = fixture.openApp(&library);
@@ -584,7 +588,7 @@ TEST_CASE("SdlApp: View > Save layout writes what is open now, the next start fi
     {
         Fixture                 fixture;
         djw::tests::FakeLibrary library;
-        auto                    app = fixture.openApp(&library, file); // the default: two players, the crossfader window
+        auto app = fixture.openApp(&library, file); // the default: two players, the crossfader window
         REQUIRE(app->runFrame());
 
         Fixture::ctrlN(); // a third player
@@ -655,6 +659,7 @@ TEST_CASE("SdlApp: a file dropped on a player window is loaded into that player,
     const auto other = makeWav(folder, "other.wav");
     app->dropped(app->deckWindowId(1), other);
     CHECK(app->deckFile(1) == file);
+    CHECK(app->deckView(1).stateText() == "not loaded"); // the player says why, where the file was dropped
 
     // Not a file: a folder or nothing at all is ignored
     app->dropped(app->deckWindowId(0), folder.path());

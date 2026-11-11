@@ -3,11 +3,13 @@
 
 #include "i18n/catalog.hpp"
 
+#include <array>
+
 namespace djw::player_ui::sdl::catalogs
 {
     namespace
     {
-        constexpr CatalogEntry entries[] = {
+        constexpr auto entries = std::to_array<CatalogEntry>({
             {"window.library", "djw - Biblioteca"},
             {"window.deck", "djw - Reproductor {number}"},
             {"window.playlist", "djw - Lista"},
@@ -47,7 +49,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.analyzing", "analizando {count, plural, one {# pista} many {# de pistas} other {# pistas}}"},
             {"context.edit_tags", "Editar etiquetas"},
             {"context.rescan_track", "Volver a leer"},
-            {"library.error.in_use", "la pista está cargada en un reproductor, sus etiquetas no cambian mientras suena"},
+            {"library.error.in_use",
+             "la pista está cargada en un reproductor, sus etiquetas no cambian mientras suena"},
             {"library.error.year", "el año debe ser un número de hasta cuatro cifras"},
             {"playlist.name_placeholder", "Nombre de la lista"},
             {"playlist.default_name", "Lista {number}"},
@@ -79,6 +82,7 @@ namespace djw::player_ui::sdl::catalogs
             {"player.state.cued", "en cue"},
             {"player.state.paused", "pausa"},
             {"player.state.playing", "sonando"},
+            {"player.notice.playing", "no cargado"},
             {"mixer.player", "Reproductor {number}"},
             {"mixer.none", "(ninguno)"},
             {"mixer.zero", "Cero"},
@@ -90,7 +94,7 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.layout_saved", "disposición guardada"},
             {"library.notice.layout_failed", "no se pudo guardar la disposición"},
             {"deck.cannot_load", "No se puede cargar: {error}"},
-        };
+        });
     } // namespace
 
     std::span<const CatalogEntry> spanish()

@@ -41,8 +41,9 @@ namespace
                 for (std::size_t frame = 0; frame < frames; ++frame)
                 {
                     const float value =
-                        next < sound_at ? level : static_cast<float>(0.5 * std::sin(0.05 * static_cast<double>(next) + 1.0));
-                    output[frame * 2]     = value;
+                        next < sound_at ? level
+                                        : static_cast<float>(0.5 * std::sin(0.05 * static_cast<double>(next) + 1.0));
+                    output[frame * 2]       = value;
                     output[(frame * 2) + 1] = value;
                     ++next;
                 }
@@ -110,16 +111,21 @@ TEST_CASE("findFirstSound: a level below the threshold is silence, at the thresh
 
 TEST_CASE("findFirstSound: only one channel may carry the sound")
 {
-    class RightOnly final : public Decoder
+    /// Sound from frame 777 on, in one channel only
+    class OneChannel final : public Decoder
     {
         public:
+            explicit OneChannel(std::size_t channel) : channel{channel} {}
+
             std::expected<std::size_t, std::string> read(std::span<float> output) override
             {
-                const auto frames = std::min<std::size_t>(output.size() / 2, 10'000 - std::min<std::uint64_t>(10'000, next));
+                const auto frames =
+                    std::min<std::size_t>(output.size() / 2, 10'000 - std::min<std::uint64_t>(10'000, next));
                 for (std::size_t frame = 0; frame < frames; ++frame)
                 {
-                    output[frame * 2]       = 0.0F;
-                    output[(frame * 2) + 1] = next >= 777 ? 0.3F : 0.0F;
+                    output[frame * 2]             = 0.0F;
+                    output[(frame * 2) + 1]       = 0.0F;
+                    output[(frame * 2) + channel] = next >= 777 ? 0.3F : 0.0F;
                     ++next;
                 }
                 return frames;
@@ -131,8 +137,23 @@ TEST_CASE("findFirstSound: only one channel may carry the sound")
             }
             [[nodiscard]] std::uint64_t lengthFrames() const noexcept override { return 10'000; }
             std::uint64_t               next = 0;
-    } decoder;
-    CHECK(findFirstSound(decoder, limit) == 777);
+
+        private:
+            std::size_t channel;
+    };
+    OneChannel left{0};
+    CHECK(findFirstSound(left, limit) == 777);
+    OneChannel right{1};
+    CHECK(findFirstSound(right, limit) == 777);
+}
+
+TEST_CASE("findFirstSound: the limit counts exactly, also inside a block")
+{
+    // 50'000 is not a multiple of the block size, so the last block read is a short one
+    GapDecoder at_limit{50'000, 100'000};
+    CHECK_FALSE(findFirstSound(at_limit, 50'000).has_value());
+    GapDecoder before_limit{49'999, 100'000};
+    CHECK(findFirstSound(before_limit, 50'000) == 49'999);
 }
 
 TEST_CASE("findFirstSound: nothing is known when there is only silence, the sound comes too late or the decoder fails")
@@ -165,7 +186,8 @@ TEST_CASE("findFirstSound: in a file, on a decoder of its own")
     djw::tests::StereoAudio   audio{.sample_rate = 48'000, .samples = std::vector<float>(48'000 * 2 * 2, 0.0F)};
     for (std::size_t frame = 48'000; frame < 96'000; ++frame) // silence for one second, then a tone
     {
-        const auto value        = static_cast<float>(0.4 * std::sin(2.0 * std::numbers::pi * 440.0 * static_cast<double>(frame) / 48'000.0));
+        const auto value =
+            static_cast<float>(0.4 * std::sin(2.0 * std::numbers::pi * 440.0 * static_cast<double>(frame) / 48'000.0));
         audio.samples[frame * 2]       = value;
         audio.samples[(frame * 2) + 1] = value;
     }

@@ -6,6 +6,7 @@
 
 #include "api/library.hpp"
 #include "clock.hpp"
+#include "timed_state.hpp"
 #include "column_header.hpp"
 #include "file_dialogs.hpp"
 #include "i18n/translator.hpp"
@@ -39,10 +40,10 @@ namespace djw::player_ui::sdl
      * anything else saves, Escape cancels. The change goes to the library, which writes the file in the background;
      * the row shows the new value at once. Tracks for which in_use is true (loaded in a player) are not changed.
      *
-     * Menu bar on top (Database, Playlist, Settings, Language, View): add a music folder (folder dialog) and rescan; the
-     * playlist commands, which the owner carries out in the playlist window (opening it if needed); the language,
-     * which takes effect at once; new player (Ctrl+N is handled by the app), clear the search, show only missing tracks,
-     * show or hide the playlist and crossfader windows. All texts come from the translator on every update.
+     * Menu bar on top (Database, Playlist, Settings, Language, View): add a music folder (folder dialog) and rescan;
+     * the playlist commands, which the owner carries out in the playlist window (opening it if needed); the language,
+     * which takes effect at once; new player (Ctrl+N is handled by the app), clear the search, show only missing
+     * tracks, show or hide the playlist and crossfader windows. All texts come from the translator on every update.
      *
      * Context menu: the right mouse button on a track selects it and opens a menu with "Edit tags" (the artist cell
      * of the track opens in the editor) and "Scan again" (the library reads the file anew and analyzes it again).
@@ -70,14 +71,14 @@ namespace djw::player_ui::sdl
                 /// Shows the playlist window, or hides it if it is shown
                 ToggleWindow
             };
-            using PlaylistAction  = std::function<void(PlaylistCommand command)>;
-            using PlaylistShown   = std::function<bool()>;
+            using PlaylistAction = std::function<void(PlaylistCommand command)>;
+            using PlaylistShown  = std::function<bool()>;
             using LanguageChosen = std::function<void(Language language)>;
             using NewDeck        = std::function<void()>;
             /// Saves the window layout; true when it was saved
-            using SaveLayout     = std::function<bool()>;
-            using Toggle         = std::function<void()>;
-            using Shown          = std::function<bool()>;
+            using SaveLayout = std::function<bool()>;
+            using Toggle     = std::function<void()>;
+            using Shown      = std::function<bool()>;
 
             /// How long a notice (see setNotice) stays in the status line
             static constexpr std::chrono::milliseconds notice_time{4'000};
@@ -119,9 +120,9 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
             [[nodiscard]] const TextButton              &addButton() const noexcept { return add_button; }
             /// What View > Save layout does; without it the entry is off
-            void setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
-            [[nodiscard]] const MenuBar                 &menuBar() const noexcept { return menu; }
-            [[nodiscard]] const ContextMenu             &contextMenu() const noexcept { return context_menu; }
+            void                             setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
+            [[nodiscard]] const MenuBar     &menuBar() const noexcept { return menu; }
+            [[nodiscard]] const ContextMenu &contextMenu() const noexcept { return context_menu; }
 
             /// Shows an "Add to playlist" button for the selected track, which hands the track to add
             void setAddToPlaylist(Add add) { add_to_playlist = std::move(add); }
@@ -186,6 +187,8 @@ namespace djw::player_ui::sdl
             Load                     load;
             InUse                    in_use;
             Clock                    clock;
+            TimedNotice              notice{clock, notice_time};
+            ConfirmTap               confirm_remove{clock, confirm_time};
             MenuBar                  menu;
             ContextMenu              context_menu;
             SaveLayout               save_layout;
@@ -204,25 +207,22 @@ namespace djw::player_ui::sdl
             NewDeck                  new_deck_requested;
             Toggle                   mixer_toggle;
             Shown                    mixer_shown;
-            std::string_view         notice_key;
-            std::chrono::steady_clock::time_point notice_until;
             LanguageChosen           language_chosen;
             bool                     only_missing = false;
-            std::optional<std::chrono::steady_clock::time_point> confirm_remove_until;
-            std::optional<CellEdit>                              edit;
+            std::optional<CellEdit>  edit;
             /// Key of the message about the last edit, empty if none; translated when shown
-            std::string_view                                     edit_message;
+            std::string_view edit_message;
             /// Why the last folder could not be added, as the library says
-            std::string                                          folder_error;
-            core::api::LibraryColumn                             sort_by    = core::api::LibraryColumn::Artist;
-            bool                                                 descending = false;
-            Rect                                                 status_area;
-            std::string                                          status_text;
-            std::string                                          search_error;
-            core::api::LibraryQuery                              searched;
-            bool                                                 has_searched  = false;
-            std::uint64_t                                        seen_revision = 0;
-            std::chrono::steady_clock::time_point                last_search;
+            std::string                           folder_error;
+            core::api::LibraryColumn              sort_by    = core::api::LibraryColumn::Artist;
+            bool                                  descending = false;
+            Rect                                  status_area;
+            std::string                           status_text;
+            std::string                           search_error;
+            core::api::LibraryQuery               searched;
+            bool                                  has_searched  = false;
+            std::uint64_t                         seen_revision = 0;
+            std::chrono::steady_clock::time_point last_search;
     };
 } // namespace djw::player_ui::sdl
 

@@ -372,6 +372,58 @@ TEST_CASE("Library: playlist changes run on the library thread and raise the rev
     CHECK(playlists.list().value().empty());
 }
 
+TEST_CASE("Library: moving playlist entries down and up over several places, the ends included")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    for (const char *name : {"a", "b", "c", "d", "e"})
+    {
+        std::ofstream{music.path() / (std::string{name} + ".mp3")} << "x";
+    }
+    auto library = openService(
+        data.path() / "library.db",
+        [](const std::filesystem::path &file) { return library::TrackTags{.title = file.stem().string()}; },
+        [](const std::filesystem::path &, const api::LibraryTagChange &) -> std::expected<void, std::string>
+        { return {}; });
+    REQUIRE(library->addFolder(music.path()).has_value());
+    auto            revision  = waitForScan(*library).revision;
+    api::Playlists &playlists = library->playlists();
+    const auto      tracks    = library->search({}).value(); // a .. e
+
+    playlists.create("Set");
+    revision      = waitForRevision(*library, revision).revision;
+    const auto id = playlists.list().value().front().id;
+    playlists.add(id, {tracks[0].id, tracks[1].id, tracks[2].id, tracks[3].id, tracks[4].id});
+
+    revision = waitForRevision(*library, revision).revision;
+    // One change at a time, each checked, so a move that does nothing cannot hide behind a later one
+    const auto after = [&](const auto &change)
+    {
+        change();
+        const auto status = waitForRevision(*library, revision);
+        revision          = status.revision;
+        CHECK(status.write_error.empty());
+        return playlistTitles(playlists, id);
+    };
+    using Titles = std::vector<std::string>;
+    CHECK(after([&] { playlists.moveEntry(id, 1, 3); }) == Titles{"a", "c", "d", "b", "e"}); // down by two
+    CHECK(after([&] { playlists.moveEntry(id, 4, 0); }) == Titles{"e", "a", "c", "d", "b"}); // end to start
+    CHECK(after([&] { playlists.moveEntry(id, 0, 4); }) == Titles{"a", "c", "d", "b", "e"}); // start to end
+    CHECK(after([&] { playlists.moveEntry(id, 3, 1); }) == Titles{"a", "b", "c", "d", "e"}); // up by two
+    CHECK(after([&] { playlists.removeEntry(id, 4); }) == Titles{"a", "b", "c", "d"});       // the last one
+
+    // Nothing changes: the same place, beyond the end; renaming to its own name is fine
+    playlists.moveEntry(id, 2, 2);
+    playlists.moveEntry(id, 4, 0);
+    playlists.moveEntry(id, 0, 4);
+    playlists.removeEntry(id, 4);
+    playlists.rename(id, "Set");
+    playlists.create("Marker"); // raises the revision for sure, after all the others
+    const auto status = waitForRevision(*library, revision);
+    CHECK(status.write_error.empty());
+    CHECK(playlistTitles(playlists, id) == Titles{"a", "b", "c", "d"});
+}
+
 TEST_CASE("Library: writes still queued are done when the library closes")
 {
     const djw::tests::TempDir data;

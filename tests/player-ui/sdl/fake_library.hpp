@@ -39,9 +39,9 @@ namespace djw::tests
 
             void removeMissing() override { ++removals; }
 
-            void analyze(std::int64_t track_id) override { analyzed.push_back(track_id); }
-            void analyzeAll() override { ++analyze_all_requests; }
-            void rescanTrack(std::int64_t track_id) override { rescanned.push_back(track_id); }
+            void                      analyze(std::int64_t track_id) override { analyzed.push_back(track_id); }
+            void                      analyzeAll() override { ++analyze_all_requests; }
+            void                      rescanTrack(std::int64_t track_id) override { rescanned.push_back(track_id); }
             std::vector<std::uint8_t> waveform(std::int64_t track_id) const override
             {
                 const auto found = waveforms.find(track_id);

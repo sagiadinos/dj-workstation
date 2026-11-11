@@ -190,7 +190,7 @@ namespace djw::player_ui::sdl
         name_field.setPlaceholder(translator->tr("playlist.name_placeholder"));
         control(Button::New).setLabel(translator->tr("playlist.new"));
         control(Button::Delete)
-            .setLabel(translator->tr(confirm_delete_until ? "playlist.delete_confirm" : "playlist.delete"));
+            .setLabel(translator->tr(confirm_delete.armed() ? "playlist.delete_confirm" : "playlist.delete"));
         control(Button::Import).setLabel(translator->tr("playlist.import"));
         control(Button::Export).setLabel(translator->tr("playlist.export"));
         control(Button::Up).setLabel(translator->tr("playlist.up"));
@@ -256,21 +256,9 @@ namespace djw::player_ui::sdl
         {
             createNew();
         }
-        if (control(Button::Delete).takePress() && shown)
+        if (control(Button::Delete).takePress() && shown && confirm_delete.tap())
         {
-            if (confirm_delete_until && clock() <= *confirm_delete_until)
-            {
-                playlists->remove(*shown);
-                confirm_delete_until.reset();
-            }
-            else
-            {
-                confirm_delete_until = clock() + confirm_time;
-            }
-        }
-        if (confirm_delete_until && clock() > *confirm_delete_until)
-        {
-            confirm_delete_until.reset();
+            playlists->remove(*shown);
         }
         applyTranslations();
 
@@ -362,11 +350,11 @@ namespace djw::player_ui::sdl
         }
         else if (show_import && seen_import)
         {
-            status_text += " - " + translator->tr("playlist.imported",
-                                                  {{"name", seen_import->playlist},
-                                                   {"tracks", translator->tr("tracks.count",
-                                                                             {{"count", seen_import->tracks}})},
-                                                   {"not_found", seen_import->not_found}});
+            status_text +=
+                " - " + translator->tr("playlist.imported",
+                                       {{"name", seen_import->playlist},
+                                        {"tracks", translator->tr("tracks.count", {{"count", seen_import->tracks}})},
+                                        {"not_found", seen_import->not_found}});
         }
 
         if (const auto row = list.takeActivated(); row && load)

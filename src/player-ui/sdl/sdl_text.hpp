@@ -67,7 +67,7 @@ namespace djw::player_ui::sdl
             /// One size of the font with its shaped lines and measured widths
             struct Face
             {
-                    TTF_Font                                      *font  = nullptr;
+                    TTF_Font                                      *font   = nullptr;
                     float                                          points = 0.0F;
                     std::unordered_map<std::string, TTF_Text *>    cache{};
                     mutable std::unordered_map<std::string, float> widths{};

@@ -573,6 +573,30 @@ TEST_CASE("Deck: scrubbing a stopped deck plays a short loop at the position, ov
     CHECK(deck.positionFrames() == 10'000); // the position is where the finger is
 }
 
+TEST_CASE("Deck: the fades of the scrub loop rise and fall evenly, on both channels")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.scrub(10'000, true);
+    std::vector<float> output(2 * 6'000);
+    deck.render(output);
+
+    const auto ramp = static_cast<std::size_t>(Deck::scrub_ramp_seconds * 48'000);
+    const auto loop = static_cast<std::size_t>(Deck::scrub_loop_seconds * 48'000);
+    for (const std::size_t channel : {0U, 1U})
+    {
+        CAPTURE(channel);
+        // Half way through the fade-in half the level, at its end the full level
+        CHECK(output[((ramp / 2) * 2) + channel] ==
+              doctest::Approx(0.5F * trackValue(10'000 + (ramp / 2))).epsilon(0.02));
+        CHECK(output[(ramp * 2) + channel] == doctest::Approx(trackValue(10'000 + ramp)).epsilon(0.001));
+        // Half way through the fade-out half the level again
+        const std::size_t falling = loop - (ramp / 2);
+        CHECK(output[(falling * 2) + channel] == doctest::Approx(0.5F * trackValue(10'000 + falling)).epsilon(0.02));
+    }
+}
+
 TEST_CASE("Deck: moving the scrub moves the loop, ending it leaves the deck stopped at the position")
 {
     BufferSource source{positionTrack()};

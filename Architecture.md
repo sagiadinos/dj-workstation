@@ -62,6 +62,12 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - No duplicated logic: extract it when it appears a second time. Code that only looks alike but changes for different reasons stays separate.
 - Exception: the audio path. Real-time safety and performance come before abstraction there, so no virtual calls per sample and no indirection inside inner loops.
 
+## Player windows
+
+- A view (`player-ui/sdl/view.hpp`: player, library, crossfader, playlist) lays itself out in the rectangle it is given and never assumes it starts at the window's top left corner. Tests check this for every view (`test_view_host.cpp`).
+- A window is a host: `SdlWindow` shows the views of its `ViewHost`, each in its own area, without overlap. Pointer input goes to the widgets of all its views, the wheel and the right mouse button to the view under the pointer, typed text to the view a pointer last went down on.
+- Now every element has its own window (one view filling its host). The planned MDI mode (one host per monitor, sub-windows that snap to each other and never overlap, a minimum size per sub-window, scrolling when even that does not fit) builds on the same views and hosts. Window positions are not used for it, since Wayland gives clients none.
+
 ## Code conventions
 
 - C++23, no compiler extensions. Minimum toolchains: GCC 13, Clang 17 (libc++ 17), Apple Clang 15 (Xcode 15), MSVC 19.38 (VS 2022 17.8).
@@ -141,7 +147,10 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - Real-time safety: in test builds `malloc`/`new` are replaced by counting versions. A test drives the audio callback with a typical command sequence and requires zero allocations inside it. Locks in the audio path are covered by TSan.
 
 ### Mutation tests
-- Planned for later, once the core modules have solid unit test coverage. They check that the tests actually detect changed behavior, not just execute the code. The tool is chosen then and must be approved like any other dependency.
+- They check that the tests actually detect changed behavior, not just execute the code. `tools/mutate.py` (Python, no dependency) changes one spot of a source file at a time (comparison, arithmetic and logical operators, constants, negations, conditions, removed statements), rebuilds, runs the tests of that module and lists the mutants no test noticed. Each surviving mutant is either a missing test or code that does not matter.
+- Run it on a separate checkout (`git worktree`) with its own build folder, never on the working tree; `--shard i/n` splits the work over several checkouts. The usage is in the script's header.
+- Scope for now: `src/core/`. A mutant that cannot matter (e.g. a log text) is marked in the source with a `mutation: skip` comment on its line.
+- Not part of CI (too slow); run before a milestone is closed. A compiler-based tool (Mull) may follow later; like every dependency it must be approved first.
 
 ### Memory leaks
 - Avoid leaks by construction: every resource has an owner (RAII). Heap memory through `std::unique_ptr` or containers, C library handles (miniaudio, SQLite, SDL, ...) in a small RAII wrapper with a deleter, never with manual `free`/`close` calls spread over the code.

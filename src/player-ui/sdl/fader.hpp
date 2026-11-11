@@ -44,11 +44,11 @@ namespace djw::player_ui::sdl
             [[nodiscard]] Rect track() const noexcept;
             void               follow(Point position) noexcept;
 
-            Clock                                                  clock;
-            std::optional<std::chrono::steady_clock::time_point>   last_down;
-            bool                                                   double_tapped = false;
-            float                                                  current       = 1.0F;
-            bool                                                   held          = false;
+            Clock                                                clock;
+            std::optional<std::chrono::steady_clock::time_point> last_down;
+            bool                                                 double_tapped = false;
+            float                                                current       = 1.0F;
+            bool                                                 held          = false;
     };
 } // namespace djw::player_ui::sdl
 

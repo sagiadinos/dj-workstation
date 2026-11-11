@@ -4,6 +4,7 @@
 #include "look.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace djw::player_ui::sdl::look
@@ -28,12 +29,14 @@ namespace djw::player_ui::sdl::look
         // Brushed: fine horizontal lines, a little lighter or darker, the same every frame
         constexpr float line_step = 3.0F;
         std::uint32_t   seed      = 12'345;
-        for (float y = area.y; y < area.y + area.height; y += line_step)
+        const auto      lines     = static_cast<int>(std::ceil(area.height / line_step));
+        for (int line_index = 0; line_index < lines; ++line_index)
         {
-            seed                   = (seed * 1'103'515'245U) + 12'345U;
-            const auto    strength = static_cast<unsigned char>((seed >> 16U) % 9U);
-            const bool    light    = ((seed >> 24U) & 1U) != 0U;
-            const Color   line     = light ? Color{255, 255, 255, strength} : Color{0, 0, 0, strength};
+            const float y        = area.y + (static_cast<float>(line_index) * line_step);
+            seed                 = (seed * 1'103'515'245U) + 12'345U;
+            const auto  strength = static_cast<unsigned char>((seed >> 16U) % 9U);
+            const bool  light    = ((seed >> 24U) & 1U) != 0U;
+            const Color line     = light ? Color{255, 255, 255, strength} : Color{0, 0, 0, strength};
             canvas.fillRect({area.x, y, area.width, 1.0F}, line);
         }
     }
@@ -45,7 +48,7 @@ namespace djw::player_ui::sdl::look
             return;
         }
         canvas.fillRoundedRect(area, radius, outline, outline);
-        const Rect body = area.inset(1.0F);
+        const Rect  body  = area.inset(1.0F);
         const Color light = shade(base, pressed ? -10 : 28);
         const Color dark  = shade(base, pressed ? -32 : -18);
         canvas.fillRoundedRect(body, std::max(0.0F, radius - 1.0F), pressed ? dark : light, pressed ? light : dark);
@@ -80,7 +83,7 @@ namespace djw::player_ui::sdl::look
         {
             return;
         }
-        const Rect lit = inner.inset(1.0F);
+        const Rect  lit     = inner.inset(1.0F);
         const float clamped = std::clamp(level, 0.0F, 1.0F);
         if (vertical)
         {
@@ -90,8 +93,8 @@ namespace djw::player_ui::sdl::look
         }
         else
         {
-            canvas.fillRoundedRect({lit.x, lit.y, lit.width * clamped, lit.height}, std::min(lit.height, lit.width * clamped) / 2,
-                                   shade(fill, 40), shade(fill, -40));
+            canvas.fillRoundedRect({lit.x, lit.y, lit.width * clamped, lit.height},
+                                   std::min(lit.height, lit.width * clamped) / 2, shade(fill, 40), shade(fill, -40));
         }
     }
 
@@ -108,11 +111,13 @@ namespace djw::player_ui::sdl::look
         const Color mark{40, 42, 46, 200};
         if (mark_horizontal)
         {
-            canvas.fillRect({body.x + 3.0F, body.y + (body.height / 2) - 0.5F, std::max(0.0F, body.width - 6.0F), 1.0F}, mark);
+            canvas.fillRect({body.x + 3.0F, body.y + (body.height / 2) - 0.5F, std::max(0.0F, body.width - 6.0F), 1.0F},
+                            mark);
         }
         else
         {
-            canvas.fillRect({body.x + (body.width / 2) - 0.5F, body.y + 3.0F, 1.0F, std::max(0.0F, body.height - 6.0F)}, mark);
+            canvas.fillRect({body.x + (body.width / 2) - 0.5F, body.y + 3.0F, 1.0F, std::max(0.0F, body.height - 6.0F)},
+                            mark);
         }
     }
 
@@ -124,9 +129,11 @@ namespace djw::player_ui::sdl::look
         }
         // A folder seen from the front: the tab and the back wall darker, the front flap in the color
         const Color back = shade(color, -70);
-        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.10F), area.width * 0.42F, area.height * 0.30F}, 2.0F, back, back);
-        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.24F), area.width, area.height * 0.66F}, 3.0F, back, back);
-        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.42F), area.width * 0.94F, area.height * 0.48F}, 3.0F, color,
-                               shade(color, -30));
+        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.10F), area.width * 0.42F, area.height * 0.30F}, 2.0F,
+                               back, back);
+        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.24F), area.width, area.height * 0.66F}, 3.0F, back,
+                               back);
+        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.42F), area.width * 0.94F, area.height * 0.48F}, 3.0F,
+                               color, shade(color, -30));
     }
 } // namespace djw::player_ui::sdl::look

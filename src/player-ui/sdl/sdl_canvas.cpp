@@ -45,10 +45,10 @@ namespace djw::player_ui::sdl
         radius = std::clamp(radius, 0.0F, std::min(rect.width, rect.height) / 2);
 
         // The outline: four corner arcs, clockwise from the top left corner's start
-        constexpr int                          arc_steps = 6;
-        constexpr float                        half_pi   = 1.5707963F;
-        std::vector<Point>                     outline;
-        outline.reserve(4 * (arc_steps + 1));
+        constexpr int      arc_steps = 6;
+        constexpr float    half_pi   = 1.5707963F;
+        std::vector<Point> outline;
+        outline.reserve(static_cast<std::size_t>(4) * (arc_steps + 1));
         const std::array<Point, 4> centers{{{rect.x + radius, rect.y + radius},
                                             {rect.x + rect.width - radius, rect.y + radius},
                                             {rect.x + rect.width - radius, rect.y + rect.height - radius},
@@ -65,9 +65,9 @@ namespace djw::player_ui::sdl
         }
 
         // A fan around the center; the color follows y, so the gradient is exact
-        const auto colorAt = [&](float y)
+        const auto color_at = [&](float y)
         {
-            const float t = std::clamp((y - rect.y) / rect.height, 0.0F, 1.0F);
+            const float t   = std::clamp((y - rect.y) / rect.height, 0.0F, 1.0F);
             const auto  mix = [t](unsigned char from, unsigned char to)
             { return static_cast<float>(from) + (static_cast<float>(to) - static_cast<float>(from)) * t; };
             return SDL_FColor{mix(top.red, bottom.red) / 255.0F, mix(top.green, bottom.green) / 255.0F,
@@ -76,10 +76,11 @@ namespace djw::player_ui::sdl
         std::vector<SDL_Vertex> vertices;
         vertices.reserve(outline.size() + 1);
         const float center_y = rect.y + (rect.height / 2);
-        vertices.push_back({{(rect.x + (rect.width / 2)) * density, center_y * density}, colorAt(center_y), {0.0F, 0.0F}});
+        vertices.push_back(
+            {{(rect.x + (rect.width / 2)) * density, center_y * density}, color_at(center_y), {0.0F, 0.0F}});
         for (const Point &point : outline)
         {
-            vertices.push_back({{point.x * density, point.y * density}, colorAt(point.y), {0.0F, 0.0F}});
+            vertices.push_back({{point.x * density, point.y * density}, color_at(point.y), {0.0F, 0.0F}});
         }
         std::vector<int> indices;
         indices.reserve(outline.size() * 3);

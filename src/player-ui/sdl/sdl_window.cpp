@@ -26,7 +26,7 @@ namespace djw::player_ui::sdl
     std::expected<std::unique_ptr<SdlWindow>, std::string> SdlWindow::create(const WindowOptions &options, View &view,
                                                                              const std::filesystem::path &font_file)
     {
-        std::unique_ptr<SdlWindow> created{new SdlWindow{view}};
+        std::unique_ptr<SdlWindow> created{new SdlWindow{}};
         created->window.reset(SDL_CreateWindow(options.title.c_str(), options.width, options.height,
                                                SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY));
         if (!created->window)
@@ -47,7 +47,7 @@ namespace djw::player_ui::sdl
         }
         created->text = std::move(*text);
 
-        view.addTo(created->router);
+        created->host.add(view);
         return created;
     }
 
@@ -108,25 +108,25 @@ namespace djw::player_ui::sdl
         const Rect size = area();
         if (const auto pointer = toPointerEvent(event, size.width, size.height))
         {
-            router.handle(*pointer);
+            host.pointer(*pointer);
         }
         else if (const auto typed = toKeyboardInput(event))
         {
-            view->keyboard(*typed);
+            host.keyboard(*typed);
         }
         else if (const auto wheel = toWheelEvent(event))
         {
-            view->wheel(wheel->position, wheel->dy);
+            host.wheel(wheel->position, wheel->dy);
         }
         else if (const auto secondary = toSecondaryClick(event))
         {
-            view->secondaryClick(*secondary);
+            host.secondaryClick(*secondary);
         }
     }
 
     void SdlWindow::syncTextInput()
     {
-        const bool wanted = view->wantsTextInput();
+        const bool wanted = host.wantsTextInput();
         if (wanted == text_input)
         {
             return;
@@ -144,15 +144,15 @@ namespace djw::player_ui::sdl
 
     void SdlWindow::frame()
     {
-        view->layout(area());
-        view->update();
+        host.layout(area());
+        host.update();
         syncTextInput();
 
         SDL_SetRenderDrawColor(renderer.get(), background.red, background.green, background.blue, background.alpha);
         SDL_RenderClear(renderer.get());
         SdlCanvas canvas{*renderer, *text, SDL_GetWindowPixelDensity(window.get())};
         look::background(canvas, area());
-        view->draw(canvas);
+        host.draw(canvas);
         SDL_RenderPresent(renderer.get());
     }
 } // namespace djw::player_ui::sdl

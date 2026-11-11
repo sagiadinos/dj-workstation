@@ -75,11 +75,11 @@ namespace djw::player_ui::sdl
         canvas.fillRoundedRect(bounds(), 0.0F, look::shade(background, 22), look::shade(background, -12));
         for (const core::api::LibraryColumn column : track_columns)
         {
-            const Rect  area   = columnArea(bounds(), column);
-            const bool  sorted = column == sort_by;
-            const float text_y = area.y + ((area.height - canvas.textHeight()) / 2);
-            const float arrow  = sorted ? arrow_size + padding : 0.0F;
-            const std::string &name = names[columnIndex(column)];
+            const Rect         area   = columnArea(bounds(), column);
+            const bool         sorted = column == sort_by;
+            const float        text_y = area.y + ((area.height - canvas.textHeight()) / 2);
+            const float        arrow  = sorted ? arrow_size + padding : 0.0F;
+            const std::string &name   = names[columnIndex(column)];
             canvas.textElided({area.x + padding, text_y}, name, sorted ? sorted_color : text_color,
                               area.width - (2 * padding) - arrow);
             if (sorted)

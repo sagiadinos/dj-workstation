@@ -145,5 +145,6 @@ TEST_CASE("toSecondaryClick: the right mouse button going down gives its positio
 
     CHECK_FALSE(toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_UP, 1, SDL_BUTTON_RIGHT, 12, 34)));
     CHECK_FALSE(toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_DOWN, 1, SDL_BUTTON_LEFT, 12, 34)));
-    CHECK_FALSE(toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_TOUCH_MOUSEID, SDL_BUTTON_RIGHT, 12, 34)));
+    CHECK_FALSE(
+        toSecondaryClick(mouseButton(SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_TOUCH_MOUSEID, SDL_BUTTON_RIGHT, 12, 34)));
 }

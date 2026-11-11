@@ -23,7 +23,8 @@ namespace djw::player_ui::sdl
         }
     } // namespace
 
-    Translator::Translator(Language language) : current{language}, texts{indexOf(catalog(language))}, fallback{indexOf(catalog(Language::English))}
+    Translator::Translator(Language language)
+        : current{language}, texts{indexOf(catalog(language))}, fallback{indexOf(catalog(Language::English))}
     {
     }
 

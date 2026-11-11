@@ -17,7 +17,8 @@ namespace
             Fixture()
             {
                 menu.place({0, 0, 600, 400});
-                menu.setItems({{.id = 7, .label = "Edit tags"}, {.id = 8, .label = "Scan again"},
+                menu.setItems({{.id = 7, .label = "Edit tags"},
+                               {.id = 8, .label = "Scan again"},
                                {.id = 9, .label = "Off", .enabled = false}});
                 router.add(menu);
             }

@@ -229,5 +229,6 @@ TEST_CASE("TrackList: the BPM column shows the tempo with one decimal, nothing f
     djw::tests::RecordingCanvas canvas;
     fixture.list.draw(canvas);
     CHECK(canvas.drew("128.0"));
-    CHECK(std::ranges::count_if(canvas.texts, [](const auto &drawn) { return drawn.text.find('.') != std::string::npos && drawn.text != "4:05"; }) == 1);
+    CHECK(std::ranges::count_if(canvas.texts, [](const auto &drawn)
+                                { return drawn.text.find('.') != std::string::npos && drawn.text != "4:05"; }) == 1);
 }

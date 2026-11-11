@@ -17,17 +17,16 @@ namespace djw::player_ui::sdl
         constexpr float margin = 8.0F;
         constexpr float gap    = 8.0F;
 
-        constexpr float top_row_height  = 44.0F;
-        constexpr float display_height  = 118.0F;
-        constexpr float waveform_height = 60.0F;
+        constexpr float top_row_height   = 44.0F;
+        constexpr float display_height   = 118.0F;
+        constexpr float waveform_height  = 60.0F;
         constexpr float transport_height = 70.0F;
-        constexpr float column_width    = 56.0F;
-        constexpr float small_button    = 26.0F;
-        constexpr float label_height    = 20.0F;
-        constexpr float info_height     = 62.0F;
-        constexpr float bend_width      = 48.0F;
+        constexpr float column_width     = 56.0F;
+        constexpr float small_button     = 26.0F;
+        constexpr float label_height     = 20.0F;
+        constexpr float info_height      = 62.0F;
+        constexpr float bend_width       = 48.0F;
 
-        constexpr Color display_color{0, 0, 0};
         constexpr Color yellow{255, 225, 0};
         constexpr Color red{225, 40, 40};
         constexpr Color green{40, 215, 70};
@@ -45,8 +44,8 @@ namespace djw::player_ui::sdl
         /// A pitch as the display shows it: a sign and one decimal, e.g. "+1.2"
         std::string signedTenths(float percent)
         {
-            const long tenths = std::lround(std::abs(percent) * 10.0F);
-            std::string text  = std::to_string(tenths / 10) + '.' + std::to_string(tenths % 10);
+            const long        tenths = std::lround(std::abs(percent) * 10.0F);
+            const std::string text   = std::to_string(tenths / 10) + '.' + std::to_string(tenths % 10);
             return (percent < 0.0F && tenths != 0 ? "-" : "+") + text;
         }
     } // namespace
@@ -64,16 +63,15 @@ namespace djw::player_ui::sdl
     }
 
     DeckView::DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot,
-                       const Translator &translator)
-        : deck{deck}, queue{&queue}, snapshot{&snapshot}, translator{&translator}, state{snapshot.read()},
-          seen_cue_sets{state.cue_set_count}, sent_volume{state.channel_volume},
-          sent_headphone_level{state.headphone_level}
+                       const Translator &translator, Clock clock)
+        : deck{deck}, queue{&queue}, snapshot{&snapshot}, translator{&translator},
+          notice{std::move(clock), notice_time}, state{snapshot.read()}, seen_cue_sets{state.cue_set_count},
+          sent_volume{state.channel_volume}, sent_headphone_level{state.headphone_level},
+          sent_pitch{state.pitch_percent}, shown_pitch{state.pitch_percent}
     {
         volume_fader.setValue(state.channel_volume);
         headphone_fader.setValue(state.headphone_level);
         pitch_fader.setValue(faderValueOf(state.pitch_percent));
-        sent_pitch  = state.pitch_percent;
-        shown_pitch = state.pitch_percent;
         play_button.setPlaying(state.play_state == core::api::PlayState::Playing);
         cue_button.setColors(cue_background, cue_text);
         load_button.setEnabled(false);
@@ -83,13 +81,11 @@ namespace djw::player_ui::sdl
     void DeckView::layout(const Rect &window)
     {
         // Laid out in design units, then every rect is stretched to the window: both directions grow, as does the text
-        const float sx = window.width / design_width;
-        const float sy = window.height / design_height;
-        text_scale     = std::clamp(std::min(sx, sy), 0.5F, 6.0F);
+        const float sx     = window.width / design_width;
+        const float sy     = window.height / design_height;
+        text_scale         = std::clamp(std::min(sx, sy), 0.5F, 6.0F);
         const auto stretch = [&](const Rect &design)
-        {
-            return Rect{window.x + (design.x * sx), window.y + (design.y * sy), design.width * sx, design.height * sy};
-        };
+        { return Rect{window.x + (design.x * sx), window.y + (design.y * sy), design.width * sx, design.height * sy}; };
 
         const Rect  inner   = Rect{0, 0, design_width, design_height}.inset(margin);
         const float column  = column_width;
@@ -175,7 +171,7 @@ namespace djw::player_ui::sdl
         track_title = std::move(message);
     }
 
-    std::string DeckView::stateKey() const
+    std::string_view DeckView::stateKey() const
     {
         if (!state.track_loaded)
         {
@@ -192,9 +188,18 @@ namespace djw::player_ui::sdl
         return "player.state.paused";
     }
 
+    void DeckView::setNotice(std::string_view key)
+    {
+        notice.show(key);
+    }
+
     std::string DeckView::stateText() const
     {
-        const std::string key = stateKey();
+        if (const std::string_view key = notice.current(); !key.empty())
+        {
+            return translator->tr(key);
+        }
+        const std::string_view key = stateKey();
         return key.empty() ? std::string{} : translator->tr(key);
     }
 
@@ -370,8 +375,8 @@ namespace djw::player_ui::sdl
         canvas.textElided({pitch_text_area.x + std::max(0.0F, pitch_text_area.width - canvas.textWidth(pitch)),
                            pitch_text_area.y + ((pitch_text_area.height - canvas.textHeight()) / 2)},
                           pitch, yellow, pitch_text_area.width);
-        const double shown_seconds = show_remaining ? std::max(0.0, state.duration_seconds - state.position_seconds)
-                                                    : state.position_seconds;
+        const double shown_seconds =
+            show_remaining ? std::max(0.0, state.duration_seconds - state.position_seconds) : state.position_seconds;
         const std::string clock = formatClock(shown_seconds, show_remaining);
         canvas.largeText({time_area.x + std::max(0.0F, (time_area.width - canvas.largeTextWidth(clock)) / 2),
                           time_area.y + std::max(0.0F, (time_area.height - canvas.largeTextHeight()) / 2)},

@@ -62,8 +62,8 @@ namespace
             Translator                            translator;
             std::vector<api::LibraryTrack>        loaded;
             std::chrono::steady_clock::time_point now{};
-            PlaylistView  view{library, dialogs, translator, [this](const api::LibraryTrack &track) { loaded.push_back(track); },
-                               [this] { return now; }};
+            PlaylistView  view{library, dialogs, translator, [this](const api::LibraryTrack &track)
+                               { loaded.push_back(track); }, [this] { return now; }};
             PointerRouter router;
     };
 } // namespace

@@ -32,10 +32,10 @@ namespace
     /// Widths and heights of the bars drawn, in the order they were drawn, for a 300 x 60 bar
     struct Recorder final : Canvas
     {
-            void fillRect(const Rect &rect, Color color) override { rects.push_back({rect, color}); }
-            void fillTriangle(Point, Point, Point, Color) override {}
-            void text(Point, std::string_view, Color) override {}
-            void textElided(Point, std::string_view, Color, float) override {}
+            void  fillRect(const Rect &rect, Color color) override { rects.push_back({rect, color}); }
+            void  fillTriangle(Point, Point, Point, Color) override {}
+            void  text(Point, std::string_view, Color) override {}
+            void  textElided(Point, std::string_view, Color, float) override {}
             float textHeight() const noexcept override { return 10; }
             float textWidth(std::string_view) const noexcept override { return 10; }
             void  largeText(Point, std::string_view, Color) override {}

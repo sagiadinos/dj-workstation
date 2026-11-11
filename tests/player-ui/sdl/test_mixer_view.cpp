@@ -35,9 +35,8 @@ namespace
                                                           {second, 2, api::CrossfaderSide::B},
                                                           {third, 3, api::CrossfaderSide::None}};
             std::chrono::steady_clock::time_point now{};
-            MixerView                             view{queue, snapshot, translator, [this] { return players; },
-                                                       [this] { return now; }};
-            PointerRouter                         router;
+            MixerView     view{queue, snapshot, translator, [this] { return players; }, [this] { return now; }};
+            PointerRouter router;
 
             Fixture()
             {
@@ -283,7 +282,7 @@ TEST_CASE("MixerView: Fade now moves the crossfader to the other side within the
 
 TEST_CASE("MixerView: the fade time can be set, and the user moving the crossfader ends a fade")
 {
-    Fixture fixture;
+    Fixture     fixture;
     const Rect &stepper = fixture.view.fadeTime().bounds();
     fixture.tap({stepper.x + stepper.width - 5, stepper.y + 5}); // plus
     CHECK(fixture.view.fadeTime().value() == MixerView::default_fade_seconds + 1);

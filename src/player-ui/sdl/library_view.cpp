@@ -19,25 +19,25 @@ namespace djw::player_ui::sdl
         constexpr float status_height = 28.0F;
 
         /// Ids of the menu entries; the languages follow language_base in the order of languages
-        enum MenuId : int
+        namespace menu_id
         {
-            AddFolder = 1,
-            Rescan,
-            AnalyzeAll,
-            ContextEditTags,
-            ContextRescanTrack,
-            PlaylistNew,
-            PlaylistImport,
-            PlaylistExport,
-            PlaylistAddTrack,
-            ClearFilters,
-            MissingOnly,
-            TogglePlaylistWindow,
-            NewDeckEntry,
-            ToggleMixerWindow,
-            SaveLayoutEntry,
-            language_base = 100
-        };
+            constexpr int add_folder             = 1;
+            constexpr int rescan                 = 2;
+            constexpr int analyze_all            = 3;
+            constexpr int context_edit_tags      = 4;
+            constexpr int context_rescan_track   = 5;
+            constexpr int playlist_new           = 6;
+            constexpr int playlist_import        = 7;
+            constexpr int playlist_export        = 8;
+            constexpr int playlist_add_track     = 9;
+            constexpr int clear_filters          = 10;
+            constexpr int missing_only           = 11;
+            constexpr int toggle_playlist_window = 12;
+            constexpr int new_deck_entry         = 13;
+            constexpr int toggle_mixer_window    = 14;
+            constexpr int save_layout_entry      = 15;
+            constexpr int language_base          = 100;
+        } // namespace menu_id
 
         constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
                                                               "column.year",   "column.bpm",   "column.time"};
@@ -89,10 +89,10 @@ namespace djw::player_ui::sdl
         }
     } // namespace
 
-    LibraryView::LibraryView(core::api::Library &library, FileDialogs &dialogs, const Translator &translator,
-                             Load load, InUse in_use, Clock clock)
-        : library{&library}, dialogs{&dialogs}, translator{&translator}, load{std::move(load)}, in_use{std::move(in_use)}, clock{std::move(clock)},
-          list{this->clock}
+    LibraryView::LibraryView(core::api::Library &library, FileDialogs &dialogs, const Translator &translator, Load load,
+                             InUse in_use, Clock clock)
+        : library{&library}, dialogs{&dialogs}, translator{&translator}, load{std::move(load)},
+          in_use{std::move(in_use)}, clock{std::move(clock)}, list{this->clock}
     {
     }
 
@@ -136,9 +136,9 @@ namespace djw::player_ui::sdl
         router.add(missing_button);
         router.add(remove_button);
         router.add(add_button);
-        router.add(cell_editor); // on top of the list; without an edit it has no area and catches nothing
+        router.add(cell_editor);  // on top of the list; without an edit it has no area and catches nothing
         router.add(context_menu); // covers the window while open
-        router.add(menu);        // on top of everything: an open menu covers the window
+        router.add(menu);         // on top of everything: an open menu covers the window
     }
 
     void LibraryView::resolveFocus()
@@ -176,8 +176,7 @@ namespace djw::player_ui::sdl
     void LibraryView::keyboard(const KeyboardInput &input)
     {
         resolveFocus();
-        if (const auto *key = std::get_if<EditKey>(&input);
-            menu.isOpen() && key != nullptr && *key == EditKey::Escape)
+        if (const auto *key = std::get_if<EditKey>(&input); menu.isOpen() && key != nullptr && *key == EditKey::Escape)
         {
             menu.close();
             return;
@@ -390,29 +389,17 @@ namespace djw::player_ui::sdl
         if (missing_button.takePress())
         {
             only_missing = !only_missing;
-            confirm_remove_until.reset();
+            confirm_remove.cancel();
         }
-        if (remove_button.takePress())
+        if (remove_button.takePress() && confirm_remove.tap())
         {
-            if (confirm_remove_until && clock() <= *confirm_remove_until)
-            {
-                library->removeMissing();
-                confirm_remove_until.reset();
-                only_missing = false;
-            }
-            else
-            {
-                confirm_remove_until = clock() + confirm_time;
-            }
-        }
-        if (confirm_remove_until && clock() > *confirm_remove_until)
-        {
-            confirm_remove_until.reset();
+            library->removeMissing();
+            only_missing = false;
         }
         if (status.missing_total == 0)
         {
             only_missing = false; // nothing left to show there
-            confirm_remove_until.reset();
+            confirm_remove.cancel();
         }
 
         const auto selected = list.selected();
@@ -437,7 +424,7 @@ namespace djw::player_ui::sdl
         remove_button.setBounds(show_remove ? Rect{missing_area.x - remove_button_width - gap, status_area.y,
                                                    remove_button_width, status_area.height}
                                             : Rect{});
-        remove_button.setLabel(confirm_remove_until
+        remove_button.setLabel(confirm_remove.armed()
                                    ? translator->tr("library.remove_confirm", {{"count", status.missing_total}})
                                    : translator->tr("library.remove_missing"));
     }
@@ -464,9 +451,9 @@ namespace djw::player_ui::sdl
         status_text = translator->tr("tracks.count", {{"count", status.tracks_total}});
         if (status.scanning)
         {
-            status_text += " - " + translator->tr("library.scanning",
-                                                  {{"files", translator->tr("files.count",
-                                                                            {{"count", status.files_found}})}});
+            status_text +=
+                " - " + translator->tr("library.scanning",
+                                       {{"files", translator->tr("files.count", {{"count", status.files_found}})}});
         }
         if (status.pending_writes > 0)
         {
@@ -476,11 +463,11 @@ namespace djw::player_ui::sdl
         {
             status_text += " - " + translator->tr("library.analyzing", {{"count", status.analysis_pending}});
         }
-        if (!notice_key.empty() && clock() < notice_until)
+        if (const std::string_view key = notice.current(); !key.empty())
         {
-            status_text += " - " + translator->tr(notice_key);
+            status_text += " - " + translator->tr(key);
         }
-        const std::string                        edit_text = edit_message.empty() ? std::string{} : translator->tr(edit_message);
+        const std::string edit_text = edit_message.empty() ? std::string{} : translator->tr(edit_message);
         const std::array<const std::string *, 5> errors{&search_error, &edit_text, &folder_error, &status.write_error,
                                                         &status.scan_error};
         for (const std::string *error : errors)
@@ -511,14 +498,15 @@ namespace djw::player_ui::sdl
 
     void LibraryView::updateMenu(const core::api::LibraryStatus &status)
     {
-        const auto        tr             = [this](std::string_view key) { return translator->tr(key); };
-        const bool        has_playlists  = static_cast<bool>(playlist_action);
-        const bool        can_add_track  = has_playlists && add_to_playlist && list.selected().has_value();
+        const auto tr            = [this](std::string_view key) { return translator->tr(key); };
+        const bool has_playlists = static_cast<bool>(playlist_action);
+        const bool can_add_track = has_playlists && add_to_playlist && list.selected().has_value();
 
         std::vector<MenuItem> language_items;
+        language_items.reserve(languages.size());
         for (std::size_t index = 0; index < languages.size(); ++index)
         {
-            language_items.push_back({.id      = language_base + static_cast<int>(index),
+            language_items.push_back({.id      = menu_id::language_base + static_cast<int>(index),
                                       .label   = std::string{languageName(languages[index])},
                                       .enabled = true,
                                       .checked = languages[index] == translator->language()});
@@ -526,36 +514,37 @@ namespace djw::player_ui::sdl
 
         std::vector<Menu> menus;
         menus.push_back({tr("menu.database"),
-                         {{.id = AddFolder, .label = tr("menu.database.add_folder")},
-                          {.id = Rescan, .label = tr("menu.database.rescan")},
-                          {.id = AnalyzeAll, .label = tr("menu.database.analyze_all")}}});
-        menus.push_back({tr("menu.playlist"),
-                         {{.id = PlaylistNew, .label = tr("menu.playlist.new"), .enabled = has_playlists},
-                          {.id = PlaylistImport, .label = tr("menu.playlist.import"), .enabled = has_playlists},
-                          {.id = PlaylistExport, .label = tr("menu.playlist.export"), .enabled = has_playlists},
-                          {.id = PlaylistAddTrack, .label = tr("menu.playlist.add_track"), .enabled = can_add_track}}});
+                         {{.id = menu_id::add_folder, .label = tr("menu.database.add_folder")},
+                          {.id = menu_id::rescan, .label = tr("menu.database.rescan")},
+                          {.id = menu_id::analyze_all, .label = tr("menu.database.analyze_all")}}});
+        menus.push_back(
+            {tr("menu.playlist"),
+             {{.id = menu_id::playlist_new, .label = tr("menu.playlist.new"), .enabled = has_playlists},
+              {.id = menu_id::playlist_import, .label = tr("menu.playlist.import"), .enabled = has_playlists},
+              {.id = menu_id::playlist_export, .label = tr("menu.playlist.export"), .enabled = has_playlists},
+              {.id = menu_id::playlist_add_track, .label = tr("menu.playlist.add_track"), .enabled = can_add_track}}});
         // No settings yet but the language, which has its own menu
         menus.push_back({tr("menu.settings"), {{.id = 0, .label = tr("menu.settings.none"), .enabled = false}}});
         menus.push_back({tr("menu.language"), std::move(language_items)});
         menus.push_back({tr("menu.view"),
-                         {{.id       = NewDeckEntry,
+                         {{.id       = menu_id::new_deck_entry,
                            .label    = tr("menu.view.new_deck"),
                            .enabled  = static_cast<bool>(new_deck_requested),
                            .shortcut = "Ctrl+N"},
-                          {.id      = ToggleMixerWindow,
+                          {.id      = menu_id::toggle_mixer_window,
                            .label   = tr("menu.view.mixer_window"),
                            .enabled = static_cast<bool>(mixer_toggle),
                            .checked = mixer_shown && mixer_shown()},
-                          {.id      = TogglePlaylistWindow,
+                          {.id      = menu_id::toggle_playlist_window,
                            .label   = tr("menu.view.playlist_window"),
                            .enabled = has_playlists,
                            .checked = playlist_shown && playlist_shown()},
-                          {.id = ClearFilters, .label = tr("menu.view.clear_filters")},
-                          {.id      = MissingOnly,
+                          {.id = menu_id::clear_filters, .label = tr("menu.view.clear_filters")},
+                          {.id      = menu_id::missing_only,
                            .label   = tr("menu.view.missing_only"),
                            .enabled = status.missing_total > 0 || only_missing,
                            .checked = only_missing},
-                          {.id      = SaveLayoutEntry,
+                          {.id      = menu_id::save_layout_entry,
                            .label   = tr("menu.view.save_layout"),
                            .enabled = static_cast<bool>(save_layout)}}});
         menu.setMenus(std::move(menus));
@@ -569,9 +558,9 @@ namespace djw::player_ui::sdl
 
     void LibraryView::chooseMenuEntry(int id)
     {
-        if (id >= language_base)
+        if (id >= menu_id::language_base)
         {
-            const auto index = static_cast<std::size_t>(id - language_base);
+            const auto index = static_cast<std::size_t>(id - menu_id::language_base);
             if (index < languages.size() && language_chosen)
             {
                 language_chosen(languages[index]);
@@ -580,7 +569,7 @@ namespace djw::player_ui::sdl
         }
         switch (id)
         {
-            case AddFolder:
+            case menu_id::add_folder:
                 dialogs->openFolder(
                     [this](const std::filesystem::path &folder)
                     {
@@ -588,53 +577,53 @@ namespace djw::player_ui::sdl
                         folder_error = added ? std::string{} : added.error();
                     });
                 break;
-            case Rescan:
+            case menu_id::rescan:
                 library->rescan();
                 break;
-            case AnalyzeAll:
+            case menu_id::analyze_all:
                 library->analyzeAll();
                 break;
-            case SaveLayoutEntry:
+            case menu_id::save_layout_entry:
                 if (save_layout)
                 {
                     setNotice(save_layout() ? "library.notice.layout_saved" : "library.notice.layout_failed");
                 }
                 break;
-            case ToggleMixerWindow:
+            case menu_id::toggle_mixer_window:
                 if (mixer_toggle)
                 {
                     mixer_toggle();
                 }
                 break;
-            case NewDeckEntry:
+            case menu_id::new_deck_entry:
                 if (new_deck_requested)
                 {
                     new_deck_requested();
                 }
                 break;
-            case TogglePlaylistWindow:
+            case menu_id::toggle_playlist_window:
                 if (playlist_action)
                 {
                     playlist_action(PlaylistCommand::ToggleWindow);
                 }
                 break;
-            case PlaylistNew:
-            case PlaylistImport:
-            case PlaylistExport:
+            case menu_id::playlist_new:
+            case menu_id::playlist_import:
+            case menu_id::playlist_export:
                 if (playlist_action)
                 {
-                    playlist_action(id == PlaylistNew      ? PlaylistCommand::New
-                                    : id == PlaylistImport ? PlaylistCommand::Import
-                                                           : PlaylistCommand::Export);
+                    playlist_action(id == menu_id::playlist_new      ? PlaylistCommand::New
+                                    : id == menu_id::playlist_import ? PlaylistCommand::Import
+                                                                     : PlaylistCommand::Export);
                 }
                 break;
-            case PlaylistAddTrack:
+            case menu_id::playlist_add_track:
                 if (const auto selected = list.selected(); selected && add_to_playlist)
                 {
                     add_to_playlist(list.tracks()[*selected]);
                 }
                 break;
-            case ClearFilters:
+            case menu_id::clear_filters:
                 search_field.setText({});
                 for (TextField &filter : filters)
                 {
@@ -642,9 +631,9 @@ namespace djw::player_ui::sdl
                 }
                 only_missing = false;
                 break;
-            case MissingOnly:
+            case menu_id::missing_only:
                 only_missing = !only_missing;
-                confirm_remove_until.reset();
+                confirm_remove.cancel();
                 break;
             default:
                 break;
@@ -671,18 +660,18 @@ namespace djw::player_ui::sdl
 
     void LibraryView::updateContextMenu()
     {
-        context_menu.setItems({{.id = ContextEditTags, .label = translator->tr("context.edit_tags")},
-                               {.id = ContextRescanTrack, .label = translator->tr("context.rescan_track")}});
+        context_menu.setItems({{.id = menu_id::context_edit_tags, .label = translator->tr("context.edit_tags")},
+                               {.id = menu_id::context_rescan_track, .label = translator->tr("context.rescan_track")}});
         if (const auto chosen = context_menu.takeChosen())
         {
-            if (*chosen == ContextEditTags)
+            if (*chosen == menu_id::context_edit_tags)
             {
                 if (const auto row = rowOf(context_track))
                 {
                     startEdit({.row = *row, .column = core::api::LibraryColumn::Artist});
                 }
             }
-            else if (*chosen == ContextRescanTrack)
+            else if (*chosen == menu_id::context_rescan_track)
             {
                 library->rescanTrack(context_track);
             }
@@ -691,8 +680,7 @@ namespace djw::player_ui::sdl
 
     void LibraryView::setNotice(std::string_view key)
     {
-        notice_key   = key;
-        notice_until = clock() + notice_time;
+        notice.show(key);
     }
 
     void LibraryView::draw(Canvas &canvas) const

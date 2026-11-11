@@ -53,7 +53,7 @@ namespace djw::player_ui::sdl
 
         std::optional<int> numberOf(std::string_view text)
         {
-            int value = 0;
+            int value               = 0;
             const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
             if (error != std::errc{} || end != text.data() + text.size())
             {
@@ -128,15 +128,15 @@ namespace djw::player_ui::sdl
 
     std::optional<Layout> parseLayout(std::string_view text)
     {
-        Layout            layout;
+        Layout             layout;
         std::istringstream in{std::string{text}};
         std::string        line;
         if (!std::getline(in, line) || line != header)
         {
             return std::nullopt;
         }
-        bool has_library = false;
-        bool has_mixer   = false;
+        bool has_library  = false;
+        bool has_mixer    = false;
         bool has_playlist = false;
         while (std::getline(in, line))
         {
@@ -173,8 +173,8 @@ namespace djw::player_ui::sdl
                 {
                     return std::nullopt;
                 }
-                ToolPlacement &tool = parts[0] == "mixer" ? layout.mixer : layout.playlist;
-                tool                = {.open = parts[1] == "open", .place = *place};
+                ToolPlacement &tool                              = parts[0] == "mixer" ? layout.mixer : layout.playlist;
+                tool                                             = {.open = parts[1] == "open", .place = *place};
                 (parts[0] == "mixer" ? has_mixer : has_playlist) = true;
             }
             else
@@ -205,7 +205,7 @@ namespace djw::player_ui::sdl
         const int left  = work_area.x + std::max(0, (work_area.width - group) / 2);
         const int top   = work_area.y;
 
-        Layout layout;
+        Layout          layout;
         const Placement first{left, top, sizes.player_width, sizes.player_height};
         const Placement mixer{left + sizes.player_width + gap, top, sizes.mixer_width, sizes.mixer_height};
         const Placement second{mixer.x + sizes.mixer_width + gap, top, sizes.player_width, sizes.player_height};
@@ -214,8 +214,8 @@ namespace djw::player_ui::sdl
         layout.mixer   = {.open = true, .place = fitInto(mixer, work_area)};
 
         // The library below the players, as wide as they are together
-        const int library_top = top + sizes.player_height + frame_allowance;
-        const int room        = work_area.y + work_area.height - library_top - gap;
+        const int       library_top = top + sizes.player_height + frame_allowance;
+        const int       room        = work_area.y + work_area.height - library_top - gap;
         const Placement library{left, library_top, std::min(group, work_area.width),
                                 std::clamp(room, 300, sizes.library_height)};
         layout.library = fitInto(library, work_area);

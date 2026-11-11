@@ -53,9 +53,10 @@ namespace
         std::vector<float> samples(frames * 2);
         for (std::size_t frame = 0; frame < frames; ++frame)
         {
-            const auto value        = static_cast<float>(0.5 * std::sin(2.0 * std::numbers::pi * 440.0 * static_cast<double>(frame) / sample_rate));
-            samples[frame * 2]      = value;
-            samples[frame * 2 + 1]  = value;
+            const auto value = static_cast<float>(
+                0.5 * std::sin(2.0 * std::numbers::pi * 440.0 * static_cast<double>(frame) / sample_rate));
+            samples[frame * 2]     = value;
+            samples[frame * 2 + 1] = value;
         }
         return samples;
     }
@@ -138,6 +139,31 @@ TEST_CASE("TimeStretcher: plays a track to its end and then is drained, about le
     const double expected = length / 1.25;
     CHECK(static_cast<double>(total) > expected - 3'000);
     CHECK(static_cast<double>(total) < expected + 3'000);
+}
+
+TEST_CASE("TimeStretcher: the position counts what is still held back at the tempo, so it ends at the length")
+{
+    constexpr std::size_t length = 96'000;
+    constexpr double      tempo  = 1.25;
+    BufferSource          source{sineBuffer(length)};
+    TimeStretcher         stretcher{sample_rate};
+    std::vector<float>    block(480 * 2);
+
+    // Half way: the position plus what is still to be played (at the tempo) is the length
+    std::size_t played = 0;
+    while (played < 30'000)
+    {
+        played += stretcher.process(source, tempo, block);
+    }
+    const double half_way = stretcher.position();
+    std::size_t  rest     = 0;
+    for (int i = 0; i < 1'000 && !stretcher.drained(); ++i)
+    {
+        rest += stretcher.process(source, tempo, block);
+    }
+    REQUIRE(stretcher.drained());
+    CHECK(half_way + (static_cast<double>(rest) * tempo) == doctest::Approx(length).epsilon(0.005));
+    CHECK(stretcher.position() == doctest::Approx(length).epsilon(0.001));
 }
 
 TEST_CASE("TimeStretcher: a source that has nothing yet gives fewer frames, not an error")

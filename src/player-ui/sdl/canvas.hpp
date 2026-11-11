@@ -38,13 +38,13 @@ namespace djw::player_ui::sdl
             [[nodiscard]] virtual float textWidth(std::string_view text) const noexcept                  = 0;
 
             /// Like text(), in the large size of the time display
-            virtual void                      largeText(Point position, std::string_view text, Color color) = 0;
-            [[nodiscard]] virtual float largeTextHeight() const noexcept                                   = 0;
-            [[nodiscard]] virtual float largeTextWidth(std::string_view text) const noexcept               = 0;
+            virtual void                largeText(Point position, std::string_view text, Color color) = 0;
+            [[nodiscard]] virtual float largeTextHeight() const noexcept                              = 0;
+            [[nodiscard]] virtual float largeTextWidth(std::string_view text) const noexcept          = 0;
 
-            /// Makes all text (normal and large) this many times as big, until set again; 1 is the normal size. The sizes
-            /// textHeight(), textWidth() and so on then report are those of the scaled text. A canvas that cannot scale
-            /// text ignores it.
+            /// Makes all text (normal and large) this many times as big, until set again; 1 is the normal size. The
+            /// sizes textHeight(), textWidth() and so on then report are those of the scaled text. A canvas that cannot
+            /// scale text ignores it.
             virtual void setTextScale(float /*scale*/) {}
 
             /// Drawing outside clip is cut off until the next setClip(); std::nullopt draws everywhere again

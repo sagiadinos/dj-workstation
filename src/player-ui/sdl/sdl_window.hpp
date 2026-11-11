@@ -4,10 +4,10 @@
 #ifndef DJW_PLAYER_UI_SDL_SDL_WINDOW_HPP
 #define DJW_PLAYER_UI_SDL_SDL_WINDOW_HPP
 
-#include "pointer_router.hpp"
-#include "sdl_text.hpp"
 #include "layout.hpp"
+#include "sdl_text.hpp"
 #include "view.hpp"
+#include "view_host.hpp"
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_render.h>
@@ -30,15 +30,16 @@ namespace djw::player_ui::sdl
     };
 
     /**
-     * One SDL window with its renderer, its text and the view it shows. Input events of the window go to the view's
-     * widgets through its own PointerRouter, typed text to the view.
+     * One SDL window with its renderer, its text and the views it shows (its ViewHost). It opens with one view that
+     * fills the window; more views can be added, each in its own area. Input events of the window go to the views
+     * through the host.
      *
      * Resources are released in reverse order of creation: text, renderer, window.
      */
     class SdlWindow
     {
         public:
-            /// The view must outlive the window
+            /// The window opens showing view over its whole area. The view must outlive the window.
             static std::expected<std::unique_ptr<SdlWindow>, std::string>
             create(const WindowOptions &options, View &view, const std::filesystem::path &font_file);
 
@@ -60,9 +61,13 @@ namespace djw::player_ui::sdl
             /// Makes this window the one that waits for the display (vsync) or not
             void setPaced(bool paced);
 
+            /// The views the window shows
+            [[nodiscard]] ViewHost       &views() noexcept { return host; }
+            [[nodiscard]] const ViewHost &views() const noexcept { return host; }
+
             /// An input event of this window
             void handle(const SDL_Event &event);
-            /// Lays out, updates and draws the view
+            /// Lays out, updates and draws the views
             void frame();
 
         private:
@@ -76,17 +81,16 @@ namespace djw::player_ui::sdl
                     void operator()(SDL_Renderer *renderer) const noexcept { SDL_DestroyRenderer(renderer); }
             };
 
-            explicit SdlWindow(View &view) noexcept : view{&view} {}
+            SdlWindow() = default;
 
             /// Window size in points
             [[nodiscard]] Rect area() const;
             void               syncTextInput();
 
-            View                                          *view;
             std::unique_ptr<SDL_Window, WindowDeleter>     window;
             std::unique_ptr<SDL_Renderer, RendererDeleter> renderer;
             std::unique_ptr<SdlText>                       text;
-            PointerRouter                                  router;
+            ViewHost                                       host;
             bool                                           vsync      = false;
             bool                                           text_input = false;
     };

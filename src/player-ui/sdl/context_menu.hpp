@@ -31,8 +31,8 @@ namespace djw::player_ui::sdl
             void place(const Rect &window_area);
 
             /// Opens at position; ignored without items
-            void open(Point position);
-            void close();
+            void               open(Point position);
+            void               close();
             [[nodiscard]] bool isOpen() const noexcept { return opened; }
 
             /// The id of the entry chosen, once
@@ -48,7 +48,7 @@ namespace djw::player_ui::sdl
             void draw(Canvas &canvas) const override;
 
         private:
-            static constexpr std::size_t none = static_cast<std::size_t>(-1);
+            static constexpr std::size_t none    = static_cast<std::size_t>(-1);
             static constexpr std::size_t outside = none - 1;
 
             /// Index of the entry under position, outside for the rest of the window
@@ -57,7 +57,7 @@ namespace djw::player_ui::sdl
             std::vector<MenuItem> items;
             Rect                  window;
             Point                 at;
-            bool                  opened = false;
+            bool                  opened  = false;
             std::size_t           pressed = none;
             std::optional<int>    chosen;
     };

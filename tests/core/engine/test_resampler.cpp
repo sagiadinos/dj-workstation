@@ -108,6 +108,24 @@ TEST_CASE("Resampler: plays every frame of the source, then reports drained")
     CHECK(process(resampler, source, 1.0, 10).empty());
 }
 
+TEST_CASE("Resampler: the end is found also when the buffer moves after the source ended")
+{
+    // Lengths around the buffer size, so the source ends just before or after the buffer is shifted
+    for (std::size_t length = Resampler::capacity_frames - 6; length <= Resampler::capacity_frames + 6; ++length)
+    {
+        CAPTURE(length);
+        BufferSource source{ramp(length)};
+        Resampler    resampler;
+        std::size_t  total = 0;
+        for (int block = 0; block < 100 && !resampler.drained(); ++block)
+        {
+            total += process(resampler, source, 1.0, 100).size() / 2;
+        }
+        CHECK(resampler.drained());
+        CHECK(total == length);
+    }
+}
+
 TEST_CASE("Resampler: waits when the source has nothing yet and continues seamlessly")
 {
     TrickleSource source{1'000};

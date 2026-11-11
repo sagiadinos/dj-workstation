@@ -3,11 +3,13 @@
 
 #include "i18n/catalog.hpp"
 
+#include <array>
+
 namespace djw::player_ui::sdl::catalogs
 {
     namespace
     {
-        constexpr CatalogEntry entries[] = {
+        constexpr auto entries = std::to_array<CatalogEntry>({
             {"window.library", "djw - Library"},
             {"window.deck", "djw - Player {number}"},
             {"window.playlist", "djw - Playlist"},
@@ -79,6 +81,7 @@ namespace djw::player_ui::sdl::catalogs
             {"player.state.cued", "cued"},
             {"player.state.paused", "paused"},
             {"player.state.playing", "playing"},
+            {"player.notice.playing", "not loaded"},
             {"mixer.player", "Player {number}"},
             {"mixer.none", "(none)"},
             {"mixer.zero", "Zero"},
@@ -90,7 +93,7 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.layout_saved", "layout saved"},
             {"library.notice.layout_failed", "layout could not be saved"},
             {"deck.cannot_load", "Cannot load: {error}"},
-        };
+        });
     } // namespace
 
     std::span<const CatalogEntry> english()

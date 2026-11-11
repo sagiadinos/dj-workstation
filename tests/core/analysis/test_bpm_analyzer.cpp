@@ -73,3 +73,34 @@ TEST_CASE("BpmAnalyzer: the tempo is folded into the range of 70 to 180")
     CHECK(*found >= BpmAnalyzer::min_bpm);
     CHECK(*found <= BpmAnalyzer::max_bpm);
 }
+
+TEST_CASE("BpmAnalyzer: just under the minimum length there is no tempo, even with enough beats")
+{
+    // 7.9 s at 160 BPM are 21 beats, plenty for the tracker; the track is still too short to trust
+    CHECK_FALSE(analyze(beatTrack(160.0, 7.9)).has_value());
+}
+
+TEST_CASE("BpmAnalyzer: a fast tempo is folded down by halving, a slow one up by doubling, into the range")
+{
+    for (const double bpm : {200.0, 50.0})
+    {
+        CAPTURE(bpm);
+        const auto found = analyze(beatTrack(bpm, 24.0));
+        REQUIRE(found.has_value());
+        CHECK(*found >= BpmAnalyzer::min_bpm);
+        CHECK(*found <= BpmAnalyzer::max_bpm);
+        // Folding keeps the beat: the tempo is the original one halved or doubled
+        CHECK(*found == doctest::Approx(bpm > BpmAnalyzer::max_bpm ? bpm / 2.0 : bpm * 2.0).epsilon(0.02));
+    }
+}
+
+TEST_CASE("BpmAnalyzer: folding halves or doubles until the tempo is in the range, the ends included")
+{
+    CHECK(BpmAnalyzer::foldIntoRange(120.0) == 120.0);
+    CHECK(BpmAnalyzer::foldIntoRange(BpmAnalyzer::min_bpm) == BpmAnalyzer::min_bpm);
+    CHECK(BpmAnalyzer::foldIntoRange(BpmAnalyzer::max_bpm) == BpmAnalyzer::max_bpm);
+    CHECK(BpmAnalyzer::foldIntoRange(200.0) == 100.0);
+    CHECK(BpmAnalyzer::foldIntoRange(500.0) == 125.0);
+    CHECK(BpmAnalyzer::foldIntoRange(60.0) == 120.0);
+    CHECK(BpmAnalyzer::foldIntoRange(20.0) == 80.0);
+}

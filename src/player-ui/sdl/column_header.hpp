@@ -37,10 +37,10 @@ namespace djw::player_ui::sdl
             [[nodiscard]] std::optional<core::api::LibraryColumn> columnAt(Point position) const noexcept;
 
             std::array<std::string, track_columns.size()> names;
-            core::api::LibraryColumn                sort_by    = core::api::LibraryColumn::Artist;
-            bool                                    descending = false;
-            std::optional<core::api::LibraryColumn> pressed;
-            std::optional<core::api::LibraryColumn> tapped;
+            core::api::LibraryColumn                      sort_by    = core::api::LibraryColumn::Artist;
+            bool                                          descending = false;
+            std::optional<core::api::LibraryColumn>       pressed;
+            std::optional<core::api::LibraryColumn>       tapped;
     };
 } // namespace djw::player_ui::sdl
 

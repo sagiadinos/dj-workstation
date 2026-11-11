@@ -62,7 +62,8 @@ namespace djw::player_ui::sdl
         const float slot   = std::clamp(area.height / 3, 8.0F, 14.0F);
         const float slot_y = area.y + ((area.height - slot) / 2);
 
-        look::groove(canvas, {area.x, slot_y, area.width, slot}, false, show_fill ? (knob_x - area.x) / std::max(1.0F, area.width) : -1.0F, accent);
+        look::groove(canvas, {area.x, slot_y, area.width, slot}, false,
+                     show_fill ? (knob_x - area.x) / std::max(1.0F, area.width) : -1.0F, accent);
         look::knob(canvas, {knob_x - (knob / 2), area.y, knob, area.height}, is_held, false);
     }
 } // namespace djw::player_ui::sdl

@@ -81,9 +81,9 @@ namespace djw::player_ui::sdl
             void draw(Canvas &canvas) const override;
 
         private:
-            [[nodiscard]] float                      maxOffset() const noexcept;
-            [[nodiscard]] std::optional<Cell>        cellAt(Point position) const noexcept;
-            void                                     tap(Point position);
+            [[nodiscard]] float               maxOffset() const noexcept;
+            [[nodiscard]] std::optional<Cell> cellAt(Point position) const noexcept;
+            void                              tap(Point position);
 
             Clock                                 clock;
             std::vector<core::api::LibraryTrack>  rows;

@@ -49,8 +49,8 @@ namespace djw::core::engine
             /// there. nullptr unloads. The pitch stays, like a fader.
             void attach(AudioSource *track) noexcept; // [audio-thread]
 
-            [[nodiscard]] api::DeckId   id() const noexcept { return deck_id; }
-            [[nodiscard]] bool          hasTrack() const noexcept { return source != nullptr; }
+            [[nodiscard]] api::DeckId id() const noexcept { return deck_id; }
+            [[nodiscard]] bool        hasTrack() const noexcept { return source != nullptr; }
             /// Playing, also while a scrub interrupts a deck that played
             [[nodiscard]] bool isPlaying() const noexcept
             {
@@ -72,15 +72,15 @@ namespace djw::core::engine
             /// Current playback speed, 1.0 = original
             [[nodiscard]] double speed() const noexcept;
 
-            void play() noexcept;                      // [audio-thread]
-            void pause() noexcept;                     // [audio-thread]
-            void cue(bool pressed) noexcept;           // [audio-thread]
-            void seek(std::uint64_t frame) noexcept;   // [audio-thread]
+            void play() noexcept;                    // [audio-thread]
+            void pause() noexcept;                   // [audio-thread]
+            void cue(bool pressed) noexcept;         // [audio-thread]
+            void seek(std::uint64_t frame) noexcept; // [audio-thread]
             /// Scrub: plays a short loop at frame while active, with every call the loop moves there; when it ends
             /// (active false) the deck continues at frame, playing if it played before.
             void scrub(std::uint64_t frame, bool active) noexcept; // [audio-thread]
-            void setPitch(float percent) noexcept;     // [audio-thread]
-            void setPitchBend(int direction) noexcept; // [audio-thread]
+            void setPitch(float percent) noexcept;                 // [audio-thread]
+            void setPitchBend(int direction) noexcept;             // [audio-thread]
             /// Keylock: the pitch fader and the bend buttons change the tempo only. The position stays.
             void setKeylock(bool on) noexcept; // [audio-thread]
 
@@ -101,8 +101,10 @@ namespace djw::core::engine
             [[nodiscard]] double playbackPosition() const noexcept;
             /// Moves the track and both players to frame
             void restartAt(std::uint64_t frame) noexcept;
+            /// frame, but not beyond the end of the track; a length of 0 is unknown and limits nothing
+            [[nodiscard]] std::uint64_t clampToTrack(std::uint64_t frame) const noexcept;
             /// Next frames of the track at the current speed, through the resampler or the time stretcher
-            std::size_t produce(std::span<float> output) noexcept;
+            std::size_t        produce(std::span<float> output) noexcept;
             [[nodiscard]] bool drained() const noexcept;
 
             /// Fades out, then stops at the cue point
@@ -128,9 +130,9 @@ namespace djw::core::engine
             int           bend_direction = 0;
             std::size_t   scrub_loop_frames;
             std::size_t   scrub_ramp_frames;
-            std::uint64_t scrub_target  = 0;     ///< where the loop lies, and where the deck goes on afterwards
-            std::size_t   scrub_offset  = 0;     ///< frames of the loop played so far
-            bool          scrub_moved   = false; ///< the loop must start over at scrub_target
+            std::uint64_t scrub_target   = 0;     ///< where the loop lies, and where the deck goes on afterwards
+            std::size_t   scrub_offset   = 0;     ///< frames of the loop played so far
+            bool          scrub_moved    = false; ///< the loop must start over at scrub_target
             bool          resume_playing = false; ///< the deck played before the scrub
     };
 } // namespace djw::core::engine

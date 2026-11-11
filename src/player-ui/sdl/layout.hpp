@@ -26,7 +26,7 @@ namespace djw::player_ui::sdl
 
     struct PlayerPlacement
     {
-            Placement                 place;
+            Placement place;
             /// The side of the crossfader the player is on
             core::api::CrossfaderSide side = core::api::CrossfaderSide::None;
 

@@ -27,7 +27,7 @@ namespace djw::player_ui::sdl
     /// A deck the crossfader window can offer for a side, as the app knows it
     struct MixerDeck
     {
-            core::api::DeckId         id;
+            core::api::DeckId id{};
             /// Shown as "Player 01"
             int                       number = 0;
             core::api::CrossfaderSide side   = core::api::CrossfaderSide::None;

@@ -13,10 +13,6 @@ namespace djw::player_ui::sdl
         constexpr float padding   = 10.0F;
         constexpr float arrow_box = 10.0F;
 
-        constexpr Color box_color{40, 40, 40};
-        constexpr Color frame_color{110, 110, 110};
-        constexpr Color list_color{48, 48, 48};
-        constexpr Color selected_color{40, 75, 120};
         constexpr Color text_color{230, 230, 230};
     } // namespace
 

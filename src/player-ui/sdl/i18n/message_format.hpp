@@ -27,10 +27,10 @@ namespace djw::player_ui::sdl
             {
             }
 
-            [[nodiscard]] std::string_view        name() const noexcept { return arg_name; }
-            [[nodiscard]] bool                    isNumber() const noexcept { return is_number; }
-            [[nodiscard]] long long               number() const noexcept { return arg_number; }
-            [[nodiscard]] const std::string      &text() const noexcept { return arg_text; }
+            [[nodiscard]] std::string_view   name() const noexcept { return arg_name; }
+            [[nodiscard]] bool               isNumber() const noexcept { return is_number; }
+            [[nodiscard]] long long          number() const noexcept { return arg_number; }
+            [[nodiscard]] const std::string &text() const noexcept { return arg_text; }
 
         private:
             std::string_view arg_name;

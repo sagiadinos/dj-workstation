@@ -16,6 +16,8 @@
 #   positionally; configs use designated initializers where fields could be mixed up
 # - cppcoreguidelines-pro-bounds-avoid-unchecked-container-access: the alternative at() throws, which the audio
 #   thread must not; loop bounds are checked instead
+# - bugprone-easily-swappable-parameters: coordinates, sizes, ranges and index pairs (x/y, menu/item, min/max) come
+#   in pairs by nature; a strong type for each pair would cost more readability than it wins. Tests cover the order
 Checks: >
   -*,
   bugprone-*,
@@ -34,7 +36,8 @@ Checks: >
   -misc-include-cleaner,
   -misc-no-recursion,
   -modernize-use-designated-initializers,
-  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -bugprone-easily-swappable-parameters
 
 HeaderFilterRegex: '.*/src/.*'
 

@@ -12,17 +12,14 @@ namespace djw::player_ui::sdl
     {
         constexpr float padding = 14.0F;
 
-        constexpr Color bar_background{32, 32, 32};
-        constexpr Color open_background{40, 75, 120};
-        constexpr Color dropdown_background{48, 48, 48};
         constexpr Color separator{80, 80, 80};
         constexpr Color text_color{230, 230, 230};
         constexpr Color dim_color{120, 120, 120};
     } // namespace
 
-    void MenuBar::setMenus(std::vector<Menu> menus_)
+    void MenuBar::setMenus(std::vector<Menu> new_menus)
     {
-        menus = std::move(menus_);
+        menus = std::move(new_menus);
         if (open && *open >= menus.size())
         {
             close();
@@ -181,7 +178,7 @@ namespace djw::player_ui::sdl
             {
                 // At the end of the entry: right in left-to-right layout, left in right-to-left
                 const float shortcut_width = canvas.textWidth(entry.shortcut);
-                const float shortcut_x = rtl ? area.x + padding : area.x + area.width - padding - shortcut_width;
+                const float shortcut_x     = rtl ? area.x + padding : area.x + area.width - padding - shortcut_width;
                 canvas.text({shortcut_x, text_y}, entry.shortcut, dim_color);
                 available = std::max(0.0F, available - shortcut_width - padding);
             }

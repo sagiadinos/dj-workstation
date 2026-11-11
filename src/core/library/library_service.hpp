@@ -55,13 +55,13 @@ namespace djw::core::library
             void                             analyze(std::int64_t track_id) override;
             void                             analyzeAll() override;
             void                             rescanTrack(std::int64_t track_id) override;
-            [[nodiscard]] std::vector<std::uint8_t> waveform(std::int64_t track_id) const override;
-            void                                    removeMissing() override;
-            [[nodiscard]] api::Playlists    &playlists() noexcept override { return *this; }
+            [[nodiscard]] std::vector<std::uint8_t>          waveform(std::int64_t track_id) const override;
+            void                                             removeMissing() override;
+            [[nodiscard]] api::Playlists                    &playlists() noexcept override { return *this; }
             [[nodiscard]] std::vector<std::filesystem::path> folders() const override;
             [[nodiscard]] api::LibraryStatus                 status() const override;
             [[nodiscard]] std::expected<std::vector<api::LibraryTrack>, std::string>
-            search(const api::LibraryQuery &query) const override;
+                                                           search(const api::LibraryQuery &query) const override;
             [[nodiscard]] std::optional<api::LibraryTrack> track(std::int64_t track_id) const override;
 
             // api::Playlists
@@ -101,7 +101,7 @@ namespace djw::core::library
             void requestAnalysis(AnalysisRequest request, bool in_front);
             /// Tracks queued for analysis plus the one being analyzed
             [[nodiscard]] std::size_t analysisPending() const;
-            void analysisLoop(); // analysis thread
+            void                      analysisLoop(); // analysis thread
 
             void queue(Job job);
             /// A change of a playlist's entries: reads them, lets change edit the list and writes it back
@@ -141,8 +141,8 @@ namespace djw::core::library
             std::optional<api::PlaylistImport> last_import;
 
             // Guarded by analysis_mutex
-            mutable std::mutex      analysis_mutex;
-            std::condition_variable analysis_wake;
+            mutable std::mutex          analysis_mutex;
+            std::condition_variable     analysis_wake;
             std::deque<AnalysisRequest> analysis_queue;
             std::int64_t                analysis_running = 0; // the track being analyzed, 0 if none
 

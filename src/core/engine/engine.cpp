@@ -17,6 +17,12 @@ namespace djw::core::engine
 
         // Engine::apply handles every command; a new command must be added there
         static_assert(std::variant_size_v<api::Command> == 17, "handle the new command in Engine::apply");
+
+        /// The frame at a position in seconds; a negative position is the start
+        std::uint64_t frameAt(double seconds, std::uint32_t sample_rate) noexcept // [audio-thread]
+        {
+            return static_cast<std::uint64_t>(std::llround(std::max(0.0, seconds) * sample_rate));
+        }
     } // namespace
 
     Engine::DeckSlot::DeckSlot(api::DeckId id, std::uint32_t sample_rate)
@@ -190,11 +196,7 @@ namespace djw::core::engine
                                       [](DeckSlot &slot, const api::DeckCue &cue) { slot.deck.cue(cue.pressed); }) ||
             applyToDeck<api::DeckScrub>(list, command,
                                         [rate = config.sample_rate](DeckSlot &slot, const api::DeckScrub &scrub)
-                                        {
-                                            const double frame = std::max(0.0, scrub.position_seconds) * rate;
-                                            slot.deck.scrub(static_cast<std::uint64_t>(std::llround(frame)),
-                                                            scrub.active);
-                                        }) ||
+                                        { slot.deck.scrub(frameAt(scrub.position_seconds, rate), scrub.active); }) ||
             applyToDeck<api::DeckSetPitch>(list, command, [](DeckSlot &slot, const api::DeckSetPitch &pitch)
                                            { slot.deck.setPitch(pitch.percent); }) ||
             applyToDeck<api::DeckPitchBend>(list, command, [](DeckSlot &slot, const api::DeckPitchBend &bend)
@@ -203,10 +205,7 @@ namespace djw::core::engine
                                              { slot.deck.setKeylock(keylock.enabled); }) ||
             applyToDeck<api::DeckSeek>(list, command,
                                        [rate = config.sample_rate](DeckSlot &slot, const api::DeckSeek &seek)
-                                       {
-                                           const double frame = std::max(0.0, seek.position_seconds) * rate;
-                                           slot.deck.seek(static_cast<std::uint64_t>(std::llround(frame)));
-                                       }) ||
+                                       { slot.deck.seek(frameAt(seek.position_seconds, rate)); }) ||
             applyToDeck<api::MixerSetChannelVolume>(list, command,
                                                     [](DeckSlot &slot, const api::MixerSetChannelVolume &volume)
                                                     { slot.channel.setVolume(volume.value); }) ||

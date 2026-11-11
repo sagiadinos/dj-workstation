@@ -48,11 +48,13 @@ namespace djw::core::engine
                     {
                         touch.putSamples(silence.data(), chunk_frames);
                     }
-                    while (touch.receiveSamples(sink.data(), static_cast<unsigned int>(sink.size() / stereo_channels)) > 0)
+                    while (touch.receiveSamples(sink.data(), static_cast<unsigned int>(sink.size() / stereo_channels)) >
+                           0)
                     {
                     }
                     touch.flush();
-                    while (touch.receiveSamples(sink.data(), static_cast<unsigned int>(sink.size() / stereo_channels)) > 0)
+                    while (touch.receiveSamples(sink.data(), static_cast<unsigned int>(sink.size() / stereo_channels)) >
+                           0)
                     {
                     }
                     touch.clear();
@@ -60,12 +62,12 @@ namespace djw::core::engine
                 current_tempo = 1.0;
             }
 
-            soundtouch::SoundTouch                         touch;
+            soundtouch::SoundTouch                            touch;
             std::array<float, chunk_frames * stereo_channels> chunk{};
-            double                                         current_tempo = 1.0;
-            double                                         start         = 0; ///< source frame at the last reset
-            double                                         fed           = 0; ///< frames given to SoundTouch since
-            bool                                           flushed       = false;
+            double                                            current_tempo = 1.0;
+            double                                            start         = 0; ///< source frame at the last reset
+            double                                            fed           = 0; ///< frames given to SoundTouch since
+            bool                                              flushed       = false;
     };
 
     TimeStretcher::TimeStretcher(std::uint32_t sample_rate) : impl{std::make_unique<Impl>(sample_rate)} {}

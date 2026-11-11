@@ -224,10 +224,10 @@ namespace djw::player_ui::sdl
                         rest = rest.substr(*close + 1);
                     }
 
-                    const long long          number   = arg.number();
-                    const std::string        exact    = '=' + std::to_string(number);
-                    const std::string_view   category = pluralCategoryName(pluralCategory(language, number));
-                    const auto               pick     = [&branches](std::string_view selector) -> const Branch *
+                    const long long        number   = arg.number();
+                    const std::string      exact    = '=' + std::to_string(number);
+                    const std::string_view category = pluralCategoryName(pluralCategory(language, number));
+                    const auto             pick     = [&branches](std::string_view selector) -> const Branch *
                     {
                         const auto found = std::ranges::find(branches, selector, &Branch::selector);
                         return found != branches.end() ? &*found : nullptr;

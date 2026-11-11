@@ -19,6 +19,7 @@ TEST_CASE("ftsQuery: blank text is no filter, extra whitespace is ignored")
     CHECK(ftsQuery("").empty());
     CHECK(ftsQuery("  \t ").empty());
     CHECK(ftsQuery("  daft \t one  ") == R"("daft"* "one"*)");
+    CHECK(ftsQuery("daft\r\none\rmore") == R"("daft"* "one"* "more"*)"); // line ends separate words too
 }
 
 TEST_CASE("ftsQuery: FTS5 syntax in the input stays plain text")

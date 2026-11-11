@@ -123,7 +123,7 @@ TEST_CASE("MenuBar: menus that vanish close an open menu")
 
 TEST_CASE("MenuBar: draws the titles and the open menu's entries")
 {
-    Fixture fixture;
+    Fixture         fixture;
     RecordingCanvas closed;
     fixture.bar.draw(closed);
     CHECK(closed.drew("File"));
@@ -140,7 +140,7 @@ TEST_CASE("MenuBar: draws the titles and the open menu's entries")
 
 TEST_CASE("MenuBar: right to left starts at the right edge and aligns the drop-down to its title")
 {
-    Fixture fixture{true};
+    Fixture    fixture{true};
     const Rect first  = fixture.bar.titleArea(0);
     const Rect second = fixture.bar.titleArea(1);
     CHECK(first.x + first.width == 600.0F);

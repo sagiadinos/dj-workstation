@@ -131,7 +131,7 @@ namespace djw::player_ui::sdl
             /// A deck and its window
             struct DeckWindow
             {
-                    core::api::DeckId         id;
+                    core::api::DeckId         id{};
                     int                       number = 0; ///< shown in the title
                     std::unique_ptr<DeckView> view;
                     SdlWindow                *window = nullptr; ///< owned by windows
@@ -153,11 +153,11 @@ namespace djw::player_ui::sdl
             /// A window that opens and closes on request; its view lives on
             struct ToolWindow
             {
-                    View            *view = nullptr;
+                    View            *view   = nullptr;
                     SdlWindow       *window = nullptr;
                     std::string_view title_key;
-                    int              width  = 0;
-                    int              height = 0;
+                    int              width   = 0;
+                    int              height  = 0;
                     Request          request = Request::None;
                     /// Where the window was or is to be; std::nullopt: next to the library window
                     std::optional<Placement> placement{};
@@ -177,7 +177,7 @@ namespace djw::player_ui::sdl
             /// Adds a deck to the core and opens its window
             void addDeck(std::optional<Placement> where = std::nullopt);
             /// Closes the window of a deck, then removes the deck from the core
-            void closeDeck(core::api::DeckId deck);
+            void                      closeDeck(core::api::DeckId deck);
             [[nodiscard]] DeckWindow *deckWindow(core::api::DeckId deck) noexcept;
             [[nodiscard]] DeckWindow *deckOfWindow(SDL_WindowID window) noexcept;
             void                      setWindowTitles();
@@ -190,7 +190,7 @@ namespace djw::player_ui::sdl
             /// Takes the tempo and waveform of the deck's track from the library, if it is analyzed
             void showAnalysis(DeckWindow &target);
             /// Once the library's revision changed: shows analyses that finished since
-            void refreshAnalyses();
+            void                                 refreshAnalyses();
             [[nodiscard]] std::vector<MixerDeck> mixerDecks() const;
 
             void setLanguage(Language language);
@@ -202,14 +202,14 @@ namespace djw::player_ui::sdl
             void applyWindowRequests();
             void processEvents(bool &running);
 
-            SdlLibraries      libraries;
-            SdlFileDialogs    dialogs;
-            Translator        translator;
-            LanguageChanged   language_changed;
-            core::api::Core    *core;
-            core::api::Library *library = nullptr;
+            SdlLibraries          libraries;
+            SdlFileDialogs        dialogs;
+            Translator            translator;
+            LanguageChanged       language_changed;
+            core::api::Core      *core;
+            core::api::Library   *library = nullptr;
             std::filesystem::path layout_file; ///< where View > Save layout writes; empty: no layout is kept
-            std::uint64_t       seen_library_revision = 0;
+            std::uint64_t         seen_library_revision = 0;
             /// Views come before the windows that show them: destroyed after them
             std::vector<std::unique_ptr<DeckWindow>> decks;
             int                                      deck_counter = 0;
@@ -218,11 +218,11 @@ namespace djw::player_ui::sdl
             std::unique_ptr<MixerView>               mixer_view;
             std::vector<std::unique_ptr<SdlWindow>>  windows;
             /// Window titles are set again when the language changes
-            SdlWindow *library_window = nullptr;
+            SdlWindow                *library_window = nullptr;
             std::array<ToolWindow, 2> tools;
 
             /// Asked for from a menu or the keyboard; done between frames
-            int  new_decks_requested = 0;
+            int new_decks_requested = 0;
             /// A track that was chosen with no player open: it goes into the player opened for it
             std::optional<core::api::LibraryTrack> load_after_new_deck;
             std::filesystem::path                  font;

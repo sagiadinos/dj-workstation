@@ -52,6 +52,15 @@ TEST_CASE("withFileNameFallback: fills only what the tags lack")
     const TrackTags no_title = withFileNameFallback({.artist = "A", .year = 1999}, file);
     CHECK(no_title == TrackTags{.artist = "A", .title = "Name Title", .year = 1999});
 
+    const TrackTags no_artist = withFileNameFallback({.title = "T"}, file);
+    CHECK(no_artist == TrackTags{.artist = "Name Artist", .title = "T"});
+
     const TrackTags nothing = withFileNameFallback({}, file);
     CHECK(nothing == TrackTags{.artist = "Name Artist", .title = "Name Title"});
+}
+
+TEST_CASE("tagsFromFileName: spaces before and after a name without separator go as well")
+{
+    CHECK(tagsFromFileName("  track01  .mp3").title == "track01");
+    CHECK(tagsFromFileName("   .mp3").title.empty());
 }

@@ -26,7 +26,7 @@ namespace djw::player_ui::sdl
             /// The hint shown while the field is empty
             void               setPlaceholder(std::string hint) { placeholder = std::move(hint); }
             [[nodiscard]] bool focused() const noexcept { return has_focus; }
-            void                             setFocused(bool focused) noexcept { has_focus = focused; }
+            void               setFocused(bool focused) noexcept { has_focus = focused; }
             /// True once after a tap focused the field, so the view can take the focus from the other fields
             [[nodiscard]] bool takeFocusRequest() noexcept { return std::exchange(focus_requested, false); }
 

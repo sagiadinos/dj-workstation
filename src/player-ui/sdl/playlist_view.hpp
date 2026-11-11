@@ -7,6 +7,7 @@
 #include "api/library.hpp"
 #include "api/playlists.hpp"
 #include "clock.hpp"
+#include "timed_state.hpp"
 #include "file_dialogs.hpp"
 #include "i18n/translator.hpp"
 #include "text_button.hpp"
@@ -103,24 +104,24 @@ namespace djw::player_ui::sdl
             const Translator                    *translator;
             Load                                 load;
             Clock                                clock;
-            std::array<TextButton, button_count> buttons{TextButton{"<"}, TextButton{">"}, TextButton{}, TextButton{},
-                                                         TextButton{},    TextButton{},    TextButton{}, TextButton{},
-                                                         TextButton{}};
-            TextField                        name_field;
-            TrackList                        list;
-            Rect                             status_area;
-            std::vector<core::api::Playlist> all;
-            std::optional<std::int64_t>      shown;
-            std::optional<std::string>       select_by_name; // after a create or import, once it is there
+            ConfirmTap                           confirm_delete{clock, confirm_time};
+            std::array<TextButton, button_count> buttons{TextButton{"<"}, TextButton{">"}, TextButton{},
+                                                         TextButton{},    TextButton{},    TextButton{},
+                                                         TextButton{},    TextButton{},    TextButton{}};
+            TextField                            name_field;
+            TrackList                            list;
+            Rect                                 status_area;
+            std::vector<core::api::Playlist>     all;
+            std::optional<std::int64_t>          shown;
+            std::optional<std::string>           select_by_name; // after a create or import, once it is there
 
-            std::optional<std::chrono::steady_clock::time_point> confirm_delete_until;
             /// Why the playlists could not be read, as the library says; empty if there is no problem
             std::string message;
             /// Key of a message of the view itself for the status line, empty if none; translated when shown
-            std::string_view message_key;
-            std::string                                          status_text;
-            std::optional<std::uint64_t>                         seen_revision;
-            std::optional<core::api::PlaylistImport>             seen_import;
+            std::string_view                         message_key;
+            std::string                              status_text;
+            std::optional<std::uint64_t>             seen_revision;
+            std::optional<core::api::PlaylistImport> seen_import;
             /// An import of this session finished; its outcome shows in the status line
             bool show_import = false;
     };

@@ -3,6 +3,8 @@
 
 #include "mixer_view.hpp"
 
+#include "player_number.hpp"
+
 #include <algorithm>
 #include <string>
 
@@ -13,26 +15,19 @@ namespace djw::player_ui::sdl
         constexpr float margin = 12.0F;
         constexpr float gap    = 10.0F;
 
-        constexpr float row_height     = 44.0F;
-        constexpr float side_button    = 48.0F;
-        constexpr float zero_width     = 110.0F;
-        constexpr float stepper_width  = 130.0F;
+        constexpr float row_height    = 44.0F;
+        constexpr float side_button   = 48.0F;
+        constexpr float zero_width    = 110.0F;
+        constexpr float stepper_width = 130.0F;
 
         constexpr Color label_color{210, 210, 210};
-
-        /// "01", "12": the number of a player as the window shows it
-        std::string twoDigits(int number)
-        {
-            return (number < 10 ? "0" : "") + std::to_string(number);
-        }
     } // namespace
 
     MixerView::MixerView(core::api::CommandQueue &queue, core::api::MixerSnapshotBuffer &snapshot,
                          const Translator &translator, Decks decks, Clock clock)
-        : queue{&queue}, snapshot{&snapshot}, translator{&translator}, decks{std::move(decks)},
-          clock{std::move(clock)}
+        : queue{&queue}, snapshot{&snapshot}, translator{&translator}, decks{std::move(decks)}, clock{std::move(clock)},
+          sent_position{snapshot.read().crossfader_position}
     {
-        sent_position = snapshot.read().crossfader_position;
         slider.setValue(sliderValueOf(sent_position));
     }
 
@@ -49,8 +44,8 @@ namespace djw::player_ui::sdl
 
         button_a.setBounds({inner.x, y, side_button, row_height});
         button_b.setBounds({inner.x + std::max(0.0F, inner.width - side_button), y, side_button, row_height});
-        slider.setBounds({inner.x + side_button + gap, y, std::max(0.0F, inner.width - (2 * (side_button + gap))),
-                          row_height});
+        slider.setBounds(
+            {inner.x + side_button + gap, y, std::max(0.0F, inner.width - (2 * (side_button + gap))), row_height});
         y += row_height + gap;
 
         const float fade_width = std::min(inner.width, 220.0F);
@@ -83,7 +78,7 @@ namespace djw::player_ui::sdl
         std::vector<std::string> names{translator->tr("mixer.none")};
         for (const MixerDeck &player : players)
         {
-            names.push_back(translator->tr("mixer.player", {{"number", twoDigits(player.number)}}));
+            names.push_back(translator->tr("mixer.player", {{"number", playerNumber(player.number)}}));
         }
         const auto selection = [&players](core::api::CrossfaderSide side) -> std::size_t
         {
@@ -154,7 +149,7 @@ namespace djw::player_ui::sdl
             return;
         }
         const auto  elapsed  = std::chrono::duration<float>(clock() - fade->start).count();
-        const float duration = static_cast<float>(fade_time.value());
+        const auto  duration = static_cast<float>(fade_time.value());
         const float progress = std::clamp(elapsed / duration, 0.0F, 1.0F);
         slider.setValue(sliderValueOf(fade->from + ((fade->to - fade->from) * progress)));
         if (progress >= 1.0F)
@@ -178,7 +173,7 @@ namespace djw::player_ui::sdl
 
     void MixerView::update()
     {
-        const core::api::MixerSnapshot mixer = snapshot->read();
+        const core::api::MixerSnapshot mixer   = snapshot->read();
         const std::vector<MixerDeck>   players = decks ? decks() : std::vector<MixerDeck>{};
         applyTranslations(players);
 

@@ -12,6 +12,7 @@ target_compile_definitions(djw_core_analysis_tests PRIVATE
 )
 target_link_libraries(djw_core_analysis_tests PRIVATE
     djw::core::analysis
+    djw_test_support
     doctest::doctest
 )
 
