@@ -262,10 +262,10 @@ namespace djw::player_ui::sdl
             return;
         }
         const Rect &area = pane->placed;
-        canvas.fillRect({area.x, area.y, area.width, focus_line}, look::accent_blue);
-        canvas.fillRect({area.x, area.y + area.height - focus_line, area.width, focus_line}, look::accent_blue);
-        canvas.fillRect({area.x, area.y, focus_line, area.height}, look::accent_blue);
-        canvas.fillRect({area.x + area.width - focus_line, area.y, focus_line, area.height}, look::accent_blue);
+        canvas.fillRect({area.x, area.y, area.width, focus_line}, focus_color);
+        canvas.fillRect({area.x, area.y + area.height - focus_line, area.width, focus_line}, focus_color);
+        canvas.fillRect({area.x, area.y, focus_line, area.height}, focus_color);
+        canvas.fillRect({area.x + area.width - focus_line, area.y, focus_line, area.height}, focus_color);
     }
 
     void ViewHost::drawArranging(Canvas &canvas) const

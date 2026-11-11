@@ -137,6 +137,8 @@ namespace djw::player_ui::sdl
             layout = app->readLayout();
         }
         app->stored_layout = layout;
+        // Without a layout file nothing could be kept, not even the mode: then the separate windows, which need no
+        // layout
         app->mode = app->next_mode = layout ? layout->mode : WindowMode::Separate;
         const bool      mdi        = app->mode == WindowMode::Mdi;
         const MdiLayout mdi_start  = mdi && layout ? layout->mdi.value_or(defaultMdiLayout()) : MdiLayout{};
@@ -702,12 +704,15 @@ namespace djw::player_ui::sdl
         {
             return std::move(*saved);
         }
-        // Nothing saved, or damaged: two players with the crossfader window between them, on the main display
+        // Nothing saved, or damaged: the one window with two players and the crossfader between them; the separate
+        // windows, should the user switch to them, the same on the main display
         const Placement   usable = usableBounds(SDL_GetPrimaryDisplay()).value_or(Placement{0, 0, 1920, 1080});
         const ToolWindow &mixer  = tools[index(Tool::Mixer)];
-        return defaultLayout(usable, {player_width, player_height, mixer.width > 0 ? mixer.width : mixer_size.width,
-                                      mixer.height > 0 ? mixer.height : mixer_size.height, library_size.width,
-                                      library_size.height});
+        Layout            first  = defaultLayout(
+            usable, {player_width, player_height, mixer.width > 0 ? mixer.width : mixer_size.width,
+                     mixer.height > 0 ? mixer.height : mixer_size.height, library_size.width, library_size.height});
+        first.mode = WindowMode::Mdi;
+        return first;
     }
 
     Layout SdlApp::currentLayout() const

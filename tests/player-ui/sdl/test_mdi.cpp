@@ -271,23 +271,24 @@ TEST_CASE("PaneFrame: typed text, the wheel and the right button go to the conte
 
 TEST_CASE("MDI by hand: a moved pane snaps its corner to the grid and stays inside the window")
 {
+    // A grid of 20 here, so the numbers are easy to follow
     const Rect window{0, 0, 1000, 800};
-    const Rect moved = snapMove({133, 47, 300, 200}, window);
+    const Rect moved = snapMove({133, 47, 300, 200}, window, 20.0F);
     CHECK(same(moved.x, 140));
     CHECK(same(moved.y, 40));
     CHECK(same(moved.width, 300));
     CHECK(same(moved.height, 200));
 
     // Dragged over the edges: back inside, on the grid
-    const Rect out = snapMove({-50, 790, 300, 200}, window);
+    const Rect out = snapMove({-50, 790, 300, 200}, window, 20.0F);
     CHECK(same(out.x, 0));
     CHECK(same(out.y, 600));
-    const Rect right = snapMove({711, 10, 300, 200}, window);
+    const Rect right = snapMove({711, 10, 300, 200}, window, 20.0F);
     CHECK(same(right.x, 700));
     CHECK(inside(right, window));
 
     // The grid counts from the window's corner
-    const Rect offset = snapMove({113, 57, 100, 100}, {5, 5, 1000, 800});
+    const Rect offset = snapMove({113, 57, 100, 100}, {5, 5, 1000, 800}, 20.0F);
     CHECK(same(offset.x, 105));
     CHECK(same(offset.y, 65));
 }
@@ -295,17 +296,17 @@ TEST_CASE("MDI by hand: a moved pane snaps its corner to the grid and stays insi
 TEST_CASE("MDI by hand: a resized pane snaps its lower right corner, keeps the smallest size and stays inside")
 {
     const Rect window{0, 0, 1000, 800};
-    const Rect bigger = snapResize({100, 100, 309, 191}, window);
+    const Rect bigger = snapResize({100, 100, 309, 191}, window, 20.0F);
     CHECK(same(bigger.x, 100));
     CHECK(same(bigger.y, 100));
     CHECK(same(bigger.width, 300));
     CHECK(same(bigger.height, 200));
 
-    const Rect tiny = snapResize({100, 100, 10, 10}, window);
+    const Rect tiny = snapResize({100, 100, 10, 10}, window, 20.0F);
     CHECK(same(tiny.width, mdi_min_width));
     CHECK(same(tiny.height, mdi_min_height));
 
-    const Rect huge = snapResize({100, 100, 5000, 5000}, window);
+    const Rect huge = snapResize({100, 100, 5000, 5000}, window, 20.0F);
     CHECK(same(huge.width, 900));
     CHECK(same(huge.height, 700));
 }

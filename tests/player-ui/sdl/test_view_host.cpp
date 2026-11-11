@@ -333,15 +333,15 @@ TEST_CASE("ViewHost arranging: a view dragged anywhere moves with the finger, sn
     ArrangeFixture fixture;
     CHECK(fixture.host.arranging());
     fixture.drag({100, 100}, {133, 307});
-    // While dragged it shows where it would go
+    // While dragged it shows where it would go: on the grid of mdi_grid (33, 207 → 30, 210)
     REQUIRE(fixture.host.dragTarget().has_value());
-    CHECK(shifted(fixture.first.laid_out, {40, 200, 300, 200}, {}));
+    CHECK(shifted(fixture.first.laid_out, {30, 210, 300, 200}, {}));
     CHECK(fixture.host.dragFits());
 
     fixture.release({133, 307});
     CHECK(fixture.moved_view == &fixture.first);
-    CHECK(shifted(fixture.moved_to, {40, 200, 300, 200}, {}));
-    CHECK(shifted(fixture.first.laid_out, {40, 200, 300, 200}, {}));
+    CHECK(shifted(fixture.moved_to, {30, 210, 300, 200}, {}));
+    CHECK(shifted(fixture.first.laid_out, {30, 210, 300, 200}, {}));
     // The widgets of the views got nothing
     CHECK(fixture.first.widget.downs == 0);
     CHECK(fixture.second.widget.downs == 0);

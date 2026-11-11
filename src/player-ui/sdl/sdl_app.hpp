@@ -46,14 +46,14 @@ namespace djw::player_ui::sdl
      * program, as does closing the last player window when there is no library.
      *
      * Window modes (View menu, from the next start on): each part in a window of its own as above, or all in one
-     * window that covers the main display (MDI). There every part has a title bar, players and the crossfader and
-     * playlist with a close button, and the parts are arranged automatically without overlapping (see arrangeMdi).
-     * The menu bar of the library runs across the top of the one window, its menus drop down over all parts.
-     * The one window covers the display or, switched with View > Fullscreen or Ctrl+F, is a maximized normal window
-     * with a title bar; parts placed by hand are scaled with its size. View > Edit layout lets the user move and resize
-     * them by hand on a grid (see ViewHost, arranging); from then on
-     * they stay where the user put them, a part opened later takes a free place, until View > Arrange automatically.
-     * Closing that window ends the program. Each mode keeps its own layout in the layout file.
+     * window that covers the main display (MDI), which is where the program starts without a saved layout. There every
+     * part has a title bar, players and the crossfader and playlist with a close button, and the parts are arranged
+     * automatically without overlapping (see arrangeMdi). The menu bar of the library runs across the top of the one
+     * window, its menus drop down over all parts. The one window covers the display or, switched with View > Fullscreen
+     * or Ctrl+F, is a maximized normal window with a title bar; parts placed by hand are scaled with its size. View >
+     * Edit layout lets the user move and resize them by hand on a grid (see ViewHost, arranging); from then on they
+     * stay where the user put them, a part opened later takes a free place, until View > Arrange automatically. Closing
+     * that window ends the program. Each mode keeps its own layout in the layout file.
      *
      * While a player plays nothing that would stop it closes: not that player, and not the main window (the library
      * window, or the one window of the MDI mode); a quit is ignored as well.

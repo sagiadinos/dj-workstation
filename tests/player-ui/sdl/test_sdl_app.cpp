@@ -526,7 +526,7 @@ namespace
     }
 } // namespace
 
-TEST_CASE("SdlApp: without a saved layout two players and the crossfader window open, player 1 and 2 on the sides")
+TEST_CASE("SdlApp: without a saved layout two players and the crossfader open, player 1 and 2 on the sides")
 {
     Fixture                   fixture;
     const djw::tests::TempDir folder;
@@ -544,12 +544,16 @@ TEST_CASE("SdlApp: without a saved layout two players and the crossfader window 
     CHECK(app->deckView(0).crossfaderSide() == api::CrossfaderSide::A);
     CHECK(app->deckView(1).crossfaderSide() == api::CrossfaderSide::B);
 
-    // Player 1, the crossfader window, player 2: from left to right
-    const Placement first  = placementOfWindow(app->deckWindowId(0));
-    const Placement mixer  = placementOfWindow(app->toolWindowId(SdlApp::Tool::Mixer));
-    const Placement second = placementOfWindow(app->deckWindowId(1));
-    CHECK(first.x < mixer.x);
-    CHECK(mixer.x < second.x);
+    // In the one window: player 1, the crossfader, player 2 from left to right
+    CHECK(app->windowMode() == WindowMode::Mdi);
+    const auto first  = app->paneArea(*app->deckFrame(0));
+    const auto mixer  = app->paneArea(*app->toolFrame(SdlApp::Tool::Mixer));
+    const auto second = app->paneArea(*app->deckFrame(1));
+    REQUIRE(first.has_value());
+    REQUIRE(mixer.has_value());
+    REQUIRE(second.has_value());
+    CHECK(first->x < mixer->x);
+    CHECK(mixer->x < second->x);
 }
 
 TEST_CASE("SdlApp: a saved layout brings back the players, their sides and the crossfader window")
@@ -592,7 +596,7 @@ TEST_CASE("SdlApp: View > Save layout writes what is open now, the next start fi
     {
         Fixture                 fixture;
         djw::tests::FakeLibrary library;
-        auto app = fixture.openApp(&library, file); // the default: two players, the crossfader window
+        auto app = fixture.openApp(&library, file); // the default: the one window, two players, the crossfader
         REQUIRE(app->runFrame());
 
         Fixture::ctrlN(); // a third player
@@ -613,8 +617,10 @@ TEST_CASE("SdlApp: View > Save layout writes what is open now, the next start fi
     }();
     const auto layout = parseLayout(text);
     REQUIRE(layout.has_value());
-    CHECK(layout->players.size() == 3);
-    CHECK_FALSE(layout->mixer.open);
+    CHECK(layout->mode == WindowMode::Mdi);
+    REQUIRE(layout->mdi.has_value());
+    CHECK(layout->mdi->players.size() == 3);
+    CHECK_FALSE(layout->mdi->mixer_open);
 
     Fixture                 fixture;
     djw::tests::FakeLibrary library;
@@ -850,6 +856,8 @@ TEST_CASE("SdlApp: the window mode chosen applies at the next start, each mode k
 {
     const djw::tests::TempDir folder;
     const auto                file = folder.path() / "layout";
+    // Separate windows saved before (the default is the one window)
+    std::ofstream{file} << formatLayout(defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640}));
     {
         Fixture                 fixture;
         djw::tests::FakeLibrary library;
@@ -1233,4 +1241,31 @@ TEST_CASE("SdlApp: Settings > Devices opens a dialog over the library window; OK
     REQUIRE(app->runFrame());
     CHECK(app->devicesDialog() == nullptr);
     CHECK(parseSettings(readFile(settings_file)).buffer_frames == latency_choices.back());
+}
+
+TEST_CASE("SdlApp: without a saved layout the program starts in the one window with two players and the crossfader")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout"; // not written yet
+    Fixture                   fixture;
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library, file);
+    CHECK(app->windowMode() == WindowMode::Mdi);
+    CHECK(app->nextWindowMode() == WindowMode::Mdi);
+    CHECK(openWindows() == 1);
+    CHECK(app->deckCount() == 2);
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    REQUIRE(app->runFrame());
+    // Saved, the mode is kept
+    REQUIRE(app->saveLayout());
+    const auto saved = parseLayout(readFile(file));
+    REQUIRE(saved.has_value());
+    CHECK(saved->mode == WindowMode::Mdi);
+}
+
+TEST_CASE("SdlApp: without a layout file (nowhere to keep anything) the program starts in separate windows")
+{
+    Fixture fixture;
+    auto    app = fixture.openApp();
+    CHECK(app->windowMode() == WindowMode::Separate);
 }

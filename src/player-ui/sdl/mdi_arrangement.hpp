@@ -53,7 +53,7 @@ namespace djw::player_ui::sdl
     [[nodiscard]] MdiArrangement arrangeMdi(const Rect &window, const MdiContent &content, const MdiSizes &sizes);
 
     /// The grid the panes snap to when they are moved or resized by hand, in points from the window's corner
-    inline constexpr float mdi_grid = 20.0F;
+    inline constexpr float mdi_grid = 10.0F;
     /// The smallest a pane can be made by hand
     inline constexpr float mdi_min_width  = 120.0F;
     inline constexpr float mdi_min_height = 100.0F;
