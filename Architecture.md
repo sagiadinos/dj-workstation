@@ -34,7 +34,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - Decoding runs on the decoder thread in chunks of a few seconds, from the start to the end. Playback can start as soon as the first chunk is ready. A seek into a part that is not decoded yet makes the decoder decode that part first; only then a short gap is possible.
 - The audio thread reads the decoded chunks directly. Chunks are published to it lock-free and stay unchanged while the track is loaded; they are freed outside the audio thread after the track is unloaded.
 - Memory per track: about 23 MB per minute at 48 kHz (a 5-minute track about 115 MB).
-- The size held in memory has a configurable limit, as in VirtualDJ. Tracks above it are streamed from disk through a ring buffer (`decode::StreamingSource`); seeking there may have a short gap and reverse playback is limited to what is buffered. The default limit is 5 minutes of track length; longer tracks (extended versions, mixes) are streamed.
+- The size held in memory has a configurable limit, as in VirtualDJ. Tracks above it are streamed from disk through a ring buffer (`decode::StreamingSource`); every seek there (also a jump on the waveform, turning keylock on or off, the scrub loop) has a gap of some 50 ms while the stream refills, and reverse playback is limited to what is buffered. The default limit is 20 minutes of track length (about 460 MB), so DJ tracks including extended versions are held in memory; longer mixes are streamed. If the memory cannot be had the track is streamed as well.
 - Implemented in `decode::MemoryTrack` and `decode::StreamingSource`; `decode::makeTrack` chooses between them.
 
 ### Dependencies
@@ -173,8 +173,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - clang-format and clang-tidy are pinned to one version in `.github/lint-requirements.txt` and installed with pip, so local runs and CI give the same result. Use the same version locally: `python3 -m venv .venv-lint && .venv-lint/bin/pip install -r .github/lint-requirements.txt`.
 - Duplicated code is caught in review, there is no separate duplicate detection tool.
 - CI (`.github/workflows/ci.yml`) runs for every push to `main` and every pull request, for now on Linux x86_64 only:
-  - build and `ctest` with warnings as errors, with GCC 13 (the minimum)
-  - all tests with `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan`, built with GCC 14
+  - build and all tests with `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan`, with warnings as errors and GCC 13 (the minimum)
   - Clang with libc++ is not in the CI; it is built on the Mac
   - clang-format check and clang-tidy
   - line coverage of `src/` with gcovr; the report is attached to the run
