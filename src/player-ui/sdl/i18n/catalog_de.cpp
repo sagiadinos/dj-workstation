@@ -33,6 +33,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.view.one_window", "Ein Fenster"},
             {"menu.view.edit_layout", "Layout bearbeiten"},
             {"menu.view.arrange_automatically", "Automatisch anordnen"},
+            {"menu.view.fullscreen", "Vollbild"},
             {"layout.done", "Fertig"},
             {"menu.view.new_deck", "Neuer Player"},
             {"menu.view.playlist_window", "Playlist-Fenster"},

@@ -46,7 +46,9 @@ namespace djw::player_ui::sdl
      * Window modes (View menu, from the next start on): each part in a window of its own as above, or all in one
      * window that covers the main display (MDI). There every part has a title bar, players and the crossfader and
      * playlist with a close button, and the parts are arranged automatically without overlapping (see arrangeMdi).
-     * View > Edit layout lets the user move and resize them by hand on a grid (see ViewHost, arranging); from then on
+     * The one window covers the display or, switched with View > Fullscreen or F11, is a maximized normal window
+     * with a title bar; parts placed by hand are scaled with its size. View > Edit layout lets the user move and resize
+     * them by hand on a grid (see ViewHost, arranging); from then on
      * they stay where the user put them, a part opened later takes a free place, until View > Arrange automatically.
      * Closing that window ends the program. Each mode keeps its own layout in the layout file.
      *
@@ -122,6 +124,10 @@ namespace djw::player_ui::sdl
             {
                 return host_window != nullptr && host_window->views().arranging();
             }
+            /// MDI mode: the one window covers the display, or is a normal window with a title bar (View menu, F11);
+            /// saved with the layout
+            void               setFullscreen(bool on);
+            [[nodiscard]] bool fullscreen() const noexcept { return host_window != nullptr && host_fullscreen; }
             /// MDI mode: back to the automatic arrangement, the places set by hand are forgotten
             void arrangeAutomatically();
             /// MDI mode: the places set by hand; std::nullopt while the parts are arranged automatically; for tests
@@ -231,8 +237,8 @@ namespace djw::player_ui::sdl
             /// The layout in the layout file; std::nullopt if there is none or it is damaged
             [[nodiscard]] std::optional<Layout> readSavedLayout() const;
             [[nodiscard]] bool                  writeLayout(const Layout &layout) const;
-            /// MDI mode: opens the one window, on the main display
-            bool openHost();
+            /// MDI mode: opens the one window, on the main display: covering it, or as a maximized normal window
+            bool openHost(bool fullscreen);
             /// MDI mode: gives every part shown its area in the one window, for the window's size now
             void arrangeHost();
             /// MDI mode, arranged by hand: every part at its place; a part without one gets a free place, kept from
@@ -299,6 +305,8 @@ namespace djw::player_ui::sdl
             std::vector<core::api::DeckId> decks_to_close;
             /// MDI mode: where the user put the parts; std::nullopt: arranged automatically
             std::optional<MdiPlaces> hand_places;
+            /// MDI mode: the one window covers the display
+            bool host_fullscreen = true;
 
             /// Asked for from a menu or the keyboard; done between frames
             int new_decks_requested = 0;

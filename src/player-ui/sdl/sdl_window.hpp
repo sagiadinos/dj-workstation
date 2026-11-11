@@ -29,6 +29,8 @@ namespace djw::player_ui::sdl
             bool vsync = false;
             /// Covers the whole display (the one window of the MDI mode)
             bool fullscreen = false;
+            /// As big as the display allows next to panels, with a title bar (the one window, not in fullscreen)
+            bool maximized = false;
     };
 
     /**
@@ -65,6 +67,9 @@ namespace djw::player_ui::sdl
             [[nodiscard]] Placement placement() const;
             /// Makes this window the one that waits for the display (vsync) or not
             void setPaced(bool paced);
+            /// Covers the whole display, or back to a normal window with a title bar, maximized
+            void               setFullscreen(bool on);
+            [[nodiscard]] bool fullscreen() const noexcept;
 
             /// The views the window shows
             [[nodiscard]] ViewHost       &views() noexcept { return host; }

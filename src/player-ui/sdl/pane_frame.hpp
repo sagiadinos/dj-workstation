@@ -14,8 +14,9 @@ namespace djw::player_ui::sdl
 {
     /**
      * A view inside the one window of the MDI mode: a title bar on top, with a close button if there is a close
-     * action, and the view below it. Everything but the close button goes to the view. The title is asked for on
-     * every draw, so it follows the language.
+     * action, and the view below it, all within a light line of 1 point, so neighbouring parts can be told apart.
+     * Everything but the close button goes to the view. The title is asked for on every draw, so it follows the
+     * language.
      *
      * close is called from update(), while the window is being drawn: it should only ask for the pane to go, which
      * then happens between frames.
@@ -45,12 +46,16 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton &closeButton() const noexcept { return close_button; }
             /// The title bar
             [[nodiscard]] const Rect &bar() const noexcept { return title_bar; }
+            /// Width of the line around the part
+            static constexpr float border = 1.0F;
+            static constexpr Color border_color{110, 112, 120};
 
         private:
             View      *content;
             Title      title;
             Close      close;
             Rect       title_bar;
+            Rect       whole; ///< the part with its border
             TextButton close_button{"×"};
     };
 } // namespace djw::player_ui::sdl

@@ -941,4 +941,29 @@ TEST_CASE("LibraryView: View offers editing the layout and the automatic arrange
     CHECK(edits == 1);
     chooseEntry(fixture, view_menu, automatic);
     CHECK(automatic_runs == 1);
+
+    // Fullscreen, with its key, checked while on
+    constexpr std::size_t fullscreen_entry = 10;
+    chooseEntry(fixture, view_menu, fullscreen_entry);
+    CHECK(fixture.view.menuBar().isOpen()); // off without an owner
+    fixture.view.keyboard(EditKey::Escape);
+    bool full     = true;
+    int  switches = 0;
+    fixture.view.setFullscreen(
+        [&]
+        {
+            ++switches;
+            full = !full;
+        },
+        [&full] { return full; });
+    fixture.view.update();
+    fixture.tap({title.x + 10, title.y + 10});
+    RecordingCanvas shown;
+    fixture.view.draw(shown);
+    CHECK(shown.drew("Fullscreen"));
+    CHECK(shown.drew("F11"));
+    fixture.view.keyboard(EditKey::Escape);
+    chooseEntry(fixture, view_menu, fullscreen_entry);
+    CHECK(switches == 1);
+    CHECK_FALSE(full);
 }

@@ -140,7 +140,7 @@ namespace djw::player_ui::sdl
         app->mode = app->next_mode = layout ? layout->mode : WindowMode::Separate;
         const bool      mdi        = app->mode == WindowMode::Mdi;
         const MdiLayout mdi_start  = mdi && layout ? layout->mdi.value_or(defaultMdiLayout()) : MdiLayout{};
-        if (mdi && !app->openHost())
+        if (mdi && !app->openHost(mdi_start.fullscreen))
         {
             return std::unexpected{std::string{"cannot open the window"}};
         }
@@ -190,6 +190,8 @@ namespace djw::player_ui::sdl
                 app->library_frame = std::make_unique<PaneFrame>(
                     *app->library_view, [owner] { return paneTitle(owner->translator.tr("window.library")); });
                 app->host_window->views().add(*app->library_frame);
+                app->library_view->setFullscreen([owner] { owner->setFullscreen(!owner->fullscreen()); },
+                                                 [owner] { return owner->fullscreen(); });
                 app->library_view->setLayoutEditing([owner] { owner->startArranging(); },
                                                     [owner] { return owner->arranging(); },
                                                     [owner] { owner->arrangeAutomatically(); });
@@ -290,22 +292,34 @@ namespace djw::player_ui::sdl
         return translator.tr("window.deck", {{"number", playerNumber(number)}});
     }
 
-    bool SdlApp::openHost()
+    bool SdlApp::openHost(bool fullscreen)
     {
         auto created = SdlWindow::create({.title      = "djw",
                                           .width      = library_size.width,
                                           .height     = library_size.height,
                                           .vsync      = true,
-                                          .fullscreen = true},
+                                          .fullscreen = fullscreen,
+                                          .maximized  = !fullscreen},
                                          font);
         if (!created)
         {
             logError("cannot open the window: " + created.error());
             return false;
         }
-        host_window = created->get();
+        host_window     = created->get();
+        host_fullscreen = fullscreen;
         windows.push_back(std::move(*created));
         return true;
+    }
+
+    void SdlApp::setFullscreen(bool on)
+    {
+        if (host_window == nullptr)
+        {
+            return;
+        }
+        host_fullscreen = on;
+        host_window->setFullscreen(on);
     }
 
     void SdlApp::arrangeHost()
@@ -358,6 +372,41 @@ namespace djw::player_ui::sdl
             return {static_cast<int>(std::lround(area.x)), static_cast<int>(std::lround(area.y)),
                     static_cast<int>(std::lround(area.width)), static_cast<int>(std::lround(area.height))};
         }
+
+        /// Between the places set by hand (for the window size they were made in) and the window as it is now
+        class PlaceScale
+        {
+            public:
+                /// Places without a window size get the window's
+                PlaceScale(MdiPlaces &places, const Rect &window) : window{window}
+                {
+                    if (places.area.width <= 0 || places.area.height <= 0)
+                    {
+                        places.area = {0, 0, static_cast<int>(std::lround(window.width)),
+                                       static_cast<int>(std::lround(window.height))};
+                    }
+                    x_scale = window.width / static_cast<float>(places.area.width);
+                    y_scale = window.height / static_cast<float>(places.area.height);
+                }
+
+                [[nodiscard]] Rect toWindow(const Placement &place) const
+                {
+                    const Rect area = rectOf(place);
+                    return {window.x + (area.x * x_scale), window.y + (area.y * y_scale), area.width * x_scale,
+                            area.height * y_scale};
+                }
+
+                [[nodiscard]] Placement fromWindow(const Rect &area) const
+                {
+                    return placementOf({(area.x - window.x) / x_scale, (area.y - window.y) / y_scale,
+                                        area.width / x_scale, area.height / y_scale});
+                }
+
+            private:
+                Rect  window;
+                float x_scale = 1.0F;
+                float y_scale = 1.0F;
+        };
     } // namespace
 
     void SdlApp::arrangeByHand()
@@ -366,9 +415,10 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        ViewHost  &views  = host_window->views();
-        const Rect window = host_window->area();
-        MdiPlaces &places = hand_places.value();
+        ViewHost        &views  = host_window->views();
+        const Rect       window = host_window->area();
+        MdiPlaces       &places = hand_places.value();
+        const PlaceScale scale{places, window};
         places.players.resize(decks.size());
         const ToolWindow &mixer    = tools[index(Tool::Mixer)];
         const ToolWindow &playlist = tools[index(Tool::Playlist)];
@@ -414,8 +464,9 @@ namespace djw::player_ui::sdl
         {
             if (const std::optional<Placement> stored = *part.place; stored)
             {
-                const Rect area = keepInside(rectOf(*stored), window);
-                if (std::ranges::any_of(taken, [&area](const Rect &other) { return overlap(area, other); }))
+                const Rect area = keepInside(scale.toWindow(*stored), window);
+                // Scaled, edges that touched may be a hair apart or over each other: only more counts
+                if (std::ranges::any_of(taken, [&area](const Rect &other) { return overlap(area.inset(0.5F), other); }))
                 {
                     part.place->reset();
                     continue;
@@ -431,7 +482,7 @@ namespace djw::player_ui::sdl
                 // No room left anywhere: on top at the upper left, for the user to make room
                 const Rect area = freePlace(part.width, part.height, window, taken)
                                       .value_or(keepInside({window.x, window.y, part.width, part.height}, window));
-                *part.place     = placementOf(area);
+                *part.place     = scale.fromWindow(area);
                 views.place(*part.frame, area);
                 taken.push_back(area);
             }
@@ -444,19 +495,22 @@ namespace djw::player_ui::sdl
 
     void SdlApp::paneMoved(const View &frame, const Rect &area)
     {
-        ViewHost &views = host_window->views();
+        ViewHost  &views  = host_window->views();
+        const Rect window = host_window->area();
         if (!hand_places)
         {
-            // The first part moved by hand: all the others stay where the automatic arrangement put them
-            MdiPlaces  places;
-            const auto where = [&views](const PaneFrame *pane) -> std::optional<Placement>
+            // The first part moved by hand: all the others stay where the automatic arrangement put them, in a
+            // window of the size it has now
+            MdiPlaces        places;
+            const PlaceScale now{places, window};
+            const auto       where = [&views, &now](const PaneFrame *pane) -> std::optional<Placement>
             {
                 if (pane == nullptr || !views.contains(*pane))
                 {
                     return std::nullopt;
                 }
                 const auto shown = views.areaOf(*pane);
-                return shown ? std::optional{placementOf(*shown)} : std::nullopt;
+                return shown ? std::optional{now.fromWindow(*shown)} : std::nullopt;
             };
             for (const auto &deck : decks)
             {
@@ -469,7 +523,7 @@ namespace djw::player_ui::sdl
         }
         MdiPlaces &places = *hand_places;
         places.players.resize(decks.size());
-        const Placement moved = placementOf(area);
+        const Placement moved = PlaceScale{places, window}.fromWindow(area);
         for (std::size_t deck = 0; deck < decks.size(); ++deck)
         {
             if (decks[deck]->frame.get() == &frame)
@@ -641,6 +695,7 @@ namespace djw::player_ui::sdl
             MdiLayout shown{.players       = {},
                             .mixer_open    = toolWindowOpen(Tool::Mixer),
                             .playlist_open = toolWindowOpen(Tool::Playlist),
+                            .fullscreen    = host_fullscreen,
                             .places        = hand_places};
             for (const auto &deck : decks)
             {
@@ -1160,6 +1215,12 @@ namespace djw::player_ui::sdl
                 (event.key.mod & new_deck_modifier) != 0)
             {
                 ++new_decks_requested; // Ctrl+N in any window
+                continue;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_F11 &&
+                host_window != nullptr)
+            {
+                setFullscreen(!host_fullscreen); // F11: the one window between fullscreen and a normal window
                 continue;
             }
             if (event.type == SDL_EVENT_DROP_FILE)

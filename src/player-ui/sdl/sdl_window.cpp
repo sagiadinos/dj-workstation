@@ -43,6 +43,10 @@ namespace djw::player_ui::sdl
         {
             flags |= SDL_WINDOW_FULLSCREEN; // without a display mode: the desktop size, no mode change
         }
+        else if (options.maximized)
+        {
+            flags |= SDL_WINDOW_MAXIMIZED;
+        }
         created->window.reset(SDL_CreateWindow(options.title.c_str(), options.width, options.height, flags));
         if (!created->window)
         {
@@ -106,6 +110,20 @@ namespace djw::player_ui::sdl
         {
             SDL_SetRenderVSync(renderer.get(), 0);
         }
+    }
+
+    void SdlWindow::setFullscreen(bool on)
+    {
+        SDL_SetWindowFullscreen(window.get(), on);
+        if (!on)
+        {
+            SDL_MaximizeWindow(window.get());
+        }
+    }
+
+    bool SdlWindow::fullscreen() const noexcept
+    {
+        return (SDL_GetWindowFlags(window.get()) & SDL_WINDOW_FULLSCREEN) != 0;
     }
 
     Rect SdlWindow::area() const

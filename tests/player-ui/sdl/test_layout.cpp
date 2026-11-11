@@ -143,6 +143,7 @@ TEST_CASE("Layout: the window mode and the layout of the one window come back as
     layout.mdi       = MdiLayout{.players       = {api::CrossfaderSide::B, api::CrossfaderSide::None, api::CrossfaderSide::A},
                                  .mixer_open    = false,
                                  .playlist_open = true,
+                                 .fullscreen    = true,
                                  .places        = std::nullopt};
     const auto again = parseLayout(formatLayout(layout));
     REQUIRE(again.has_value());
@@ -207,7 +208,9 @@ TEST_CASE("Layout: the places of the one window set by hand come back as saved")
     layout.mdi             = MdiLayout{.players       = {api::CrossfaderSide::A, api::CrossfaderSide::B},
                                        .mixer_open    = false,
                                        .playlist_open = true,
-                                       .places        = MdiPlaces{.players  = {Placement{0, 0, 380, 540}, std::nullopt},
+                                       .fullscreen    = false,
+                                       .places        = MdiPlaces{.area     = Placement{0, 0, 1920, 1080},
+                                                                  .players  = {Placement{0, 0, 380, 540}, std::nullopt},
                                                                   .mixer    = Placement{400, 0, 440, 280},
                                                                   .playlist = std::nullopt,
                                                                   .library  = Placement{0, 560, 1000, 400}}};
@@ -216,6 +219,8 @@ TEST_CASE("Layout: the places of the one window set by hand come back as saved")
     CHECK(text.find("mdi player B\n") != std::string::npos);
     CHECK(text.find("mdi mixer closed 400 0 440 280\n") != std::string::npos); // closed, the place stays
     CHECK(text.find("mdi library 0 560 1000 400\n") != std::string::npos);
+    CHECK(text.find("mdi area 1920 1080\n") != std::string::npos);
+    CHECK(text.find("mdi fullscreen off\n") != std::string::npos);
     const auto again = parseLayout(text);
     REQUIRE(again.has_value());
     CHECK(*again == layout);
@@ -230,10 +235,21 @@ TEST_CASE("Layout: places of the one window without the library's, or damaged on
     REQUIRE(at != std::string::npos);
     std::string with_place = good;
     with_place.insert(at + std::string_view{"mdi player A"}.size(), " 0 0 380 540");
-    CHECK_FALSE(parseLayout(with_place).has_value());                            // no library place
-    CHECK(parseLayout(with_place + "mdi library 0 560 1000 400\n").has_value()); // with it
-    CHECK_FALSE(parseLayout(good + "mdi library 0 560 1000\n").has_value());     // three numbers
-    CHECK_FALSE(parseLayout(good + "mdi library 0 560 10 400\n").has_value());   // too small
+    CHECK_FALSE(parseLayout(with_place).has_value()); // no library place
+    const std::string area = "mdi area 1920 1080\n";
+    CHECK(parseLayout(with_place + "mdi library 0 560 1000 400\n" + area).has_value()); // with it and the size
+    CHECK_FALSE(parseLayout(with_place + "mdi library 0 560 1000 400\n").has_value());  // without the size
+    CHECK_FALSE(parseLayout(good + area).has_value());                                  // a size without places
+    CHECK_FALSE(parseLayout(good + "mdi area 1920\n").has_value());
+    CHECK_FALSE(parseLayout(good + "mdi fullscreen maybe\n").has_value());
+    CHECK_FALSE(parseLayout(good + "mdi fullscreen on\n").has_value()); // twice: formatLayout wrote it already
+    // A layout from before the fullscreen line opens in fullscreen
+    std::string without_screen = good;
+    without_screen.erase(without_screen.find("mdi fullscreen on\n"), std::string_view{"mdi fullscreen on\n"}.size());
+    REQUIRE(parseLayout(without_screen).has_value());
+    CHECK(parseLayout(without_screen)->mdi->fullscreen);
+    CHECK_FALSE(parseLayout(good + "mdi library 0 560 1000\n").has_value());                           // three numbers
+    CHECK_FALSE(parseLayout(good + "mdi library 0 560 10 400\n").has_value());                         // too small
     CHECK_FALSE(parseLayout(good + "mdi library 0 0 500 500\nmdi library 0 0 500 500\n").has_value()); // twice
     CHECK_FALSE(parseLayout(good + "mdi mixer open 1 2\n").has_value());
 }

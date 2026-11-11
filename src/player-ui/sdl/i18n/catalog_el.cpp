@@ -33,6 +33,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.view.one_window", "Ένα παράθυρο"},
             {"menu.view.edit_layout", "Επεξεργασία διάταξης"},
             {"menu.view.arrange_automatically", "Αυτόματη τακτοποίηση"},
+            {"menu.view.fullscreen", "Πλήρης οθόνη"},
             {"layout.done", "Τέλος"},
             {"menu.view.new_deck", "Νέο player"},
             {"menu.view.playlist_window", "Παράθυρο λίστας"},

@@ -42,12 +42,15 @@ namespace djw::player_ui::sdl
     };
 
     /**
-     * Where the parts of the one window (the MDI mode) are when the user arranged them by hand, in points of the
-     * window. A part without a place gets a free one when it opens (a player added later, say). The crossfader and the
-     * playlist keep their place while they are closed.
+     * Where the parts of the one window (the MDI mode) are when the user arranged them by hand, in points of a window
+     * of the size area; in a window of another size they are scaled with it. A part without a place gets a free one
+     * when it opens (a player added later, say). The crossfader and the playlist keep their place while they are
+     * closed.
      */
     struct MdiPlaces
     {
+            /// The window size the places are for (x and y unused)
+            Placement                             area;
             std::vector<std::optional<Placement>> players;
             std::optional<Placement>              mixer;
             std::optional<Placement>              playlist;
@@ -65,6 +68,8 @@ namespace djw::player_ui::sdl
             std::vector<core::api::CrossfaderSide> players;
             bool                                   mixer_open    = true;
             bool                                   playlist_open = false;
+            /// The one window covers the display; otherwise it is a normal window with a title bar
+            bool fullscreen = true;
             /// std::nullopt: arranged automatically
             std::optional<MdiPlaces> places;
 

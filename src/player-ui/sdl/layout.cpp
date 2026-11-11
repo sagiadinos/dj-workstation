@@ -4,6 +4,7 @@
 #include "layout.hpp"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstdlib>
 #include <span>
@@ -132,6 +133,8 @@ namespace djw::player_ui::sdl
                 MdiPlaces places;
                 bool      has_place   = false;
                 bool      has_library = false;
+                bool      has_area    = false;
+                bool      has_screen  = false;
         };
 
         /// The place after the first two words of an mdi line: none (two words) or x y width height (six words);
@@ -150,6 +153,21 @@ namespace djw::player_ui::sdl
         /// One line after "mdi"; false if it is not one
         bool parseMdiLine(std::span<const std::string_view> parts, MdiLines &lines)
         {
+            if (parts.size() == 3 && parts[0] == "area" && !lines.has_area)
+            {
+                const std::array<std::string_view, 4> four{"0", "0", parts[1], parts[2]};
+                const auto                            size = placementOf(four);
+                lines.places.area                          = size.value_or(Placement{});
+                lines.has_area                             = size.has_value();
+                return size.has_value();
+            }
+            if (parts.size() == 2 && parts[0] == "fullscreen" && !lines.has_screen &&
+                (parts[1] == "on" || parts[1] == "off"))
+            {
+                lines.layout.fullscreen = parts[1] == "on";
+                lines.has_screen        = true;
+                return true;
+            }
             if (parts.size() == 5 && parts[0] == "library" && !lines.has_library)
             {
                 const auto place     = placementOf(parts.subspan(1));
@@ -215,6 +233,7 @@ namespace djw::player_ui::sdl
         return {.players       = {core::api::CrossfaderSide::A, core::api::CrossfaderSide::B},
                 .mixer_open    = true,
                 .playlist_open = false,
+                .fullscreen    = true,
                 .places        = std::nullopt};
     }
 
@@ -250,6 +269,7 @@ namespace djw::player_ui::sdl
                 }
                 out << '\n';
             }
+            out << "mdi fullscreen " << (layout.mdi->fullscreen ? "on" : "off") << '\n';
             out << "mdi mixer " << openWord(layout.mdi->mixer_open);
             writeOptionalPlacement(out, places ? places->mixer : std::nullopt);
             out << '\n';
@@ -258,6 +278,7 @@ namespace djw::player_ui::sdl
             out << '\n';
             if (places)
             {
+                out << "mdi area " << places->area.width << ' ' << places->area.height << '\n';
                 out << "mdi library";
                 writePlacement(out, places->library);
                 out << '\n';
@@ -341,9 +362,10 @@ namespace djw::player_ui::sdl
             }
         }
         // A layout with no player, or without one of the windows, is damaged; so is an mdi part without its tools,
-        // or with places of parts but not the library's
+        // or with places of parts but not the library's, or places without the window size they are for
         if (layout.players.empty() || !has_library || !has_mixer || !has_playlist || (!version_1 && !has_mode) ||
-            (has_mdi && (!mdi.has_mixer || !mdi.has_playlist || (mdi.has_place && !mdi.has_library))))
+            (has_mdi && (!mdi.has_mixer || !mdi.has_playlist || (mdi.has_place && !mdi.has_library) ||
+                         (mdi.has_library != mdi.has_area))))
         {
             return std::nullopt;
         }

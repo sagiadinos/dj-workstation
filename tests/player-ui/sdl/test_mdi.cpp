@@ -191,22 +191,31 @@ TEST_CASE("MDI: a window smaller than everything still gives no part a negative 
     }
 }
 
-TEST_CASE("PaneFrame: a title bar on top, the content below it")
+TEST_CASE("PaneFrame: a title bar on top, the content below it, all inside a visible border")
 {
-    Content   content;
-    PaneFrame frame{content, [] { return std::string{"Player 1"}; }};
+    Content         content;
+    PaneFrame       frame{content, [] { return std::string{"Player 1"}; }};
+    constexpr float border = PaneFrame::border;
     frame.layout({10, 20, 400, 300});
-    CHECK(same(frame.bar().y, 20));
+    CHECK(same(frame.bar().y, 20 + border));
     CHECK(same(frame.bar().height, PaneFrame::title_height));
-    CHECK(same(content.laid_out.y, 20 + PaneFrame::title_height));
-    CHECK(same(content.laid_out.height, 300 - PaneFrame::title_height));
-    CHECK(same(content.laid_out.x, 10));
-    CHECK(same(content.laid_out.width, 400));
+    CHECK(same(content.laid_out.y, 20 + border + PaneFrame::title_height));
+    CHECK(same(content.laid_out.height, 300 - (2 * border) - PaneFrame::title_height));
+    CHECK(same(content.laid_out.x, 10 + border));
+    CHECK(same(content.laid_out.width, 400 - (2 * border)));
 
     RecordingCanvas canvas;
     frame.draw(canvas);
     CHECK(canvas.drew("Player 1"));
     CHECK(canvas.drew("content"));
+    // The border is drawn last, over the content: four lines of the border colour along the edges
+    REQUIRE(canvas.rects.size() >= 4);
+    const auto last = canvas.rects.end() - 4;
+    CHECK(same(last[0].y, 20));                // top
+    CHECK(same(last[1].y, 20 + 300 - border)); // bottom
+    CHECK(same(last[2].x, 10));                // left
+    CHECK(same(last[3].x, 10 + 400 - border)); // right
+    CHECK(same(last[0].height, border));
     // Without a close action there is no close button
     CHECK(same(frame.closeButton().bounds().width, 0));
 
@@ -227,7 +236,7 @@ TEST_CASE("PaneFrame: the close button at the right end of the bar asks for the 
 
     const Rect button = frame.closeButton().bounds();
     CHECK(button.width > 0);
-    CHECK(same(button.x + button.width + 3, 400));
+    CHECK(same(button.x + button.width + 3, 400 - PaneFrame::border));
     CHECK(frame.bar().contains({button.x + 1, button.y + 1}));
 
     press(router, button);

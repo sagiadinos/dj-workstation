@@ -40,6 +40,7 @@ namespace djw::player_ui::sdl
             constexpr int one_window             = 17;
             constexpr int edit_layout            = 18;
             constexpr int arrange_automatically  = 19;
+            constexpr int fullscreen             = 20;
             constexpr int language_base          = 100;
         } // namespace menu_id
 
@@ -566,7 +567,12 @@ namespace djw::player_ui::sdl
                            .checked = layout_editing && layout_editing()},
                           {.id      = menu_id::arrange_automatically,
                            .label   = tr("menu.view.arrange_automatically"),
-                           .enabled = static_cast<bool>(arrange_automatic)}}});
+                           .enabled = static_cast<bool>(arrange_automatic)},
+                          {.id       = menu_id::fullscreen,
+                           .label    = tr("menu.view.fullscreen"),
+                           .enabled  = static_cast<bool>(fullscreen_toggle),
+                           .checked  = fullscreen_shown && fullscreen_shown(),
+                           .shortcut = "F11"}}});
         menu.setMenus(std::move(menus));
         menu.setRightToLeft(translator->rightToLeft());
 
@@ -621,6 +627,12 @@ namespace djw::player_ui::sdl
                 if (edit_layout)
                 {
                     edit_layout();
+                }
+                break;
+            case menu_id::fullscreen:
+                if (fullscreen_toggle)
+                {
+                    fullscreen_toggle();
                 }
                 break;
             case menu_id::arrange_automatically:

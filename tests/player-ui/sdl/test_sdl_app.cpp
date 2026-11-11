@@ -712,8 +712,11 @@ namespace
     {
         Layout layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
         layout.mode   = WindowMode::Mdi;
-        layout.mdi    = MdiLayout{
-            .players = std::move(players), .mixer_open = true, .playlist_open = playlist_open, .places = std::nullopt};
+        layout.mdi    = MdiLayout{.players       = std::move(players),
+                                  .mixer_open    = true,
+                                  .playlist_open = playlist_open,
+                                  .fullscreen    = true,
+                                  .places        = std::nullopt};
         std::ofstream{file} << formatLayout(layout);
     }
 
@@ -993,7 +996,7 @@ TEST_CASE("SdlApp: in the MDI mode the parts can be arranged by hand, keep their
     CHECK_FALSE(app->handPlaces().has_value());
 }
 
-TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the parts there")
+TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the parts there, scaled to the window")
 {
     const djw::tests::TempDir folder;
     const auto                file   = folder.path() / "layout";
@@ -1002,10 +1005,13 @@ TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the part
     layout.mdi = MdiLayout{.players       = {api::CrossfaderSide::A, api::CrossfaderSide::B},
                            .mixer_open    = false,
                            .playlist_open = false,
-                           .places = MdiPlaces{.players  = {Placement{600, 0, 300, 400}, Placement{0, 0, 300, 400}},
+                           .fullscreen    = true,
+                           // Made in a window twice as big as the test's: everything comes at half the size
+                           .places = MdiPlaces{.area     = Placement{0, 0, 2048, 1536},
+                                               .players  = {Placement{1200, 0, 600, 800}, Placement{0, 0, 600, 800}},
                                                .mixer    = std::nullopt,
                                                .playlist = std::nullopt,
-                                               .library  = Placement{0, 420, 900, 300}}};
+                                               .library  = Placement{0, 840, 1800, 600}}};
     std::ofstream{file} << formatLayout(layout);
 
     Fixture                 fixture;
@@ -1024,4 +1030,54 @@ TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the part
     CHECK(second->x == doctest::Approx(0));
     CHECK(library_part->y == doctest::Approx(420));
     CHECK(library_part->height == doctest::Approx(300));
+}
+
+TEST_CASE("SdlApp: in the MDI mode the window switches between fullscreen and a normal window, saved with the layout")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame());
+    CHECK(app->fullscreen());
+
+    app->setFullscreen(false);
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->fullscreen());
+    REQUIRE(app->saveLayout());
+    auto saved = parseLayout(readFile(file));
+    REQUIRE(saved.has_value());
+    REQUIRE(saved->mdi.has_value());
+    CHECK_FALSE(saved->mdi->fullscreen);
+
+    // F11 switches back
+    SDL_Event event{};
+    event.type       = SDL_EVENT_KEY_DOWN;
+    event.key.key    = SDLK_F11;
+    event.key.repeat = false;
+    SDL_PushEvent(&event);
+    REQUIRE(app->runFrame());
+    CHECK(app->fullscreen());
+    REQUIRE(app->saveLayout());
+    saved = parseLayout(readFile(file));
+    REQUIRE(saved.has_value());
+    CHECK(saved->mdi->fullscreen);
+}
+
+TEST_CASE("SdlApp: in separate windows there is no fullscreen and F11 does nothing")
+{
+    Fixture fixture;
+    auto    app = fixture.openApp();
+    CHECK_FALSE(app->fullscreen());
+    app->setFullscreen(true);
+    CHECK_FALSE(app->fullscreen());
+    SDL_Event event{};
+    event.type    = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_F11;
+    SDL_PushEvent(&event);
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->fullscreen());
 }

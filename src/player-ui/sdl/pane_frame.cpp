@@ -22,8 +22,11 @@ namespace djw::player_ui::sdl
     {
     }
 
-    void PaneFrame::layout(const Rect &area)
+    void PaneFrame::layout(const Rect &outer)
     {
+        whole = outer;
+        // Title bar and content lie inside the border
+        const Rect  area       = outer.inset(border);
         const float bar_height = std::min(title_height, area.height);
         title_bar              = {area.x, area.y, area.width, bar_height};
         if (close)
@@ -64,5 +67,10 @@ namespace djw::player_ui::sdl
         }
         close_button.draw(canvas);
         content->draw(canvas);
+        // The border, last, so the content cannot cover it
+        canvas.fillRect({whole.x, whole.y, whole.width, border}, border_color);
+        canvas.fillRect({whole.x, whole.y + whole.height - border, whole.width, border}, border_color);
+        canvas.fillRect({whole.x, whole.y, border, whole.height}, border_color);
+        canvas.fillRect({whole.x + whole.width - border, whole.y, border, whole.height}, border_color);
     }
 } // namespace djw::player_ui::sdl
