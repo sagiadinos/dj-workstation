@@ -151,9 +151,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Crossfader curve | 1 | Linear, constant power, cut. |
 | Crossfader zero | M | Fader to center position. |
 | Momentary A/B | M | From the original version: tap and hold jumps to one side and back on release. |
-| Latch A/B | M | Jumps to one side and stays there. |
 | Headphone cue | M | Per deck, cue/master mix, headphone volume. |
-| Master volume | M | |
 | Master limiter | M | Prevents clipping. |
 | 3-band EQ with kill | 1 | |
 | Filter | 1 | One knob per deck: lowpass to the left, highpass to the right. |
@@ -176,12 +174,8 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 
 | Feature | Prio | Description |
 |---|---|---|
-| Playlist/queue | M | Create, reorder (up/down), delete entries. Next track highlighted. |
-| Double tap to jump | M | The tapped track becomes the next one. |
-| Autoplay | M | Next track starts X seconds before the end of the current one. Source: playlist or selected track in the library. |
-| Autofade | M | Automatic crossfade with configurable duration. |
+| Playlist/queue | M | Create, reorder (up/down), delete entries. |
 | Fade now | M | Immediate transition with the configured fade time. |
-| Playlist loop | M | Starts over at the end. |
 | Silence detection | 1 | Start/end from analysis instead of file boundaries. |
 | Beatmatched automix | L | Transition with sync on the beatgrid. |
 

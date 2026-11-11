@@ -101,7 +101,7 @@ namespace djw::core::api
 
     /**
      * Crossfader position from -1.0 (side A only) over 0.0 (center, both sides) to +1.0 (side B only). Values outside
-     * are clamped by the engine. Crossfader zero is position 0.0, latch A/B is -1.0 / +1.0.
+     * are clamped by the engine. Crossfader zero is position 0.0.
      */
     struct MixerSetCrossfader
     {
