@@ -7,6 +7,7 @@
 
 using namespace djw::player_ui::sdl;
 using djw::core::api::CrossfaderSide;
+namespace api = djw::core::api;
 
 namespace
 {
@@ -62,7 +63,7 @@ TEST_CASE("Layout: damaged or foreign text is no layout")
     const std::string good = formatLayout(fiveWithMixer());
     CHECK_FALSE(parseLayout("").has_value());
     CHECK_FALSE(parseLayout("something else\n").has_value());
-    CHECK_FALSE(parseLayout("djw-layout 2\n" + good.substr(good.find('\n') + 1)).has_value());
+    CHECK_FALSE(parseLayout("djw-layout 3\n" + good.substr(good.find('\n') + 1)).has_value());
     CHECK_FALSE(parseLayout(good + "unknown 1 2 3 4\n").has_value());
     CHECK_FALSE(parseLayout(good + "player A 0 0 50 50\n").has_value());         // too small to be a window
     CHECK_FALSE(parseLayout(good + "player X 0 0 380 514\n").has_value());       // no such side
@@ -127,4 +128,70 @@ TEST_CASE("fitInto: moves a window back into the area and shrinks one that is to
     CHECK(fitInto({-300, -50, 380, 514}, area) == Placement{0, 0, 380, 514});
     CHECK(fitInto({10, 10, 3'000, 2'000}, area) == Placement{0, 0, 1000, 700});
     CHECK(fitInto({10, 10, 380, 514}, area) == Placement{10, 10, 380, 514});
+}
+
+TEST_CASE("Layout: the window mode and the layout of the one window come back as saved")
+{
+    Layout layout = fiveWithMixer();
+    CHECK(parseLayout(formatLayout(layout))->mode == WindowMode::Separate);
+    CHECK_FALSE(parseLayout(formatLayout(layout))->mdi.has_value());
+
+    layout.mode      = WindowMode::Mdi;
+    layout.mdi       = MdiLayout{.players       = {api::CrossfaderSide::B, api::CrossfaderSide::None, api::CrossfaderSide::A},
+                                 .mixer_open    = false,
+                                 .playlist_open = true};
+    const auto again = parseLayout(formatLayout(layout));
+    REQUIRE(again.has_value());
+    CHECK(*again == layout);
+
+    // The one window without players is fine: only the library
+    layout.mdi->players.clear();
+    CHECK(*parseLayout(formatLayout(layout)) == layout);
+}
+
+TEST_CASE("Layout: a layout from before the window modes is read as separate windows")
+{
+    const std::string current = formatLayout(fiveWithMixer());
+    // Version 1: no mode line
+    std::string old  = "djw-layout 1\n" + current.substr(current.find("player"));
+    const auto  read = parseLayout(old);
+    REQUIRE(read.has_value());
+    CHECK(read->mode == WindowMode::Separate);
+    CHECK(read->players.size() == 5);
+    // Version 1 knows neither a mode nor the one window
+    CHECK_FALSE(parseLayout(old + "mode mdi\n").has_value());
+    CHECK_FALSE(parseLayout(old + "mdi mixer open\n").has_value());
+}
+
+TEST_CASE("Layout: a damaged mode or one-window part is no layout")
+{
+    Layout layout          = fiveWithMixer();
+    layout.mdi             = defaultMdiLayout();
+    const std::string good = formatLayout(layout);
+    REQUIRE(parseLayout(good).has_value());
+    CHECK_FALSE(parseLayout(good + "mode windows\n").has_value());     // no such mode
+    CHECK_FALSE(parseLayout(good + "mode mdi\n").has_value());         // twice
+    CHECK_FALSE(parseLayout(good + "mdi player X\n").has_value());     // no such side
+    CHECK_FALSE(parseLayout(good + "mdi mixer maybe\n").has_value());  // neither open nor closed
+    CHECK_FALSE(parseLayout(good + "mdi library open\n").has_value()); // the library is always there
+    CHECK_FALSE(parseLayout(good + "mdi player\n").has_value());
+    // Without the mode line
+    std::string no_mode = good;
+    no_mode.erase(no_mode.find("mode"), no_mode.find('\n', no_mode.find("mode")) - no_mode.find("mode") + 1);
+    CHECK_FALSE(parseLayout(no_mode).has_value());
+    // The one window needs both of its tool lines
+    std::string no_mdi_playlist = good.substr(0, good.find("mdi playlist"));
+    CHECK_FALSE(parseLayout(no_mdi_playlist).has_value());
+    // Too many players
+    Layout crowded = layout;
+    crowded.mdi->players.assign(max_layout_players + 1, api::CrossfaderSide::A);
+    CHECK_FALSE(parseLayout(formatLayout(crowded)).has_value());
+}
+
+TEST_CASE("Layout: without a saved one window two players on the sides A and B and the crossfader are shown")
+{
+    const MdiLayout mdi = defaultMdiLayout();
+    CHECK(mdi.players == std::vector{api::CrossfaderSide::A, api::CrossfaderSide::B});
+    CHECK(mdi.mixer_open);
+    CHECK_FALSE(mdi.playlist_open);
 }

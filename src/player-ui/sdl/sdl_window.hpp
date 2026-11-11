@@ -27,6 +27,8 @@ namespace djw::player_ui::sdl
             int         height = 640;
             /// Wait for the display on present; one window paces the frames, the others must not wait as well
             bool vsync = false;
+            /// Covers the whole display (the one window of the MDI mode)
+            bool fullscreen = false;
     };
 
     /**
@@ -42,6 +44,9 @@ namespace djw::player_ui::sdl
             /// The window opens showing view over its whole area. The view must outlive the window.
             static std::expected<std::unique_ptr<SdlWindow>, std::string>
             create(const WindowOptions &options, View &view, const std::filesystem::path &font_file);
+            /// The window opens without a view, for views added later in areas of their own (the MDI mode)
+            static std::expected<std::unique_ptr<SdlWindow>, std::string>
+            create(const WindowOptions &options, const std::filesystem::path &font_file);
 
             [[nodiscard]] SDL_WindowID id() const noexcept { return SDL_GetWindowID(window.get()); }
             [[nodiscard]] bool         paced() const noexcept { return vsync; }
@@ -70,6 +75,9 @@ namespace djw::player_ui::sdl
             /// Lays out, updates and draws the views
             void frame();
 
+            /// Window size in points
+            [[nodiscard]] Rect area() const;
+
         private:
             struct WindowDeleter
             {
@@ -83,9 +91,7 @@ namespace djw::player_ui::sdl
 
             SdlWindow() = default;
 
-            /// Window size in points
-            [[nodiscard]] Rect area() const;
-            void               syncTextInput();
+            void syncTextInput();
 
             std::unique_ptr<SDL_Window, WindowDeleter>     window;
             std::unique_ptr<SDL_Renderer, RendererDeleter> renderer;

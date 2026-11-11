@@ -861,3 +861,46 @@ TEST_CASE("LibraryView: View > Save layout is off without a handler, with one it
     CHECK(saves == 2);
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
+
+TEST_CASE("LibraryView: View offers separate windows or one window for the next start and says so")
+{
+    Fixture               fixture;
+    constexpr std::size_t view_menu  = 4;
+    constexpr std::size_t separate   = 6;
+    constexpr std::size_t one_window = 7;
+
+    // Off without a place to keep the choice: the menu stays open
+    chooseEntry(fixture, view_menu, one_window);
+    CHECK(fixture.view.menuBar().isOpen());
+    fixture.view.keyboard(EditKey::Escape);
+
+    WindowMode              next = WindowMode::Separate;
+    std::vector<WindowMode> chosen;
+    bool                    keeps = true;
+    fixture.view.setWindowMode(
+        [&](WindowMode mode)
+        {
+            chosen.push_back(mode);
+            next = mode;
+            return keeps;
+        },
+        [&next] { return next; });
+    fixture.view.update();
+    RecordingCanvas canvas;
+    const Rect      title = fixture.view.menuBar().titleArea(view_menu);
+    fixture.tap({title.x + 10, title.y + 10});
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Separate windows"));
+    CHECK(canvas.drew("One window"));
+    fixture.view.keyboard(EditKey::Escape);
+
+    chooseEntry(fixture, view_menu, one_window);
+    chooseEntry(fixture, view_menu, separate);
+    CHECK(chosen == std::vector{WindowMode::Mdi, WindowMode::Separate});
+    CHECK(fixture.view.statusText().find("applies at the next start") != std::string::npos);
+
+    keeps = false;
+    chooseEntry(fixture, view_menu, one_window);
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
+}

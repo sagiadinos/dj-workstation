@@ -66,7 +66,10 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 
 - A view (`player-ui/sdl/view.hpp`: player, library, crossfader, playlist) lays itself out in the rectangle it is given and never assumes it starts at the window's top left corner. Tests check this for every view (`test_view_host.cpp`).
 - A window is a host: `SdlWindow` shows the views of its `ViewHost`, each in its own area, without overlap. Pointer input goes to the widgets of all its views, the wheel and the right mouse button to the view under the pointer, typed text to the view a pointer last went down on.
-- Now every element has its own window (one view filling its host). The planned MDI mode (one host per monitor, sub-windows that snap to each other and never overlap, a minimum size per sub-window, scrolling when even that does not fit) builds on the same views and hosts. Window positions are not used for it, since Wayland gives clients none.
+- Two window modes, chosen in View and taking effect at the next start; the layout file keeps the mode and a layout for each mode:
+  - Separate windows: every element has its own window (one view filling its host).
+  - One window (MDI): one fullscreen host on the main display. Every element is a part of it in a `PaneFrame` (title bar, close button for players, crossfader and playlist). `arrangeMdi` places the parts automatically and without overlap: players in a row with the crossfader after player 1, the library below, the playlist to its right. The row shrinks as a whole when it does not fit. Closing the host ends the program.
+- Still open for the MDI mode: one host per monitor, moving parts with magnetic snapping, a minimum size per part, scrolling when even that does not fit. Window positions are not used for it, since Wayland gives clients none.
 
 ## Code conventions
 

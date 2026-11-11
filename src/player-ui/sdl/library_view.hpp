@@ -10,6 +10,7 @@
 #include "column_header.hpp"
 #include "file_dialogs.hpp"
 #include "i18n/translator.hpp"
+#include "layout.hpp"
 #include "context_menu.hpp"
 #include "menu_bar.hpp"
 #include "text_button.hpp"
@@ -43,7 +44,8 @@ namespace djw::player_ui::sdl
      * Menu bar on top (Database, Playlist, Settings, Language, View): add a music folder (folder dialog) and rescan;
      * the playlist commands, which the owner carries out in the playlist window (opening it if needed); the language,
      * which takes effect at once; new player (Ctrl+N is handled by the app), clear the search, show only missing
-     * tracks, show or hide the playlist and crossfader windows. All texts come from the translator on every update.
+     * tracks, show or hide the playlist and crossfader windows, save the layout, and whether the next start shows each
+     * part in a window of its own or all in one window. All texts come from the translator on every update.
      *
      * Context menu: the right mouse button on a track selects it and opens a menu with "Edit tags" (the artist cell
      * of the track opens in the editor) and "Scan again" (the library reads the file anew and analyzes it again).
@@ -79,6 +81,10 @@ namespace djw::player_ui::sdl
             using SaveLayout = std::function<bool()>;
             using Toggle     = std::function<void()>;
             using Shown      = std::function<bool()>;
+            /// Keeps the window mode for the next start; true when it was kept
+            using ModeChosen = std::function<bool(WindowMode mode)>;
+            /// The window mode the next start uses
+            using ModeShown = std::function<WindowMode()>;
 
             /// How long a notice (see setNotice) stays in the status line
             static constexpr std::chrono::milliseconds notice_time{4'000};
@@ -138,6 +144,13 @@ namespace djw::player_ui::sdl
             {
                 mixer_toggle = std::move(toggle);
                 mixer_shown  = std::move(shown);
+            }
+            /// Enables the window mode entries of the View menu (separate windows, one window); the choice takes
+            /// effect at the next start, which the status line says
+            void setWindowMode(ModeChosen chosen, ModeShown shown)
+            {
+                mode_chosen = std::move(chosen);
+                mode_shown  = std::move(shown);
             }
             /// The track selected in the list, std::nullopt if none
             [[nodiscard]] std::optional<core::api::LibraryTrack> selectedTrack() const
@@ -207,6 +220,8 @@ namespace djw::player_ui::sdl
             NewDeck                  new_deck_requested;
             Toggle                   mixer_toggle;
             Shown                    mixer_shown;
+            ModeChosen               mode_chosen;
+            ModeShown                mode_shown;
             LanguageChosen           language_chosen;
             bool                     only_missing = false;
             std::optional<CellEdit>  edit;

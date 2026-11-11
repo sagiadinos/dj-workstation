@@ -29,6 +29,8 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.view.clear_filters", "Borrar búsqueda y filtros"},
             {"menu.view.missing_only", "Mostrar solo las pistas que faltan"},
             {"menu.view.save_layout", "Guardar la disposición"},
+            {"menu.view.separate_windows", "Ventanas separadas"},
+            {"menu.view.one_window", "Una sola ventana"},
             {"menu.view.new_deck", "Nuevo reproductor"},
             {"menu.view.playlist_window", "Ventana de la lista"},
             {"search.placeholder", "Buscar"},
@@ -93,6 +95,7 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.player_playing", "este reproductor suena"},
             {"library.notice.layout_saved", "disposición guardada"},
             {"library.notice.layout_failed", "no se pudo guardar la disposición"},
+            {"library.notice.next_start", "se aplica en el próximo inicio"},
             {"deck.cannot_load", "No se puede cargar: {error}"},
         });
     } // namespace

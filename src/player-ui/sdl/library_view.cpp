@@ -36,6 +36,8 @@ namespace djw::player_ui::sdl
             constexpr int new_deck_entry         = 13;
             constexpr int toggle_mixer_window    = 14;
             constexpr int save_layout_entry      = 15;
+            constexpr int separate_windows       = 16;
+            constexpr int one_window             = 17;
             constexpr int language_base          = 100;
         } // namespace menu_id
 
@@ -501,6 +503,7 @@ namespace djw::player_ui::sdl
         const auto tr            = [this](std::string_view key) { return translator->tr(key); };
         const bool has_playlists = static_cast<bool>(playlist_action);
         const bool can_add_track = has_playlists && add_to_playlist && list.selected().has_value();
+        const bool has_mode      = mode_chosen && mode_shown;
 
         std::vector<MenuItem> language_items;
         language_items.reserve(languages.size());
@@ -546,7 +549,15 @@ namespace djw::player_ui::sdl
                            .checked = only_missing},
                           {.id      = menu_id::save_layout_entry,
                            .label   = tr("menu.view.save_layout"),
-                           .enabled = static_cast<bool>(save_layout)}}});
+                           .enabled = static_cast<bool>(save_layout)},
+                          {.id      = menu_id::separate_windows,
+                           .label   = tr("menu.view.separate_windows"),
+                           .enabled = has_mode,
+                           .checked = has_mode && mode_shown() == WindowMode::Separate},
+                          {.id      = menu_id::one_window,
+                           .label   = tr("menu.view.one_window"),
+                           .enabled = has_mode,
+                           .checked = has_mode && mode_shown() == WindowMode::Mdi}}});
         menu.setMenus(std::move(menus));
         menu.setRightToLeft(translator->rightToLeft());
 
@@ -587,6 +598,14 @@ namespace djw::player_ui::sdl
                 if (save_layout)
                 {
                     setNotice(save_layout() ? "library.notice.layout_saved" : "library.notice.layout_failed");
+                }
+                break;
+            case menu_id::separate_windows:
+            case menu_id::one_window:
+                if (mode_chosen)
+                {
+                    const WindowMode mode = id == menu_id::one_window ? WindowMode::Mdi : WindowMode::Separate;
+                    setNotice(mode_chosen(mode) ? "library.notice.next_start" : "library.notice.layout_failed");
                 }
                 break;
             case menu_id::toggle_mixer_window:

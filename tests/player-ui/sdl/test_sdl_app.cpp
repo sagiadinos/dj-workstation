@@ -692,3 +692,211 @@ TEST_CASE("SdlApp: the event loop turns a dropped file into a load, a folder dro
     REQUIRE(library.added_folders.size() == 1);
     CHECK(library.added_folders[0] == folder.path());
 }
+
+namespace
+{
+    std::string readFile(const std::filesystem::path &file)
+    {
+        std::ifstream      in{file};
+        std::ostringstream out;
+        out << in.rdbuf();
+        return out.str();
+    }
+
+    /// A layout file that starts the MDI mode with players on the sides given
+    void writeMdiLayout(const std::filesystem::path &file, std::vector<api::CrossfaderSide> players,
+                        bool playlist_open = false)
+    {
+        Layout layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
+        layout.mode   = WindowMode::Mdi;
+        layout.mdi    = MdiLayout{.players = std::move(players), .mixer_open = true, .playlist_open = playlist_open};
+        std::ofstream{file} << formatLayout(layout);
+    }
+
+    int openWindows()
+    {
+        int          count   = 0;
+        SDL_Window **windows = SDL_GetWindows(&count);
+        SDL_free(static_cast<void *>(windows));
+        return count;
+    }
+
+    void click(SDL_WindowID window, Point position)
+    {
+        SDL_Event event{};
+        event.type            = SDL_EVENT_MOUSE_BUTTON_DOWN;
+        event.button.windowID = window;
+        event.button.which    = 1;
+        event.button.button   = SDL_BUTTON_LEFT;
+        event.button.down     = true;
+        event.button.x        = position.x;
+        event.button.y        = position.y;
+        SDL_PushEvent(&event);
+        event.type        = SDL_EVENT_MOUSE_BUTTON_UP;
+        event.button.down = false;
+        SDL_PushEvent(&event);
+    }
+
+    bool overlap(const Rect &first, const Rect &second)
+    {
+        return first.x < second.x + second.width && second.x < first.x + first.width &&
+               first.y < second.y + second.height && second.y < first.y + first.height;
+    }
+} // namespace
+
+TEST_CASE("SdlApp: in the MDI mode the players, the crossfader and the library are parts of one window")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::None, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    CHECK(app->windowMode() == WindowMode::Mdi);
+    CHECK(openWindows() == 1);
+    REQUIRE(app->deckCount() == 3);
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    CHECK(app->deckWindowId(0) == app->libraryWindowId());
+    CHECK(app->deckWindowId(2) == app->libraryWindowId());
+    for (int i = 0; i < 3; ++i)
+    {
+        REQUIRE(app->runFrame());
+        std::this_thread::sleep_for(std::chrono::milliseconds{20});
+    }
+    CHECK(app->deckView(0).crossfaderSide() == api::CrossfaderSide::A);
+    CHECK(app->deckView(2).crossfaderSide() == api::CrossfaderSide::B);
+
+    // Every player has its part of the window, side by side
+    std::vector<Rect> parts;
+    for (std::size_t deck = 0; deck < app->deckCount(); ++deck)
+    {
+        REQUIRE(app->deckFrame(deck) != nullptr);
+        const auto area = app->paneArea(*app->deckFrame(deck));
+        REQUIRE(area.has_value());
+        CHECK(area->width > 0);
+        parts.push_back(*area);
+    }
+    CHECK_FALSE(overlap(parts[0], parts[1]));
+    CHECK_FALSE(overlap(parts[1], parts[2]));
+    CHECK(parts[0].x < parts[1].x);
+
+    // A new player is a new part, not a new window
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 4);
+    CHECK(openWindows() == 1);
+}
+
+TEST_CASE("SdlApp: in the MDI mode the close button of a player removes it, closing the window ends the program")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame()); // lays the parts out
+    REQUIRE(app->deckCount() == 2);
+    const api::DeckId second = app->deckId(1);
+
+    const Rect button = app->deckFrame(0)->closeButton().bounds();
+    REQUIRE(button.width > 0);
+    click(app->libraryWindowId(), {button.x + (button.width / 2), button.y + (button.height / 2)});
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 1);
+    CHECK(app->deckId(0) == second);
+    CHECK(openWindows() == 1);
+
+    // The crossfader closes the same way and opens again from the menu
+    app->requestToolWindow(SdlApp::Tool::Mixer, false);
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    app->requestToolWindow(SdlApp::Tool::Mixer, true);
+    REQUIRE(app->runFrame());
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    CHECK(openWindows() == 1);
+
+    Fixture::closeWindow(app->libraryWindowId());
+    CHECK_FALSE(app->runFrame());
+}
+
+TEST_CASE("SdlApp: in the MDI mode a file dropped on a player part goes into that player")
+{
+    const djw::tests::TempDir folder;
+    const auto                file  = gapWav(folder);
+    const auto                saved = folder.path() / "layout";
+    writeMdiLayout(saved, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, saved);
+    REQUIRE(app->runFrame());
+    const auto second = app->paneArea(*app->deckFrame(1));
+    REQUIRE(second.has_value());
+
+    app->dropped(app->libraryWindowId(), file); // no position: nothing
+    CHECK(app->deckFile(1).empty());
+    app->dropped(app->libraryWindowId(), file, Point{second->x + 20, second->y + 100});
+    CHECK(app->deckFile(1) == file);
+    CHECK(app->deckFile(0).empty());
+}
+
+TEST_CASE("SdlApp: the window mode chosen applies at the next start, each mode keeps its own layout")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    {
+        Fixture                 fixture;
+        djw::tests::FakeLibrary library;
+        auto                    app = fixture.openApp(&library, file); // separate windows, two players
+        REQUIRE(app->runFrame());
+        Fixture::ctrlN();
+        REQUIRE(app->runFrame());
+        REQUIRE(app->saveLayout()); // three separate players
+
+        CHECK(app->chooseWindowMode(WindowMode::Mdi));
+        CHECK(app->windowMode() == WindowMode::Separate); // not now
+        CHECK(app->nextWindowMode() == WindowMode::Mdi);
+        const auto layout = parseLayout(readFile(file));
+        REQUIRE(layout.has_value());
+        CHECK(layout->mode == WindowMode::Mdi);
+        CHECK(layout->players.size() == 3);
+    }
+    {
+        Fixture                 fixture;
+        djw::tests::FakeLibrary library;
+        auto                    app = fixture.openApp(&library, file);
+        CHECK(app->windowMode() == WindowMode::Mdi);
+        CHECK(openWindows() == 1);
+        CHECK(app->deckCount() == 2); // the one window was not saved yet: its default
+        REQUIRE(app->runFrame());
+        app->requestToolWindow(SdlApp::Tool::Playlist, true);
+        REQUIRE(app->runFrame());
+        REQUIRE(app->saveLayout());
+        CHECK(app->chooseWindowMode(WindowMode::Separate));
+
+        const auto layout = parseLayout(readFile(file));
+        REQUIRE(layout.has_value());
+        CHECK(layout->mode == WindowMode::Separate);
+        CHECK(layout->players.size() == 3); // the separate windows as they were saved
+        REQUIRE(layout->mdi.has_value());
+        CHECK(layout->mdi->players.size() == 2);
+        CHECK(layout->mdi->playlist_open);
+    }
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    CHECK(app->windowMode() == WindowMode::Separate);
+    CHECK(app->deckCount() == 3);
+    CHECK(app->deckWindowId(0) != app->deckWindowId(1));
+}
+
+TEST_CASE("SdlApp: without a layout file the window mode cannot be kept")
+{
+    Fixture fixture;
+    auto    app = fixture.openApp();
+    CHECK_FALSE(app->chooseWindowMode(WindowMode::Mdi));
+    CHECK(app->windowMode() == WindowMode::Separate);
+}

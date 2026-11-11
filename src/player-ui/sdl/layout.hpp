@@ -6,6 +6,7 @@
 
 #include "api/crossfader_side.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -33,6 +34,29 @@ namespace djw::player_ui::sdl
             bool operator==(const PlayerPlacement &) const = default;
     };
 
+    /// How the program shows its parts: each in a window of its own, or all in one window (MDI)
+    enum class WindowMode : std::uint8_t
+    {
+        Separate,
+        Mdi
+    };
+
+    /**
+     * What one window (the MDI mode) shows: the players with their crossfader sides and whether the crossfader and
+     * the playlist are open. Where they are follows from that; the library is always there.
+     */
+    struct MdiLayout
+    {
+            std::vector<core::api::CrossfaderSide> players;
+            bool                                   mixer_open    = true;
+            bool                                   playlist_open = false;
+
+            bool operator==(const MdiLayout &) const = default;
+    };
+
+    /// What the MDI mode shows without a saved layout: two players on the sides A and B, the crossfader open
+    [[nodiscard]] MdiLayout defaultMdiLayout();
+
     struct ToolPlacement
     {
             bool      open = false;
@@ -45,6 +69,9 @@ namespace djw::player_ui::sdl
      * The windows of the program as the user left them: how many players there are, where each one is and on which
      * crossfader side, the crossfader window and the playlist window (open or not, where), and the library window.
      * Saved by the View menu and read at the next start.
+     *
+     * Each mode keeps its own layout: the fields above mdi are the separate windows, mdi is the one window. mode is
+     * the mode the next start uses.
      */
     struct Layout
     {
@@ -52,6 +79,9 @@ namespace djw::player_ui::sdl
             Placement                    library;
             ToolPlacement                mixer;
             ToolPlacement                playlist;
+            WindowMode                   mode = WindowMode::Separate;
+            /// std::nullopt: the MDI mode was not saved yet, it starts with defaultMdiLayout()
+            std::optional<MdiLayout> mdi;
 
             bool operator==(const Layout &) const = default;
     };
@@ -63,7 +93,8 @@ namespace djw::player_ui::sdl
     [[nodiscard]] std::string formatLayout(const Layout &layout);
 
     /// The layout from text written by formatLayout; std::nullopt for anything else (other version, damaged,
-    /// sizes that make no sense), so a broken file falls back to the default layout instead of opening odd windows
+    /// sizes that make no sense), so a broken file falls back to the default layout instead of opening odd windows.
+    /// A layout of version 1 (before the MDI mode) is read as the separate windows.
     [[nodiscard]] std::optional<Layout> parseLayout(std::string_view text);
 
     /// The sizes the default layout is made of

@@ -13,8 +13,9 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr std::string_view header = "djw-layout 1";
-        constexpr int              gap    = 12;
+        constexpr std::string_view header    = "djw-layout 2";
+        constexpr std::string_view header_v1 = "djw-layout 1"; // before the MDI mode: no mode, no mdi lines
+        constexpr int              gap       = 12;
         // What the window frame and title bar take, so the library window below the players is not cut off
         constexpr int frame_allowance = 48;
         constexpr int min_size        = 100;
@@ -102,12 +103,83 @@ namespace djw::player_ui::sdl
         {
             out << ' ' << place.x << ' ' << place.y << ' ' << place.width << ' ' << place.height;
         }
+
+        std::string_view openWord(bool open)
+        {
+            return open ? "open" : "closed";
+        }
+
+        std::optional<bool> openOf(std::string_view text)
+        {
+            if (text == "open")
+            {
+                return true;
+            }
+            if (text == "closed")
+            {
+                return false;
+            }
+            return std::nullopt;
+        }
+
+        /// What the mdi lines of a layout said; the section exists once its mixer and playlist lines were read
+        struct MdiLines
+        {
+                MdiLayout layout;
+                bool      has_mixer    = false;
+                bool      has_playlist = false;
+        };
+
+        /// One line after "mdi"; false if it is not one
+        bool parseMdiLine(std::span<const std::string_view> parts, MdiLines &lines)
+        {
+            if (parts.size() != 2)
+            {
+                return false;
+            }
+            if (parts[0] == "player")
+            {
+                const auto side = sideOf(parts[1]);
+                if (!side || lines.layout.players.size() >= max_layout_players)
+                {
+                    return false;
+                }
+                lines.layout.players.push_back(*side);
+                return true;
+            }
+            const auto open = openOf(parts[1]);
+            if (!open)
+            {
+                return false;
+            }
+            if (parts[0] == "mixer")
+            {
+                lines.layout.mixer_open = *open;
+                lines.has_mixer         = true;
+                return true;
+            }
+            if (parts[0] == "playlist")
+            {
+                lines.layout.playlist_open = *open;
+                lines.has_playlist         = true;
+                return true;
+            }
+            return false;
+        }
     } // namespace
+
+    MdiLayout defaultMdiLayout()
+    {
+        return {.players       = {core::api::CrossfaderSide::A, core::api::CrossfaderSide::B},
+                .mixer_open    = true,
+                .playlist_open = false};
+    }
 
     std::string formatLayout(const Layout &layout)
     {
         std::ostringstream out;
         out << header << '\n';
+        out << "mode " << (layout.mode == WindowMode::Mdi ? "mdi" : "separate") << '\n';
         for (const PlayerPlacement &player : layout.players)
         {
             out << "player " << sideLetter(player.side);
@@ -119,9 +191,18 @@ namespace djw::player_ui::sdl
         out << '\n';
         for (const auto &[name, tool] : {std::pair{"mixer", &layout.mixer}, std::pair{"playlist", &layout.playlist}})
         {
-            out << name << ' ' << (tool->open ? "open" : "closed");
+            out << name << ' ' << openWord(tool->open);
             writePlacement(out, tool->place);
             out << '\n';
+        }
+        if (layout.mdi)
+        {
+            for (const core::api::CrossfaderSide side : layout.mdi->players)
+            {
+                out << "mdi player " << sideLetter(side) << '\n';
+            }
+            out << "mdi mixer " << openWord(layout.mdi->mixer_open) << '\n';
+            out << "mdi playlist " << openWord(layout.mdi->playlist_open) << '\n';
         }
         return out.str();
     }
@@ -131,13 +212,17 @@ namespace djw::player_ui::sdl
         Layout             layout;
         std::istringstream in{std::string{text}};
         std::string        line;
-        if (!std::getline(in, line) || line != header)
+        if (!std::getline(in, line) || (line != header && line != header_v1))
         {
             return std::nullopt;
         }
-        bool has_library  = false;
-        bool has_mixer    = false;
-        bool has_playlist = false;
+        const bool version_1    = line == header_v1;
+        bool       has_mode     = false;
+        bool       has_library  = false;
+        bool       has_mixer    = false;
+        bool       has_playlist = false;
+        MdiLines   mdi;
+        bool       has_mdi = false;
         while (std::getline(in, line))
         {
             const auto parts = words(line);
@@ -145,7 +230,21 @@ namespace djw::player_ui::sdl
             {
                 continue;
             }
-            if (parts[0] == "player" && parts.size() == 6)
+            if (!version_1 && parts[0] == "mode" && parts.size() == 2 && !has_mode &&
+                (parts[1] == "separate" || parts[1] == "mdi"))
+            {
+                layout.mode = parts[1] == "mdi" ? WindowMode::Mdi : WindowMode::Separate;
+                has_mode    = true;
+            }
+            else if (!version_1 && parts[0] == "mdi")
+            {
+                if (!parseMdiLine(std::span{parts}.subspan(1), mdi))
+                {
+                    return std::nullopt;
+                }
+                has_mdi = true;
+            }
+            else if (parts[0] == "player" && parts.size() == 6)
             {
                 const auto side  = sideOf(parts[1]);
                 const auto place = placementOf(std::span{parts}.subspan(2));
@@ -182,10 +281,15 @@ namespace djw::player_ui::sdl
                 return std::nullopt;
             }
         }
-        // A layout with no player, or without one of the windows, is damaged
-        if (layout.players.empty() || !has_library || !has_mixer || !has_playlist)
+        // A layout with no player, or without one of the windows, is damaged; so is an mdi part without its tools
+        if (layout.players.empty() || !has_library || !has_mixer || !has_playlist || (!version_1 && !has_mode) ||
+            (has_mdi && (!mdi.has_mixer || !mdi.has_playlist)))
         {
             return std::nullopt;
+        }
+        if (has_mdi)
+        {
+            layout.mdi = std::move(mdi.layout);
         }
         return layout;
     }

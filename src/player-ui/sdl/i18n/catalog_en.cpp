@@ -29,6 +29,8 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.view.clear_filters", "Clear search and filters"},
             {"menu.view.missing_only", "Show missing tracks only"},
             {"menu.view.save_layout", "Save layout"},
+            {"menu.view.separate_windows", "Separate windows"},
+            {"menu.view.one_window", "One window"},
             {"menu.view.new_deck", "New player"},
             {"menu.view.playlist_window", "Playlist window"},
             {"search.placeholder", "Search"},
@@ -92,6 +94,7 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.player_playing", "this player is playing"},
             {"library.notice.layout_saved", "layout saved"},
             {"library.notice.layout_failed", "layout could not be saved"},
+            {"library.notice.next_start", "applies at the next start"},
             {"deck.cannot_load", "Cannot load: {error}"},
         });
     } // namespace

@@ -3,6 +3,7 @@
 
 #include "sdl_app.hpp"
 
+#include "mdi_arrangement.hpp"
 #include "player_number.hpp"
 
 #include <SDL3/SDL.h>
@@ -71,6 +72,18 @@ namespace djw::player_ui::sdl
             return Placement{usable.x, usable.y, usable.w, usable.h};
         }
 
+        /// A window title as the title bar of a part of the one window: without the program name in front, which the
+        /// window shows once
+        std::string paneTitle(std::string title)
+        {
+            constexpr std::string_view program = "djw - ";
+            if (title.starts_with(program))
+            {
+                title.erase(0, program.size());
+            }
+            return title;
+        }
+
         /// An error worth a line in the log, e.g. a window that cannot be opened
         void logError(const std::string &message)
         {
@@ -122,8 +135,16 @@ namespace djw::player_ui::sdl
         {
             layout = app->readLayout();
         }
-        if (!app->openDeckWindow(deck, layout ? std::optional{app->fitToDisplay(layout->players.front().place)}
-                                              : std::nullopt))
+        app->stored_layout = layout;
+        app->mode = app->next_mode = layout ? layout->mode : WindowMode::Separate;
+        const bool      mdi        = app->mode == WindowMode::Mdi;
+        const MdiLayout mdi_start  = mdi && layout ? layout->mdi.value_or(defaultMdiLayout()) : MdiLayout{};
+        if (mdi && !app->openHost())
+        {
+            return std::unexpected{std::string{"cannot open the window"}};
+        }
+        if (!app->openDeckWindow(deck, layout && !mdi ? std::optional{app->fitToDisplay(layout->players.front().place)}
+                                                      : std::nullopt))
         {
             return std::unexpected{std::string{"cannot open the window of the deck"}};
         }
@@ -157,24 +178,38 @@ namespace djw::player_ui::sdl
             app->library_view->setMixerWindow(
                 [owner] { owner->requestToolWindow(Tool::Mixer, !owner->toolWindowOpen(Tool::Mixer)); },
                 [owner] { return owner->toolWindowOpen(Tool::Mixer); });
-            auto library_window = SdlWindow::create({.title  = app->translator.tr("window.library"),
-                                                     .width  = library_size.width,
-                                                     .height = library_size.height},
-                                                    *app->library_view, font);
-            if (!library_window)
+            if (!app->layout_file.empty())
             {
-                return std::unexpected{library_window.error()};
+                app->library_view->setWindowMode([owner](WindowMode chosen) { return owner->chooseWindowMode(chosen); },
+                                                 [owner] { return owner->nextWindowMode(); });
             }
-            if (layout)
+            if (mdi)
             {
-                (*library_window)->place(app->fitToDisplay(layout->library));
+                app->library_frame = std::make_unique<PaneFrame>(
+                    *app->library_view, [owner] { return paneTitle(owner->translator.tr("window.library")); });
+                app->host_window->views().add(*app->library_frame);
             }
             else
             {
-                (*library_window)->placeRightOf(*app->decks.front()->window);
+                auto library_window = SdlWindow::create({.title  = app->translator.tr("window.library"),
+                                                         .width  = library_size.width,
+                                                         .height = library_size.height},
+                                                        *app->library_view, font);
+                if (!library_window)
+                {
+                    return std::unexpected{library_window.error()};
+                }
+                if (layout)
+                {
+                    (*library_window)->place(app->fitToDisplay(layout->library));
+                }
+                else
+                {
+                    (*library_window)->placeRightOf(*app->decks.front()->window);
+                }
+                app->library_window = library_window->get();
+                app->windows.push_back(std::move(*library_window));
             }
-            app->library_window = library_window->get();
-            app->windows.push_back(std::move(*library_window));
 
             // The view lives on; only its window comes and goes
             app->playlist_view =
@@ -187,29 +222,42 @@ namespace djw::player_ui::sdl
                                                  .height    = playlist_size.height};
             app->library_view->setAddToPlaylist([owner](const core::api::LibraryTrack &track)
                                                 { owner->addToPlaylist(track); });
-            app->dialogs.setParent(app->library_window->handle());
+            app->dialogs.setParent(mdi ? app->host_window->handle() : app->library_window->handle());
             app->library_view->setSaveLayout([owner] { return owner->saveLayout(); });
         }
 
         if (layout)
         {
-            // The other players, the crossfader sides and the tool windows
-            for (std::size_t player = 1; player < layout->players.size(); ++player)
+            // The other players, the crossfader sides and the tool windows, as the mode in use left them
+            std::vector<core::api::CrossfaderSide> sides = mdi_start.players;
+            if (!mdi)
             {
-                app->addDeck(app->fitToDisplay(layout->players[player].place));
+                sides.clear();
+                for (std::size_t player = 0; player < layout->players.size(); ++player)
+                {
+                    sides.push_back(layout->players[player].side);
+                    if (player > 0)
+                    {
+                        app->addDeck(app->fitToDisplay(layout->players[player].place));
+                    }
+                }
+                app->tools[index(Tool::Mixer)].placement    = app->fitToDisplay(layout->mixer.place);
+                app->tools[index(Tool::Playlist)].placement = app->fitToDisplay(layout->playlist.place);
             }
-            for (std::size_t player = 0; player < layout->players.size() && player < app->decks.size(); ++player)
+            for (std::size_t player = 1; mdi && player < sides.size(); ++player)
             {
-                const core::api::MixerAssignCrossfader assign{app->decks[player]->id, layout->players[player].side};
+                app->addDeck();
+            }
+            for (std::size_t player = 0; player < sides.size() && player < app->decks.size(); ++player)
+            {
+                const core::api::MixerAssignCrossfader assign{app->decks[player]->id, sides[player]};
                 static_cast<void>(core.commandQueue().tryPush(assign));
             }
-            app->tools[index(Tool::Mixer)].placement    = app->fitToDisplay(layout->mixer.place);
-            app->tools[index(Tool::Playlist)].placement = app->fitToDisplay(layout->playlist.place);
-            if (layout->mixer.open)
+            if (mdi ? mdi_start.mixer_open : layout->mixer.open)
             {
                 app->openTool(Tool::Mixer);
             }
-            if (layout->playlist.open)
+            if (mdi ? mdi_start.playlist_open : layout->playlist.open)
             {
                 app->openTool(Tool::Playlist);
             }
@@ -232,9 +280,59 @@ namespace djw::player_ui::sdl
         return found != decks.end() ? found->get() : nullptr;
     }
 
-    std::string SdlApp::deckTitle(const DeckWindow &deck) const
+    std::string SdlApp::deckTitle(int number) const
     {
-        return translator.tr("window.deck", {{"number", playerNumber(deck.number)}});
+        return translator.tr("window.deck", {{"number", playerNumber(number)}});
+    }
+
+    bool SdlApp::openHost()
+    {
+        auto created = SdlWindow::create({.title      = "djw",
+                                          .width      = library_size.width,
+                                          .height     = library_size.height,
+                                          .vsync      = true,
+                                          .fullscreen = true},
+                                         font);
+        if (!created)
+        {
+            logError("cannot open the window: " + created.error());
+            return false;
+        }
+        host_window = created->get();
+        windows.push_back(std::move(*created));
+        return true;
+    }
+
+    void SdlApp::arrangeHost()
+    {
+        const ToolWindow    &mixer    = tools[index(Tool::Mixer)];
+        const ToolWindow    &playlist = tools[index(Tool::Playlist)];
+        const MdiArrangement placed   = arrangeMdi(host_window->area(),
+                                                   {.players  = decks.size(),
+                                                    .mixer    = mixer.in_host,
+                                                    .playlist = playlist.in_host,
+                                                    .library  = library_frame != nullptr},
+                                                   {.player_width   = DeckView::design_width,
+                                                    .player_height  = DeckView::design_height + PaneFrame::title_height,
+                                                    .mixer_width    = static_cast<float>(mixer_size.width),
+                                                    .playlist_width = static_cast<float>(playlist_size.width)});
+        ViewHost            &views    = host_window->views();
+        for (std::size_t deck = 0; deck < decks.size(); ++deck)
+        {
+            views.place(*decks[deck]->frame, placed.players[deck]);
+        }
+        if (mixer.in_host)
+        {
+            views.place(*mixer.frame, placed.mixer);
+        }
+        if (playlist.in_host)
+        {
+            views.place(*playlist.frame, placed.playlist);
+        }
+        if (library_frame)
+        {
+            views.place(*library_frame, placed.library);
+        }
     }
 
     bool SdlApp::openDeckWindow(core::api::DeckId deck, std::optional<Placement> where)
@@ -259,11 +357,22 @@ namespace djw::player_ui::sdl
                     library->setCuePoint(source->track_id, seconds);
                 }
             });
+        if (host_window != nullptr)
+        {
+            // MDI mode: a part of the one window; the close button asks for it to go between frames
+            opened->frame = std::make_unique<PaneFrame>(
+                *opened->view, [this, number = opened->number] { return paneTitle(deckTitle(number)); },
+                [this, deck] { decks_to_close.push_back(deck); });
+            host_window->views().add(*opened->frame);
+            opened->window = host_window;
+            decks.push_back(std::move(opened));
+            return true;
+        }
         // One window paces the frames with the display: the first one, or the next if that one is gone
         const bool pace    = std::ranges::none_of(windows, [](const auto &window) { return window->paced(); });
         auto       created = SdlWindow::create(
-            {.title = deckTitle(*opened), .width = player_width, .height = player_height, .vsync = pace}, *opened->view,
-            font);
+            {.title = deckTitle(opened->number), .width = player_width, .height = player_height, .vsync = pace},
+            *opened->view, font);
         if (!created)
         {
             logError("cannot open a deck window: " + created.error());
@@ -312,12 +421,24 @@ namespace djw::player_ui::sdl
         return fitInto(place, *usable);
     }
 
-    Layout SdlApp::readLayout() const
+    std::optional<Layout> SdlApp::readSavedLayout() const
     {
         const std::ifstream file{layout_file};
         std::ostringstream  text;
         text << file.rdbuf();
-        if (auto saved = parseLayout(text.str()))
+        return parseLayout(text.str());
+    }
+
+    bool SdlApp::writeLayout(const Layout &layout) const
+    {
+        std::ofstream file{layout_file, std::ios::trunc};
+        file << formatLayout(layout);
+        return static_cast<bool>(file);
+    }
+
+    Layout SdlApp::readLayout() const
+    {
+        if (auto saved = readSavedLayout())
         {
             return std::move(*saved);
         }
@@ -331,7 +452,22 @@ namespace djw::player_ui::sdl
 
     Layout SdlApp::currentLayout() const
     {
-        Layout layout;
+        // The mode not in use keeps what was read at the start
+        Layout layout = stored_layout.value_or(Layout{});
+        layout.mode   = next_mode;
+        if (mode == WindowMode::Mdi)
+        {
+            MdiLayout shown{.players       = {},
+                            .mixer_open    = toolWindowOpen(Tool::Mixer),
+                            .playlist_open = toolWindowOpen(Tool::Playlist)};
+            for (const auto &deck : decks)
+            {
+                shown.players.push_back(deck->view->crossfaderSide());
+            }
+            layout.mdi = std::move(shown);
+            return layout;
+        }
+        layout.players.clear();
         for (const auto &deck : decks)
         {
             layout.players.push_back({deck->window->placement(), deck->view->crossfaderSide()});
@@ -356,13 +492,20 @@ namespace djw::player_ui::sdl
 
     bool SdlApp::saveLayout()
     {
+        return !layout_file.empty() && writeLayout(currentLayout());
+    }
+
+    bool SdlApp::chooseWindowMode(WindowMode chosen)
+    {
+        next_mode = chosen;
         if (layout_file.empty())
         {
             return false;
         }
-        std::ofstream file{layout_file, std::ios::trunc};
-        file << formatLayout(currentLayout());
-        return static_cast<bool>(file);
+        // Only the mode changes; without a saved layout what is shown now is saved with it
+        Layout layout = readSavedLayout().value_or(currentLayout());
+        layout.mode   = chosen;
+        return writeLayout(layout);
     }
 
     void SdlApp::closeDeck(core::api::DeckId deck)
@@ -370,6 +513,17 @@ namespace djw::player_ui::sdl
         const DeckWindow *closing = deckWindow(deck);
         if (closing == nullptr)
         {
+            return;
+        }
+        if (host_window != nullptr)
+        {
+            // MDI mode: the part goes, the one window stays
+            host_window->views().remove(*closing->frame);
+            std::erase_if(decks, [deck](const auto &candidate) { return candidate->id == deck; });
+            if (auto removed = core->removeDeck(deck); !removed)
+            {
+                logError(removed.error());
+            }
             return;
         }
         // The window and the view go first: the view reads the deck's snapshot, which the core frees with the deck
@@ -389,9 +543,13 @@ namespace djw::player_ui::sdl
 
     void SdlApp::setWindowTitles()
     {
+        // In the MDI mode the title bars ask for their texts themselves
         for (const auto &deck : decks)
         {
-            deck->window->setTitle(deckTitle(*deck));
+            if (deck->window != host_window)
+            {
+                deck->window->setTitle(deckTitle(deck->number));
+            }
         }
         if (library_window != nullptr)
         {
@@ -485,9 +643,33 @@ namespace djw::player_ui::sdl
         }
     }
 
-    void SdlApp::dropped(SDL_WindowID window, const std::filesystem::path &path)
+    void SdlApp::dropped(SDL_WindowID window, const std::filesystem::path &path, std::optional<Point> position)
     {
-        if (DeckWindow *deck = deckOfWindow(window))
+        DeckWindow *deck       = nullptr;
+        bool        on_library = false;
+        if (host_window != nullptr && window == host_window->id())
+        {
+            // The one window of the MDI mode: the part under the position
+            if (!position)
+            {
+                return;
+            }
+            const auto under = [this, &position](const View &part)
+            {
+                const auto area = host_window->views().areaOf(part);
+                return area && area->contains(*position);
+            };
+            const auto found =
+                std::ranges::find_if(decks, [&under](const auto &candidate) { return under(*candidate->frame); });
+            deck       = found != decks.end() ? found->get() : nullptr;
+            on_library = library_frame && under(*library_frame);
+        }
+        else
+        {
+            deck       = deckOfWindow(window);
+            on_library = library_window != nullptr && window == library_window->id();
+        }
+        if (deck != nullptr)
         {
             std::error_code error;
             if (!std::filesystem::is_regular_file(path, error))
@@ -498,7 +680,7 @@ namespace djw::player_ui::sdl
             loadInto(*deck, core::api::LibraryTrack{.path = path});
             return;
         }
-        if (library != nullptr && library_window != nullptr && window == library_window->id())
+        if (library != nullptr && on_library)
         {
             std::error_code error;
             if (std::filesystem::is_directory(path, error))
@@ -580,8 +762,21 @@ namespace djw::player_ui::sdl
     void SdlApp::openTool(Tool tool)
     {
         ToolWindow &which = tools[index(tool)];
-        if (which.view == nullptr || which.window != nullptr)
+        if (which.view == nullptr || which.window != nullptr || which.in_host)
         {
+            return;
+        }
+        if (host_window != nullptr)
+        {
+            // MDI mode: a part of the one window
+            if (!which.frame)
+            {
+                which.frame = std::make_unique<PaneFrame>(
+                    *which.view, [this, key = which.title_key] { return paneTitle(translator.tr(key)); },
+                    [this, tool] { requestToolWindow(tool, false); });
+            }
+            host_window->views().add(*which.frame);
+            which.in_host = true;
             return;
         }
         auto created = SdlWindow::create(
@@ -606,6 +801,12 @@ namespace djw::player_ui::sdl
     void SdlApp::closeTool(Tool tool)
     {
         ToolWindow &which = tools[index(tool)];
+        if (which.in_host)
+        {
+            host_window->views().remove(*which.frame);
+            which.in_host = false;
+            return;
+        }
         if (which.window == nullptr)
         {
             return;
@@ -623,6 +824,10 @@ namespace djw::player_ui::sdl
 
     void SdlApp::applyWindowRequests()
     {
+        for (const core::api::DeckId deck : std::exchange(decks_to_close, {}))
+        {
+            closeDeck(deck);
+        }
         for (const Tool tool : {Tool::Playlist, Tool::Mixer})
         {
             switch (std::exchange(tools[index(tool)].request, Request::None))
@@ -712,7 +917,7 @@ namespace djw::player_ui::sdl
     {
         bool running = true;
         processEvents(running);
-        if (!running || (decks.empty() && library_window == nullptr))
+        if (!running || (decks.empty() && !library_view))
         {
             return false; // a quit, or the last deck window was closed and there is no library to work in
         }
@@ -720,6 +925,10 @@ namespace djw::player_ui::sdl
         if (library != nullptr)
         {
             refreshAnalyses();
+        }
+        if (host_window != nullptr)
+        {
+            arrangeHost(); // the parts follow the window's size and what is open
         }
         for (const auto &window : windows)
         {
@@ -734,7 +943,8 @@ namespace djw::player_ui::sdl
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
+                (host_window == nullptr || event.window.windowID != host_window->id()))
             {
                 if (const DeckWindow *closing = deckOfWindow(event.window.windowID))
                 {
@@ -765,7 +975,8 @@ namespace djw::player_ui::sdl
             {
                 if (event.drop.data != nullptr)
                 {
-                    dropped(event.drop.windowID, std::filesystem::path{event.drop.data});
+                    dropped(event.drop.windowID, std::filesystem::path{event.drop.data},
+                            Point{event.drop.x, event.drop.y});
                 }
                 continue;
             }

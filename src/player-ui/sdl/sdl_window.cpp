@@ -26,9 +26,24 @@ namespace djw::player_ui::sdl
     std::expected<std::unique_ptr<SdlWindow>, std::string> SdlWindow::create(const WindowOptions &options, View &view,
                                                                              const std::filesystem::path &font_file)
     {
+        auto created = create(options, font_file);
+        if (created)
+        {
+            (*created)->host.add(view);
+        }
+        return created;
+    }
+
+    std::expected<std::unique_ptr<SdlWindow>, std::string> SdlWindow::create(const WindowOptions         &options,
+                                                                             const std::filesystem::path &font_file)
+    {
         std::unique_ptr<SdlWindow> created{new SdlWindow{}};
-        created->window.reset(SDL_CreateWindow(options.title.c_str(), options.width, options.height,
-                                               SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY));
+        SDL_WindowFlags            flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        if (options.fullscreen)
+        {
+            flags |= SDL_WINDOW_FULLSCREEN; // without a display mode: the desktop size, no mode change
+        }
+        created->window.reset(SDL_CreateWindow(options.title.c_str(), options.width, options.height, flags));
         if (!created->window)
         {
             return std::unexpected{sdlError("cannot create window")};
@@ -46,8 +61,6 @@ namespace djw::player_ui::sdl
             return std::unexpected{text.error()};
         }
         created->text = std::move(*text);
-
-        created->host.add(view);
         return created;
     }
 

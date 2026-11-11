@@ -46,6 +46,8 @@ add_library(djw_player_sdl_ui STATIC
     i18n/translator.cpp
     pointer_router.cpp
     view_host.cpp
+    pane_frame.cpp
+    mdi_arrangement.cpp
     fader.cpp
     play_button.cpp
     time_format.cpp
