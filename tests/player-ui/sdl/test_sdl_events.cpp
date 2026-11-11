@@ -121,6 +121,16 @@ TEST_CASE("toKeyboardInput: typed text and the editing keys, nothing else")
     back_tab.key.mod = SDL_KMOD_LSHIFT;
     CHECK(toKeyboardInput(back_tab) == KeyboardInput{EditKey::BackTab});
 
+    CHECK(key(SDLK_LEFT) == KeyboardInput{EditKey::Left});
+    CHECK(key(SDLK_RIGHT) == KeyboardInput{EditKey::Right});
+    SDL_Event shifted{};
+    shifted.type    = SDL_EVENT_KEY_DOWN;
+    shifted.key.key = SDLK_LEFT;
+    shifted.key.mod = SDL_KMOD_RSHIFT;
+    CHECK(toKeyboardInput(shifted) == KeyboardInput{EditKey::ShiftLeft});
+    shifted.key.key = SDLK_RIGHT;
+    CHECK(toKeyboardInput(shifted) == KeyboardInput{EditKey::ShiftRight});
+
     SDL_Event up{};
     up.type    = SDL_EVENT_KEY_UP;
     up.key.key = SDLK_BACKSPACE;

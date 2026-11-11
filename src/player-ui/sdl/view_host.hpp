@@ -29,7 +29,8 @@ namespace djw::player_ui::sdl
      *
      * Input: pointer events go to the widgets of all views (they are in window coordinates), the wheel and the right
      * mouse button to the view under the pointer, typed text to the focused view: the one a pointer last went down
-     * on, the first view until then.
+     * on, the first view until then. Where several views with areas of their own share the window, that one has a
+     * blue line around it.
      *
      * Arranging (the layout editing of the MDI mode): the views are locked, their widgets get no input. Instead a
      * view with an area of its own can be dragged anywhere to move it, or at its lower right corner to resize it; it
@@ -83,6 +84,8 @@ namespace djw::player_ui::sdl
                     /// The label of the Done button, asked for on every update so it follows the language
                     std::function<std::string()> done_label;
             };
+            /// Width of the line around the view typed keys go to, when several views share the window
+            static constexpr float focus_line = 2.0F;
             /// The square at the lower right corner of a view that resizes it
             static constexpr float resize_handle = 32.0F;
 
@@ -126,6 +129,8 @@ namespace djw::player_ui::sdl
                     bool        fits = true;
             };
             void arrangePointer(const PointerEvent &event);
+            /// A line around the view the keys go to
+            void drawFocus(Canvas &canvas) const;
             void drawArranging(Canvas &canvas) const;
 
             std::vector<Pane> panes;

@@ -127,9 +127,19 @@ namespace djw::player_ui::sdl
 
     void ViewHost::draw(Canvas &canvas) const
     {
+        bool focus_shown = false;
         for (const Pane *pane : inOrder())
         {
+            if (pane->on_top && !focus_shown)
+            {
+                drawFocus(canvas); // over the parts, under what is always on top
+                focus_shown = true;
+            }
             pane->view->draw(canvas);
+        }
+        if (!focus_shown)
+        {
+            drawFocus(canvas);
         }
         if (arrange)
         {
@@ -236,6 +246,24 @@ namespace djw::player_ui::sdl
                 }
                 return;
         }
+    }
+
+    void ViewHost::drawFocus(Canvas &canvas) const
+    {
+        // Only where several parts share the window: then it shows which one the keys go to
+        const auto parts =
+            std::ranges::count_if(panes, [](const Pane &pane) { return pane.area.has_value() && !pane.on_top; });
+        const View *view = focused();
+        const auto  pane = std::ranges::find(panes, view, &Pane::view);
+        if (parts < 2 || pane == panes.end() || !pane->area || pane->on_top || arrange)
+        {
+            return;
+        }
+        const Rect &area = pane->placed;
+        canvas.fillRect({area.x, area.y, area.width, focus_line}, look::accent_blue);
+        canvas.fillRect({area.x, area.y + area.height - focus_line, area.width, focus_line}, look::accent_blue);
+        canvas.fillRect({area.x, area.y, focus_line, area.height}, look::accent_blue);
+        canvas.fillRect({area.x + area.width - focus_line, area.y, focus_line, area.height}, look::accent_blue);
     }
 
     void ViewHost::drawArranging(Canvas &canvas) const

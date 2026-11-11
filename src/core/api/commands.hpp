@@ -75,6 +75,9 @@ namespace djw::core::api
      * after the finger is gone: play ends it and plays from there, CUE ends it and sets the cue point there, a seek
      * moves it, pause leaves it running. The position is clamped to the track.
      */
+    /// Length of the piece a scrub plays over and over, in seconds
+    inline constexpr double scrub_loop_seconds = 0.06;
+
     struct DeckScrub
     {
             DeckId deck;

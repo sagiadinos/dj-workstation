@@ -23,7 +23,12 @@ namespace djw::player_ui::sdl
         Up,
         Down,
         PageUp,
-        PageDown
+        PageDown,
+        Left,
+        Right,
+        /// Shift with the cursor keys: a bigger step
+        ShiftLeft,
+        ShiftRight
     };
 
     /// Typed text (UTF-8, from a physical or on-screen keyboard, after input methods) or an editing key

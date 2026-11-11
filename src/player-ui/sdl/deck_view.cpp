@@ -291,20 +291,65 @@ namespace djw::player_ui::sdl
         // until CUE sets the cue point there or play starts the deck from there (both handled by the deck)
         if (const auto chosen = waveform_bar.takeSeek(); chosen && state.duration_seconds > 0.0)
         {
-            const double seconds = static_cast<double>(*chosen) * state.duration_seconds;
-            if (playing())
-            {
-                pending_position = core::api::DeckSeek{deck, seconds};
-            }
-            else
-            {
-                pending_position = core::api::DeckScrub{deck, seconds, true};
-            }
+            choosePosition(static_cast<double>(*chosen) * state.duration_seconds);
         }
 
         keylock_button.setHighlighted(state.keylock);
         headphone_button.setHighlighted(state.headphone_cue);
         time_button.setHighlighted(show_remaining);
+    }
+
+    void DeckView::choosePosition(double seconds)
+    {
+        if (playing())
+        {
+            pending_position = core::api::DeckSeek{deck, seconds};
+        }
+        else
+        {
+            pending_position = core::api::DeckScrub{deck, seconds, true};
+        }
+    }
+
+    void DeckView::keyboard(const KeyboardInput &input)
+    {
+        const auto *key = std::get_if<EditKey>(&input);
+        if (key == nullptr || !state.track_loaded || state.duration_seconds <= 0.0)
+        {
+            return;
+        }
+        double step = 0.0;
+        switch (*key)
+        {
+            case EditKey::Left:
+                step = -key_step_seconds;
+                break;
+            case EditKey::Right:
+                step = key_step_seconds;
+                break;
+            case EditKey::ShiftLeft:
+                step = -shift_step_seconds;
+                break;
+            case EditKey::ShiftRight:
+                step = shift_step_seconds;
+                break;
+            default:
+                return;
+        }
+        // From the position chosen last if it has not gone out yet (keys pressed quickly), else where the deck is
+        double from = state.position_seconds;
+        if (pending_position)
+        {
+            if (const auto *seek = std::get_if<core::api::DeckSeek>(&*pending_position))
+            {
+                from = seek->position_seconds;
+            }
+            else if (const auto *scrub = std::get_if<core::api::DeckScrub>(&*pending_position))
+            {
+                from = scrub->position_seconds;
+            }
+        }
+        choosePosition(std::clamp(from + step, 0.0, state.duration_seconds));
     }
 
     void DeckView::flush()

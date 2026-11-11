@@ -97,6 +97,10 @@ namespace djw::player_ui::sdl
             case EditKey::Escape:
             case EditKey::Tab:
             case EditKey::BackTab:
+            case EditKey::Left:
+            case EditKey::Right:
+            case EditKey::ShiftLeft:
+            case EditKey::ShiftRight:
                 break;
         }
         return false;

@@ -13,6 +13,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <string>
@@ -431,6 +432,38 @@ TEST_CASE("ViewHost arranging: the work area bounds the moves, views always on t
     CHECK_FALSE(fixture.host.dragTarget().has_value());
     fixture.release({750, 300});
     CHECK(fixture.moved_view == nullptr);
+}
+
+TEST_CASE("ViewHost: with several views side by side the one the keys go to has a line around it")
+{
+    ViewHost host;
+    FakeView first{"first"};
+    FakeView second{"second"};
+    host.add(first, left);
+    host.add(second, right);
+    host.layout(window);
+    tap(host, {500, 100});
+    REQUIRE(host.focused() == &second);
+
+    RecordingCanvas canvas;
+    host.draw(canvas);
+    const auto line = std::ranges::find_if(canvas.rects,
+                                           [](const Rect &rect)
+                                           {
+                                               return same(rect.x, right.x) && same(rect.y, right.y) &&
+                                                      same(rect.width, right.width) &&
+                                                      same(rect.height, ViewHost::focus_line);
+                                           });
+    CHECK(line != canvas.rects.end());
+
+    // One view alone has none
+    ViewHost        alone;
+    FakeView        only{"only"};
+    RecordingCanvas plain;
+    alone.add(only, left);
+    alone.layout(window);
+    alone.draw(plain);
+    CHECK(plain.rects.empty());
 }
 
 TEST_CASE("Views use the area they are given, not the window: the player")

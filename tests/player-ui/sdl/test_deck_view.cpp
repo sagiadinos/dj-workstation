@@ -701,3 +701,62 @@ TEST_CASE("DeckView: a notice replaces the state for a while, then the state sho
     now += std::chrono::milliseconds{1};
     CHECK(view.stateText() == "playing");
 }
+
+TEST_CASE("DeckView: the cursor keys step one scrub loop, with Shift ten seconds; a standing deck scrubs there")
+{
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 50.0, .duration_seconds = 100.0});
+    fixture.view.keyboard(EditKey::Right);
+    fixture.view.update();
+    auto commands = fixture.drain();
+    REQUIRE(find<api::DeckScrub>(commands) != nullptr);
+    CHECK(find<api::DeckScrub>(commands)->active);
+    CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(50.0 + api::scrub_loop_seconds));
+
+    // Pressed quickly, before the deck tells the new position: the steps add up
+    fixture.view.keyboard(EditKey::ShiftLeft);
+    fixture.view.keyboard(EditKey::ShiftLeft);
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckScrub>(commands) != nullptr);
+    CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(30.0));
+
+    // Not before the start or past the end
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 5.0, .duration_seconds = 100.0});
+    fixture.view.keyboard(EditKey::ShiftLeft);
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckScrub>(commands) != nullptr);
+    CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(0.0));
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 95.0, .duration_seconds = 100.0});
+    fixture.view.keyboard(EditKey::ShiftRight);
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckScrub>(commands) != nullptr);
+    CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(100.0));
+}
+
+TEST_CASE("DeckView: on a playing deck the cursor keys jump; without a track or with other keys nothing happens")
+{
+    Fixture fixture;
+    fixture.view.keyboard(EditKey::Right);
+    fixture.view.update();
+    CHECK(fixture.drain().empty()); // no track
+
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
+                  .play_state       = api::PlayState::Playing,
+                  .position_seconds = 50.0,
+                  .duration_seconds = 100.0});
+    fixture.view.keyboard(EditKey::ShiftRight);
+    fixture.view.update();
+    auto commands = fixture.drain();
+    CHECK(find<api::DeckScrub>(commands) == nullptr);
+    REQUIRE(find<api::DeckSeek>(commands) != nullptr);
+    CHECK(find<api::DeckSeek>(commands)->position_seconds == doctest::Approx(60.0));
+
+    fixture.view.keyboard(EditKey::Up);
+    fixture.view.keyboard(std::string{"a"});
+    fixture.view.update();
+    CHECK(fixture.drain().empty());
+}

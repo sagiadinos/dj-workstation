@@ -4,6 +4,7 @@
 #ifndef DJW_CORE_ENGINE_DECK_HPP
 #define DJW_CORE_ENGINE_DECK_HPP
 
+#include "api/commands.hpp"
 #include "api/deck_id.hpp"
 #include "engine/audio_source.hpp"
 #include "engine/resampler.hpp"
@@ -41,7 +42,7 @@ namespace djw::core::engine
             Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate = 48'000);
 
             /// Length of the piece a scrub plays over and over, in seconds
-            static constexpr double scrub_loop_seconds = 0.06;
+            static constexpr double scrub_loop_seconds = api::scrub_loop_seconds;
             /// Fade at both ends of that piece, in seconds, so the loop does not click
             static constexpr double scrub_ramp_seconds = 0.004;
 

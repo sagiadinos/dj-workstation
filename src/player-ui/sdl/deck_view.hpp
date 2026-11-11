@@ -72,6 +72,12 @@ namespace djw::player_ui::sdl
 
             /// Once per frame: reads the snapshot and sends what the input asked for.
             void update() override;
+            /// The cursor keys left and right jump back and ahead by key_step_seconds, with Shift by
+            /// shift_step_seconds, as a touch on the waveform there would (a playing deck jumps, a standing one scrubs)
+            void keyboard(const KeyboardInput &input) override;
+            /// One scrub loop
+            static constexpr double key_step_seconds   = core::api::scrub_loop_seconds;
+            static constexpr double shift_step_seconds = 10.0;
 
             void draw(Canvas &canvas) const override;
 
@@ -181,6 +187,8 @@ namespace djw::player_ui::sdl
             float shown_pitch = 0.0F;
             /// Commands that go out in this order
             std::deque<core::api::Command> pending;
+            /// A position chosen on the waveform or with the keys: a playing deck jumps there, a standing one scrubs
+            void choosePosition(double seconds);
             /// The latest position chosen on the waveform (a jump or a scrub), sent after the list
             std::optional<core::api::Command> pending_position;
     };

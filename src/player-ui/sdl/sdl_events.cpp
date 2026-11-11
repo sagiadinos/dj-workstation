@@ -88,6 +88,10 @@ namespace djw::player_ui::sdl
                 return KeyboardInput{EditKey::PageUp};
             case SDLK_PAGEDOWN:
                 return KeyboardInput{EditKey::PageDown};
+            case SDLK_LEFT:
+                return KeyboardInput{(event.key.mod & SDL_KMOD_SHIFT) != 0 ? EditKey::ShiftLeft : EditKey::Left};
+            case SDLK_RIGHT:
+                return KeyboardInput{(event.key.mod & SDL_KMOD_SHIFT) != 0 ? EditKey::ShiftRight : EditKey::Right};
             default:
                 return std::nullopt;
         }

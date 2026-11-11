@@ -48,6 +48,10 @@ namespace djw::player_ui::sdl
                 case EditKey::Down:
                 case EditKey::PageUp:
                 case EditKey::PageDown:
+                case EditKey::Left:
+                case EditKey::Right:
+                case EditKey::ShiftLeft:
+                case EditKey::ShiftRight:
                     break; // the view moves between fields and rows
             }
         }
