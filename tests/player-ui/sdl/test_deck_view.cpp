@@ -646,6 +646,36 @@ TEST_CASE("DeckView: a tap on the waveform sends the scrub start and end, so the
     CHECK(scrubs.back().position_seconds == doctest::Approx(50.0).epsilon(0.02));
 }
 
+TEST_CASE("DeckView: on a playing deck the waveform jumps at once instead of scrubbing")
+{
+    Fixture fixture;
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
+                  .play_state       = api::PlayState::Playing,
+                  .position_seconds = 10.0,
+                  .duration_seconds = 100.0});
+    const Rect &bar   = fixture.view.waveform().bounds();
+    const Rect  inner = bar.inset(3.0F);
+    fixture.router.handle({{1, 1}, PointerPhase::Down, {inner.x + (inner.width * 0.5F), bar.y + 5}});
+    fixture.view.update();
+    auto commands = fixture.drain();
+    CHECK(find<api::DeckScrub>(commands) == nullptr);
+    REQUIRE(find<api::DeckSeek>(commands) != nullptr);
+    CHECK(find<api::DeckSeek>(commands)->position_seconds == doctest::Approx(50.0).epsilon(0.02));
+
+    // Dragging jumps along, letting go sends nothing more
+    fixture.router.handle({{1, 1}, PointerPhase::Move, {inner.x + (inner.width * 0.8F), bar.y + 5}});
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckSeek>(commands) != nullptr);
+    CHECK(find<api::DeckSeek>(commands)->position_seconds == doctest::Approx(80.0).epsilon(0.02));
+    fixture.router.handle({{1, 1}, PointerPhase::Up, {inner.x + (inner.width * 0.8F), bar.y + 5}});
+    fixture.view.update();
+    commands = fixture.drain();
+    CHECK(find<api::DeckSeek>(commands) == nullptr);
+    CHECK(find<api::DeckScrub>(commands) == nullptr);
+}
+
 TEST_CASE("DeckView: while a track loads the waveform shows how far it is")
 {
     Fixture fixture;
