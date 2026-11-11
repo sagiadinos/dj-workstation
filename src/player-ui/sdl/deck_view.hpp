@@ -63,6 +63,8 @@ namespace djw::player_ui::sdl
 
             /// How long a notice (see setNotice) replaces the state
             static constexpr std::chrono::milliseconds notice_time{3'000};
+            /// How long the clip lamp of the meter stays lit after a peak at full scale
+            static constexpr std::chrono::milliseconds clip_hold{2'000};
 
             DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot,
                      const Translator &translator, Clock clock = steadyClock());
@@ -148,6 +150,7 @@ namespace djw::player_ui::sdl
             core::api::DeckSnapshotBuffer *snapshot;
             const Translator              *translator;
             TimedNotice                    notice;
+            TimedNotice                    clip_lamp; ///< lit for clip_hold after a peak at full scale
             core::api::DeckSnapshot        state;
             Load                           on_load;
             CueSet                         on_cue_set;

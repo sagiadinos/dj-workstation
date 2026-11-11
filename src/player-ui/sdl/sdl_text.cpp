@@ -39,19 +39,75 @@ namespace djw::player_ui::sdl
         return std::unique_ptr<SdlText>{new SdlText{engine, normal, large}};
     }
 
-    SdlText::SdlText(TTF_TextEngine *engine, TTF_Font *normal_font, TTF_Font *large_font) noexcept
-        : engine{engine}, normal{.font = normal_font, .points = font_points},
-          large{.font = large_font, .points = large_font_points}
+    SdlText::SdlText(TTF_TextEngine *engine, TTF_Font *normal, TTF_Font *large) noexcept
+        : engine{engine}, normal_font{normal}, large_font{large}, current{&scaled(step)}
     {
     }
 
     SdlText::~SdlText()
     {
-        clearCache(normal);
-        clearCache(large);
+        dropScales(); // the shaped lines and font copies before the engine and the fonts they come from
         TTF_DestroyRendererTextEngine(engine);
-        TTF_CloseFont(normal.font);
-        TTF_CloseFont(large.font);
+        TTF_CloseFont(normal_font);
+        TTF_CloseFont(large_font);
+    }
+
+    SdlText::Scaled &SdlText::scaled(int wanted)
+    {
+        if (const auto found = scales.find(wanted); found != scales.end())
+        {
+            return *found->second;
+        }
+        if (scales.size() >= max_scales)
+        {
+            // The oldest one goes, never the one in use
+            const auto oldest =
+                std::ranges::find_if(scale_order, [this](int candidate)
+                                     { return current == nullptr || scales.at(candidate).get() != current; });
+            if (oldest != scale_order.end())
+            {
+                Scaled &gone = *scales.at(*oldest);
+                for (Face *which : {&gone.normal, &gone.large})
+                {
+                    clearCache(*which);
+                    TTF_CloseFont(which->font);
+                }
+                scales.erase(*oldest);
+                scale_order.erase(oldest);
+            }
+        }
+        const float factor  = static_cast<float>(wanted) / 20.0F;
+        auto        made    = std::make_unique<Scaled>();
+        made->normal.font   = TTF_CopyFont(normal_font);
+        made->normal.points = font_points;
+        made->large.font    = TTF_CopyFont(large_font);
+        made->large.points  = large_font_points;
+        for (const Face *which : {&made->normal, &made->large})
+        {
+            if (which->font != nullptr)
+            {
+                TTF_SetFontSize(which->font, which->points * density * factor);
+            }
+        }
+        Scaled &added = *made;
+        scales.emplace(wanted, std::move(made));
+        scale_order.push_back(wanted);
+        return added;
+    }
+
+    void SdlText::dropScales()
+    {
+        for (auto &[key, fonts] : scales)
+        {
+            for (Face *which : {&fonts->normal, &fonts->large})
+            {
+                clearCache(*which);
+                TTF_CloseFont(which->font);
+            }
+        }
+        scales.clear();
+        scale_order.clear();
+        current = nullptr;
     }
 
     void SdlText::setDensity(float pixel_density)
@@ -61,27 +117,20 @@ namespace djw::player_ui::sdl
             return;
         }
         density = pixel_density;
-        for (Face *which : {&normal, &large})
-        {
-            TTF_SetFontSize(which->font, which->points * density * scale);
-            clearCache(*which);
-        }
+        dropScales(); // every size changes
+        current = &scaled(step);
     }
 
     void SdlText::setScale(float new_scale)
     {
-        // Rounded, so a window being dragged to size does not rebuild the font for every pixel
-        new_scale = std::max(0.25F, std::round(new_scale * 20.0F) / 20.0F);
-        if (new_scale == scale)
+        // Rounded, so a window being dragged to size does not make a font for every pixel
+        const int wanted = std::max(5, static_cast<int>(std::lround(new_scale * 20.0F)));
+        if (wanted == step && current != nullptr)
         {
             return;
         }
-        scale = new_scale;
-        for (Face *which : {&normal, &large})
-        {
-            TTF_SetFontSize(which->font, which->points * density * scale);
-            clearCache(*which);
-        }
+        step    = wanted;
+        current = &scaled(step);
     }
 
     void SdlText::clearCache(Face &which)
@@ -143,7 +192,7 @@ namespace djw::player_ui::sdl
         }
         int         measured_width  = 0;
         std::size_t measured_length = 0;
-        TTF_MeasureString(normal.font, text.data(), text.size(), static_cast<int>(room), &measured_width,
+        TTF_MeasureString(face(Size::Normal).font, text.data(), text.size(), static_cast<int>(room), &measured_width,
                           &measured_length);
         draw(position, std::string{text.substr(0, measured_length)} + std::string{ellipsis}, color);
     }

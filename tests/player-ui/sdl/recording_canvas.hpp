@@ -37,9 +37,10 @@ namespace djw::tests
                     player_ui::sdl::Color bottom;
             };
 
-            void fillRect(const player_ui::sdl::Rect &rect, player_ui::sdl::Color /*color*/) override
+            void fillRect(const player_ui::sdl::Rect &rect, player_ui::sdl::Color color) override
             {
                 rects.push_back(rect);
+                rect_colors.push_back(color);
             }
             void fillRoundedRect(const player_ui::sdl::Rect &rect, float radius, player_ui::sdl::Color top,
                                  player_ui::sdl::Color bottom) override
@@ -78,12 +79,16 @@ namespace djw::tests
             void largeText(player_ui::sdl::Point position, std::string_view text, player_ui::sdl::Color color) override
             {
                 texts.push_back({position, std::string{text}});
+                large_scales.push_back(scale);
                 static_cast<void>(color);
             }
-            [[nodiscard]] float largeTextHeight() const noexcept override { return line_height * 2.0F; }
+            /// Recorded; only the large text's sizes follow it
+            void setTextScale(float new_scale) override { scale = new_scale; }
+            // The large text grows with the text scale, as the real one does
+            [[nodiscard]] float largeTextHeight() const noexcept override { return line_height * 2.0F * scale; }
             [[nodiscard]] float largeTextWidth(std::string_view text) const noexcept override
             {
-                return static_cast<float>(text.size()) * char_width * 2.0F;
+                return static_cast<float>(text.size()) * char_width * 2.0F * scale;
             }
 
             void setClip(std::optional<player_ui::sdl::Rect> rect) override
@@ -98,10 +103,13 @@ namespace djw::tests
                 return std::ranges::any_of(texts, [text](const DrawnText &drawn) { return drawn.text == text; });
             }
 
-            std::vector<DrawnText>                           texts;
-            std::vector<player_ui::sdl::Rect>                rects;
-            std::vector<RoundedRect>                         rounded;
-            std::optional<player_ui::sdl::Rect>              clip;
+            std::vector<DrawnText>              texts;
+            std::vector<player_ui::sdl::Rect>   rects;
+            std::vector<player_ui::sdl::Color>  rect_colors; ///< the colors of rects
+            float                               scale = 1.0F;
+            std::vector<float>                  large_scales; ///< the text scale each large text was drawn with
+            std::vector<RoundedRect>            rounded;
+            std::optional<player_ui::sdl::Rect> clip;
             std::vector<std::optional<player_ui::sdl::Rect>> clip_changes;
     };
 } // namespace djw::tests

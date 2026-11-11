@@ -8,6 +8,7 @@
 #include "widget.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <utility>
 
@@ -28,7 +29,25 @@ namespace djw::player_ui::sdl
             explicit Fader(Clock clock = steadyClock()) : clock{std::move(clock)} {}
 
             [[nodiscard]] float value() const noexcept { return current; }
-            void                setValue(float value) noexcept;
+            /// Shows a stereo level meter in the groove, behind a narrower see-through grip (see look::meter); levels
+            /// are linear peaks, 1.0 = 0 dBFS. Without a call the fader has no meter.
+            void setMeter(float left, float right, bool clip) noexcept
+            {
+                meter = Meter{.left = left, .right = right, .clip = clip};
+            }
+            /// The meter's levels and clip lamp as last set; std::nullopt without a meter
+            struct Meter
+            {
+                    float left  = 0.0F;
+                    float right = 0.0F;
+                    bool  clip  = false;
+            };
+            [[nodiscard]] const std::optional<Meter> &meterShown() const noexcept { return meter; }
+            /// The share of the fader's width the grip takes when there is a meter
+            static constexpr float meter_grip_share = 0.7F;
+            /// How opaque the grip is when there is a meter
+            static constexpr std::uint8_t meter_grip_alpha = 170;
+            void                          setValue(float value) noexcept;
 
             /// True once after a double tap
             [[nodiscard]] bool takeDoubleTap() noexcept { return std::exchange(double_tapped, false); }
@@ -49,6 +68,7 @@ namespace djw::player_ui::sdl
             bool                                                 double_tapped = false;
             float                                                current       = 1.0F;
             bool                                                 held          = false;
+            std::optional<Meter>                                 meter;
     };
 } // namespace djw::player_ui::sdl
 

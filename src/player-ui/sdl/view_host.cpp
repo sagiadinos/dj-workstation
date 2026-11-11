@@ -135,8 +135,10 @@ namespace djw::player_ui::sdl
                 drawFocus(canvas); // over the parts, under what is always on top
                 focus_shown = true;
             }
+            canvas.setTextScale(1.0F); // a view that scales its text (a player) does so for itself only
             pane->view->draw(canvas);
         }
+        canvas.setTextScale(1.0F);
         if (!focus_shown)
         {
             drawFocus(canvas);

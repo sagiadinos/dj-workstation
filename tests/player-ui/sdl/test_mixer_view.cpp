@@ -7,6 +7,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <variant>
 #include <vector>
 
@@ -322,4 +323,29 @@ TEST_CASE("MixerView: the texts follow the language")
     fixture.view.draw(canvas);
     CHECK(canvas.drew("Player 01"));
     CHECK(canvas.drew("Überblendzeit (s)"));
+}
+
+TEST_CASE("MixerView: the master meter lies above the crossfader and shows the master level, clip lamp held a while")
+{
+    Fixture            fixture;
+    api::MixerSnapshot mixer{};
+    mixer.master_level = {0.5F, 1.0F};
+    fixture.snapshot.write(mixer);
+    fixture.view.update();
+    CHECK(fixture.view.masterLevel().right == doctest::Approx(1.0F));
+    CHECK(fixture.view.masterClip());
+    const Rect meter = fixture.view.masterMeterArea();
+    CHECK(meter.width > 100);
+    CHECK(meter.y + meter.height <= fixture.view.crossfader().bounds().y);
+
+    mixer.master_level = {0.1F, 0.1F};
+    fixture.snapshot.write(mixer);
+    fixture.now += 2s;
+    fixture.view.update();
+    CHECK_FALSE(fixture.view.masterClip());
+
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(std::ranges::any_of(canvas.rects, [&meter](const Rect &rect)
+                              { return rect.y >= meter.y && rect.y + rect.height <= meter.y + meter.height + 0.01F; }));
 }

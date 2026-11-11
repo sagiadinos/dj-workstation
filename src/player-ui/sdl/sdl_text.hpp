@@ -12,9 +12,12 @@
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace djw::player_ui::sdl
 {
@@ -24,6 +27,10 @@ namespace djw::player_ui::sdl
      *
      * Sizes are in points. The font is rasterized at the window's pixel density, so text stays sharp on HiDPI
      * screens. Shaped lines are cached, as the same lines are drawn every frame.
+     *
+     * Each text scale in use has fonts of its own (copies of the two opened fonts), kept with their caches: views of
+     * different sizes in one window switch the scale several times per frame, and switching must not rebuild
+     * anything. Scales are rounded to steps of 0.05; more than max_scales of them and the oldest ones go.
      */
     class SdlText
     {
@@ -63,6 +70,8 @@ namespace djw::player_ui::sdl
         private:
             /// More cached lines than this and the cache starts over
             static constexpr std::size_t cache_limit = 4'096;
+            /// Text scales kept at once
+            static constexpr std::size_t max_scales = 8;
 
             /// One size of the font with its shaped lines and measured widths
             struct Face
@@ -73,18 +82,38 @@ namespace djw::player_ui::sdl
                     mutable std::unordered_map<std::string, float> widths{};
             };
 
+            /// The two sizes of the font at one scale
+            struct Scaled
+            {
+                    Face normal;
+                    Face large;
+            };
+
             SdlText(TTF_TextEngine *engine, TTF_Font *normal, TTF_Font *large) noexcept;
 
-            [[nodiscard]] Face       &face(Size size) noexcept { return size == Size::Large ? large : normal; }
-            [[nodiscard]] const Face &face(Size size) const noexcept { return size == Size::Large ? large : normal; }
-            TTF_Text                 *line(Face &which, std::string_view text);
-            void                      clearCache(Face &which);
+            [[nodiscard]] Face &face(Size size) noexcept
+            {
+                return size == Size::Large ? current->large : current->normal;
+            }
+            [[nodiscard]] const Face &face(Size size) const noexcept
+            {
+                return size == Size::Large ? current->large : current->normal;
+            }
+            TTF_Text *line(Face &which, std::string_view text);
+            void      clearCache(Face &which);
+            /// The fonts of the scale step (scale * 20), made when first used
+            Scaled &scaled(int step);
+            /// Closes the fonts of every scale
+            void dropScales();
 
-            TTF_TextEngine *engine;
-            Face            normal;
-            Face            large;
-            float           density = 1.0F;
-            float           scale   = 1.0F;
+            TTF_TextEngine                        *engine;
+            TTF_Font                              *normal_font; ///< as opened, copied for every scale
+            TTF_Font                              *large_font;
+            float                                  density = 1.0F;
+            int                                    step    = 20; ///< the scale in use, in steps of 0.05
+            std::map<int, std::unique_ptr<Scaled>> scales;
+            std::vector<int>                       scale_order; ///< oldest first, for dropping
+            Scaled                                *current = nullptr;
     };
 } // namespace djw::player_ui::sdl
 

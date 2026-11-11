@@ -8,6 +8,7 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <span>
 
 using namespace djw::player_ui::sdl;
 
@@ -97,4 +98,49 @@ TEST_CASE("look::background covers the whole window, sunken and the folder icon 
     look::folderIcon(icon, {4, 4, 24, 24}, look::text);
     CHECK(allInside(icon, {4, 4, 24, 24}));
     CHECK_FALSE(icon.rounded.empty());
+}
+
+TEST_CASE("look::meterPosition: dB from the floor to full scale, 0 below and for nothing, 1 above")
+{
+    CHECK(look::meterPosition(1.0F) == doctest::Approx(1.0F));
+    CHECK(look::meterPosition(2.0F) == doctest::Approx(1.0F));
+    CHECK(look::meterPosition(0.1F) == doctest::Approx(0.5F)); // -20 dB, half way to -40
+    CHECK(look::meterPosition(0.01F) == doctest::Approx(0.0F));
+    CHECK(look::meterPosition(0.001F) == doctest::Approx(0.0F));
+    CHECK(look::meterPosition(0.0F) == 0.0F);
+    CHECK(look::meterPosition(-1.0F) == 0.0F);
+}
+
+TEST_CASE("look::meter: two lanes of segments lit up to the level, green to yellow to red, the clip lamp at the end")
+{
+    const auto lit = [](Color color) { return color.red > 150 || color.green > 150; };
+
+    djw::tests::RecordingCanvas silent;
+    look::meter(silent, {0, 0, 20, 200}, 0.0F, 0.0F, true, false);
+    REQUIRE(silent.rects.size() > 9);
+    CHECK(std::ranges::none_of(silent.rect_colors, lit)); // nothing lit, the lamp off
+
+    djw::tests::RecordingCanvas full;
+    look::meter(full, {0, 0, 20, 200}, 1.0F, 0.1F, true, true);
+    // The lamp: the last rect, at the top, lit red
+    const Rect  lamp       = full.rects.back();
+    const Color lamp_color = full.rect_colors.back();
+    CHECK(lamp.y == doctest::Approx(0.0F));
+    CHECK(lamp_color.red > 200);
+    CHECK(lamp_color.green < 100);
+    // The left lane is lit all the way, its top segment red and its bottom one green; the right one half way
+    const std::size_t per_lane = (full.rects.size() - 1) / 2;
+    const auto        left     = std::span{full.rect_colors}.first(per_lane);
+    const auto        right    = std::span{full.rect_colors}.subspan(per_lane, per_lane);
+    CHECK(std::ranges::all_of(left, lit));
+    CHECK(left.front().green > left.front().red); // green at the bottom
+    CHECK(left.back().red > left.back().green);   // red at the top
+    const auto right_lit = std::ranges::count_if(right, lit);
+    CHECK(right_lit == doctest::Approx(static_cast<double>(per_lane) / 2).epsilon(0.15));
+    // Rising from the bottom: the first segment lies lowest
+    CHECK(full.rects.front().y > full.rects[per_lane - 1].y);
+
+    djw::tests::RecordingCanvas sideways;
+    look::meter(sideways, {0, 0, 200, 14}, 1.0F, 1.0F, false, false);
+    CHECK(sideways.rects.back().x > 150); // the lamp at the right end
 }

@@ -799,3 +799,51 @@ TEST_CASE("DeckView: P plays and pauses, C acts as CUE while held, L loads unles
     REQUIRE(commands.size() == 1);
     CHECK(std::holds_alternative<api::DeckPause>(commands[0]));
 }
+
+TEST_CASE("DeckView: the channel fader shows the deck's level; a peak at full scale lights the clip lamp a while")
+{
+    api::CommandQueue       queue;
+    api::DeckSnapshotBuffer snapshot{api::DeckSnapshot{.deck = deck, .track_loaded = true, .level = {0.25F, 1.0F}}};
+    const Translator        translator;
+    std::chrono::steady_clock::time_point now{};
+    DeckView                              view{deck, queue, snapshot, translator, [&now] { return now; }};
+    view.layout({0, 0, DeckView::design_width, DeckView::design_height});
+    view.update();
+    REQUIRE(view.fader().meterShown().has_value());
+    CHECK(view.fader().meterShown()->left == doctest::Approx(0.25F));
+    CHECK(view.fader().meterShown()->right == doctest::Approx(1.0F));
+    CHECK(view.fader().meterShown()->clip);
+
+    snapshot.write(api::DeckSnapshot{.deck = deck, .track_loaded = true, .level = {0.1F, 0.1F}});
+    now += DeckView::clip_hold - std::chrono::milliseconds{1};
+    view.update();
+    CHECK(view.fader().meterShown()->clip); // still lit
+    now += std::chrono::milliseconds{1};
+    view.update();
+    CHECK_FALSE(view.fader().meterShown()->clip);
+    // The other faders have no meter
+    CHECK_FALSE(view.headphoneFader().meterShown().has_value());
+    CHECK_FALSE(view.pitchFader().meterShown().has_value());
+}
+
+TEST_CASE("DeckView: the time fills its field: a bigger window, a bigger time")
+{
+    const auto clockScale = [](float width, float height)
+    {
+        api::CommandQueue       queue;
+        api::DeckSnapshotBuffer snapshot{api::DeckSnapshot{.deck = deck, .track_loaded = true}};
+        const Translator        translator;
+        DeckView                view{deck, queue, snapshot, translator};
+        view.layout({0, 0, width, height});
+        view.update();
+        RecordingCanvas canvas;
+        view.draw(canvas);
+        REQUIRE(canvas.large_scales.size() == 1);
+        CHECK(canvas.scale == doctest::Approx(view.scale())); // back to the player's text size afterwards
+        return canvas.large_scales.front();
+    };
+    const float normal = clockScale(DeckView::design_width, DeckView::design_height);
+    // Twice as wide: the time grows although the text of the player follows the smaller direction
+    CHECK(clockScale(2 * DeckView::design_width, 2 * DeckView::design_height) == doctest::Approx(2 * normal));
+    CHECK(clockScale(2 * DeckView::design_width, DeckView::design_height) >= normal);
+}

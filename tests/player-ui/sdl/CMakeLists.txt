@@ -27,6 +27,7 @@ add_executable(djw_player_sdl_tests
     test_timed_state.cpp
     test_mdi.cpp
     test_settings.cpp
+    test_sdl_text.cpp
 )
 djw_set_options(djw_player_sdl_tests TEST)
 target_include_directories(djw_player_sdl_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

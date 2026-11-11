@@ -146,7 +146,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Feature | Prio | Description |
 |---|---|---|
 | Channel volume | M | Per deck. |
-| VU meters | M | Per deck and master. |
+| VU meters | M | Per deck in the groove of the channel fader (level before the fader, the grip narrower and see-through over it), the master above the crossfader. LED segments from -40 dBFS, yellow from -12, red from -3, a clip lamp lit 2 s after a peak at full scale. |
 | Crossfader | M | Decks freely assignable to side A, B or none. |
 | Crossfader curve | 1 | Linear, constant power, cut. |
 | Crossfader zero | M | Fader to center position. |

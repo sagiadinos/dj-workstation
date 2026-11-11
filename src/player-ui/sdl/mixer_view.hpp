@@ -74,6 +74,11 @@ namespace djw::player_ui::sdl
             [[nodiscard]] static float positionOf(float slider_value) noexcept { return (slider_value * 2.0F) - 1.0F; }
             [[nodiscard]] static float sliderValueOf(float position) noexcept { return (position + 1.0F) / 2.0F; }
 
+            /// The master meter: where it is, the level last read and whether its clip lamp is lit; for tests
+            [[nodiscard]] const Rect            &masterMeterArea() const noexcept { return meter_area; }
+            [[nodiscard]] core::api::StereoLevel masterLevel() const noexcept { return master_level; }
+            [[nodiscard]] bool                   masterClip() const { return clock() < clip_until; }
+
         private:
             struct Fade
             {
@@ -104,6 +109,11 @@ namespace djw::player_ui::sdl
             TextButton fade_button;
             Stepper    fade_time{min_fade_seconds, max_fade_seconds, default_fade_seconds};
             Rect       fade_label_area;
+            Rect       meter_area;
+
+            /// The master level as last read, and until when the clip lamp stays lit
+            core::api::StereoLevel                master_level{};
+            std::chrono::steady_clock::time_point clip_until{};
 
             std::optional<Fade>            fade;
             float                          sent_position = 0.0F;

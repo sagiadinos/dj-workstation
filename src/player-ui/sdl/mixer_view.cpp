@@ -3,6 +3,8 @@
 
 #include "mixer_view.hpp"
 
+#include "look.hpp"
+
 #include "player_number.hpp"
 
 #include <algorithm>
@@ -19,6 +21,9 @@ namespace djw::player_ui::sdl
         constexpr float side_button   = 48.0F;
         constexpr float zero_width    = 110.0F;
         constexpr float stepper_width = 130.0F;
+        constexpr float meter_height  = 14.0F;
+        /// How long the master's clip lamp stays lit after a peak at full scale
+        constexpr std::chrono::milliseconds clip_hold{2'000};
 
         constexpr Color label_color{210, 210, 210};
     } // namespace
@@ -41,6 +46,11 @@ namespace djw::player_ui::sdl
         zero_button.setBounds({inner.x + half + gap, y, zero_width, row_height});
         side_b.place({inner.x + half + gap + zero_width + gap, y, half, row_height}, area);
         y += row_height + gap;
+
+        // The master meter right above the crossfader, as wide as its track
+        const float track_x = inner.x + side_button + gap;
+        meter_area          = {track_x, y, std::max(0.0F, inner.width - (2 * (side_button + gap))), meter_height};
+        y += meter_height + gap;
 
         button_a.setBounds({inner.x, y, side_button, row_height});
         button_b.setBounds({inner.x + std::max(0.0F, inner.width - side_button), y, side_button, row_height});
@@ -175,6 +185,11 @@ namespace djw::player_ui::sdl
     {
         const core::api::MixerSnapshot mixer   = snapshot->read();
         const std::vector<MixerDeck>   players = decks ? decks() : std::vector<MixerDeck>{};
+        master_level                           = mixer.master_level;
+        if (std::max(master_level.left, master_level.right) >= 1.0F)
+        {
+            clip_until = clock() + clip_hold;
+        }
         applyTranslations(players);
 
         if (const auto chosen = side_a.takeChosen())
@@ -195,6 +210,7 @@ namespace djw::player_ui::sdl
 
     void MixerView::draw(Canvas &canvas) const
     {
+        look::meter(canvas, meter_area, master_level.left, master_level.right, false, clock() < clip_until);
         zero_button.draw(canvas);
         button_a.draw(canvas);
         button_b.draw(canvas);

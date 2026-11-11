@@ -59,7 +59,7 @@ namespace djw::player_ui::sdl
                 int height = 0;
         };
         constexpr WindowSize library_size{720, 640};
-        constexpr WindowSize mixer_size{440, 250};
+        constexpr WindowSize mixer_size{440, 280};
         constexpr WindowSize playlist_size{560, 640};
 
         /// The part of the display the windows may use (without panels and docks); std::nullopt if unknown

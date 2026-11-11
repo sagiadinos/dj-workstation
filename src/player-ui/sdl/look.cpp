@@ -4,6 +4,8 @@
 #include "look.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cmath>
 #include <cstdint>
 
@@ -98,17 +100,22 @@ namespace djw::player_ui::sdl::look
         }
     }
 
-    void knob(Canvas &canvas, const Rect &area, bool held, bool mark_horizontal)
+    void knob(Canvas &canvas, const Rect &area, bool held, bool mark_horizontal, std::uint8_t alpha)
     {
         if (area.width <= 0.0F || area.height <= 0.0F)
         {
             return;
         }
-        canvas.fillRoundedRect(area, 4.0F, outline, outline);
+        const auto with = [alpha](Color color)
+        {
+            color.alpha = static_cast<unsigned char>((color.alpha * alpha) / 255);
+            return color;
+        };
+        canvas.fillRoundedRect(area, 4.0F, with(outline), with(outline));
         const Rect body = area.inset(1.0F);
-        canvas.fillRoundedRect(body, 3.0F, held ? Color{250, 250, 252} : Color{228, 229, 233},
-                               held ? Color{150, 152, 158} : Color{116, 118, 124});
-        const Color mark{40, 42, 46, 200};
+        canvas.fillRoundedRect(body, 3.0F, with(held ? Color{250, 250, 252} : Color{228, 229, 233}),
+                               with(held ? Color{150, 152, 158} : Color{116, 118, 124}));
+        const Color mark{40, 42, 46, 230};
         if (mark_horizontal)
         {
             canvas.fillRect({body.x + 3.0F, body.y + (body.height / 2) - 0.5F, std::max(0.0F, body.width - 6.0F), 1.0F},
@@ -119,6 +126,61 @@ namespace djw::player_ui::sdl::look
             canvas.fillRect({body.x + (body.width / 2) - 0.5F, body.y + 3.0F, 1.0F, std::max(0.0F, body.height - 6.0F)},
                             mark);
         }
+    }
+
+    float meterPosition(float linear) noexcept
+    {
+        if (!(linear > 0.0F))
+        {
+            return 0.0F;
+        }
+        const float decibels = 20.0F * std::log10(linear);
+        return std::clamp((decibels - meter_floor_db) / -meter_floor_db, 0.0F, 1.0F);
+    }
+
+    void meter(Canvas &canvas, const Rect &area, float left, float right, bool vertical, bool clip)
+    {
+        if (area.width <= 0.0F || area.height <= 0.0F)
+        {
+            return;
+        }
+        constexpr float gap     = 1.0F;
+        constexpr float segment = 4.0F; // length of one LED, the gap after it included
+        const float     across  = vertical ? area.width : area.height;
+        const float     along   = vertical ? area.height : area.width;
+        const float     lamp    = std::min(along / 4, std::max(6.0F, across * 0.4F)); // the clip lamp, at the far end
+        const float     lanes   = along - lamp - gap;
+        const auto      count   = std::max(4, static_cast<int>(lanes / segment));
+        const float     step    = lanes / static_cast<float>(count);
+        const float     lane    = (across - gap) / 2;
+
+        // In meter coordinates: a runs along the meter from its start, b across it
+        const auto place = [&](float a, float b, float length, float width)
+        {
+            return vertical ? Rect{area.x + b, area.y + area.height - a - length, width, length}
+                            : Rect{area.x + a, area.y + b, length, width};
+        };
+        const float                yellow_from = (meter_yellow_db - meter_floor_db) / -meter_floor_db;
+        const float                red_from    = (meter_red_db - meter_floor_db) / -meter_floor_db;
+        const std::array<float, 2> levels{meterPosition(left), meterPosition(right)};
+        for (std::size_t channel = 0; channel < levels.size(); ++channel)
+        {
+            const float b = static_cast<float>(channel) * (lane + gap);
+            for (int index = 0; index < count; ++index)
+            {
+                const float at    = static_cast<float>(index) / static_cast<float>(count);
+                const bool  lit   = at < levels.at(channel);
+                Color       color = at >= red_from      ? Color{230, 50, 40}
+                                    : at >= yellow_from ? Color{240, 200, 40}
+                                                        : Color{60, 210, 80};
+                if (!lit)
+                {
+                    color = shade(color, -150);
+                }
+                canvas.fillRect(place((static_cast<float>(index) * step), b, std::max(1.0F, step - gap), lane), color);
+            }
+        }
+        canvas.fillRect(place(along - lamp, 0.0F, lamp, across), clip ? Color{255, 40, 30} : Color{70, 18, 16});
     }
 
     void folderIcon(Canvas &canvas, const Rect &area, Color color)

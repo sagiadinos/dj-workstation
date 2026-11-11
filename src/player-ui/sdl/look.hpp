@@ -6,6 +6,8 @@
 
 #include "canvas.hpp"
 
+#include <cstdint>
+
 namespace djw::player_ui::sdl::look
 {
     // The palette: dark brushed metal, glossy controls, yellow on black for what the display shows
@@ -33,8 +35,23 @@ namespace djw::player_ui::sdl::look
     /// The groove of a fader or slider; level is the part filled from the start (0 to 1, < 0: no fill)
     void groove(Canvas &canvas, const Rect &area, bool vertical, float level, Color fill = accent_blue);
 
-    /// The grip of a fader or slider; mark_horizontal: the line across the grip runs left to right
-    void knob(Canvas &canvas, const Rect &area, bool held, bool mark_horizontal);
+    /// The grip of a fader or slider; mark_horizontal: the line across the grip runs left to right. With alpha below
+    /// 255 it lets what lies under it show through (a level meter behind a fader).
+    void knob(Canvas &canvas, const Rect &area, bool held, bool mark_horizontal, std::uint8_t alpha = 255);
+
+    /// The quietest level a meter shows, in dB below full scale
+    inline constexpr float meter_floor_db = -40.0F;
+    /// Where green turns yellow and yellow turns red on a meter, in dBFS
+    inline constexpr float meter_yellow_db = -12.0F;
+    inline constexpr float meter_red_db    = -3.0F;
+    /// Where a peak level (linear, 1.0 = 0 dBFS) lies on a meter: 0 at meter_floor_db and below, 1 at 0 dBFS and above
+    [[nodiscard]] float meterPosition(float linear) noexcept;
+    /**
+     * A stereo LED meter: two lanes of segments (left, right), green, from meter_yellow_db yellow, from meter_red_db
+     * red, unlit segments dark. vertical: they rise from the bottom; otherwise they run from the left. The clip lamp
+     * takes the far end (top or right) and is lit while clip.
+     */
+    void meter(Canvas &canvas, const Rect &area, float left, float right, bool vertical, bool clip);
 
     /// An open folder, for the Load button
     void folderIcon(Canvas &canvas, const Rect &area, Color color);

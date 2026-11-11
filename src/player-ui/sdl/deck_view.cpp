@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace djw::player_ui::sdl
@@ -18,15 +19,18 @@ namespace djw::player_ui::sdl
         constexpr float margin = 8.0F;
         constexpr float gap    = 8.0F;
 
-        constexpr float top_row_height   = 44.0F;
-        constexpr float display_height   = 118.0F;
-        constexpr float waveform_height  = 60.0F;
-        constexpr float transport_height = 70.0F;
-        constexpr float column_width     = 56.0F;
-        constexpr float small_button     = 26.0F;
-        constexpr float label_height     = 20.0F;
-        constexpr float info_height      = 62.0F;
-        constexpr float bend_width       = 48.0F;
+        constexpr float top_row_height = 44.0F;
+        constexpr float display_height = 118.0F;
+        /// The widest time the display shows, and how much of its field the time fills
+        constexpr std::string_view widest_clock     = "-88:88:88:88";
+        constexpr float            clock_fill       = 0.92F;
+        constexpr float            waveform_height  = 60.0F;
+        constexpr float            transport_height = 70.0F;
+        constexpr float            column_width     = 56.0F;
+        constexpr float            small_button     = 26.0F;
+        constexpr float            label_height     = 20.0F;
+        constexpr float            info_height      = 62.0F;
+        constexpr float            bend_width       = 48.0F;
 
         constexpr Color yellow{255, 225, 0};
         constexpr Color red{225, 40, 40};
@@ -65,8 +69,8 @@ namespace djw::player_ui::sdl
 
     DeckView::DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot,
                        const Translator &translator, Clock clock)
-        : deck{deck}, queue{&queue}, snapshot{&snapshot}, translator{&translator},
-          notice{std::move(clock), notice_time}, state{snapshot.read()}, seen_cue_sets{state.cue_set_count},
+        : deck{deck}, queue{&queue}, snapshot{&snapshot}, translator{&translator}, notice{clock, notice_time},
+          clip_lamp{std::move(clock), clip_hold}, state{snapshot.read()}, seen_cue_sets{state.cue_set_count},
           sent_volume{state.channel_volume}, sent_headphone_level{state.headphone_level},
           sent_pitch{state.pitch_percent}, shown_pitch{state.pitch_percent}
     {
@@ -408,6 +412,13 @@ namespace djw::player_ui::sdl
     void DeckView::update()
     {
         state = snapshot->read();
+        // The meter in the channel fader: the deck's level before the fader; a peak at full scale lights the clip
+        // lamp for clip_hold
+        if (std::max(state.level.left, state.level.right) >= 1.0F)
+        {
+            clip_lamp.show("clip");
+        }
+        volume_fader.setMeter(state.level.left, state.level.right, !clip_lamp.current().empty());
         if (state.cue_set_count != seen_cue_sets)
         {
             seen_cue_sets = state.cue_set_count;
@@ -445,9 +456,19 @@ namespace djw::player_ui::sdl
         const double shown_seconds =
             show_remaining ? std::max(0.0, state.duration_seconds - state.position_seconds) : state.position_seconds;
         const std::string clock = formatClock(shown_seconds, show_remaining);
+        // The time fills its field, whichever way the window grew: a size of its own, measured on the widest time
+        // (so it does not change size as the digits change)
+        const float widest = canvas.largeTextWidth(widest_clock);
+        const float high   = canvas.largeTextHeight();
+        if (widest > 0.0F && high > 0.0F)
+        {
+            canvas.setTextScale(text_scale *
+                                std::min(time_area.width * clock_fill / widest, time_area.height * clock_fill / high));
+        }
         canvas.largeText({time_area.x + std::max(0.0F, (time_area.width - canvas.largeTextWidth(clock)) / 2),
                           time_area.y + std::max(0.0F, (time_area.height - canvas.largeTextHeight()) / 2)},
                          clock, yellow);
+        canvas.setTextScale(text_scale);
 
         if (const auto tempo = shownBpm())
         {

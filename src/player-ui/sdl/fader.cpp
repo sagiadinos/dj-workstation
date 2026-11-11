@@ -72,6 +72,18 @@ namespace djw::player_ui::sdl
         const float slot_x = area.x + (area.width - slot) / 2;
         const float knob   = std::min(knob_height, area.height);
 
+        if (meter)
+        {
+            // The groove is the meter: wider, both lanes inside, the grip narrower and see-through over it
+            const float wide = std::clamp(area.width * 0.45F, 12.0F, 40.0F);
+            const Rect  groove{area.x + ((area.width - wide) / 2), area.y, wide, area.height};
+            look::groove(canvas, groove, true, -1.0F);
+            look::meter(canvas, groove.inset(3.0F), meter->left, meter->right, true, meter->clip);
+            const float grip = area.width * meter_grip_share;
+            look::knob(canvas, {area.x + ((area.width - grip) / 2), knob_y - (knob / 2), grip, knob}, held, true,
+                       meter_grip_alpha);
+            return;
+        }
         // The groove spans the full travel and a little more, so the grip never leaves it
         const Rect groove{slot_x, area.y, slot, area.height};
         look::groove(canvas, groove, true,
