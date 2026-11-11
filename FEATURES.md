@@ -119,7 +119,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Feature | Prio | Description |
 |---|---|---|
 | Variable number of decks | M | No fixed upper limit, add/remove at runtime. The practical limit is the CPU. The control thread builds a new deck list and publishes it via an atomic pointer swap, the old list is freed outside the audio thread. |
-| Loading | M | Via drag and drop, double tap in library, load button, controller. Smart load: into a free deck. |
+| Loading | M | Via drag and drop from the file manager onto a player window, double tap in library, load button, controller. Smart load: into a free deck. |
 | Play/pause | M | |
 | Cue | M | Classic CDJ behavior: when stopped sets cue, while playing jumps back and stops, when held plays from cue. |
 | Stored cue point | M | Cue point per track in the database. "Cue load" option: track starts at the stored point when loaded. |

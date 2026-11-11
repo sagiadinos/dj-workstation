@@ -71,6 +71,11 @@ namespace djw::player_ui::sdl
             /// What the first deck shows as its track, for a track loaded from outside the library
             void setDeckTrack(std::filesystem::path file, std::string title);
 
+            /// A file or folder dropped from the file manager onto the window with the SDL id window: a file is loaded
+            /// into that player (not while it plays); a folder dropped on the library window is added to the library.
+            /// Anything else is ignored. The event loop calls this; tests call it directly.
+            void dropped(SDL_WindowID window, const std::filesystem::path &path);
+
             /// Loads a track into the first player that does not play (what Enter and a double tap do). With no
             /// player yet, one is opened for it; with all of them playing nothing is loaded and the library says so.
             void load(const core::api::LibraryTrack &track);
@@ -81,6 +86,8 @@ namespace djw::player_ui::sdl
             [[nodiscard]] SDL_WindowID deckWindowId(std::size_t index) const { return decks.at(index)->window->id(); }
             /// The deck at index; for tests
             [[nodiscard]] core::api::DeckId deckId(std::size_t index) const { return decks.at(index)->id; }
+            /// The SDL id of the library window; for tests
+            [[nodiscard]] SDL_WindowID libraryWindowId() const { return library_window->id(); }
             /// The SDL id of the window of a tool window that is open; for tests
             [[nodiscard]] SDL_WindowID toolWindowId(Tool tool) const { return tools[index(tool)].window->id(); }
             /// The file loaded into the deck at index, empty if none; for tests

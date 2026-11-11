@@ -458,6 +458,32 @@ namespace djw::player_ui::sdl
         }
     }
 
+    void SdlApp::dropped(SDL_WindowID window, const std::filesystem::path &path)
+    {
+        if (DeckWindow *deck = deckOfWindow(window))
+        {
+            std::error_code error;
+            if (!std::filesystem::is_regular_file(path, error))
+            {
+                return;
+            }
+            // A file from outside the library, shown with its name; the tags are not read
+            loadInto(*deck, core::api::LibraryTrack{.path = path});
+            return;
+        }
+        if (library != nullptr && library_window != nullptr && window == library_window->id())
+        {
+            std::error_code error;
+            if (std::filesystem::is_directory(path, error))
+            {
+                if (auto added = library->addFolder(path); !added)
+                {
+                    SDL_Log("djw: %s", added.error().c_str());
+                }
+            }
+        }
+    }
+
     void SdlApp::load(const core::api::LibraryTrack &track)
     {
         if (decks.empty())
@@ -706,6 +732,14 @@ namespace djw::player_ui::sdl
                 (event.key.mod & new_deck_modifier) != 0)
             {
                 ++new_decks_requested; // Ctrl+N in any window
+                continue;
+            }
+            if (event.type == SDL_EVENT_DROP_FILE)
+            {
+                if (event.drop.data != nullptr)
+                {
+                    dropped(event.drop.windowID, std::filesystem::path{event.drop.data});
+                }
                 continue;
             }
             SDL_Window *target = SDL_GetWindowFromEvent(&event);

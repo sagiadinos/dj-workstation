@@ -632,3 +632,58 @@ TEST_CASE("SdlApp: a damaged layout file falls back to the default, no layout fi
     CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Mixer));
     CHECK_FALSE(app->saveLayout()); // nowhere to write
 }
+
+TEST_CASE("SdlApp: a file dropped on a player window is loaded into that player, not while it plays")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = gapWav(folder);
+    auto                      app  = fixture.openApp();
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 2);
+
+    // Dropped on the second player: it goes there, not to the first free one
+    app->dropped(app->deckWindowId(1), file);
+    CHECK(app->deckFile(1) == file);
+    CHECK(app->deckFile(0).empty());
+    CHECK(app->deckView(1).trackTitle() == "gap"); // a file without tags shows its name
+
+    // A playing player keeps its track
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(1)}));
+    REQUIRE(waitForPlaying(*app, 1, true));
+    const auto other = makeWav(folder, "other.wav");
+    app->dropped(app->deckWindowId(1), other);
+    CHECK(app->deckFile(1) == file);
+
+    // Not a file: a folder or nothing at all is ignored
+    app->dropped(app->deckWindowId(0), folder.path());
+    app->dropped(app->deckWindowId(0), folder.path() / "missing.wav");
+    CHECK(app->deckFile(0).empty());
+}
+
+TEST_CASE("SdlApp: the event loop turns a dropped file into a load, a folder dropped on the library is added")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = gapWav(folder);
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library);
+
+    const std::string path = file.string();
+    SDL_Event         event{};
+    event.type          = SDL_EVENT_DROP_FILE;
+    event.drop.windowID = app->deckWindowId(0);
+    event.drop.data     = path.c_str();
+    SDL_PushEvent(&event);
+    REQUIRE(app->runFrame());
+    CHECK(app->deckFile(0) == file);
+
+    const std::string folder_path = folder.path().string();
+    event.drop.windowID           = app->libraryWindowId();
+    event.drop.data               = folder_path.c_str();
+    SDL_PushEvent(&event);
+    REQUIRE(app->runFrame());
+    REQUIRE(library.added_folders.size() == 1);
+    CHECK(library.added_folders[0] == folder.path());
+}
