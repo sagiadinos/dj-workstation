@@ -4,6 +4,7 @@
 #ifndef DJW_CORE_CONTROL_MAPPING_HPP
 #define DJW_CORE_CONTROL_MAPPING_HPP
 
+#include "api/controllers.hpp"
 #include "control/midi_message.hpp"
 
 #include <cstdint>
@@ -16,24 +17,8 @@
 
 namespace djw::core::control
 {
-    /// What a control does; the frontend carries it out (it knows the players and the library)
-    enum class Action : std::uint8_t
-    {
-        Shift,              ///< held: the controls with shift = true apply instead of the others
-        DeckPlay,           ///< play/pause
-        DeckCue,            ///< CUE, acts while held
-        DeckLoad,           ///< loads the track selected in the library
-        DeckKeylock,        ///< keylock on/off
-        DeckHeadphones,     ///< headphone cue on/off
-        DeckBendDown,       ///< pitch bend down while held
-        DeckBendUp,         ///< pitch bend up while held
-        DeckPitch,          ///< pitch fader, absolute
-        DeckVolume,         ///< channel fader, absolute
-        DeckHeadphoneLevel, ///< headphone level of the deck, absolute
-        DeckSeek,           ///< steps back or ahead (relative), like the cursor keys of a player
-        Crossfader,         ///< absolute, 0 side A to 1 side B
-        LibraryMove,        ///< moves the selection in the library (relative)
-    };
+    /// What a control does (see api::ControlAction)
+    using Action = api::ControlAction;
 
     /// The name of an action in a mapping file (e.g. "deck.play"), and back
     [[nodiscard]] std::string_view      actionName(Action action) noexcept;

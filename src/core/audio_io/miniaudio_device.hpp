@@ -10,6 +10,7 @@
 #include <expected>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace djw::core::audio_io
 {
@@ -29,7 +30,13 @@ namespace djw::core::audio_io
             /// Master and headphones: open the device with its own channel count, at least 4 (for the Null backend:
             /// exactly 4); a device with fewer channels is opened as stereo instead. Off: stereo.
             bool headphone_output = false;
+            /// The output device: the first whose name contains this (ignoring case); empty, or none matching: the
+            /// system's default output
+            std::string device_name{};
     };
+
+    /// The names of the system's audio outputs, as the device choice shows them; empty without audio
+    [[nodiscard]] std::vector<std::string> outputDeviceNames();
 
     /**
      * Audio output through miniaudio.
@@ -49,6 +56,8 @@ namespace djw::core::audio_io
             void                             stop() noexcept override;
             [[nodiscard]] std::uint32_t      sampleRate() const noexcept override;
             [[nodiscard]] std::uint32_t      channels() const noexcept override;
+            /// The name of the output in use
+            [[nodiscard]] std::string name() const override;
 
         private:
             struct State;

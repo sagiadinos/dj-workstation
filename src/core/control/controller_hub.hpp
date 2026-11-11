@@ -4,6 +4,7 @@
 #ifndef DJW_CORE_CONTROL_CONTROLLER_HUB_HPP
 #define DJW_CORE_CONTROL_CONTROLLER_HUB_HPP
 
+#include "api/controllers.hpp"
 #include "control/controller.hpp"
 #include "control/mapping.hpp"
 #include "control/midi_system.hpp"
@@ -24,26 +25,15 @@ namespace djw::core::control
      * Messages arrive on threads of the MIDI system; they are turned into events there and queued under a lock, so
      * the frontend's thread never waits for MIDI. Never touches the audio thread.
      */
-    class ControllerHub
+    class ControllerHub final : public api::Controllers
     {
         public:
-            /// Which mapping a port uses, by the port's stable name (see stablePortName): the name of a mapping, or
-            /// empty for none (the port stays closed)
-            using Assignments = std::map<std::string, std::string>;
-
-            /// A port in use (by its stable name) and the mapping it uses
-            struct Connection
-            {
-                    std::string port;
-                    std::string mapping;
-            };
-
             /// A port's name without the numbers ALSA adds at the end ("Starlight MIDI 1 24:0" → "Starlight MIDI 1"),
             /// which change when the device is plugged in again; other names stay as they are
             [[nodiscard]] static std::string stablePortName(std::string_view port);
 
             ControllerHub(std::unique_ptr<MidiSystem> midi, std::vector<Mapping> mappings);
-            ~ControllerHub();
+            ~ControllerHub() override;
             ControllerHub(const ControllerHub &)            = delete;
             ControllerHub &operator=(const ControllerHub &) = delete;
             ControllerHub(ControllerHub &&)                 = delete;
@@ -54,16 +44,20 @@ namespace djw::core::control
              * mapping that matches its name. Errors (a port that cannot be opened, an assigned mapping that does not
              * exist) are returned; the other ports still work.
              */
-            std::vector<std::string> connect(const Assignments &assigned = {});
+            std::vector<std::string> connect(const Assignments &assigned = {}) override;
 
             /// The events since the last call, in the order they came
-            [[nodiscard]] std::vector<ControlEvent> poll();
+            [[nodiscard]] std::vector<ControlEvent> poll() override;
 
-            [[nodiscard]] std::vector<std::string>    ports() const { return midi->ports(); }
+            [[nodiscard]] std::vector<std::string> ports() const override;
+            [[nodiscard]] std::vector<std::string> mappingNames() const override;
+            [[nodiscard]] std::string              mappingFor(const std::string &port) const override;
+            [[nodiscard]] std::vector<Connection>  connections() const override;
+            [[nodiscard]] std::string              controllerAudio() const override;
+
             [[nodiscard]] const std::vector<Mapping> &mappings() const noexcept { return all; }
-            [[nodiscard]] std::vector<Connection>     connections() const;
-            /// The mapping a port gets without an assignment: the first that matches its name
-            [[nodiscard]] const Mapping *mappingFor(const std::string &port) const;
+            /// The mapping a port gets without an assignment: the first that matches its name; nullptr for none
+            [[nodiscard]] const Mapping *mappingMatching(const std::string &port) const;
             /// The mapping of that name, nullptr if there is none
             [[nodiscard]] const Mapping *mappingNamed(const std::string &name) const;
 

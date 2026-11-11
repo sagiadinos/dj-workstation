@@ -14,11 +14,17 @@ namespace djw::core::api
             .buffer_frames    = config.buffer_frames,
             .backend          = config.silent_output ? audio_io::AudioBackend::Null : audio_io::AudioBackend::System,
             .headphone_output = config.headphone_output,
+            .device_name      = config.output_device,
         });
         if (!device)
         {
             return std::unexpected{device.error()};
         }
         return std::make_unique<runtime::RuntimeCore>(config, std::move(*device));
+    }
+
+    std::vector<std::string> outputDevices()
+    {
+        return audio_io::outputDeviceNames();
     }
 } // namespace djw::core::api

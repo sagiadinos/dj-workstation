@@ -320,9 +320,9 @@ namespace djw::player_ui::sdl
         }
     }
 
-    void DeckView::control(const core::control::ControlEvent &event)
+    void DeckView::control(const core::api::ControlEvent &event)
     {
-        using core::control::Action;
+        using Action = core::api::ControlAction;
         switch (event.action)
         {
             case Action::DeckPlay:

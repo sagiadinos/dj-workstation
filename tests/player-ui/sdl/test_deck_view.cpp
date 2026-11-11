@@ -847,3 +847,69 @@ TEST_CASE("DeckView: the time fills its field: a bigger window, a bigger time")
     CHECK(clockScale(2 * DeckView::design_width, 2 * DeckView::design_height) == doctest::Approx(2 * normal));
     CHECK(clockScale(2 * DeckView::design_width, DeckView::design_height) >= normal);
 }
+
+namespace
+{
+    djw::core::api::ControlEvent controlEvent(djw::core::api::ControlAction action, bool pressed = true,
+                                              float value = 0.0F, int steps = 0)
+    {
+        return {.action = action, .deck = 0, .pressed = pressed, .value = value, .steps = steps};
+    }
+} // namespace
+
+TEST_CASE("DeckView: a controller plays, cues while held, loads, switches keylock and headphones, bends")
+{
+    using Action = djw::core::api::ControlAction;
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 10.0, .duration_seconds = 100.0});
+    fixture.view.control(controlEvent(Action::DeckPlay));
+    fixture.view.control(controlEvent(Action::DeckPlay, false)); // the release does nothing more
+    fixture.view.update();
+    auto commands = fixture.drain();
+    REQUIRE(commands.size() == 1);
+    CHECK(std::holds_alternative<api::DeckPlay>(commands[0]));
+
+    fixture.view.control(controlEvent(Action::DeckCue));
+    fixture.view.control(controlEvent(Action::DeckCue, false));
+    fixture.view.control(controlEvent(Action::DeckKeylock));
+    fixture.view.control(controlEvent(Action::DeckHeadphones));
+    fixture.view.control(controlEvent(Action::DeckBendUp));
+    fixture.view.control(controlEvent(Action::DeckBendUp, false));
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(commands.size() == 6);
+    CHECK(std::get<api::DeckCue>(commands[0]).pressed);
+    CHECK_FALSE(std::get<api::DeckCue>(commands[1]).pressed);
+    CHECK(std::get<api::DeckSetKeylock>(commands[2]).enabled);
+    CHECK(std::get<api::MixerSetHeadphoneCue>(commands[3]).enabled);
+    CHECK(std::get<api::DeckPitchBend>(commands[4]).direction == 1);
+    CHECK(std::get<api::DeckPitchBend>(commands[5]).direction == 0);
+
+    fixture.view.control(controlEvent(Action::DeckLoad));
+    fixture.view.update();
+    CHECK(fixture.loads == 1);
+}
+
+TEST_CASE("DeckView: a controller's faders set the player's faders, the jog wheel steps like the cursor keys")
+{
+    using Action = djw::core::api::ControlAction;
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 10.0, .duration_seconds = 100.0});
+    fixture.view.control(controlEvent(Action::DeckVolume, true, 0.25F));
+    fixture.view.control(controlEvent(Action::DeckHeadphoneLevel, true, 0.75F));
+    fixture.view.control(controlEvent(Action::DeckPitch, true, 1.0F));
+    fixture.view.update();
+    CHECK(fixture.view.fader().value() == doctest::Approx(0.25F));
+    CHECK(fixture.view.headphoneFader().value() == doctest::Approx(0.75F));
+    CHECK(fixture.view.pitchFader().value() == doctest::Approx(1.0F));
+    auto commands = fixture.drain();
+    CHECK(find<api::MixerSetChannelVolume>(commands) != nullptr);
+    REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(12.0F)); // the top: +12 %
+
+    fixture.view.control(controlEvent(Action::DeckSeek, true, 0.0F, 3));
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckScrub>(commands) != nullptr);
+    CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(10.0 + (3 * DeckView::key_step_seconds)));
+}

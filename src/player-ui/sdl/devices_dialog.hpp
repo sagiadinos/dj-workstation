@@ -12,8 +12,10 @@
 #include "widget.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace djw::player_ui::sdl
 {
@@ -27,10 +29,27 @@ namespace djw::player_ui::sdl
             void draw(Canvas & /*canvas*/) const override {}
     };
 
+    /// What Settings > Devices offers to choose from
+    struct DeviceChoices
+    {
+            /// The system's audio outputs by name
+            std::vector<std::string> outputs;
+            /// The MIDI ports there are now (stable names)
+            std::vector<std::string> ports;
+            /// The names of all controller mappings
+            std::vector<std::string> mappings;
+            /// For each port, the mapping it gets without a choice (empty: none matches)
+            std::vector<std::string> port_defaults;
+    };
+
     /**
      * Settings > Devices: a modal dialog box over the whole window (the window is dimmed and takes no input while it
-     * is open). For now it sets the latency, as one of latency_choices shown in milliseconds at the device's sample
-     * rate; it takes effect at the next start, which it says. Later the audio driver and device are chosen here.
+     * is open).
+     *
+     * Audio: the output (Automatic: the sound card of a connected controller, else the system's default), stereo or
+     * four channels (master 1/2, headphones 3/4), and the latency, shown in milliseconds at the device's sample rate.
+     * These take effect at the next start, which it says. Controllers: one line per MIDI port with the mapping it
+     * uses ("none" switches it off); the owner applies these at once.
      *
      * OK or Enter accept, Cancel or Escape leave the settings as they were; the owner reads takeOutcome() after the
      * update and removes the dialog between frames.
@@ -44,11 +63,13 @@ namespace djw::player_ui::sdl
                 Cancelled
             };
 
-            static constexpr float panel_width  = 520.0F;
-            static constexpr float panel_height = 300.0F;
+            static constexpr float panel_width = 640.0F;
+            /// The most controller lines shown
+            static constexpr std::size_t max_ports = 4;
 
             /// settings: what is set now; sample_rate: the device's, for the milliseconds shown
-            DevicesDialog(const Translator &translator, const Settings &settings, std::uint32_t sample_rate);
+            DevicesDialog(const Translator &translator, Settings settings, std::uint32_t sample_rate,
+                          DeviceChoices choices = {});
 
             void               layout(const Rect &area) override;
             void               addTo(PointerRouter &router) override;
@@ -65,24 +86,43 @@ namespace djw::player_ui::sdl
             /// The text of a latency choice: its name and the milliseconds at the sample rate
             [[nodiscard]] std::string latencyText(std::size_t choice) const;
 
-            [[nodiscard]] const DropDown   &latencyList() const noexcept { return latency; }
+            [[nodiscard]] const DropDown &latencyList() const noexcept { return latency; }
+            [[nodiscard]] const DropDown &outputList() const noexcept { return output; }
+            [[nodiscard]] const DropDown &channelList() const noexcept { return channels; }
+            /// The mapping choice of the port at index (in choices.ports)
+            [[nodiscard]] const DropDown   &mappingList(std::size_t index) const { return *mapping_lists.at(index); }
             [[nodiscard]] const TextButton &okButton() const noexcept { return ok_button; }
             [[nodiscard]] const TextButton &cancelButton() const noexcept { return cancel_button; }
             [[nodiscard]] const Rect       &panel() const noexcept { return panel_area; }
+            /// How high the panel wants to be for what it shows
+            [[nodiscard]] float panelHeight() const noexcept;
 
         private:
-            const Translator      *translator;
-            Settings               settings;
-            std::uint32_t          sample_rate;
-            std::optional<Outcome> outcome;
-            Rect                   window_area;
-            Rect                   panel_area;
-            Rect                   label_area;
-            Rect                   hint_area;
-            Blocker                blocker;
-            DropDown               latency;
-            TextButton             ok_button;
-            TextButton             cancel_button;
+            /// The mapping a port uses now: its choice in settings, else its default
+            [[nodiscard]] std::string mappingOf(std::size_t port) const;
+            void                      takeChoices();
+
+            const Translator                      *translator;
+            Settings                               settings;
+            std::uint32_t                          sample_rate;
+            DeviceChoices                          choices;
+            std::optional<Outcome>                 outcome;
+            Rect                                   window_area;
+            Rect                                   panel_area;
+            Rect                                   title_area;
+            Rect                                   output_label;
+            Rect                                   channels_label;
+            Rect                                   latency_label;
+            Rect                                   hint_area;
+            Rect                                   controllers_area;
+            std::vector<Rect>                      port_labels;
+            Blocker                                blocker;
+            DropDown                               output;
+            DropDown                               channels;
+            DropDown                               latency;
+            std::vector<std::unique_ptr<DropDown>> mapping_lists;
+            TextButton                             ok_button;
+            TextButton                             cancel_button;
     };
 } // namespace djw::player_ui::sdl
 

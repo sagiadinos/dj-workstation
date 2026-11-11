@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <map>
 #include <string>
 #include <string_view>
 
@@ -24,6 +25,14 @@ namespace djw::player_ui::sdl
     {
             /// Audio buffer size, one of latency_choices
             std::uint32_t buffer_frames = default_buffer_frames;
+            /// The audio output by name; empty: automatic (the sound card of a connected controller, else the
+            /// system's default output)
+            std::string output_device{};
+            /// Master on 1/2 and headphones on 3/4 instead of stereo (a controller's sound card always gets them)
+            bool headphone_output = false;
+            /// Which mapping a controller's MIDI port uses (by the port's stable name); empty for none. A port not
+            /// listed gets the mapping that matches it.
+            std::map<std::string, std::string> controllers{};
 
             bool operator==(const Settings &) const = default;
     };

@@ -7,6 +7,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -126,4 +127,27 @@ TEST_CASE("Mapping: all mappings of the folders are read, a broken file is repor
     CHECK(mappings[1].file == folder.path() / "b.toml");
     REQUIRE(errors.size() == 1);
     CHECK(errors[0].find("broken.toml") != std::string::npos);
+}
+
+TEST_CASE("Mapping: the mappings that come with the program can all be read; the Starlight is recognized")
+{
+    std::vector<std::string> errors;
+    const auto               mappings = readMappings({DJW_MAPPINGS_DIR}, errors);
+    CHECK(errors.empty());
+    const auto starlight = std::ranges::find(mappings, std::string{"Hercules DJControl Starlight"}, &Mapping::name);
+    REQUIRE(starlight != mappings.end());
+    CHECK(starlight->matches("DJControl Starlight:DJControl Starlight MIDI 1 16:0"));
+    CHECK(starlight->audio == "DJControl Starlight");
+    // Both players have play, CUE, headphones, load, volume, pitch and the jog wheel
+    for (const std::size_t deck : {0U, 1U})
+    {
+        for (const Action action : {Action::DeckPlay, Action::DeckCue, Action::DeckHeadphones, Action::DeckLoad,
+                                    Action::DeckVolume, Action::DeckPitch, Action::DeckSeek})
+        {
+            CAPTURE(deck);
+            CAPTURE(actionName(action));
+            CHECK(std::ranges::any_of(starlight->controls, [&](const Control &control)
+                                      { return control.action == action && control.deck == deck; }));
+        }
+    }
 }

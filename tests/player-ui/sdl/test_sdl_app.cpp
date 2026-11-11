@@ -19,6 +19,7 @@
 #include <cmath>
 #include <memory>
 #include <thread>
+#include <utility>
 
 using namespace djw::player_ui::sdl;
 namespace api = djw::core::api;
@@ -1268,4 +1269,100 @@ TEST_CASE("SdlApp: without a layout file (nowhere to keep anything) the program 
     Fixture fixture;
     auto    app = fixture.openApp();
     CHECK(app->windowMode() == WindowMode::Separate);
+}
+
+TEST_CASE("SdlApp: control events go to the player with that number, the crossfader and the library")
+{
+    using Action = djw::core::api::ControlAction;
+    using djw::core::api::ControlEvent;
+    const djw::tests::TempDir folder;
+    const auto                file = makeWav(folder, "one.wav");
+    Fixture                   fixture;
+    djw::tests::FakeLibrary   library;
+    auto                      app = fixture.openApp(&library);
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 2);
+    app->load(trackOf(file));
+
+    // Player 1 plays from the controller
+    app->handleControl({.action = Action::DeckPlay, .deck = 0, .pressed = true, .value = 0.0F, .steps = 0});
+    REQUIRE(waitForPlaying(*app, 0, true));
+    CHECK_FALSE(app->deckPlaying(1));
+    // A player that is not there: nothing
+    app->handleControl({.action = Action::DeckPlay, .deck = 5, .pressed = true, .value = 0.0F, .steps = 0});
+    REQUIRE(app->runFrame());
+
+    // The crossfader goes to side B, also with its window closed
+    app->handleControl({.action = Action::Crossfader, .deck = {}, .pressed = true, .value = 1.0F, .steps = 0});
+    bool on_b = false;
+    for (int i = 0; i < 100 && !on_b; ++i)
+    {
+        REQUIRE(app->runFrame());
+        on_b = fixture.core->mixerSnapshot().read().crossfader_position > 0.99F;
+        std::this_thread::sleep_for(std::chrono::milliseconds{5});
+    }
+    CHECK(on_b);
+
+    // Browsing moves the library's selection
+    REQUIRE_FALSE(app->libraryView().trackList().tracks().empty());
+    app->handleControl({.action = Action::LibraryMove, .deck = {}, .pressed = true, .value = 0.0F, .steps = 1});
+    CHECK(app->libraryView().trackList().selected() == 0U);
+}
+
+namespace
+{
+    /// Controllers the test lists and sends events from; records what it was asked to connect
+    class FakeControllers final : public djw::core::api::Controllers
+    {
+        public:
+            std::vector<std::string> connect(const Assignments &assigned) override
+            {
+                connected.push_back(assigned);
+                return {};
+            }
+            std::vector<djw::core::api::ControlEvent> poll() override { return std::exchange(events, {}); }
+            std::vector<std::string>                  ports() const override { return {"Pad MIDI 1"}; }
+            std::vector<std::string>                  mappingNames() const override { return {"Pad mapping"}; }
+            std::string             mappingFor(const std::string             &/*port*/) const override { return "Pad mapping"; }
+            std::vector<Connection> connections() const override { return {}; }
+            std::string             controllerAudio() const override { return {}; }
+
+            std::vector<djw::core::api::ControlEvent> events;
+            std::vector<Assignments>                  connected;
+    };
+} // namespace
+
+TEST_CASE("SdlApp: controller events are carried out each frame; OK in Settings > Devices connects them again")
+{
+    using Action = djw::core::api::ControlAction;
+    const djw::tests::TempDir folder;
+    Fixture                   fixture;
+    djw::tests::FakeLibrary   library;
+    auto                      app   = fixture.openApp(&library);
+    auto                      owned = std::make_unique<FakeControllers>();
+    FakeControllers          &fake  = *owned;
+    app->setControllers(std::move(owned));
+    REQUIRE(app->runFrame()); // the library's list fills
+
+    REQUIRE_FALSE(app->libraryView().trackList().tracks().empty());
+    fake.events.push_back({.action = Action::LibraryMove, .deck = {}, .pressed = true, .value = 0.0F, .steps = 1});
+    REQUIRE(app->runFrame());
+    CHECK(app->libraryView().trackList().selected() == 0U);
+
+    // The dialog lists the controller's port with its mapping; OK applies the choice at once
+    app->setSettingsFile(folder.path() / "settings");
+    app->openDevicesDialog();
+    REQUIRE(app->devicesDialog() != nullptr);
+    REQUIRE(app->runFrame());
+    CHECK(app->devicesDialog()->mappingList(0).selectedIndex() == 1U);
+    SDL_Event enter{};
+    enter.type         = SDL_EVENT_KEY_DOWN;
+    enter.key.key      = SDLK_RETURN;
+    enter.key.windowID = app->libraryWindowId();
+    SDL_PushEvent(&enter);
+    REQUIRE(app->runFrame());
+    CHECK(app->devicesDialog() == nullptr);
+    REQUIRE(fake.connected.size() == 1);
+    CHECK(parseSettings(readFile(folder.path() / "settings")).buffer_frames == default_buffer_frames);
 }

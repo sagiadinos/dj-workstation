@@ -5,7 +5,7 @@
 #define DJW_PLAYER_UI_SDL_DECK_VIEW_HPP
 
 #include "api/commands.hpp"
-#include "control/controller.hpp"
+#include "api/controllers.hpp"
 #include "api/deck_id.hpp"
 #include "api/snapshot.hpp"
 #include "canvas.hpp"
@@ -82,7 +82,7 @@ namespace djw::player_ui::sdl
             /// A control of a controller for this player, done like the button or fader it stands for: play/pause,
             /// CUE while held, load, keylock, headphone cue, pitch bend while held; the pitch, channel and headphone
             /// faders follow absolute values (0 to 1); seek steps like the cursor keys
-            void control(const core::control::ControlEvent &event);
+            void control(const core::api::ControlEvent &event);
             /// One scrub loop
             static constexpr double key_step_seconds   = core::api::scrub_loop_seconds;
             static constexpr double shift_step_seconds = 10.0;

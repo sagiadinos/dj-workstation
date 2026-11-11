@@ -35,6 +35,8 @@ namespace djw::core::audio_io
             [[nodiscard]] virtual std::uint32_t sampleRate() const noexcept = 0;
             /// Interleaved channels the callback fills, at least 2
             [[nodiscard]] virtual std::uint32_t channels() const noexcept = 0;
+            /// The name of the output, as the system calls it; empty if it has none (e.g. a test's device)
+            [[nodiscard]] virtual std::string name() const { return {}; }
     };
 } // namespace djw::core::audio_io
 

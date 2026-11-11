@@ -14,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace djw::core::api
 {
@@ -32,6 +33,9 @@ namespace djw::core::api
             bool headphone_output = false;
             /// Tracks up to this length are held in memory, longer ones are streamed (Architecture.md, Track loading)
             std::uint32_t memory_track_limit_seconds = 600;
+            /// The audio output: the first whose name contains this (ignoring case); empty, or none matching: the
+            /// system's default output
+            std::string output_device{};
     };
 
     /// How loadTrack starts the deck
@@ -99,7 +103,12 @@ namespace djw::core::api
             [[nodiscard]] virtual std::uint32_t sampleRate() const noexcept = 0;
             /// The audio buffer size the core was created with (CoreConfig::buffer_frames)
             [[nodiscard]] virtual std::uint32_t bufferFrames() const noexcept = 0;
+            /// The name of the audio output in use; empty if it has none
+            [[nodiscard]] virtual std::string outputName() const = 0;
     };
+
+    /// The names of the system's audio outputs, for choosing one (CoreConfig::output_device); empty without audio
+    [[nodiscard]] std::vector<std::string> outputDevices();
 
     /// Creates the core with the system's audio output. Implemented in core/runtime.
     std::expected<std::unique_ptr<Core>, std::string> createCore(const CoreConfig &config);

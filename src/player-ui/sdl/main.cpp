@@ -4,9 +4,7 @@
 #include "api/core.hpp"
 #include "api/library.hpp"
 #include "command_line.hpp"
-#include "control/controller_hub.hpp"
-#include "control/mapping.hpp"
-#include "control/midi_system.hpp"
+#include "api/controllers.hpp"
 #include "sdl_app.hpp"
 #include "settings.hpp"
 
@@ -23,9 +21,8 @@
 #include <thread>
 #include <vector>
 
-namespace api  = djw::core::api;
-namespace sdl  = djw::player_ui::sdl;
-namespace core = djw::core;
+namespace api = djw::core::api;
+namespace sdl = djw::player_ui::sdl;
 
 namespace
 {
@@ -73,13 +70,11 @@ namespace
     }
 
     /// The MIDI controllers with a mapping, connected; what goes wrong is reported, the program starts anyway
-    std::unique_ptr<core::control::ControllerHub> openControllers()
+    std::unique_ptr<api::Controllers> connectControllers(const sdl::Settings &settings)
     {
         std::vector<std::string> errors;
-        auto                     mappings = core::control::readMappings(mappingFolders(), errors);
-        auto                     hub =
-            std::make_unique<core::control::ControllerHub>(core::control::createMidiSystem(), std::move(mappings));
-        for (const std::string &error : hub->connect())
+        auto                     hub = api::openControllers(mappingFolders(), errors);
+        for (const std::string &error : hub->connect(settings.controllers))
         {
             errors.push_back(error);
         }
@@ -204,8 +199,18 @@ int main(int argc, char *argv[])
 
     const std::filesystem::path settings_file = settingsFile();
     const sdl::Settings         settings      = startSettings(settings_file);
-    auto                        core =
-        api::createCore({.buffer_frames = settings.buffer_frames, .headphone_output = command_line->headphones});
+    // The controllers first: with the output on Automatic, a connected controller's sound card is used, with the
+    // headphones on 3/4
+    auto        controllers = connectControllers(settings);
+    std::string output      = settings.output_device;
+    bool        headphones  = settings.headphone_output || command_line->headphones;
+    if (output.empty() && !controllers->controllerAudio().empty())
+    {
+        output     = controllers->controllerAudio();
+        headphones = true;
+    }
+    auto core = api::createCore(
+        {.buffer_frames = settings.buffer_frames, .headphone_output = headphones, .output_device = output});
     if (!core)
     {
         std::cerr << "djw: " << core.error() << '\n';
@@ -222,7 +227,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (command_line->headphones && !(*core)->mixerSnapshot().read().headphones_available)
+    if (headphones && !(*core)->mixerSnapshot().read().headphones_available)
     {
         std::cerr << "djw: the audio device has fewer than 4 channels, playing the master only\n";
     }
@@ -242,7 +247,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     (*app)->setSettingsFile(settings_file);
-    (*app)->setControllers(openControllers());
+    (*app)->setControllers(std::move(controllers));
     if (command_line->file)
     {
         (*app)->setDeckTrack(std::filesystem::absolute(*command_line->file), command_line->file->filename().string());

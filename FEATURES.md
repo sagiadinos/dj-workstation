@@ -162,7 +162,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Mode | Prio | Description |
 |---|---|---|
 | One device, stereo | M | Master only, no pre-listening. |
-| One device, 4 channels | M | Master on 1/2, headphones on 3/4 (e.g. Hercules DJControl Starlight). |
+| One device, 4 channels | M | Master on 1/2, headphones on 3/4 (e.g. Hercules DJControl Starlight). Output device and channels in Settings > Devices, from the next start. |
 | Master/headphones on two devices | 1 | With drift compensation via resampling. |
 | One output per deck | 1 | External mixer mode from the original version: every deck on its own channels, internal mixer bypassed. |
 | DVS inputs | 1 | One input channel pair per deck, see 4.6. |
@@ -222,11 +222,11 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | MIDI | M | RtMidi on desktop, AMidi on Android, Web MIDI in the browser. |
 | HID | L | hidapi, for controllers without MIDI. |
 | Hotplug | 1 | Connect and disconnect controllers while running. |
-| Declarative mapping | M | TOML: note/CC → core action, type (button, toggle, absolute, relative, 14-bit), deck index, shift layer. |
+| Declarative mapping | M | TOML: note/CC → action (play, cue, load, keylock, headphones, pitch bend, pitch, volume, headphone level, seek, crossfader, library browse), type (button, absolute, 14-bit, relative), deck index, shift layer, invert. In `mappings/` next to the program and in the user's folder; Settings > Devices assigns them to the MIDI ports. |
 | Script mapping | 1 | Lua for jog acceleration, scratching, device-specific behavior. Runs on the control thread. |
 | LED feedback | 1 | Core state → MIDI out, in the same mapping file. |
 | MIDI learn | 1 | In the UI, writes the mapping file. |
-| Reference controller | M | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). |
+| Reference controller | M | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. |
 | Keyboard shortcuts | M | From the original version, in the player that has the keyboard focus: P = play/pause, C = cue (acts while held), L = load. |
 
 A mapping looks like this:

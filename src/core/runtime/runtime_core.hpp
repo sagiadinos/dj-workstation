@@ -43,6 +43,7 @@ namespace djw::core::runtime
             api::MixerSnapshotBuffer   &mixerSnapshot() noexcept override { return engine.mixerSnapshot(); }
             [[nodiscard]] std::uint32_t sampleRate() const noexcept override { return device->sampleRate(); }
             [[nodiscard]] std::uint32_t bufferFrames() const noexcept override { return buffer_frames; }
+            [[nodiscard]] std::string   outputName() const override { return device->name(); }
 
         private:
             /// Lets the audio device call the engine

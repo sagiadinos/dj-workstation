@@ -47,7 +47,46 @@ namespace djw::core::control
         return std::string{port.substr(0, space)};
     }
 
-    const Mapping *ControllerHub::mappingFor(const std::string &port) const
+    std::vector<std::string> ControllerHub::ports() const
+    {
+        std::vector<std::string> names;
+        for (const std::string &port : midi->ports())
+        {
+            names.push_back(stablePortName(port));
+        }
+        return names;
+    }
+
+    std::vector<std::string> ControllerHub::mappingNames() const
+    {
+        std::vector<std::string> names;
+        names.reserve(all.size());
+        for (const Mapping &mapping : all)
+        {
+            names.push_back(mapping.name);
+        }
+        return names;
+    }
+
+    std::string ControllerHub::mappingFor(const std::string &port) const
+    {
+        const Mapping *mapping = mappingMatching(port);
+        return mapping != nullptr ? mapping->name : std::string{};
+    }
+
+    std::string ControllerHub::controllerAudio() const
+    {
+        for (const auto &open : open_ports)
+        {
+            if (!open->controller.mapping().audio.empty())
+            {
+                return open->controller.mapping().audio;
+            }
+        }
+        return {};
+    }
+
+    const Mapping *ControllerHub::mappingMatching(const std::string &port) const
     {
         const auto found = std::ranges::find_if(all, [&port](const Mapping &mapping) { return mapping.matches(port); });
         return found != all.end() ? &*found : nullptr;
@@ -82,7 +121,7 @@ namespace djw::core::control
             }
             else
             {
-                mapping = mappingFor(port);
+                mapping = mappingMatching(port);
             }
             if (mapping == nullptr)
             {
@@ -117,7 +156,7 @@ namespace djw::core::control
         return std::exchange(queued, {});
     }
 
-    std::vector<ControllerHub::Connection> ControllerHub::connections() const
+    std::vector<api::Controllers::Connection> ControllerHub::connections() const
     {
         std::vector<Connection> result;
         result.reserve(open_ports.size());
@@ -128,3 +167,13 @@ namespace djw::core::control
         return result;
     }
 } // namespace djw::core::control
+
+namespace djw::core::api
+{
+    std::unique_ptr<Controllers> openControllers(const std::vector<std::filesystem::path> &mapping_folders,
+                                                 std::vector<std::string>                 &errors)
+    {
+        return std::make_unique<control::ControllerHub>(control::createMidiSystem(),
+                                                        control::readMappings(mapping_folders, errors));
+    }
+} // namespace djw::core::api

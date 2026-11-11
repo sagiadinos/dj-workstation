@@ -15,20 +15,8 @@
 
 namespace djw::core::control
 {
-    /// A control of a controller was used
-    struct ControlEvent
-    {
-            Action                     action = Action::DeckPlay;
-            std::optional<std::size_t> deck; ///< the player, from 0
-            /// Button: pressed (true) or released; the other modes: true
-            bool pressed = true;
-            /// Absolute modes: 0 to 1
-            float value = 0.0F;
-            /// Relative mode: steps, negative back
-            int steps = 0;
-
-            bool operator==(const ControlEvent &) const = default;
-    };
+    /// A control of a controller was used (see api::ControlEvent)
+    using ControlEvent = api::ControlEvent;
 
     /**
      * One connected controller: turns its MIDI messages into control events through its mapping.
