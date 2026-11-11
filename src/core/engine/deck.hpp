@@ -57,6 +57,11 @@ namespace djw::core::engine
                 return state == State::Playing || (state == State::Scrubbing && resume_playing);
             }
             [[nodiscard]] bool scrubbing() const noexcept { return state == State::Scrubbing; }
+            /// A scrub interrupts a deck that played: transport commands wait until it is over
+            [[nodiscard]] bool scrubOfPlayingDeck() const noexcept
+            {
+                return state == State::Scrubbing && resume_playing;
+            }
             /// How much of the track is in memory (1 without a track)
             [[nodiscard]] float loadedFraction() const noexcept
             {
@@ -77,7 +82,9 @@ namespace djw::core::engine
             void cue(bool pressed) noexcept;         // [audio-thread]
             void seek(std::uint64_t frame) noexcept; // [audio-thread]
             /// Scrub: plays a short loop at frame while active, with every call the loop moves there; when it ends
-            /// (active false) the deck continues at frame, playing if it played before.
+            /// (active false) the deck continues at frame, playing if it played before. The loop of a deck that
+            /// stood also ends with play (the deck plays from there) and with CUE (it stops there, and that becomes
+            /// the cue point); a seek moves it. For a deck that played these wait until the scrub is over.
             void scrub(std::uint64_t frame, bool active) noexcept; // [audio-thread]
             void setPitch(float percent) noexcept;                 // [audio-thread]
             void setPitchBend(int direction) noexcept;             // [audio-thread]

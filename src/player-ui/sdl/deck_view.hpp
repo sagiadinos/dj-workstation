@@ -37,7 +37,8 @@ namespace djw::player_ui::sdl
      * tap on the fader sets the pitch to 0. In the black display: the Time button (elapsed or remaining time), the
      * pitch, the large time and the tempo (BPM, with the pitch taken into account). Below it the waveform of the whole
      * track with the play position and the cue point: touched while the player plays it jumps there at once, while
-     * the player stands dragging on it scrubs (a short audible loop where the finger is), then the state (loaded, cued,
+     * the player stands touching it scrubs (a short audible loop where the finger is, running on until CUE sets the
+     * cue point there or play starts the player there), then the state (loaded, cued,
      * paused, playing), CUE (red, acts while held like on a CDJ) and play/pause (green). At the bottom the channel
      * fader, the headphone level fader with its HP (headphone cue) button, the artist and title display and the
      * Cue-Load option: a track loaded into this player starts at its cue point (see cueLoad(); the owner does the
@@ -182,8 +183,6 @@ namespace djw::player_ui::sdl
             std::deque<core::api::Command>    pending;
             /// The latest position chosen on the waveform (a jump or a scrub), sent after the list
             std::optional<core::api::Command> pending_position;
-            double                            scrub_seconds = 0.0;
-            bool                              scrub_active  = false;
     };
 } // namespace djw::player_ui::sdl
 

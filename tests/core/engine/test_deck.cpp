@@ -623,6 +623,50 @@ TEST_CASE("Deck: moving the scrub moves the loop, ending it leaves the deck stop
     CHECK(valueAtFrame(output, 0) == doctest::Approx(trackValue(16'000)).epsilon(0.001));
 }
 
+TEST_CASE("Deck: the loop of a deck that stood runs on until CUE sets the cue point there")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    std::vector<float> output(2 * 6'000);
+
+    deck.scrub(10'000, true);
+    deck.pause(); // already standing: the loop goes on
+    deck.render(output);
+    CHECK(deck.scrubbing());
+    deck.seek(12'000); // a seek moves the loop
+    deck.render(output);
+    CHECK(valueAtFrame(output, 1'000) == doctest::Approx(trackValue(12'000 + 1'000)).epsilon(0.001));
+
+    deck.cue(true);
+    CHECK_FALSE(deck.scrubbing());
+    CHECK_FALSE(deck.isPlaying());
+    CHECK(deck.cueFrame() == 12'000);
+    CHECK(deck.cueSetCount() == 1);
+    CHECK(deck.positionFrames() == 12'000);
+    deck.cue(false);
+    deck.render(output);
+    CHECK(output == std::vector<float>(output.size(), 0.0F)); // stopped at the cue point
+}
+
+TEST_CASE("Deck: play ends the loop of a deck that stood and plays from there")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    std::vector<float> output(2 * 100);
+
+    deck.scrub(10'000, true);
+    deck.render(output);
+    deck.play();
+    CHECK_FALSE(deck.scrubbing());
+    CHECK(deck.isPlaying());
+    CHECK(deck.cueSetCount() == 0); // the cue point stays
+    deck.render(output);
+    CHECK(valueAtFrame(output, 0) == doctest::Approx(trackValue(10'000)).epsilon(0.001));
+    CHECK(deck.positionFrames() == doctest::Approx(10'100));
+}
+
 TEST_CASE("Deck: a deck that played goes on playing after the scrub, from the new position")
 {
     BufferSource source{positionTrack()};

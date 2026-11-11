@@ -21,7 +21,7 @@ namespace djw::core::decode
     {
             std::uint32_t sample_rate = 48'000;
             /// Tracks up to this length are held in memory, longer ones are streamed (Architecture.md, Track loading)
-            std::uint64_t memory_limit_frames = 1'200 * std::uint64_t{48'000};
+            std::uint64_t memory_limit_frames = 600 * std::uint64_t{48'000};
             /// Ring buffer of a streamed track
             std::size_t stream_buffer_frames = 48'000;
             /// How far into a file findFirstSound looks for the first audible sound

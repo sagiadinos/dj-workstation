@@ -287,27 +287,19 @@ namespace djw::player_ui::sdl
                                 : std::nullopt);
         waveform_bar.setLoaded(state.loaded_fraction);
         // Touching the waveform of a playing deck jumps there at once and it plays on; on a deck that stands it
-        // scrubs: the deck plays a short loop where the finger is, letting go ends it
+        // scrubs: the deck plays a short loop where the finger is, and keeps playing it after the finger is gone,
+        // until CUE sets the cue point there or play starts the deck from there (both handled by the deck)
         if (const auto chosen = waveform_bar.takeSeek(); chosen && state.duration_seconds > 0.0)
         {
             const double seconds = static_cast<double>(*chosen) * state.duration_seconds;
-            if (playing() && !scrub_active)
+            if (playing())
             {
                 pending_position = core::api::DeckSeek{deck, seconds};
             }
             else
             {
-                scrub_seconds    = seconds;
-                scrub_active     = true;
-                pending_position = core::api::DeckScrub{deck, scrub_seconds, true};
+                pending_position = core::api::DeckScrub{deck, seconds, true};
             }
-        }
-        if (scrub_active && !waveform_bar.held())
-        {
-            // In order with the other commands, and after the last position that went out
-            scrub_active = false;
-            pending_position.reset();
-            pending.emplace_back(core::api::DeckScrub{deck, scrub_seconds, false});
         }
 
         keylock_button.setHighlighted(state.keylock);

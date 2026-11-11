@@ -82,9 +82,14 @@ namespace djw::core::engine
 
     void Deck::play() noexcept // [audio-thread]
     {
-        if (source == nullptr || state == State::Scrubbing)
+        if (source == nullptr || scrubOfPlayingDeck())
         {
             return;
+        }
+        if (state == State::Scrubbing)
+        {
+            // The loop of a deck that stood ends, the deck plays from there
+            restartAt(scrub_target);
         }
         // Play while CUE is held: the deck keeps playing after CUE is released
         cue_preview   = false;
@@ -109,8 +114,20 @@ namespace djw::core::engine
 
     void Deck::cue(bool pressed) noexcept // [audio-thread]
     {
-        if (source == nullptr || state == State::Scrubbing)
+        if (source == nullptr || scrubOfPlayingDeck())
         {
+            return;
+        }
+        if (state == State::Scrubbing)
+        {
+            // The loop of a deck that stood ends; where it played becomes the cue point
+            if (pressed)
+            {
+                state     = State::Stopped;
+                cue_frame = scrub_target;
+                ++cue_sets;
+                restartAt(scrub_target);
+            }
             return;
         }
         if (!pressed)
@@ -165,6 +182,12 @@ namespace djw::core::engine
     {
         if (source == nullptr)
         {
+            return;
+        }
+        if (state == State::Scrubbing)
+        {
+            // The loop moves there
+            scrub(frame, true);
             return;
         }
         restartAt(clampToTrack(frame));

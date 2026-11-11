@@ -369,7 +369,7 @@ TEST_CASE("DeckView: the waveform shows the position and the cue point and seeks
     CHECK(scrub->active);
     CHECK(scrub->position_seconds == doctest::Approx(150.0).epsilon(0.02));
 
-    // Dragging on moves the loop, letting go ends the scrub at the last position
+    // Dragging on moves the loop; letting go leaves it running (CUE or play end it, in the deck)
     const float further = inner.x + (inner.width * 0.9F);
     fixture.router.handle({{1, 1}, PointerPhase::Move, {further, bar.y + 5}});
     fixture.view.update();
@@ -380,10 +380,7 @@ TEST_CASE("DeckView: the waveform shows the position and the cue point and seeks
     fixture.router.handle({{1, 1}, PointerPhase::Up, {further, bar.y + 5}});
     fixture.view.update();
     commands = fixture.drain();
-    scrub    = find<api::DeckScrub>(commands);
-    REQUIRE(scrub != nullptr);
-    CHECK_FALSE(scrub->active);
-    CHECK(scrub->position_seconds == doctest::Approx(180.0).epsilon(0.02));
+    CHECK(find<api::DeckScrub>(commands) == nullptr);
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 180.0, .duration_seconds = 200.0});
     CHECK(fixture.view.waveform().position() == doctest::Approx(0.9F));
 }
@@ -622,7 +619,7 @@ TEST_CASE("DeckView: the whole layout grows with the window in both directions, 
     CHECK(fixture.view.scale() == doctest::Approx(1.0F));
 }
 
-TEST_CASE("DeckView: a tap on the waveform sends the scrub start and end, so the deck jumps there")
+TEST_CASE("DeckView: a tap on the waveform of a deck that stands starts the scrub loop there and leaves it running")
 {
     Fixture fixture;
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 0.0, .duration_seconds = 100.0});
@@ -641,8 +638,8 @@ TEST_CASE("DeckView: a tap on the waveform sends the scrub start and end, so the
             scrubs.push_back(*scrub);
         }
     }
-    REQUIRE_FALSE(scrubs.empty());
-    CHECK_FALSE(scrubs.back().active);
+    REQUIRE(scrubs.size() == 1);
+    CHECK(scrubs.back().active);
     CHECK(scrubs.back().position_seconds == doctest::Approx(50.0).epsilon(0.02));
 }
 

@@ -31,7 +31,7 @@ namespace djw::core::api
              */
             bool headphone_output = false;
             /// Tracks up to this length are held in memory, longer ones are streamed (Architecture.md, Track loading)
-            std::uint32_t memory_track_limit_seconds = 1'200;
+            std::uint32_t memory_track_limit_seconds = 600;
     };
 
     /// How loadTrack starts the deck

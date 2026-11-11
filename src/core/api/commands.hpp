@@ -70,8 +70,10 @@ namespace djw::core::api
     /**
      * Scrub: while active the deck plays a short piece of the track at the position over and over, so the user hears
      * where they are while dragging; send it again with each new position. A deck that played goes on playing from the
-     * last position when the scrub ends (active false, with that position); a deck that stood stays there. Play,
-     * pause and CUE are ignored during the scrub. The position is clamped to the track.
+     * last position when the scrub ends (active false, with that position); a deck that stood stays there. For a
+     * deck that played, play, pause and CUE are ignored during the scrub. On a deck that stood the loop may run on
+     * after the finger is gone: play ends it and plays from there, CUE ends it and sets the cue point there, a seek
+     * moves it, pause leaves it running. The position is clamped to the track.
      */
     struct DeckScrub
     {
