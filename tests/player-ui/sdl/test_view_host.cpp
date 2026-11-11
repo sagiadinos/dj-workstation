@@ -283,6 +283,115 @@ TEST_CASE("ViewHost: without views nothing happens")
     CHECK(canvas.texts.empty());
 }
 
+namespace
+{
+    /// Two views side by side, arranged; records what the owner hears
+    struct ArrangeFixture
+    {
+            ArrangeFixture()
+            {
+                host.add(first, Rect{0, 0, 300, 200});
+                host.add(second, Rect{400, 0, 300, 200});
+                host.layout(window);
+                host.startArranging({.moved =
+                                         [this](const View &view, const Rect &area)
+                                     {
+                                         moved_view = &view;
+                                         moved_to   = area;
+                                     },
+                                     .done       = [this] { ++done; },
+                                     .done_label = [] { return std::string{"Done"}; }});
+                host.layout(window);
+                host.update();
+            }
+
+            void drag(Point from, Point to)
+            {
+                host.pointer({{1, 1}, PointerPhase::Down, from});
+                host.pointer({{1, 1}, PointerPhase::Move, to});
+                host.layout(window);
+            }
+
+            void release(Point at)
+            {
+                host.pointer({{1, 1}, PointerPhase::Up, at});
+                host.layout(window);
+            }
+
+            ViewHost    host;
+            FakeView    first{"first"};
+            FakeView    second{"second"};
+            const View *moved_view = nullptr;
+            Rect        moved_to;
+            int         done = 0;
+    };
+} // namespace
+
+TEST_CASE("ViewHost arranging: a view dragged anywhere moves with the finger, snaps to the grid and the owner hears")
+{
+    ArrangeFixture fixture;
+    CHECK(fixture.host.arranging());
+    fixture.drag({100, 100}, {133, 307});
+    // While dragged it shows where it would go
+    REQUIRE(fixture.host.dragTarget().has_value());
+    CHECK(shifted(fixture.first.laid_out, {40, 200, 300, 200}, {}));
+    CHECK(fixture.host.dragFits());
+
+    fixture.release({133, 307});
+    CHECK(fixture.moved_view == &fixture.first);
+    CHECK(shifted(fixture.moved_to, {40, 200, 300, 200}, {}));
+    CHECK(shifted(fixture.first.laid_out, {40, 200, 300, 200}, {}));
+    // The widgets of the views got nothing
+    CHECK(fixture.first.widget.downs == 0);
+    CHECK(fixture.second.widget.downs == 0);
+}
+
+TEST_CASE("ViewHost arranging: the lower right corner resizes; a view let go over another goes back")
+{
+    ArrangeFixture fixture;
+    fixture.drag({290, 190}, {350, 250});
+    fixture.release({350, 250});
+    CHECK(fixture.moved_view == &fixture.first);
+    CHECK(shifted(fixture.moved_to, {0, 0, 360, 260}, {}));
+
+    fixture.moved_view = nullptr;
+    fixture.drag({450, 100}, {200, 100}); // the second over the first
+    CHECK_FALSE(fixture.host.dragFits());
+    fixture.release({200, 100});
+    CHECK(fixture.moved_view == nullptr);
+    CHECK(shifted(fixture.second.laid_out, {400, 0, 300, 200}, {}));
+}
+
+TEST_CASE("ViewHost arranging: Done and Escape end it, the wheel, the right button and typing reach no view")
+{
+    ArrangeFixture fixture;
+    fixture.host.wheel({100, 100}, 1.0F);
+    fixture.host.secondaryClick({100, 100});
+    fixture.host.keyboard(std::string{"a"});
+    CHECK(fixture.first.wheeled == 0.0F);
+    CHECK(fixture.first.secondary == 0);
+    CHECK(fixture.first.keys == 0);
+    fixture.first.wants_text = true;
+    CHECK_FALSE(fixture.host.wantsTextInput());
+
+    fixture.host.keyboard(EditKey::Escape);
+    CHECK(fixture.done == 1);
+
+    const Rect done = fixture.host.doneButton().bounds();
+    REQUIRE(done.width > 0);
+    RecordingCanvas canvas;
+    fixture.host.draw(canvas);
+    CHECK(canvas.drew("Done"));
+    tap(fixture.host, {done.x + 5, done.y + 5});
+    fixture.host.update();
+    CHECK(fixture.done == 2);
+
+    fixture.host.stopArranging();
+    CHECK_FALSE(fixture.host.arranging());
+    tap(fixture.host, {100, 100});
+    CHECK(fixture.first.widget.downs == 1); // the views work again
+}
+
 TEST_CASE("Views use the area they are given, not the window: the player")
 {
     api::DeckSnapshotBuffer snapshot{api::DeckSnapshot{.deck = api::DeckId{1}, .track_loaded = true}};

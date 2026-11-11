@@ -9,10 +9,13 @@
 #include "keyboard_input.hpp"
 #include "pointer_event.hpp"
 #include "pointer_router.hpp"
+#include "text_button.hpp"
 #include "view.hpp"
 
 #include <cstddef>
+#include <functional>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace djw::player_ui::sdl
@@ -27,6 +30,11 @@ namespace djw::player_ui::sdl
      * Input: pointer events go to the widgets of all views (they are in window coordinates), the wheel and the right
      * mouse button to the view under the pointer, typed text to the focused view: the one a pointer last went down
      * on, the first view until then.
+     *
+     * Arranging (the layout editing of the MDI mode): the views are locked, their widgets get no input. Instead a
+     * view with an area of its own can be dragged anywhere to move it, or at its lower right corner to resize it; it
+     * snaps to the grid and stays inside the window. Where it is let go, the owner is told (moved) - unless it would
+     * overlap another view, then it goes back. A Done button and Escape end the arranging (done).
      */
     class ViewHost
     {
@@ -60,6 +68,28 @@ namespace djw::player_ui::sdl
             /// True while the focused view takes typed text
             [[nodiscard]] bool wantsTextInput() const;
 
+            /// What the owner hears while the views are arranged
+            struct Arranging
+            {
+                    /// A view was let go at area (already on the grid, inside the window, overlapping none)
+                    std::function<void(const View &view, const Rect &area)> moved;
+                    /// Done or Escape: the owner ends the arranging with stopArranging()
+                    std::function<void()> done;
+                    /// The label of the Done button, asked for on every update so it follows the language
+                    std::function<std::string()> done_label;
+            };
+            /// The square at the lower right corner of a view that resizes it
+            static constexpr float resize_handle = 32.0F;
+
+            void               startArranging(Arranging arranging);
+            void               stopArranging();
+            [[nodiscard]] bool arranging() const noexcept { return arrange.has_value(); }
+            /// While a view is dragged: where it would go now; std::nullopt otherwise
+            [[nodiscard]] std::optional<Rect> dragTarget() const noexcept;
+            /// While a view is dragged: whether it could be let go where it is (it overlaps no other view)
+            [[nodiscard]] bool              dragFits() const noexcept { return drag && drag->fits; }
+            [[nodiscard]] const TextButton &doneButton() const noexcept { return done_button; }
+
         private:
             struct Pane
             {
@@ -74,9 +104,29 @@ namespace djw::player_ui::sdl
             /// The widgets of all views, again from scratch: after a view came or went
             void rebuildRouter();
 
+            /// A view being moved or resized by hand
+            struct Drag
+            {
+                    PointerId   pointer;
+                    const View *view = nullptr;
+                    Rect        start; ///< where it was
+                    Point       from;  ///< where the pointer went down
+                    bool        resize = false;
+                    Rect        target; ///< where it would go
+                    bool        fits = true;
+            };
+            void arrangePointer(const PointerEvent &event);
+            void drawArranging(Canvas &canvas) const;
+
             std::vector<Pane> panes;
             PointerRouter     router;
             View             *focus = nullptr;
+
+            Rect                     window_area;
+            std::optional<Arranging> arrange;
+            std::optional<Drag>      drag;
+            TextButton               done_button;
+            std::optional<PointerId> done_pointer;
     };
 } // namespace djw::player_ui::sdl
 

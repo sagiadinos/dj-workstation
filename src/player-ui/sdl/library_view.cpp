@@ -38,6 +38,8 @@ namespace djw::player_ui::sdl
             constexpr int save_layout_entry      = 15;
             constexpr int separate_windows       = 16;
             constexpr int one_window             = 17;
+            constexpr int edit_layout            = 18;
+            constexpr int arrange_automatically  = 19;
             constexpr int language_base          = 100;
         } // namespace menu_id
 
@@ -557,7 +559,14 @@ namespace djw::player_ui::sdl
                           {.id      = menu_id::one_window,
                            .label   = tr("menu.view.one_window"),
                            .enabled = has_mode,
-                           .checked = has_mode && mode_shown() == WindowMode::Mdi}}});
+                           .checked = has_mode && mode_shown() == WindowMode::Mdi},
+                          {.id      = menu_id::edit_layout,
+                           .label   = tr("menu.view.edit_layout"),
+                           .enabled = static_cast<bool>(edit_layout),
+                           .checked = layout_editing && layout_editing()},
+                          {.id      = menu_id::arrange_automatically,
+                           .label   = tr("menu.view.arrange_automatically"),
+                           .enabled = static_cast<bool>(arrange_automatic)}}});
         menu.setMenus(std::move(menus));
         menu.setRightToLeft(translator->rightToLeft());
 
@@ -606,6 +615,18 @@ namespace djw::player_ui::sdl
                 {
                     const WindowMode mode = id == menu_id::one_window ? WindowMode::Mdi : WindowMode::Separate;
                     setNotice(mode_chosen(mode) ? "library.notice.next_start" : "library.notice.layout_failed");
+                }
+                break;
+            case menu_id::edit_layout:
+                if (edit_layout)
+                {
+                    edit_layout();
+                }
+                break;
+            case menu_id::arrange_automatically:
+                if (arrange_automatic)
+                {
+                    arrange_automatic();
                 }
                 break;
             case menu_id::toggle_mixer_window:

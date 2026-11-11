@@ -51,6 +51,33 @@ namespace djw::player_ui::sdl
      * it is made for.
      */
     [[nodiscard]] MdiArrangement arrangeMdi(const Rect &window, const MdiContent &content, const MdiSizes &sizes);
+
+    /// The grid the panes snap to when they are moved or resized by hand, in points from the window's corner
+    inline constexpr float mdi_grid = 20.0F;
+    /// The smallest a pane can be made by hand
+    inline constexpr float mdi_min_width  = 120.0F;
+    inline constexpr float mdi_min_height = 100.0F;
+
+    /// Whether two areas share more than an edge
+    [[nodiscard]] bool overlap(const Rect &first, const Rect &second) noexcept;
+
+    /// The area kept inside the window: moved in, and shrunk if it is bigger than the window
+    [[nodiscard]] Rect keepInside(Rect area, const Rect &window) noexcept;
+
+    /// A pane moved by hand: its corner on the grid, inside the window, the size unchanged
+    [[nodiscard]] Rect snapMove(const Rect &moved, const Rect &window, float grid = mdi_grid) noexcept;
+
+    /// A pane resized by hand at its lower right corner: that corner on the grid, at least the smallest size,
+    /// inside the window; the upper left corner stays
+    [[nodiscard]] Rect snapResize(const Rect &resized, const Rect &window, float grid = mdi_grid) noexcept;
+
+    /**
+     * A place in the window for a pane of the size wanted that overlaps none of the taken areas: the first on the grid
+     * from the top left, row by row. If there is none, the pane is made smaller step by step down to half its size;
+     * std::nullopt if it does not fit even then.
+     */
+    [[nodiscard]] std::optional<Rect> freePlace(float width, float height, const Rect &window,
+                                                const std::vector<Rect> &taken, float grid = mdi_grid);
 } // namespace djw::player_ui::sdl
 
 #endif // DJW_PLAYER_UI_SDL_MDI_ARRANGEMENT_HPP

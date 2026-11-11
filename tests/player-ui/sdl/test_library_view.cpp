@@ -904,3 +904,41 @@ TEST_CASE("LibraryView: View offers separate windows or one window for the next 
     fixture.view.update();
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
+
+TEST_CASE("LibraryView: View offers editing the layout and the automatic arrangement once the owner enables them")
+{
+    Fixture               fixture;
+    constexpr std::size_t view_menu   = 4;
+    constexpr std::size_t edit_layout = 8;
+    constexpr std::size_t automatic   = 9;
+    fixture.view.layout({0, 0, 600, 700}); // room for the whole View menu
+
+    // Off without an owner (separate windows): the menu stays open
+    chooseEntry(fixture, view_menu, edit_layout);
+    CHECK(fixture.view.menuBar().isOpen());
+    fixture.view.keyboard(EditKey::Escape);
+
+    int  edits          = 0;
+    int  automatic_runs = 0;
+    bool editing        = false;
+    fixture.view.setLayoutEditing(
+        [&]
+        {
+            ++edits;
+            editing = true;
+        },
+        [&editing] { return editing; }, [&automatic_runs] { ++automatic_runs; });
+    fixture.view.update();
+    RecordingCanvas canvas;
+    const Rect      title = fixture.view.menuBar().titleArea(view_menu);
+    fixture.tap({title.x + 10, title.y + 10});
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Edit layout"));
+    CHECK(canvas.drew("Arrange automatically"));
+    fixture.view.keyboard(EditKey::Escape);
+
+    chooseEntry(fixture, view_menu, edit_layout);
+    CHECK(edits == 1);
+    chooseEntry(fixture, view_menu, automatic);
+    CHECK(automatic_runs == 1);
+}

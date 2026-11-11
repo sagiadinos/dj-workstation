@@ -23,12 +23,6 @@ namespace
         return std::abs(first - second) < 0.01F;
     }
 
-    bool overlap(const Rect &first, const Rect &second)
-    {
-        return first.x < second.x + second.width && second.x < first.x + first.width &&
-               first.y < second.y + second.height && second.y < first.y + first.height;
-    }
-
     bool inside(const Rect &part, const Rect &window)
     {
         return part.x >= window.x - 0.01F && part.y >= window.y - 0.01F &&
@@ -264,4 +258,77 @@ TEST_CASE("PaneFrame: typed text, the wheel and the right button go to the conte
     frame.draw(canvas);
     REQUIRE(canvas.texts.size() == 1);
     CHECK(canvas.texts[0].text == "content");
+}
+
+TEST_CASE("MDI by hand: a moved pane snaps its corner to the grid and stays inside the window")
+{
+    const Rect window{0, 0, 1000, 800};
+    const Rect moved = snapMove({133, 47, 300, 200}, window);
+    CHECK(same(moved.x, 140));
+    CHECK(same(moved.y, 40));
+    CHECK(same(moved.width, 300));
+    CHECK(same(moved.height, 200));
+
+    // Dragged over the edges: back inside, on the grid
+    const Rect out = snapMove({-50, 790, 300, 200}, window);
+    CHECK(same(out.x, 0));
+    CHECK(same(out.y, 600));
+    const Rect right = snapMove({711, 10, 300, 200}, window);
+    CHECK(same(right.x, 700));
+    CHECK(inside(right, window));
+
+    // The grid counts from the window's corner
+    const Rect offset = snapMove({113, 57, 100, 100}, {5, 5, 1000, 800});
+    CHECK(same(offset.x, 105));
+    CHECK(same(offset.y, 65));
+}
+
+TEST_CASE("MDI by hand: a resized pane snaps its lower right corner, keeps the smallest size and stays inside")
+{
+    const Rect window{0, 0, 1000, 800};
+    const Rect bigger = snapResize({100, 100, 309, 191}, window);
+    CHECK(same(bigger.x, 100));
+    CHECK(same(bigger.y, 100));
+    CHECK(same(bigger.width, 300));
+    CHECK(same(bigger.height, 200));
+
+    const Rect tiny = snapResize({100, 100, 10, 10}, window);
+    CHECK(same(tiny.width, mdi_min_width));
+    CHECK(same(tiny.height, mdi_min_height));
+
+    const Rect huge = snapResize({100, 100, 5000, 5000}, window);
+    CHECK(same(huge.width, 900));
+    CHECK(same(huge.height, 700));
+}
+
+TEST_CASE("MDI by hand: panes that only touch do not overlap, keepInside moves and shrinks")
+{
+    CHECK_FALSE(overlap({0, 0, 100, 100}, {100, 0, 100, 100}));
+    CHECK_FALSE(overlap({0, 0, 100, 100}, {0, 100, 100, 100}));
+    CHECK(overlap({0, 0, 100, 100}, {99, 99, 100, 100}));
+
+    const Rect kept = keepInside({900, -20, 300, 2000}, {0, 0, 1000, 800});
+    CHECK(same(kept.x, 700));
+    CHECK(same(kept.y, 0));
+    CHECK(same(kept.height, 800));
+}
+
+TEST_CASE("MDI by hand: a new pane takes the first free place on the grid, smaller if it must, or none")
+{
+    const Rect window{0, 0, 1000, 800};
+    const auto first = freePlace(300, 200, window, {{0, 0, 500, 800}});
+    REQUIRE(first.has_value());
+    CHECK(same(first->x, 500));
+    CHECK(same(first->y, 0));
+    CHECK(same(first->width, 300));
+
+    // Only 400 x 400 left: the pane of 600 x 600 comes in at two thirds
+    const auto smaller = freePlace(600, 600, window, {{0, 0, 600, 800}, {600, 400, 400, 400}});
+    REQUIRE(smaller.has_value());
+    CHECK(smaller->width <= 400);
+    CHECK(smaller->height <= 400);
+    CHECK(smaller->width >= 300);
+    CHECK(inside(*smaller, window));
+
+    CHECK_FALSE(freePlace(300, 200, window, {window}).has_value());
 }

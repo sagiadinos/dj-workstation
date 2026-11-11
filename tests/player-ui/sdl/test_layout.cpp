@@ -5,6 +5,9 @@
 
 #include <doctest/doctest.h>
 
+#include <string>
+#include <string_view>
+
 using namespace djw::player_ui::sdl;
 using djw::core::api::CrossfaderSide;
 namespace api = djw::core::api;
@@ -139,7 +142,8 @@ TEST_CASE("Layout: the window mode and the layout of the one window come back as
     layout.mode      = WindowMode::Mdi;
     layout.mdi       = MdiLayout{.players       = {api::CrossfaderSide::B, api::CrossfaderSide::None, api::CrossfaderSide::A},
                                  .mixer_open    = false,
-                                 .playlist_open = true};
+                                 .playlist_open = true,
+                                 .places        = std::nullopt};
     const auto again = parseLayout(formatLayout(layout));
     REQUIRE(again.has_value());
     CHECK(*again == layout);
@@ -194,4 +198,42 @@ TEST_CASE("Layout: without a saved one window two players on the sides A and B a
     CHECK(mdi.players == std::vector{api::CrossfaderSide::A, api::CrossfaderSide::B});
     CHECK(mdi.mixer_open);
     CHECK_FALSE(mdi.playlist_open);
+}
+
+TEST_CASE("Layout: the places of the one window set by hand come back as saved")
+{
+    Layout layout          = fiveWithMixer();
+    layout.mode            = WindowMode::Mdi;
+    layout.mdi             = MdiLayout{.players       = {api::CrossfaderSide::A, api::CrossfaderSide::B},
+                                       .mixer_open    = false,
+                                       .playlist_open = true,
+                                       .places        = MdiPlaces{.players  = {Placement{0, 0, 380, 540}, std::nullopt},
+                                                                  .mixer    = Placement{400, 0, 440, 280},
+                                                                  .playlist = std::nullopt,
+                                                                  .library  = Placement{0, 560, 1000, 400}}};
+    const std::string text = formatLayout(layout);
+    CHECK(text.find("mdi player A 0 0 380 540\n") != std::string::npos);
+    CHECK(text.find("mdi player B\n") != std::string::npos);
+    CHECK(text.find("mdi mixer closed 400 0 440 280\n") != std::string::npos); // closed, the place stays
+    CHECK(text.find("mdi library 0 560 1000 400\n") != std::string::npos);
+    const auto again = parseLayout(text);
+    REQUIRE(again.has_value());
+    CHECK(*again == layout);
+}
+
+TEST_CASE("Layout: places of the one window without the library's, or damaged ones, are no layout")
+{
+    Layout layout          = fiveWithMixer();
+    layout.mdi             = defaultMdiLayout();
+    const std::string good = formatLayout(layout);
+    const std::size_t at   = good.find("mdi player A");
+    REQUIRE(at != std::string::npos);
+    std::string with_place = good;
+    with_place.insert(at + std::string_view{"mdi player A"}.size(), " 0 0 380 540");
+    CHECK_FALSE(parseLayout(with_place).has_value());                            // no library place
+    CHECK(parseLayout(with_place + "mdi library 0 560 1000 400\n").has_value()); // with it
+    CHECK_FALSE(parseLayout(good + "mdi library 0 560 1000\n").has_value());     // three numbers
+    CHECK_FALSE(parseLayout(good + "mdi library 0 560 10 400\n").has_value());   // too small
+    CHECK_FALSE(parseLayout(good + "mdi library 0 0 500 500\nmdi library 0 0 500 500\n").has_value()); // twice
+    CHECK_FALSE(parseLayout(good + "mdi mixer open 1 2\n").has_value());
 }

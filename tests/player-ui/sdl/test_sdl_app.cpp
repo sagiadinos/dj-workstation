@@ -4,6 +4,7 @@
 #include "sdl_app.hpp"
 
 #include "fake_library.hpp"
+#include "mdi_arrangement.hpp"
 #include "temp_dir.hpp"
 #include "wav_file.hpp"
 
@@ -711,7 +712,8 @@ namespace
     {
         Layout layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
         layout.mode   = WindowMode::Mdi;
-        layout.mdi    = MdiLayout{.players = std::move(players), .mixer_open = true, .playlist_open = playlist_open};
+        layout.mdi    = MdiLayout{
+            .players = std::move(players), .mixer_open = true, .playlist_open = playlist_open, .places = std::nullopt};
         std::ofstream{file} << formatLayout(layout);
     }
 
@@ -739,11 +741,6 @@ namespace
         SDL_PushEvent(&event);
     }
 
-    bool overlap(const Rect &first, const Rect &second)
-    {
-        return first.x < second.x + second.width && second.x < first.x + first.width &&
-               first.y < second.y + second.height && second.y < first.y + first.height;
-    }
 } // namespace
 
 TEST_CASE("SdlApp: in the MDI mode the players, the crossfader and the library are parts of one window")
@@ -901,4 +898,130 @@ TEST_CASE("SdlApp: without a layout file the window mode cannot be kept")
     auto    app = fixture.openApp();
     CHECK_FALSE(app->chooseWindowMode(WindowMode::Mdi));
     CHECK(app->windowMode() == WindowMode::Separate);
+}
+
+TEST_CASE("SdlApp: in the MDI mode the parts can be arranged by hand, keep their places and are saved with them")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->handPlaces().has_value()); // arranged automatically
+    const auto before = app->paneArea(*app->deckFrame(0));
+    REQUIRE(before.has_value());
+
+    // Edit mode: the first player made smaller at its lower right corner
+    app->startArranging();
+    CHECK(app->arranging());
+    ViewHost   *views = app->hostViews();
+    const Point corner{before->x + before->width - 5, before->y + before->height - 5};
+    const Point to{corner.x - 100, corner.y - 100};
+    views->pointer({{1, 1}, PointerPhase::Down, corner});
+    views->pointer({{1, 1}, PointerPhase::Move, to});
+    views->pointer({{1, 1}, PointerPhase::Up, to});
+    REQUIRE(app->runFrame());
+    REQUIRE(app->handPlaces().has_value());
+    const auto smaller = app->paneArea(*app->deckFrame(0));
+    REQUIRE(smaller.has_value());
+    CHECK(smaller->width < before->width - 80);
+    CHECK(std::fmod(smaller->x + smaller->width, mdi_grid) == doctest::Approx(0.0F)); // on the grid
+    // The others stay where they were
+    REQUIRE(app->handPlaces()->players.size() == 2);
+    CHECK(app->handPlaces()->players[1].has_value());
+
+    // Done ends it; with the crossfader closed (it keeps its place) a new player takes the free place
+    views->keyboard(EditKey::Escape);
+    CHECK_FALSE(app->arranging());
+    app->requestToolWindow(SdlApp::Tool::Mixer, false);
+    REQUIRE(app->runFrame());
+    REQUIRE(app->handPlaces()->mixer.has_value());
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->runFrame()); // it came after the parts were placed; now it has its place
+    REQUIRE(app->deckCount() == 3);
+    REQUIRE(app->handPlaces()->players.size() == 3);
+    CHECK(app->handPlaces()->players[2].has_value());
+    std::vector<Rect> parts;
+    for (std::size_t deck = 0; deck < app->deckCount(); ++deck)
+    {
+        parts.push_back(*app->paneArea(*app->deckFrame(deck)));
+    }
+    parts.push_back(*app->paneArea(*app->libraryFrame()));
+    for (std::size_t first = 0; first < parts.size(); ++first)
+    {
+        for (std::size_t second = first + 1; second < parts.size(); ++second)
+        {
+            INFO(first << " and " << second);
+            CHECK_FALSE(overlap(parts[first], parts[second]));
+        }
+    }
+
+    // Saved: the next start reads the same places (not started here: a second SDL start in the MDI mode leaks
+    // inside some GPU drivers)
+    REQUIRE(app->saveLayout());
+    const auto saved = parseLayout(readFile(file));
+    REQUIRE(saved.has_value());
+    REQUIRE(saved->mdi.has_value());
+    CHECK(saved->mdi->places == app->handPlaces());
+
+    // The crossfader opens again; its place is taken by the new player and the window is full: it goes on top at
+    // the upper left, for the user to make room, and keeps that place
+    const Placement old_mixer = app->handPlaces()->mixer.value_or(Placement{});
+    app->requestToolWindow(SdlApp::Tool::Mixer, true);
+    REQUIRE(app->runFrame());
+    REQUIRE(app->runFrame());
+    const auto mixer = app->paneArea(*app->toolFrame(SdlApp::Tool::Mixer));
+    REQUIRE(mixer.has_value());
+    CHECK(mixer->x == doctest::Approx(0));
+    CHECK(mixer->y == doctest::Approx(0));
+    REQUIRE(app->handPlaces()->mixer.has_value());
+    CHECK(*app->handPlaces()->mixer != old_mixer);
+
+    // Closing a player takes its place with it; Arrange automatically forgets them all
+    const auto last  = app->handPlaces()->players[2];
+    const Rect close = app->deckFrame(1)->closeButton().bounds();
+    click(app->libraryWindowId(), {close.x + (close.width / 2), close.y + (close.height / 2)});
+    REQUIRE(app->runFrame());
+    REQUIRE(app->handPlaces()->players.size() == 2);
+    CHECK(app->handPlaces()->players[1] == last);
+    app->arrangeAutomatically();
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->handPlaces().has_value());
+}
+
+TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the parts there")
+{
+    const djw::tests::TempDir folder;
+    const auto                file   = folder.path() / "layout";
+    Layout                    layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
+    layout.mode                      = WindowMode::Mdi;
+    layout.mdi = MdiLayout{.players       = {api::CrossfaderSide::A, api::CrossfaderSide::B},
+                           .mixer_open    = false,
+                           .playlist_open = false,
+                           .places = MdiPlaces{.players  = {Placement{600, 0, 300, 400}, Placement{0, 0, 300, 400}},
+                                               .mixer    = std::nullopt,
+                                               .playlist = std::nullopt,
+                                               .library  = Placement{0, 420, 900, 300}}};
+    std::ofstream{file} << formatLayout(layout);
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 2);
+    const auto first        = app->paneArea(*app->deckFrame(0));
+    const auto second       = app->paneArea(*app->deckFrame(1));
+    const auto library_part = app->paneArea(*app->libraryFrame());
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    REQUIRE(library_part.has_value());
+    CHECK(first->x == doctest::Approx(600));
+    CHECK(first->width == doctest::Approx(300));
+    CHECK(second->x == doctest::Approx(0));
+    CHECK(library_part->y == doctest::Approx(420));
+    CHECK(library_part->height == doctest::Approx(300));
 }

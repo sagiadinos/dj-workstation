@@ -152,6 +152,14 @@ namespace djw::player_ui::sdl
                 mode_chosen = std::move(chosen);
                 mode_shown  = std::move(shown);
             }
+            /// Enables View > Edit layout and View > Arrange automatically (the MDI mode): edit starts the editing,
+            /// editing tells whether it is on, automatic goes back to the automatic arrangement
+            void setLayoutEditing(Toggle edit, Shown editing, Toggle automatic)
+            {
+                edit_layout       = std::move(edit);
+                layout_editing    = std::move(editing);
+                arrange_automatic = std::move(automatic);
+            }
             /// The track selected in the list, std::nullopt if none
             [[nodiscard]] std::optional<core::api::LibraryTrack> selectedTrack() const
             {
@@ -205,6 +213,9 @@ namespace djw::player_ui::sdl
             MenuBar                  menu;
             ContextMenu              context_menu;
             SaveLayout               save_layout;
+            Toggle                   edit_layout;
+            Shown                    layout_editing;
+            Toggle                   arrange_automatic;
             std::int64_t             context_track = 0; // the track the context menu is about
             TextField                search_field;
             std::array<TextField, 4> filters;

@@ -46,6 +46,8 @@ namespace djw::player_ui::sdl
      * Window modes (View menu, from the next start on): each part in a window of its own as above, or all in one
      * window that covers the main display (MDI). There every part has a title bar, players and the crossfader and
      * playlist with a close button, and the parts are arranged automatically without overlapping (see arrangeMdi).
+     * View > Edit layout lets the user move and resize them by hand on a grid (see ViewHost, arranging); from then on
+     * they stay where the user put them, a part opened later takes a free place, until View > Arrange automatically.
      * Closing that window ends the program. Each mode keeps its own layout in the layout file.
      *
      * Declaration order is destruction order in reverse: windows before the views they show, SDL itself last.
@@ -113,6 +115,26 @@ namespace djw::player_ui::sdl
             {
                 return host_window != nullptr ? host_window->views().areaOf(frame) : std::nullopt;
             }
+            /// MDI mode: the parts can be moved and resized by hand until done; nothing in the other mode
+            void               startArranging();
+            void               stopArranging();
+            [[nodiscard]] bool arranging() const noexcept
+            {
+                return host_window != nullptr && host_window->views().arranging();
+            }
+            /// MDI mode: back to the automatic arrangement, the places set by hand are forgotten
+            void arrangeAutomatically();
+            /// MDI mode: the places set by hand; std::nullopt while the parts are arranged automatically; for tests
+            [[nodiscard]] const std::optional<MdiPlaces> &handPlaces() const noexcept { return hand_places; }
+            /// The view host of the one window of the MDI mode, nullptr in the other; for tests
+            [[nodiscard]] ViewHost *hostViews() noexcept
+            {
+                return host_window != nullptr ? &host_window->views() : nullptr;
+            }
+            /// The frame of a tool in the MDI mode, nullptr before it first opened; for tests
+            [[nodiscard]] const PaneFrame *toolFrame(Tool tool) const { return tools[index(tool)].frame.get(); }
+            /// The frame of the library in the MDI mode, nullptr in the other; for tests
+            [[nodiscard]] const PaneFrame *libraryFrame() const noexcept { return library_frame.get(); }
             /// The SDL id of the window of a tool window that is open; for tests
             [[nodiscard]] SDL_WindowID toolWindowId(Tool tool) const { return tools[index(tool)].window->id(); }
             /// The file loaded into the deck at index, empty if none; for tests
@@ -213,6 +235,11 @@ namespace djw::player_ui::sdl
             bool openHost();
             /// MDI mode: gives every part shown its area in the one window, for the window's size now
             void arrangeHost();
+            /// MDI mode, arranged by hand: every part at its place; a part without one gets a free place, kept from
+            /// then
+            void arrangeByHand();
+            /// MDI mode: a part was let go at area while arranging; the first time, all parts keep where they are
+            void paneMoved(const View &frame, const Rect &area);
             /// The placement moved inside the work area of the display it lies on
             [[nodiscard]] Placement fitToDisplay(const Placement &place) const;
             /// Adds a deck to the core and opens its window
@@ -270,6 +297,8 @@ namespace djw::player_ui::sdl
             std::optional<Layout> stored_layout;
             /// Players whose close button was pressed (MDI mode); they go between frames
             std::vector<core::api::DeckId> decks_to_close;
+            /// MDI mode: where the user put the parts; std::nullopt: arranged automatically
+            std::optional<MdiPlaces> hand_places;
 
             /// Asked for from a menu or the keyboard; done between frames
             int new_decks_requested = 0;

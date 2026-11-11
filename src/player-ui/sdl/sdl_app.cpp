@@ -10,6 +10,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <ranges>
 #include <sstream>
@@ -143,6 +144,7 @@ namespace djw::player_ui::sdl
         {
             return std::unexpected{std::string{"cannot open the window"}};
         }
+        app->hand_places = mdi_start.places;
         if (!app->openDeckWindow(deck, layout && !mdi ? std::optional{app->fitToDisplay(layout->players.front().place)}
                                                       : std::nullopt))
         {
@@ -188,6 +190,9 @@ namespace djw::player_ui::sdl
                 app->library_frame = std::make_unique<PaneFrame>(
                     *app->library_view, [owner] { return paneTitle(owner->translator.tr("window.library")); });
                 app->host_window->views().add(*app->library_frame);
+                app->library_view->setLayoutEditing([owner] { owner->startArranging(); },
+                                                    [owner] { return owner->arranging(); },
+                                                    [owner] { owner->arrangeAutomatically(); });
             }
             else
             {
@@ -305,6 +310,11 @@ namespace djw::player_ui::sdl
 
     void SdlApp::arrangeHost()
     {
+        if (hand_places)
+        {
+            arrangeByHand();
+            return;
+        }
         const ToolWindow    &mixer    = tools[index(Tool::Mixer)];
         const ToolWindow    &playlist = tools[index(Tool::Playlist)];
         const MdiArrangement placed   = arrangeMdi(host_window->area(),
@@ -333,6 +343,177 @@ namespace djw::player_ui::sdl
         {
             views.place(*library_frame, placed.library);
         }
+    }
+
+    namespace
+    {
+        Rect rectOf(const Placement &place)
+        {
+            return {static_cast<float>(place.x), static_cast<float>(place.y), static_cast<float>(place.width),
+                    static_cast<float>(place.height)};
+        }
+
+        Placement placementOf(const Rect &area)
+        {
+            return {static_cast<int>(std::lround(area.x)), static_cast<int>(std::lround(area.y)),
+                    static_cast<int>(std::lround(area.width)), static_cast<int>(std::lround(area.height))};
+        }
+    } // namespace
+
+    void SdlApp::arrangeByHand()
+    {
+        if (!hand_places)
+        {
+            return;
+        }
+        ViewHost  &views  = host_window->views();
+        const Rect window = host_window->area();
+        MdiPlaces &places = hand_places.value();
+        places.players.resize(decks.size());
+        const ToolWindow &mixer    = tools[index(Tool::Mixer)];
+        const ToolWindow &playlist = tools[index(Tool::Playlist)];
+
+        // Every part shown, with its place (if it has one) and the size it is made for
+        struct Part
+        {
+                const View               *frame;
+                std::optional<Placement> *place;
+                float                     width;
+                float                     height;
+        };
+        std::vector<Part> parts;
+        parts.reserve(decks.size() + 3);
+        for (std::size_t deck = 0; deck < decks.size(); ++deck)
+        {
+            parts.push_back({decks[deck]->frame.get(), &places.players[deck], DeckView::design_width,
+                             DeckView::design_height + PaneFrame::title_height});
+        }
+        std::optional<Placement> library_place;
+        if (library_frame)
+        {
+            library_place = places.library;
+            parts.push_back({library_frame.get(), &library_place, static_cast<float>(library_size.width),
+                             static_cast<float>(library_size.height)});
+        }
+        // The tools last: one that opens again gives way if its place was taken while it was closed
+        if (mixer.in_host)
+        {
+            parts.push_back({mixer.frame.get(), &places.mixer, static_cast<float>(mixer_size.width),
+                             static_cast<float>(mixer_size.height) + PaneFrame::title_height});
+        }
+        if (playlist.in_host)
+        {
+            parts.push_back({playlist.frame.get(), &places.playlist, static_cast<float>(playlist_size.width),
+                             static_cast<float>(playlist_size.height)});
+        }
+
+        // The parts with a place first, kept inside the window; one whose place is taken by a part before it loses
+        // it. Then a free place for the others, which they keep.
+        std::vector<Rect> taken;
+        for (const Part &part : parts)
+        {
+            if (const std::optional<Placement> stored = *part.place; stored)
+            {
+                const Rect area = keepInside(rectOf(*stored), window);
+                if (std::ranges::any_of(taken, [&area](const Rect &other) { return overlap(area, other); }))
+                {
+                    part.place->reset();
+                    continue;
+                }
+                views.place(*part.frame, area);
+                taken.push_back(area);
+            }
+        }
+        for (const Part &part : parts)
+        {
+            if (!*part.place)
+            {
+                // No room left anywhere: on top at the upper left, for the user to make room
+                const Rect area = freePlace(part.width, part.height, window, taken)
+                                      .value_or(keepInside({window.x, window.y, part.width, part.height}, window));
+                *part.place     = placementOf(area);
+                views.place(*part.frame, area);
+                taken.push_back(area);
+            }
+        }
+        if (library_place)
+        {
+            places.library = *library_place;
+        }
+    }
+
+    void SdlApp::paneMoved(const View &frame, const Rect &area)
+    {
+        ViewHost &views = host_window->views();
+        if (!hand_places)
+        {
+            // The first part moved by hand: all the others stay where the automatic arrangement put them
+            MdiPlaces  places;
+            const auto where = [&views](const PaneFrame *pane) -> std::optional<Placement>
+            {
+                if (pane == nullptr || !views.contains(*pane))
+                {
+                    return std::nullopt;
+                }
+                const auto shown = views.areaOf(*pane);
+                return shown ? std::optional{placementOf(*shown)} : std::nullopt;
+            };
+            for (const auto &deck : decks)
+            {
+                places.players.push_back(where(deck->frame.get()));
+            }
+            places.mixer    = where(tools[index(Tool::Mixer)].frame.get());
+            places.playlist = where(tools[index(Tool::Playlist)].frame.get());
+            places.library  = where(library_frame.get()).value_or(Placement{});
+            hand_places     = std::move(places);
+        }
+        MdiPlaces &places = *hand_places;
+        places.players.resize(decks.size());
+        const Placement moved = placementOf(area);
+        for (std::size_t deck = 0; deck < decks.size(); ++deck)
+        {
+            if (decks[deck]->frame.get() == &frame)
+            {
+                places.players[deck] = moved;
+            }
+        }
+        if (tools[index(Tool::Mixer)].frame.get() == &frame)
+        {
+            places.mixer = moved;
+        }
+        if (tools[index(Tool::Playlist)].frame.get() == &frame)
+        {
+            places.playlist = moved;
+        }
+        if (library_frame.get() == &frame)
+        {
+            places.library = moved;
+        }
+    }
+
+    void SdlApp::startArranging()
+    {
+        if (host_window == nullptr)
+        {
+            return;
+        }
+        host_window->views().startArranging(
+            {.moved      = [this](const View &frame, const Rect &area) { paneMoved(frame, area); },
+             .done       = [this] { stopArranging(); },
+             .done_label = [this] { return translator.tr("layout.done"); }});
+    }
+
+    void SdlApp::stopArranging()
+    {
+        if (host_window != nullptr)
+        {
+            host_window->views().stopArranging();
+        }
+    }
+
+    void SdlApp::arrangeAutomatically()
+    {
+        hand_places.reset();
     }
 
     bool SdlApp::openDeckWindow(core::api::DeckId deck, std::optional<Placement> where)
@@ -459,7 +640,8 @@ namespace djw::player_ui::sdl
         {
             MdiLayout shown{.players       = {},
                             .mixer_open    = toolWindowOpen(Tool::Mixer),
-                            .playlist_open = toolWindowOpen(Tool::Playlist)};
+                            .playlist_open = toolWindowOpen(Tool::Playlist),
+                            .places        = hand_places};
             for (const auto &deck : decks)
             {
                 shown.players.push_back(deck->view->crossfaderSide());
@@ -517,7 +699,16 @@ namespace djw::player_ui::sdl
         }
         if (host_window != nullptr)
         {
-            // MDI mode: the part goes, the one window stays
+            // MDI mode: the part goes, the one window stays; the places set by hand stay with the other players
+            if (hand_places)
+            {
+                const auto at =
+                    static_cast<std::size_t>(std::ranges::find(decks, deck, &DeckWindow::id) - decks.begin());
+                if (at < hand_places->players.size())
+                {
+                    hand_places->players.erase(hand_places->players.begin() + static_cast<std::ptrdiff_t>(at));
+                }
+            }
             host_window->views().remove(*closing->frame);
             std::erase_if(decks, [deck](const auto &candidate) { return candidate->id == deck; });
             if (auto removed = core->removeDeck(deck); !removed)

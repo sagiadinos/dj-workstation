@@ -128,15 +128,45 @@ namespace djw::player_ui::sdl
                 MdiLayout layout;
                 bool      has_mixer    = false;
                 bool      has_playlist = false;
+                /// The places given on the lines; they count only with the library's place
+                MdiPlaces places;
+                bool      has_place   = false;
+                bool      has_library = false;
         };
+
+        /// The place after the first two words of an mdi line: none (two words) or x y width height (six words);
+        /// false for anything else
+        bool optionalPlacementOf(std::span<const std::string_view> parts, std::optional<Placement> &place)
+        {
+            if (parts.size() == 2)
+            {
+                place.reset();
+                return true;
+            }
+            place = parts.size() == 6 ? placementOf(parts.subspan(2)) : std::nullopt;
+            return place.has_value();
+        }
 
         /// One line after "mdi"; false if it is not one
         bool parseMdiLine(std::span<const std::string_view> parts, MdiLines &lines)
         {
-            if (parts.size() != 2)
+            if (parts.size() == 5 && parts[0] == "library" && !lines.has_library)
+            {
+                const auto place     = placementOf(parts.subspan(1));
+                lines.places.library = place.value_or(Placement{});
+                lines.has_library    = place.has_value();
+                return place.has_value();
+            }
+            if (parts.size() < 2)
             {
                 return false;
             }
+            std::optional<Placement> place;
+            if (!optionalPlacementOf(parts, place))
+            {
+                return false;
+            }
+            lines.has_place = lines.has_place || place.has_value();
             if (parts[0] == "player")
             {
                 const auto side = sideOf(parts[1]);
@@ -145,6 +175,7 @@ namespace djw::player_ui::sdl
                     return false;
                 }
                 lines.layout.players.push_back(*side);
+                lines.places.players.push_back(place);
                 return true;
             }
             const auto open = openOf(parts[1]);
@@ -155,16 +186,27 @@ namespace djw::player_ui::sdl
             if (parts[0] == "mixer")
             {
                 lines.layout.mixer_open = *open;
+                lines.places.mixer      = place;
                 lines.has_mixer         = true;
                 return true;
             }
             if (parts[0] == "playlist")
             {
                 lines.layout.playlist_open = *open;
+                lines.places.playlist      = place;
                 lines.has_playlist         = true;
                 return true;
             }
             return false;
+        }
+
+        /// The place of an mdi line if the parts were arranged by hand and this one has one
+        void writeOptionalPlacement(std::ostringstream &out, const std::optional<Placement> &place)
+        {
+            if (place)
+            {
+                writePlacement(out, *place);
+            }
         }
     } // namespace
 
@@ -172,7 +214,8 @@ namespace djw::player_ui::sdl
     {
         return {.players       = {core::api::CrossfaderSide::A, core::api::CrossfaderSide::B},
                 .mixer_open    = true,
-                .playlist_open = false};
+                .playlist_open = false,
+                .places        = std::nullopt};
     }
 
     std::string formatLayout(const Layout &layout)
@@ -197,12 +240,28 @@ namespace djw::player_ui::sdl
         }
         if (layout.mdi)
         {
-            for (const core::api::CrossfaderSide side : layout.mdi->players)
+            const std::optional<MdiPlaces> &places = layout.mdi->places;
+            for (std::size_t player = 0; player < layout.mdi->players.size(); ++player)
             {
-                out << "mdi player " << sideLetter(side) << '\n';
+                out << "mdi player " << sideLetter(layout.mdi->players[player]);
+                if (places && player < places->players.size())
+                {
+                    writeOptionalPlacement(out, places->players[player]);
+                }
+                out << '\n';
             }
-            out << "mdi mixer " << openWord(layout.mdi->mixer_open) << '\n';
-            out << "mdi playlist " << openWord(layout.mdi->playlist_open) << '\n';
+            out << "mdi mixer " << openWord(layout.mdi->mixer_open);
+            writeOptionalPlacement(out, places ? places->mixer : std::nullopt);
+            out << '\n';
+            out << "mdi playlist " << openWord(layout.mdi->playlist_open);
+            writeOptionalPlacement(out, places ? places->playlist : std::nullopt);
+            out << '\n';
+            if (places)
+            {
+                out << "mdi library";
+                writePlacement(out, places->library);
+                out << '\n';
+            }
         }
         return out.str();
     }
@@ -281,15 +340,20 @@ namespace djw::player_ui::sdl
                 return std::nullopt;
             }
         }
-        // A layout with no player, or without one of the windows, is damaged; so is an mdi part without its tools
+        // A layout with no player, or without one of the windows, is damaged; so is an mdi part without its tools,
+        // or with places of parts but not the library's
         if (layout.players.empty() || !has_library || !has_mixer || !has_playlist || (!version_1 && !has_mode) ||
-            (has_mdi && (!mdi.has_mixer || !mdi.has_playlist)))
+            (has_mdi && (!mdi.has_mixer || !mdi.has_playlist || (mdi.has_place && !mdi.has_library))))
         {
             return std::nullopt;
         }
         if (has_mdi)
         {
             layout.mdi = std::move(mdi.layout);
+            if (mdi.has_library)
+            {
+                layout.mdi->places = std::move(mdi.places);
+            }
         }
         return layout;
     }

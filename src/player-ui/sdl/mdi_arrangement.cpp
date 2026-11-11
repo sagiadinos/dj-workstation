@@ -4,6 +4,7 @@
 #include "mdi_arrangement.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace djw::player_ui::sdl
 {
@@ -94,5 +95,88 @@ namespace djw::player_ui::sdl
             }
         }
         return result;
+    }
+    bool overlap(const Rect &first, const Rect &second) noexcept
+    {
+        return first.x < second.x + second.width && second.x < first.x + first.width &&
+               first.y < second.y + second.height && second.y < first.y + first.height;
+    }
+
+    Rect keepInside(Rect area, const Rect &window) noexcept
+    {
+        area.width  = std::min(area.width, window.width);
+        area.height = std::min(area.height, window.height);
+        area.x      = std::clamp(area.x, window.x, window.x + window.width - area.width);
+        area.y      = std::clamp(area.y, window.y, window.y + window.height - area.height);
+        return area;
+    }
+
+    namespace
+    {
+        /// The nearest grid line to value, counted from origin
+        float onGrid(float value, float origin, float grid) noexcept
+        {
+            return origin + (std::round((value - origin) / grid) * grid);
+        }
+
+        /// The last grid line at or before value, counted from origin
+        float gridBefore(float value, float origin, float grid) noexcept
+        {
+            return origin + (std::floor((value - origin) / grid) * grid);
+        }
+    } // namespace
+
+    Rect snapMove(const Rect &moved, const Rect &window, float grid) noexcept
+    {
+        Rect snapped = keepInside(moved, window);
+        snapped.x    = onGrid(snapped.x, window.x, grid);
+        snapped.y    = onGrid(snapped.y, window.y, grid);
+        // Rounding may have pushed it over the right or bottom edge: then the grid line before
+        if (snapped.x + snapped.width > window.x + window.width)
+        {
+            snapped.x = std::max(window.x, gridBefore(window.x + window.width - snapped.width, window.x, grid));
+        }
+        if (snapped.y + snapped.height > window.y + window.height)
+        {
+            snapped.y = std::max(window.y, gridBefore(window.y + window.height - snapped.height, window.y, grid));
+        }
+        return snapped;
+    }
+
+    Rect snapResize(const Rect &resized, const Rect &window, float grid) noexcept
+    {
+        Rect        snapped = resized;
+        const float right   = std::min(onGrid(resized.x + resized.width, window.x, grid), window.x + window.width);
+        const float bottom  = std::min(onGrid(resized.y + resized.height, window.y, grid), window.y + window.height);
+        snapped.width       = std::max(right - resized.x, std::min(mdi_min_width, window.x + window.width - resized.x));
+        snapped.height = std::max(bottom - resized.y, std::min(mdi_min_height, window.y + window.height - resized.y));
+        return snapped;
+    }
+
+    std::optional<Rect> freePlace(float width, float height, const Rect &window, const std::vector<Rect> &taken,
+                                  float grid)
+    {
+        constexpr int steps = 4; // full size, then smaller in steps down to half
+        for (int step = 0; step <= steps; ++step)
+        {
+            const float scale   = 1.0F - (0.5F * static_cast<float>(step) / steps);
+            const float w       = std::min(width * scale, window.width);
+            const float h       = std::min(height * scale, window.height);
+            const auto  columns = static_cast<int>(std::floor((window.width - w) / grid));
+            const auto  rows    = static_cast<int>(std::floor((window.height - h) / grid));
+            for (int row = 0; row <= rows; ++row)
+            {
+                for (int column = 0; column <= columns; ++column)
+                {
+                    const Rect place{window.x + (static_cast<float>(column) * grid),
+                                     window.y + (static_cast<float>(row) * grid), w, h};
+                    if (std::ranges::none_of(taken, [&place](const Rect &other) { return overlap(place, other); }))
+                    {
+                        return place;
+                    }
+                }
+            }
+        }
+        return std::nullopt;
     }
 } // namespace djw::player_ui::sdl
