@@ -24,7 +24,10 @@ if(MSVC)
 endif()
 
 if(DJW_SANITIZE STREQUAL "address")
-    set(_djw_sanitize_flags -fsanitize=address,undefined -fno-sanitize-recover=all)
+    # UBSan findings stay recoverable in the build: with -fno-sanitize-recover the program aborts even on a finding
+    # that tests/sanitizers/ubsan.supp suppresses. The linux-asan test preset stops at the first finding instead
+    # (UBSAN_OPTIONS halt_on_error=1), so every finding that is not suppressed still fails.
+    set(_djw_sanitize_flags -fsanitize=address,undefined)
 elseif(DJW_SANITIZE STREQUAL "thread")
     set(_djw_sanitize_flags -fsanitize=thread)
 else()
