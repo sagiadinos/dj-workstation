@@ -5,6 +5,8 @@ includePaths:
 excludePaths:
   - .*/_deps/.*
   - .*/third_party/.*
+  # A thin adapter on the audio hardware: its settings only show on a real device
+  - .*/src/core/audio_io/miniaudio_device\.cpp
 # All operators, also calls (removed void calls, replaced return values) and the logical ones; the default set
 # has only comparisons, boundaries, arithmetic and increments.
 mutators:

@@ -119,11 +119,6 @@ namespace djw::core::engine
                 break; // not decoded yet
             }
         }
-        if (state.flushed && produced < wanted)
-        {
-            produced += state.touch.receiveSamples(output.data() + (produced * stereo_channels),
-                                                   static_cast<unsigned int>(wanted - produced));
-        }
         return produced;
     }
 
