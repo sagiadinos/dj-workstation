@@ -245,7 +245,7 @@ TEST_CASE("MemoryTrack: a seek alone makes that part come next, then decoding go
     // Every part is decoded once: the worker has stopped, also after time for many more parts
     std::this_thread::sleep_for(std::chrono::milliseconds{100});
     CHECK(track->decodedFraction() == 1.0F);
-    CHECK(seeks->load() <= 3);               // to the part asked for and back to the first gap
+    CHECK(seeks->load() <= 3); // to the part asked for and back to the first gap
 }
 
 TEST_CASE("MemoryTrack: reading into a part not decoded yet asks for it, also after a seek elsewhere")
