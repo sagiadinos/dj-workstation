@@ -8,6 +8,9 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <span>
 #include <vector>
 
 using djw::core::api::DeckId;
@@ -396,12 +399,14 @@ TEST_CASE("Deck: turning keylock on or off keeps the position")
     const double before = deck.positionFrames();
 
     deck.setKeylock(true);
+    CHECK(deck.keylock());
     CHECK(deck.positionFrames() == doctest::Approx(before).epsilon(1.0 / before));
     deck.render(block);
     CHECK(deck.positionFrames() > before);
 
     const double during = deck.positionFrames();
     deck.setKeylock(false);
+    CHECK_FALSE(deck.keylock());
     CHECK(deck.positionFrames() == doctest::Approx(during).epsilon(1.0 / during));
 }
 
@@ -595,6 +600,14 @@ TEST_CASE("Deck: the fades of the scrub loop rise and fall evenly, on both chann
         const std::size_t falling = loop - (ramp / 2);
         CHECK(output[(falling * 2) + channel] == doctest::Approx(0.5F * trackValue(10'000 + falling)).epsilon(0.02));
     }
+    // The fade-in starts at 0 exactly and rises by one step per frame, the same on both channels
+    CHECK(valueAtFrame(output, 0) == 0.0F);
+    CHECK(valueAtFrame(output, 1) == doctest::Approx(trackValue(10'001) / static_cast<float>(ramp)).epsilon(0.01));
+    for (std::size_t frame = 0; frame <= ramp; ++frame)
+    {
+        CAPTURE(frame);
+        REQUIRE(output[frame * 2] == output[(frame * 2) + 1]);
+    }
 }
 
 TEST_CASE("Deck: moving the scrub moves the loop, ending it leaves the deck stopped at the position")
@@ -690,8 +703,8 @@ TEST_CASE("Deck: play or a seek during the fade after CUE take over at once")
     deck.cue(true);
     deck.render(output); // part of the fade
 
-    deck.seek(20'000);
-    CHECK(deck.positionFrames() == 20'000);
+    deck.seek(15'000);
+    CHECK(deck.positionFrames() == 15'000);
     deck.render(output);
     CHECK(output == std::vector<float>(output.size(), 0.0F)); // stands at the new position
 
@@ -766,4 +779,285 @@ TEST_CASE("Deck: a scrub past the end is clamped, without a track or without a s
     deck.scrub(500, false); // ending without a scrub: a seek
     deck.scrub(700, false);
     CHECK(deck.positionFrames() == 700);
+}
+
+namespace
+{
+    /// A fully decoded track that can act as not decoded yet at the position: then it reads nothing, without being at
+    /// the end
+    class GapSource final : public djw::core::engine::AudioSource
+    {
+        public:
+            explicit GapSource(std::vector<float> samples) : track{std::move(samples)} {}
+
+            std::size_t   read(std::span<float> output) noexcept override { return gap ? 0 : track.read(output); }
+            void          seek(std::uint64_t frame) noexcept override { track.seek(frame); }
+            std::uint64_t lengthFrames() const noexcept override { return track.lengthFrames(); }
+            bool          atEnd() const noexcept override { return !gap && track.atEnd(); }
+
+            bool gap = false;
+
+        private:
+            BufferSource track;
+    };
+} // namespace
+
+TEST_CASE("Deck: a track that is not decoded yet at the position does not stop the deck, with keylock neither")
+{
+    bool keylock = false;
+    SUBCASE("without keylock")
+    {
+        keylock = false;
+    }
+    SUBCASE("with keylock")
+    {
+        keylock = true;
+    }
+    GapSource source{std::vector<float>(2 * 48'000, 0.5F)};
+    Deck      deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.setKeylock(keylock);
+    deck.play();
+    std::vector<float> output(2 * 480);
+    for (int i = 0; i < 10; ++i)
+    {
+        deck.render(output);
+    }
+
+    source.gap = true;
+    for (int i = 0; i < 10; ++i)
+    {
+        deck.render(output);
+    }
+    CHECK(deck.isPlaying());
+
+    source.gap       = false;
+    bool sound_again = false;
+    for (int i = 0; i < 10 && !sound_again; ++i)
+    {
+        deck.render(output);
+        sound_again = std::ranges::any_of(output, [](float sample) { return sample != 0.0F; });
+    }
+    CHECK(sound_again);
+    CHECK(deck.isPlaying());
+}
+
+TEST_CASE("Deck: a new track ends CUE held at the old one, its release does not move the new track")
+{
+    CueFixture   fixture;
+    BufferSource other{djw::tests::ramp(5'000)};
+    fixture.deck.cue(true); // plays while held
+    fixture.play(100);
+
+    fixture.deck.attach(&other);
+    fixture.deck.seek(1'000);
+    fixture.deck.cue(false);
+
+    CHECK(fixture.deck.positionFrames() == 1'000.0);
+    CHECK_FALSE(fixture.deck.isPlaying());
+}
+
+TEST_CASE("Deck: a new track during the fade back to the cue point does not return to a cue point later")
+{
+    BufferSource first{std::vector<float>(2 * 2'000, 1.0F)};
+    BufferSource second{std::vector<float>(2 * 2'000, 1.0F)};
+    Deck         deck{DeckId{1}, 4};
+    deck.attach(&first);
+    deck.play();
+    std::vector<float> output(2 * 10);
+    deck.render(output);
+    deck.cue(true); // fades out, then would return to the cue point
+
+    deck.attach(&second);
+    deck.cue(true); // at the cue point: plays while held
+    deck.render(output);
+    deck.pause();
+    deck.render(output); // the fade of the pause, 4 frames
+
+    CHECK(deck.positionFrames() == 14.0);
+}
+
+TEST_CASE("Deck: a scrub during the fade back to the cue point ends that return")
+{
+    BufferSource source{std::vector<float>(2 * 2'000, 1.0F)};
+    Deck         deck{DeckId{1}, 4};
+    deck.attach(&source);
+    deck.play();
+    std::vector<float> output(2 * 10);
+    deck.render(output);
+    deck.cue(true);
+
+    deck.scrub(500, true);
+    deck.scrub(500, false);
+    CHECK_FALSE(deck.isPlaying());
+    deck.cue(true); // sets the cue point at 500
+    deck.cue(false);
+    deck.cue(true); // plays while held
+    deck.render(output);
+    deck.pause();
+    deck.render(output);
+
+    CHECK(deck.positionFrames() == 514.0);
+}
+
+TEST_CASE("Deck: a new track with keylock starts at its beginning")
+{
+    BufferSource first{djw::tests::ramp(48'000)};
+    BufferSource second{djw::tests::ramp(48'000)};
+    Deck         deck{DeckId{1}, 0};
+    deck.setKeylock(true); // without a track
+    CHECK(deck.keylock());
+    deck.setKeylock(false);
+    CHECK_FALSE(deck.keylock());
+    deck.setKeylock(true);
+    deck.attach(&first);
+    deck.play();
+    std::vector<float> output(2 * 480);
+    for (int i = 0; i < 10; ++i)
+    {
+        deck.render(output);
+    }
+    REQUIRE(deck.positionFrames() > 1'000.0);
+
+    deck.attach(&second);
+    CHECK(deck.positionFrames() == 0.0);
+}
+
+TEST_CASE("Deck CUE: pause while CUE is held stops there, the release does not return to the cue point")
+{
+    CueFixture fixture;
+    fixture.deck.cue(true);
+    fixture.play(300);
+
+    fixture.deck.pause();
+    fixture.deck.cue(false);
+
+    CHECK_FALSE(fixture.deck.isPlaying());
+    CHECK(fixture.deck.positionFrames() == 300.0);
+}
+
+TEST_CASE("Deck CUE: a release without CUE playing does not move the deck")
+{
+    CueFixture fixture;
+    fixture.deck.cue(true);
+    fixture.play(300);
+    fixture.deck.cue(false); // back at the cue point
+    fixture.deck.seek(1'000);
+
+    fixture.deck.cue(false);
+
+    CHECK(fixture.deck.positionFrames() == 1'000.0);
+}
+
+TEST_CASE("Deck CUE: held to the end of the track the deck stops there, the release leaves it there")
+{
+    BufferSource source{djw::tests::ramp(200)};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.cue(true);
+    std::vector<float> output(2 * 300);
+    deck.render(output);
+    REQUIRE_FALSE(deck.isPlaying());
+    const double end = deck.positionFrames();
+    REQUIRE(end > 100.0);
+
+    deck.cue(false);
+    CHECK(deck.positionFrames() == end);
+}
+
+TEST_CASE("Deck CUE: without a pause fade, CUE right after pause sets the cue point there")
+{
+    CueFixture fixture;
+    fixture.deck.play();
+    fixture.play(100);
+    fixture.deck.pause();
+
+    fixture.deck.cue(true);
+
+    CHECK(fixture.deck.cueSetCount() == 1);
+    CHECK(fixture.deck.cueFrame() == 100);
+}
+
+TEST_CASE("Deck: without a pause fade, the cue point set by CUE in a scrub plays at once while CUE is held again")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.scrub(10'000, true);
+    deck.cue(true);
+    deck.cue(false);
+
+    deck.cue(true);
+    CHECK(deck.isPlaying());
+}
+
+TEST_CASE("Deck: the scrub loop starts over after its length, also when the blocks do not fit into it")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.scrub(10'000, true);
+    const auto loop = static_cast<std::size_t>(Deck::scrub_loop_seconds * 48'000);
+
+    std::vector<float> output(2 * 1'000);
+    for (std::size_t start = 0; start < 2 * loop; start += 1'000)
+    {
+        deck.render(output);
+        for (std::size_t frame = 0; frame < 1'000; ++frame)
+        {
+            const std::size_t at = (start + frame) % loop;
+            CAPTURE(start + frame);
+            if (at == 0)
+            {
+                REQUIRE(valueAtFrame(output, frame) == 0.0F); // the loop starts over, faded in from silence
+            }
+            else if (at == 1)
+            {
+                REQUIRE(valueAtFrame(output, frame) < 0.01F);
+            }
+        }
+    }
+}
+
+TEST_CASE("Deck: a scrub where nothing is decoded yet starts its loop from silence once the audio is there")
+{
+    GapSource source{positionTrack()};
+    Deck      deck{DeckId{1}, 0};
+    deck.attach(&source);
+    std::vector<float> output(2 * 1'000);
+    source.gap = true;
+    deck.scrub(10'000, true);
+    deck.render(output);
+    CHECK(output == std::vector<float>(output.size(), 0.0F));
+
+    source.gap = false;
+    deck.render(output);
+    CHECK(valueAtFrame(output, 0) == 0.0F);
+    CHECK(valueAtFrame(output, 500) == doctest::Approx(trackValue(10'500)).epsilon(0.001));
+}
+
+TEST_CASE("Deck: the fade after CUE in a scrub runs across render calls, then the deck stands and CUE plays")
+{
+    BufferSource source{positionTrack()};
+    Deck         deck{DeckId{1}, 480};
+    deck.attach(&source);
+    std::vector<float> output(2 * 1'000);
+    deck.scrub(10'000, true);
+    deck.render(output); // in the middle of the loop
+    deck.cue(true);
+    deck.cue(false);
+
+    std::vector<float> block(2 * 100);
+    deck.render(block);
+    CHECK(valueAtFrame(block, 0) == doctest::Approx(trackValue(11'000) * 479.0F / 480.0F).epsilon(0.001));
+    deck.render(block);
+    CHECK(valueAtFrame(block, 0) == doctest::Approx(trackValue(11'100) * 379.0F / 480.0F).epsilon(0.001));
+
+    deck.render(output); // the rest of the fade
+    deck.render(output);
+    CHECK(output == std::vector<float>(output.size(), 0.0F));
+    CHECK(deck.positionFrames() == 10'000);
+
+    deck.cue(true); // at the cue point: plays while held
+    CHECK(deck.isPlaying());
 }
