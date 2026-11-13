@@ -188,3 +188,92 @@ TEST_CASE("Mapping: lights are read with their values for on and off; damaged on
               .find("0 to 127") != std::string::npos);
     CHECK(error("what = \"deck.cue\"\ndeck = 1\n").find("midi") != std::string::npos);
 }
+
+namespace
+{
+    /// A mapping with a valid [device] and the given entries
+    std::expected<Mapping, std::string> withEntries(std::string_view entries)
+    {
+        return parseMapping("[device]\nname = \"Pad\"\nmatch = [\"Pad\"]\n" + std::string{entries});
+    }
+
+    std::string controlEntry(std::string_view midi, std::string_view rest = "action = \"mixer.crossfader\"")
+    {
+        return "[[control]]\nmidi = " + std::string{midi} + "\n" + std::string{rest} + "\n";
+    }
+
+    std::string lightEntry(std::string_view rest)
+    {
+        return "[[light]]\nmidi = { type = \"note\", channel = 1, number = 1 }\n" + std::string{rest} + "\n";
+    }
+} // namespace
+
+TEST_CASE("Mapping: MIDI channels 1 to 16 and numbers 0 to 127, type, channel and number all needed")
+{
+    CHECK(withEntries(controlEntry("{ type = \"cc\", channel = 1, number = 0 }")).has_value());
+    CHECK(withEntries(controlEntry("{ type = \"cc\", channel = 16, number = 127 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", channel = 0, number = 1 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", channel = 17, number = 1 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", channel = 1, number = -1 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", channel = 1, number = 128 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"pitch\", channel = 1, number = 1 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ channel = 1, number = 1 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", number = 1 }")).has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", channel = 1 }")).has_value());
+}
+
+TEST_CASE("Mapping: the mode button can be written out, absolute14 needs a cc below 32, an action is needed")
+{
+    const auto button = withEntries(controlEntry("{ type = \"note\", channel = 1, number = 1 }",
+                                                 "action = \"deck.play\"\ndeck = 1\nmode = \"button\""));
+    REQUIRE_MESSAGE(button.has_value(), (button ? "" : button.error()));
+    CHECK(button->controls.front().mode == Mode::Button);
+    CHECK(withEntries(controlEntry("{ type = \"cc\", channel = 1, number = 31 }",
+                                   "action = \"mixer.crossfader\"\nmode = \"absolute14\""))
+              .has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", channel = 1, number = 32 }",
+                                         "action = \"mixer.crossfader\"\nmode = \"absolute14\""))
+                    .has_value());
+    CHECK_FALSE(withEntries(controlEntry("{ type = \"cc\", channel = 1, number = 1 }", "")).has_value());
+}
+
+TEST_CASE("Mapping: a light needs what it shows, on and off from 0 to 127")
+{
+    const auto lights = withEntries(lightEntry("what = \"deck.playing\"\ndeck = 1\non = 0\noff = 127") +
+                                    lightEntry("what = \"deck.cue\"\ndeck = 1\non = 127\noff = 0"));
+    REQUIRE_MESSAGE(lights.has_value(), (lights ? "" : lights.error()));
+    REQUIRE(lights->lights.size() == 2);
+    CHECK(lights->lights[0].on == 0);
+    CHECK(lights->lights[0].off == 127);
+    CHECK(lights->lights[1].on == 127);
+    CHECK(lights->lights[1].off == 0);
+    CHECK_FALSE(withEntries(lightEntry("deck = 1")).has_value());
+    CHECK_FALSE(withEntries(lightEntry("what = \"deck.playing\"\ndeck = 1\non = 128")).has_value());
+    CHECK_FALSE(withEntries(lightEntry("what = \"deck.playing\"\ndeck = 1\noff = 128")).has_value());
+    CHECK_FALSE(withEntries(lightEntry("what = \"deck.playing\"\ndeck = 1\non = -1")).has_value());
+    CHECK_FALSE(withEntries(lightEntry("what = \"deck.playing\"\ndeck = 1\noff = -1")).has_value());
+}
+
+TEST_CASE("Mapping: the device needs a name and a text to match, empty match texts match no port")
+{
+    CHECK_FALSE(parseMapping("[device]\nname = \"\"\nmatch = [\"Pad\"]\n").has_value());
+    CHECK_FALSE(parseMapping("[device]\nname = \"Pad\"\nmatch = []\n").has_value());
+    CHECK_FALSE(parseMapping("[device]\nname = \"Pad\"\nmatch = [5]\n").has_value()); // no text in it
+
+    const auto mapping = parseMapping("[device]\nname = \"Pad\"\nmatch = [\"\", 5, \"Pad X\"]\n");
+    REQUIRE(mapping.has_value());
+    CHECK(mapping->match == std::vector<std::string>{"", "Pad X"});
+    CHECK(mapping->matches("my pad x port"));
+    CHECK_FALSE(mapping->matches("something else"));
+}
+
+TEST_CASE("Mapping: a folder named like a mapping is not read as one")
+{
+    const djw::tests::TempDir folder;
+    std::filesystem::create_directories(folder.path() / "folder.toml");
+    std::ofstream{folder.path() / "a.toml"} << "[device]\nname = \"A\"\nmatch = [\"a\"]\n";
+    std::vector<std::string> errors;
+    const auto               mappings = readMappings({folder.path()}, errors);
+    CHECK(mappings.size() == 1);
+    CHECK(errors.empty());
+}

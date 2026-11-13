@@ -101,3 +101,17 @@ TEST_CASE("SampleRingBuffer: a writer and a reader thread transfer everything in
     CHECK(in_order);
     CHECK(buffer.readAvailable() == 0);
 }
+
+TEST_CASE("SampleRingBuffer: discard drops what is there, at most that")
+{
+    SampleRingBuffer         buffer{64};
+    const std::vector<float> input(50, 1.0F);
+    REQUIRE(buffer.write(input) == 50);
+
+    CHECK(buffer.discard(45) == 45);
+    CHECK(buffer.readAvailable() == 5);
+    CHECK(buffer.discard(100) == 5);
+    CHECK(buffer.readAvailable() == 0);
+    CHECK(buffer.writeAvailable() == buffer.capacity());
+    CHECK(buffer.capacity() == 64);
+}

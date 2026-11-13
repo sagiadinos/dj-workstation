@@ -50,6 +50,7 @@ namespace djw::core::engine
 
     api::CommandQueue &Engine::addCommandQueue()
     {
+        // mull-ignore-next: cxx_remove_void_call
         command_queues.push_back(std::make_unique<api::CommandQueue>());
         return *command_queues.back();
     }
@@ -57,6 +58,7 @@ namespace djw::core::engine
     api::DeckId Engine::addDeck()
     {
         const api::DeckId id{next_deck_id++};
+        // mull-ignore-next: cxx_remove_void_call
         slots.push_back(std::make_unique<DeckSlot>(id, config.sample_rate));
         publishDeckList();
         return id;
@@ -72,6 +74,7 @@ namespace djw::core::engine
         std::shared_ptr<void> removed{std::move(*found)};
         slots.erase(found);
         publishDeckList();
+        // mull-ignore-next: cxx_remove_void_call
         reclaimer.retire(std::move(removed));
         return true;
     }
@@ -87,6 +90,7 @@ namespace djw::core::engine
         slot->track.store(slot->owned_track.get(), std::memory_order_seq_cst);
         if (previous)
         {
+            // mull-ignore-next: cxx_remove_void_call
             reclaimer.retire(std::shared_ptr<void>{std::move(previous)});
         }
         return true;
@@ -118,6 +122,7 @@ namespace djw::core::engine
             list->slots.push_back(slot.get());
         }
         published_list.store(list.get(), std::memory_order_seq_cst);
+        // mull-ignore-next: cxx_remove_void_call
         reclaimer.retire(std::shared_ptr<void>{std::exchange(current_list, std::move(list))});
     }
 

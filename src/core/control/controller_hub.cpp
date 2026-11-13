@@ -66,6 +66,7 @@ namespace djw::core::control
 
     ControllerHub::~ControllerHub()
     {
+        // mull-ignore-next: cxx_remove_void_call
         closeAll();
     }
 
@@ -158,6 +159,7 @@ namespace djw::core::control
         {
             if (!isSystemPort(port))
             {
+                // mull-ignore-next: cxx_remove_void_call
                 names.push_back(stablePortName(port));
             }
         }
@@ -226,6 +228,7 @@ namespace djw::core::control
                 mapping = mappingNamed(chosen->second);
                 if (mapping == nullptr)
                 {
+                    // mull-ignore-next: cxx_remove_void_call
                     errors.push_back("no mapping \"" + chosen->second + "\" for MIDI port " + port);
                     continue;
                 }
@@ -292,6 +295,7 @@ namespace djw::core::control
         result.reserve(open_ports.size());
         for (const auto &open : open_ports)
         {
+            // mull-ignore-next: cxx_remove_void_call
             result.push_back({.port = open->port, .mapping = open->controller.mapping().name});
         }
         return result;

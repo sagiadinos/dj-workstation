@@ -3,6 +3,7 @@
 
 #include "library/folder_scanner.hpp"
 
+#include "sql_fault.hpp"
 #include "temp_dir.hpp"
 
 #include <doctest/doctest.h>
@@ -136,6 +137,38 @@ TEST_CASE("scanFolders: more files than one batch are all stored")
     CHECK(fixture.store.trackCount().value() == 250);
 }
 
+TEST_CASE("scanFolders: every 100 files are committed, so another connection sees the progress")
+{
+    Fixture fixture;
+    for (int i = 0; i < 250; ++i)
+    {
+        fixture.write("track" + std::to_string(i) + ".mp3");
+    }
+    const auto          database_file = fixture.database.path() / "library.db";
+    std::map<int, long> seen; // file read as number n: the tracks another connection saw then
+    int                 read   = 0;
+    const TagReader     reader = [&](const std::filesystem::path &file)
+    {
+        ++read;
+        if (read == 100 || read == 101 || read == 102 || read == 200 || read == 201)
+        {
+            auto other = SqliteDatabase::open(database_file);
+            REQUIRE(other.has_value());
+            auto count = other->prepare("SELECT count(*) FROM tracks");
+            REQUIRE(count.has_value());
+            REQUIRE(count->step().value());
+            seen[read] = static_cast<long>(count->integer(0));
+        }
+        return TrackTags{.title = file.stem().string()};
+    };
+    const std::atomic<bool> stop{false};
+
+    CHECK(scanFolders({fixture.music.path()}, fixture.store, reader, fixture.counters, stop).empty());
+
+    CHECK(seen == std::map<int, long>{{100, 0}, {101, 100}, {102, 100}, {200, 100}, {201, 200}});
+    CHECK(fixture.store.trackCount().value() == 250);
+}
+
 TEST_CASE("scanFolders: a missing folder is reported, the other folders are scanned")
 {
     Fixture fixture;
@@ -158,4 +191,41 @@ TEST_CASE("scanFolders: stops when asked to")
     CHECK(fixture.scan(stop).empty());
 
     CHECK(fixture.store.trackCount().value() == 0);
+}
+
+TEST_CASE("scanFolders: a database error is reported; one that hits every file stops the scan")
+{
+    Fixture fixture;
+    fixture.write("a.mp3");
+    fixture.write("b.mp3");
+    const char *part = "";
+    SUBCASE("stamp")
+    {
+        part = "SELECT modified, size FROM tracks";
+    }
+    SUBCASE("store")
+    {
+        part = "INSERT INTO tracks";
+    }
+    SUBCASE("transaction")
+    {
+        part = "BEGIN";
+    }
+    SUBCASE("commit")
+    {
+        part = "COMMIT";
+    }
+    const djw::tests::SqlFault fault{part};
+    CHECK(fixture.scan().find("injected fault") != std::string::npos);
+    CHECK(fault.struck() > 0);
+}
+
+TEST_CASE("scanFolders: of several errors the first is reported")
+{
+    Fixture                 fixture;
+    const std::atomic<bool> stop{false};
+    const auto error = scanFolders({fixture.music.path() / "first", fixture.music.path() / "second"}, fixture.store,
+                                   fixture.reader, fixture.counters, stop);
+    CHECK(error.find("first") != std::string::npos);
+    CHECK(error.find("second") == std::string::npos);
 }

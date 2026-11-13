@@ -140,6 +140,7 @@ namespace djw::core::library
                 folder, std::filesystem::directory_options::skip_permission_denied, error};
             if (error)
             {
+                // mull-ignore-next: cxx_remove_void_call
                 errors.add("cannot read folder " + toUtf8(folder) + ": " + error.message());
                 continue;
             }

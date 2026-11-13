@@ -3,6 +3,7 @@
 
 #include "library/missing_files.hpp"
 
+#include "sql_fault.hpp"
 #include "temp_dir.hpp"
 
 #include <doctest/doctest.h>
@@ -112,4 +113,31 @@ TEST_CASE("checkMissingFiles: stops when asked to")
     CHECK(checkMissingFiles(fixture.store, stop).empty());
 
     CHECK(fixture.store.missingCount().value() == 0);
+}
+
+TEST_CASE("checkMissingFiles: a database error is returned")
+{
+    Fixture    fixture;
+    const auto file = fixture.add("a.mp3");
+    std::filesystem::remove(file);
+    const char *part = "";
+    SUBCASE("files")
+    {
+        part = "SELECT id, path, missing FROM tracks";
+    }
+    SUBCASE("transaction")
+    {
+        part = "BEGIN";
+    }
+    SUBCASE("mark")
+    {
+        part = "UPDATE tracks SET missing";
+    }
+    SUBCASE("commit")
+    {
+        part = "COMMIT";
+    }
+    const djw::tests::SqlFault fault{part};
+    CHECK(checkMissingFiles(fixture.store, Fixture::no_stop).find("injected fault") != std::string::npos);
+    CHECK(fault.struck() == 1);
 }

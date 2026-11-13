@@ -6,6 +6,7 @@
 #include "library/track_store.hpp"
 
 #include "library_downgrade.hpp"
+#include "sql_fault.hpp"
 #include "temp_dir.hpp"
 
 #include <doctest/doctest.h>
@@ -125,4 +126,32 @@ TEST_CASE("PlaylistStore: a version 3 database gets the playlist tables")
     CHECK(playlists->list().value().empty());
     CHECK(playlists->create("New").has_value());
     CHECK(reopened->trackCount().value() == 1);
+}
+
+TEST_CASE("PlaylistStore: entries that cannot be written leave the old ones")
+{
+    Fixture    fixture;
+    const auto a        = fixture.addTrack("a");
+    const auto b        = fixture.addTrack("b");
+    const auto playlist = fixture.playlists->create("Set").value();
+    REQUIRE(fixture.playlists->setEntries(playlist, {a}).has_value());
+    const char *part = "";
+    int         skip = 0;
+    SUBCASE("savepoint")
+    {
+        part = "SAVEPOINT set_entries";
+    }
+    SUBCASE("second entry")
+    {
+        part = "INSERT INTO playlist_entries";
+        skip = 1;
+    }
+    {
+        const djw::tests::SqlFault fault{part, skip};
+        const auto                 written = fixture.playlists->setEntries(playlist, {b, a, b});
+        REQUIRE_FALSE(written.has_value());
+        CHECK(written.error().find("injected fault") != std::string::npos);
+        CHECK(fault.struck() == 1);
+    }
+    CHECK(fixture.titles(playlist) == std::vector<std::string>{"a"});
 }

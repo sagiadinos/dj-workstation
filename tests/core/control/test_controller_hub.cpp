@@ -29,6 +29,9 @@ namespace
                     std::map<std::string, Receive> open;
                     std::vector<std::string>       failing;
                     std::vector<std::string>       outputs;
+                    std::vector<std::string>       failing_outputs;
+                    /// The outputs opened, in order
+                    std::vector<std::string> opened_outputs;
                     /// What was sent to each output, in order, also after it closed
                     std::map<std::string, std::vector<MidiMessage>> sent;
             };
@@ -51,6 +54,11 @@ namespace
 
             std::expected<std::unique_ptr<MidiOutput>, std::string> openOutput(std::string_view port) override
             {
+                if (std::ranges::find(state->failing_outputs, port) != state->failing_outputs.end())
+                {
+                    return std::unexpected{"cannot open output " + std::string{port}};
+                }
+                state->opened_outputs.emplace_back(port);
                 return std::make_unique<Output>(state, std::string{port});
             }
 
@@ -270,4 +278,81 @@ TEST_CASE("ControllerHub: a mapping without lights opens no output")
     static_cast<void>(hub.connect());
     hub.setLights({{.playing = true, .cue = true, .headphones = true}});
     CHECK(state->sent.empty());
+    CHECK(state->opened_outputs.empty());
+}
+
+namespace
+{
+    Mapping mappingWithLight()
+    {
+        Mapping mapping = mappingFor("Pad", "pad");
+        mapping.lights  = {{.source  = LightSource::DeckPlaying,
+                            .deck    = 0,
+                            .kind    = MidiKind::Note,
+                            .channel = 1,
+                            .number  = 7,
+                            .on      = 0x7F,
+                            .off     = 0x01}};
+        return mapping;
+    }
+} // namespace
+
+TEST_CASE("ControllerHub: ALSA's numbers are cut off only when both are digits")
+{
+    CHECK(ControllerHub::stablePortName("Pad 19:9") == "Pad");
+    CHECK(ControllerHub::stablePortName("Pad 0:0") == "Pad");
+    CHECK(ControllerHub::stablePortName("Pad :0") == "Pad :0");
+    CHECK(ControllerHub::stablePortName("Pad 20:") == "Pad 20:");
+    CHECK(ControllerHub::stablePortName("Pad x0:0") == "Pad x0:0");
+    CHECK(ControllerHub::stablePortName("Pad 20:0x") == "Pad 20:0x");
+    CHECK(ControllerHub::stablePortName("Pad 20/0") == "Pad 20/0");
+}
+
+TEST_CASE("ControllerHub: lights go only to the output of the controller's own name")
+{
+    auto state     = std::make_shared<FakeMidiSystem::State>();
+    state->ports   = {"Pad 20:0"};
+    state->outputs = {"Other 30:0", "Pad 20:1"};
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mappingWithLight()}};
+    CHECK(hub.connect().empty());
+    hub.setLights({{.playing = true, .cue = false, .headphones = false}});
+    CHECK(state->opened_outputs == std::vector<std::string>{"Pad 20:1"});
+    CHECK_FALSE(state->sent.contains("Other 30:0"));
+    CHECK(state->sent["Pad 20:1"].size() == 1);
+}
+
+TEST_CASE("ControllerHub: a controller without an output for its lights works, also when the output cannot be opened")
+{
+    auto state   = std::make_shared<FakeMidiSystem::State>();
+    state->ports = {"Pad 20:0"};
+    SUBCASE("no output")
+    {
+        ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mappingWithLight()}};
+        CHECK(hub.connect().empty());
+        hub.setLights({{.playing = true, .cue = false, .headphones = false}});
+        CHECK(hub.connections().size() == 1);
+    }
+    SUBCASE("an output that cannot be opened")
+    {
+        state->outputs         = {"Pad 20:1"};
+        state->failing_outputs = {"Pad 20:1"};
+        ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mappingWithLight()}};
+        const auto    errors = hub.connect();
+        REQUIRE(errors.size() == 1);
+        CHECK(errors[0].find("Pad 20:1") != std::string::npos);
+        hub.setLights({{.playing = true, .cue = false, .headphones = false}});
+        CHECK(hub.connections().size() == 1);
+    }
+    CHECK(state->sent.empty());
+}
+
+TEST_CASE("ControllerHub: a port no mapping matches is not opened")
+{
+    auto state   = std::make_shared<FakeMidiSystem::State>();
+    state->ports = {"Keyboard 20:0", "Pad 21:0"};
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mappingFor("Pad", "pad")}};
+    CHECK(hub.connect().empty());
+    REQUIRE(hub.connections().size() == 1);
+    CHECK(hub.connections()[0].port == "Pad");
+    CHECK(hub.mappingFor("Keyboard") == "");
 }

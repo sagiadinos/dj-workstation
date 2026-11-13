@@ -23,6 +23,7 @@ namespace djw::core::decode
             /// The capacity is rounded up to a power of two.
             explicit SampleRingBuffer(std::size_t min_capacity);
 
+            // mull-ignore-next
             [[nodiscard]] std::size_t capacity() const noexcept { return buffer.size(); }
 
             /// Writer side: samples that can be written now

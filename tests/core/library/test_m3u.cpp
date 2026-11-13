@@ -54,3 +54,13 @@ TEST_CASE("formatM3u: extended M3U with rounded seconds, artist - title and the 
                                "#EXTINF:0,No Artist\n/music/Ä.flac\n");
     CHECK(formatM3u({}) == "#EXTM3U\n");
 }
+
+TEST_CASE("parseM3u: an escape right at the start of the path is decoded")
+{
+    CHECK(parseM3u("file:///%41.mp3\n", "/") == std::vector<path>{"/A.mp3"});
+}
+
+TEST_CASE("parseM3u: lines of blanks only are skipped")
+{
+    CHECK(parseM3u("/a.mp3\n   \n\t\n \t \r\n/b.mp3\n", "/") == std::vector<path>{"/a.mp3", "/b.mp3"});
+}

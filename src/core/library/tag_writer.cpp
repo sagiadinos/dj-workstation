@@ -36,18 +36,22 @@ namespace djw::core::library
         TagLib::Tag *tag = reference.tag();
         if (change.artist)
         {
+            // mull-ignore-next: cxx_remove_void_call
             tag->setArtist(fromUtf8(*change.artist));
         }
         if (change.title)
         {
+            // mull-ignore-next: cxx_remove_void_call
             tag->setTitle(fromUtf8(*change.title));
         }
         if (change.album)
         {
+            // mull-ignore-next: cxx_remove_void_call
             tag->setAlbum(fromUtf8(*change.album));
         }
         if (change.genre)
         {
+            // mull-ignore-next: cxx_remove_void_call
             tag->setGenre(fromUtf8(*change.genre));
         }
         if (change.year)

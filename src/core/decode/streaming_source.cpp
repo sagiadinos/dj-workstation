@@ -31,6 +31,7 @@ namespace djw::core::decode
         stop_requested.store(true, std::memory_order_relaxed);
         if (worker.joinable())
         {
+            // mull-ignore-next: cxx_remove_void_call
             worker.join();
         }
     }

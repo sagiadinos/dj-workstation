@@ -150,3 +150,46 @@ TEST_CASE("StreamingSource: can be destroyed while the worker is still decoding"
     }
     CHECK(std::chrono::steady_clock::now() - start < std::chrono::seconds{2});
 }
+
+TEST_CASE("StreamingSource: a seek the decoder cannot do ends the stream and is reported, no old audio comes")
+{
+    StreamingSource source{
+        std::make_unique<FakeDecoder>(FakeDecoderOptions{.total_frames = 200'000, .fail_seeks = true}), 4'096};
+    static_cast<void>(readFrames(source, 1'000));
+    CHECK_FALSE(source.failed());
+
+    source.seek(150'000);
+
+    CHECK(readAll(source).empty());
+    CHECK(source.atEnd());
+    CHECK(source.failed());
+}
+
+namespace
+{
+    /// A decoder that does not know its length, like some streams
+    class UnknownLength final : public djw::core::decode::Decoder
+    {
+        public:
+            explicit UnknownLength(std::uint64_t frames) : inner{frames} {}
+
+            std::expected<std::size_t, std::string> read(std::span<float> output) override
+            {
+                return inner.read(output);
+            }
+            std::expected<void, std::string> seek(std::uint64_t frame) override { return inner.seek(frame); }
+            std::uint64_t                    lengthFrames() const noexcept override { return 0; }
+
+        private:
+            FakeDecoder inner;
+    };
+} // namespace
+
+TEST_CASE("StreamingSource: without a known length a seek goes where it is asked to")
+{
+    StreamingSource source{std::make_unique<UnknownLength>(5'000), 8'192};
+    source.seek(1'000);
+    const auto samples = readAll(source);
+    CHECK(samples.size() == 4'000 * 2);
+    CHECK(isRampFrom(samples, 1'000));
+}

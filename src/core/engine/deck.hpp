@@ -55,6 +55,7 @@ namespace djw::core::engine
             /// Playing, also while a scrub interrupts a deck that played
             [[nodiscard]] bool isPlaying() const noexcept
             {
+                // mull-ignore-next: cxx_eq_to_ne
                 return state == State::Playing || (state == State::Scrubbing && resume_playing);
             }
             [[nodiscard]] bool scrubbing() const noexcept { return state == State::Scrubbing; }

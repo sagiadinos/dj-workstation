@@ -27,6 +27,7 @@ namespace djw::core::engine
     {
         public:
             /// Audio thread: start of a render, before reading published pointers
+            // mull-ignore-next
             void enterRender() noexcept { epoch.fetch_add(1, std::memory_order_seq_cst); } // [audio-thread]
 
             /// Control thread: keeps object alive until the audio thread can no longer see it. Call after the

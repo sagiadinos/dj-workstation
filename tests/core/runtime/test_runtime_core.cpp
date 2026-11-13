@@ -176,8 +176,12 @@ TEST_CASE("RuntimeCore: errors name the problem and leave the deck as it was")
     fixture.pull(250);
     CHECK(fixture.core->deckSnapshot(deck)->read().track_loaded);
 
-    CHECK_FALSE(fixture.core->loadTrack(api::DeckId{99}, wav_file).has_value());
-    CHECK_FALSE(fixture.core->removeDeck(api::DeckId{99}).has_value());
+    const auto unknown_load = fixture.core->loadTrack(api::DeckId{99}, wav_file);
+    REQUIRE_FALSE(unknown_load.has_value());
+    CHECK(unknown_load.error() == "unknown deck 99");
+    const auto unknown_remove = fixture.core->removeDeck(api::DeckId{99});
+    REQUIRE_FALSE(unknown_remove.has_value());
+    CHECK(unknown_remove.error() == "unknown deck 99");
 }
 
 TEST_CASE("RuntimeCore: an error of the device on start is passed on")
@@ -362,4 +366,18 @@ TEST_CASE("RuntimeCore: tells the device's sample rate and the buffer size it wa
     Fixture fixture{api::CoreConfig{.buffer_frames = 512}, 44'100};
     CHECK(fixture.core->sampleRate() == 44'100);
     CHECK(fixture.core->bufferFrames() == 512);
+}
+
+TEST_CASE("RuntimeCore: a cue point right at the end of the track is not used, one just before it is")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck   = fixture.core->addDeck();
+    const auto                file   = gapFile(folder); // 2 s
+    const auto                at_end = fixture.core->loadTrack(deck, file, {.cue_seconds = 2.0});
+    REQUIRE(at_end.has_value());
+    CHECK(at_end->cue_seconds == 0.0);
+    const auto before_end = fixture.core->loadTrack(deck, file, {.cue_seconds = 1.5});
+    REQUIRE(before_end.has_value());
+    CHECK(before_end->cue_seconds == 1.5);
 }

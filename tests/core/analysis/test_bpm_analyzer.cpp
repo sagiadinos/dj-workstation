@@ -78,6 +78,10 @@ TEST_CASE("BpmAnalyzer: just under the minimum length there is no tempo, even wi
 {
     // 7.9 s at 160 BPM are 21 beats, plenty for the tracker; the track is still too short to trust
     CHECK_FALSE(analyze(beatTrack(160.0, 7.9)).has_value());
+    // Exactly the minimum length is enough
+    const auto exact = analyze(beatTrack(160.0, 8.0));
+    REQUIRE(exact.has_value());
+    CHECK(*exact == doctest::Approx(160.0).epsilon(0.01));
 }
 
 TEST_CASE("BpmAnalyzer: a fast tempo is folded down by halving, a slow one up by doubling, into the range")

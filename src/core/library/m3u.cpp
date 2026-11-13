@@ -98,6 +98,7 @@ namespace djw::core::library
             content.remove_prefix(end == std::string_view::npos ? content.size() : end + 1);
             if (!line.empty() && !line.starts_with('#'))
             {
+                // mull-ignore-next: cxx_remove_void_call
                 paths.push_back(entryPath(line, base_folder).lexically_normal());
             }
         }

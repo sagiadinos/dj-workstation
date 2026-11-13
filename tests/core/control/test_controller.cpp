@@ -120,3 +120,28 @@ TEST_CASE("Controller: an inverted absolute control runs the other way")
     CHECK(controller.handle(cc(1, 8, 127)).front().value == doctest::Approx(0.0F).epsilon(0.01));
     CHECK(controller.handle(cc(1, 0, 0)).front().value == doctest::Approx(1.0F));
 }
+
+TEST_CASE("Controller: a cc button is released with value 0, a note off with any velocity releases a note")
+{
+    Mapping mapping{.name = "Test", .match = {"Test"}, .audio = {}, .controls = {}, .file = {}};
+    mapping.controls = {control(MidiKind::ControlChange, 1, 20, Action::DeckPlay, 0),
+                        control(MidiKind::Note, 1, 21, Action::DeckCue, 0)};
+    Controller controller{mapping};
+    CHECK(controller.handle(cc(1, 20, 127)) == std::vector{event(Action::DeckPlay, true)});
+    CHECK(controller.handle(cc(1, 20, 0)) == std::vector{event(Action::DeckPlay, false)});
+    CHECK(controller.handle(noteOn(1, 21)) == std::vector{event(Action::DeckCue, true)});
+    const MidiMessage off_with_velocity{.status = 0x80, .data1 = 21, .data2 = 64};
+    CHECK(controller.handle(off_with_velocity) == std::vector{event(Action::DeckCue, false)});
+}
+
+TEST_CASE("Controller: the low part of a 14-bit control at cc 0 is cc 32, it replaces the low bits only")
+{
+    Mapping mapping{.name = "Test", .match = {"Test"}, .audio = {}, .controls = {}, .file = {}};
+    mapping.controls = {control(MidiKind::ControlChange, 3, 0, Action::DeckPitch, 0, Mode::Absolute14)};
+    Controller controller{mapping};
+    CHECK(controller.handle(cc(3, 0, 64)).front().value == doctest::Approx(8192.0F / 16383.0F));
+    const auto low = controller.handle(cc(3, 32, 5));
+    REQUIRE(low.size() == 1);
+    CHECK(low.front().value == doctest::Approx((8192.0F + 5.0F) / 16383.0F));
+    CHECK(controller.handle(cc(3, 32, 9)).front().value == doctest::Approx((8192.0F + 9.0F) / 16383.0F));
+}

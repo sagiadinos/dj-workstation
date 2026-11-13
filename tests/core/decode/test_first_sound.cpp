@@ -7,6 +7,8 @@
 #include "temp_dir.hpp"
 #include "wav_file.hpp"
 
+#include "fake_decoder.hpp"
+
 #include <doctest/doctest.h>
 
 #include <algorithm>
@@ -205,4 +207,10 @@ TEST_CASE("findFirstSound: in a file, on a decoder of its own")
     TrackLoadConfig short_search{};
     short_search.first_sound_search_frames = 20'000;
     CHECK_FALSE(findFirstSound(file, short_search).has_value());
+}
+
+TEST_CASE("findFirstSound: a decoder that cannot go to the start finds nothing")
+{
+    djw::tests::FakeDecoder decoder{{.total_frames = 10'000, .fail_seeks = true}}; // sound from frame 1 on
+    CHECK_FALSE(findFirstSound(decoder, limit).has_value());
 }

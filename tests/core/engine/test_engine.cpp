@@ -265,11 +265,30 @@ TEST_CASE("Engine: DeckScrub plays a loop at the position and goes on playing fr
     CHECK(state.position_seconds > 0.75);
 }
 
+namespace
+{
+    /// A track of which a quarter is decoded
+    class QuarterLoaded final : public engine::AudioSource
+    {
+        public:
+            std::size_t   read(std::span<float> /*output*/) noexcept override { return 0; }
+            void          seek(std::uint64_t /*frame*/) noexcept override {}
+            std::uint64_t lengthFrames() const noexcept override { return 48'000; }
+            bool          atEnd() const noexcept override { return false; }
+            float         decodedFraction() const noexcept override { return 0.25F; }
+    };
+} // namespace
+
 TEST_CASE("Engine: the snapshot tells how much of the track is loaded")
 {
     engine::Engine    engine{smallBlocks()};
     const api::DeckId deck = engine.addDeck();
     CHECK(engine.deckSnapshot(deck)->read().loaded_fraction == 1.0F);
+
+    REQUIRE(engine.setTrack(deck, std::make_unique<QuarterLoaded>()));
+    std::vector<float> output(4);
+    engine.render(output);
+    CHECK(engine.deckSnapshot(deck)->read().loaded_fraction == 0.25F);
 }
 
 TEST_CASE("Engine: CUE, pitch and pitch bend arrive at the deck and show in the snapshot")
@@ -290,6 +309,9 @@ TEST_CASE("Engine: CUE, pitch and pitch bend arrive at the deck and show in the 
 
     const api::DeckSnapshot state = engine.deckSnapshot(deck)->read();
     CHECK(state.keylock);
+    REQUIRE(queue.tryPush(api::DeckSetKeylock{deck, false}));
+    engine.render(output);
+    CHECK_FALSE(engine.deckSnapshot(deck)->read().keylock);
     CHECK(state.cue_set_count == 1); // the CUE press above set the cue point away from the start
     CHECK(state.cue_seconds == doctest::Approx(0.5));
     CHECK(state.pitch_percent == doctest::Approx(-6.5F));

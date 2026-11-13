@@ -9,6 +9,8 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
+
 #include <cmath>
 #include <numbers>
 #include <vector>
@@ -121,6 +123,14 @@ TEST_CASE("TimeStretcher: reset moves the position and forgets what was held")
     stretcher.reset(123'456);
     CHECK(stretcher.position() == 123'456);
     CHECK_FALSE(stretcher.drained());
+
+    // After the reset only the new source is heard: here silence, nothing of the sine held before
+    djw::tests::BufferSource silence{std::vector<float>(48'000 * 2, 0.0F)};
+    for (int i = 0; i < 20; ++i)
+    {
+        static_cast<void>(stretcher.process(silence, 1.1, block));
+        REQUIRE(std::ranges::all_of(block, [](float sample) { return sample == 0.0F; }));
+    }
 }
 
 TEST_CASE("TimeStretcher: plays a track to its end and then is drained, about length / tempo long")

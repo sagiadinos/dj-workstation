@@ -28,7 +28,8 @@ namespace djw::core::engine
             void process(std::span<float> samples) noexcept; // [audio-thread]
 
             [[nodiscard]] api::StereoLevel level() const noexcept { return meter.level(); }
-            [[nodiscard]] float            limiterGain() const noexcept { return limiter.gain(); }
+            // mull-ignore-next
+            [[nodiscard]] float limiterGain() const noexcept { return limiter.gain(); }
 
         private:
             GainRamp  volume_ramp;

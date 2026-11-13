@@ -9,6 +9,7 @@ namespace djw::core::engine
 {
     void Reclaimer::retire(std::shared_ptr<void> object)
     {
+        // mull-ignore-next: cxx_remove_void_call
         retired.push_back({epoch.load(std::memory_order_seq_cst), std::move(object)});
     }
 

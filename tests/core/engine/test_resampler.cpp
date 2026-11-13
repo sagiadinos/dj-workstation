@@ -172,3 +172,21 @@ TEST_CASE("Resampler: process does not allocate or free memory")
     CHECK(counter.allocations() == 0);
     CHECK(counter.deallocations() == 0);
 }
+
+TEST_CASE("Resampler: before the first frame lies silence, also after a reset")
+{
+    // Between frame 0 and 1 of a constant 1.0 the curve rises above 1 because of the silence before frame 0:
+    // hermite(0, 1, 1, 1) at t = 0.5 is 1.0625
+    BufferSource source{std::vector<float>(2 * 1'000, 1.0F)};
+    Resampler    resampler;
+    auto         output = process(resampler, source, 0.5, 2);
+    CHECK(output[2] == doctest::Approx(1.0625F));
+    CHECK(output[3] == doctest::Approx(1.0625F));
+
+    static_cast<void>(process(resampler, source, 1.0, 300));
+    source.seek(0);
+    resampler.reset(0);
+    output = process(resampler, source, 0.5, 2);
+    CHECK(output[2] == doctest::Approx(1.0625F));
+    CHECK(output[3] == doctest::Approx(1.0625F));
+}

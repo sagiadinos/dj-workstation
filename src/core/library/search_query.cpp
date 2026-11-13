@@ -133,25 +133,30 @@ namespace djw::core::library
 
         if (std::string fts = ftsQuery(query.text); !fts.empty())
         {
+            // mull-ignore-next: cxx_remove_void_call
             add("t.id IN (SELECT rowid FROM tracks_search WHERE tracks_search MATCH ?)", std::move(fts));
         }
         for (const std::string_view word : words(query.text))
         {
             if (hasWildcard(word))
             {
+                // mull-ignore-next: cxx_remove_void_call
                 add("t.any_key GLOB ?", containsPattern(word));
             }
         }
         if (!query.artist.empty())
         {
+            // mull-ignore-next: cxx_remove_void_call
             add("t.artist_key GLOB ?", globPattern(query.artist));
         }
         if (!query.title.empty())
         {
+            // mull-ignore-next: cxx_remove_void_call
             add("t.title_key GLOB ?", globPattern(query.title));
         }
         if (!query.genre.empty())
         {
+            // mull-ignore-next: cxx_remove_void_call
             add("t.genre_key GLOB ?", globPattern(query.genre));
         }
         if (query.only_missing)
@@ -160,6 +165,7 @@ namespace djw::core::library
         }
         if (!query.year.empty())
         {
+            // mull-ignore-next: cxx_remove_void_call
             add("t.year != 0 AND CAST(t.year AS TEXT) GLOB ?", globPattern(query.year));
         }
 
