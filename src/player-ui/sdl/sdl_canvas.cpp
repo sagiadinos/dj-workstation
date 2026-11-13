@@ -141,4 +141,22 @@ namespace djw::player_ui::sdl
             static_cast<int>(SDL_ceilf(clip->width * density)), static_cast<int>(SDL_ceilf(clip->height * density))};
         SDL_SetRenderClipRect(renderer, &area);
     }
+
+    void SdlCanvas::picture(Picture which, const Rect &area, std::uint8_t alpha)
+    {
+        const SDL_FRect target{area.x * density, area.y * density, area.width * density, area.height * density};
+        const auto      width  = static_cast<int>(SDL_lroundf(target.w));
+        const auto      height = static_cast<int>(SDL_lroundf(target.h));
+        if (pictures == nullptr || width <= 0 || height <= 0)
+        {
+            return;
+        }
+        SDL_Texture *texture = pictures->texture(which, width, height);
+        if (texture == nullptr)
+        {
+            return;
+        }
+        SDL_SetTextureAlphaMod(texture, alpha);
+        SDL_RenderTexture(renderer, texture, nullptr, &target);
+    }
 } // namespace djw::player_ui::sdl

@@ -502,3 +502,67 @@ TEST_CASE("Views use the area they are given, not the window: the playlist")
     PlaylistView            view{library, dialogs, translator, [](const api::LibraryTrack &) {}};
     checkUsesItsArea(view, {0, 0, 420, 600});
 }
+
+TEST_CASE("ViewHost: where views lie side by side, the logo lies faintly in the biggest free part, before the views")
+{
+    ViewHost host;
+    FakeView part{"part"};
+    host.add(part, left);
+    host.layout(window);
+
+    const auto logo = host.logoArea();
+    REQUIRE(logo.has_value());
+    // The right half is free: the logo as wide as it allows less the margins, centered in it
+    CHECK(logo->width == doctest::Approx(400.0F - (2 * ViewHost::logo_margin)));
+    CHECK(logo->width / logo->height == doctest::Approx(aspectOf(Picture::Logo)));
+    CHECK(logo->x + (logo->width / 2) == doctest::Approx(600.0F));
+    CHECK(logo->y + (logo->height / 2) == doctest::Approx(300.0F));
+
+    RecordingCanvas canvas;
+    host.draw(canvas);
+    REQUIRE(canvas.pictures.size() == 1);
+    CHECK(canvas.pictures[0].which == Picture::Logo);
+    CHECK(canvas.pictures[0].alpha == ViewHost::logo_alpha);
+}
+
+TEST_CASE("ViewHost: the logo is not wider than its maximum, and left out where there is no room or no free part")
+{
+    SUBCASE("a wide free part")
+    {
+        ViewHost host;
+        FakeView part{"part"};
+        host.add(part, Rect{0, 0, 100, 600});
+        host.layout({0, 0, 1'600, 600});
+        REQUIRE(host.logoArea().has_value());
+        CHECK(host.logoArea()->width == doctest::Approx(ViewHost::logo_max_width));
+    }
+    SUBCASE("one view over the whole window")
+    {
+        ViewHost host;
+        FakeView whole{"whole"};
+        host.add(whole);
+        host.layout(window);
+        CHECK_FALSE(host.logoArea().has_value());
+        RecordingCanvas canvas;
+        host.draw(canvas);
+        CHECK(canvas.pictures.empty());
+    }
+    SUBCASE("the window full of views")
+    {
+        ViewHost host;
+        FakeView first{"first"};
+        FakeView second{"second"};
+        host.add(first, left);
+        host.add(second, right);
+        host.layout(window);
+        CHECK_FALSE(host.logoArea().has_value());
+    }
+    SUBCASE("a free strip too low for the logo")
+    {
+        ViewHost host;
+        FakeView part{"part"};
+        host.add(part, Rect{0, 0, 800, 500});
+        host.layout(window);
+        CHECK_FALSE(host.logoArea().has_value());
+    }
+}

@@ -5,6 +5,7 @@
 #define DJW_PLAYER_UI_SDL_SDL_WINDOW_HPP
 
 #include "layout.hpp"
+#include "sdl_pictures.hpp"
 #include "sdl_text.hpp"
 #include "view.hpp"
 #include "view_host.hpp"
@@ -38,7 +39,8 @@ namespace djw::player_ui::sdl
      * fills the window; more views can be added, each in its own area. Input events of the window go to the views
      * through the host.
      *
-     * Resources are released in reverse order of creation: text, renderer, window.
+     * Resources are released in reverse order of creation: text, pictures, renderer, window. The window has the icon of
+     * misc/logo.
      */
     class SdlWindow
     {
@@ -100,6 +102,7 @@ namespace djw::player_ui::sdl
 
             std::unique_ptr<SDL_Window, WindowDeleter>     window;
             std::unique_ptr<SDL_Renderer, RendererDeleter> renderer;
+            std::unique_ptr<SdlPictures>                   pictures; ///< destroyed before the renderer
             std::unique_ptr<SdlText>                       text;
             ViewHost                                       host;
             bool                                           vsync      = false;

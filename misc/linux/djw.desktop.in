@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=DJ-Workstation
+GenericName=DJ Software
+GenericName[de]=DJ-Software
+Comment=Mix music with players, crossfader and a music library
+Comment[de]=Musik mixen mit Playern, Crossfader und Musikbibliothek
+Icon=@DJW_APP_ID@
+Exec=djw
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;Player;
+Keywords=DJ;mix;mixer;crossfader;MIDI;controller;
+Keywords[de]=DJ;mixen;Mixer;Crossfader;MIDI;Controller;
+StartupNotify=true
+StartupWMClass=@DJW_APP_ID@

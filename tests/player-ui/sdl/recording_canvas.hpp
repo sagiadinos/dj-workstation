@@ -7,6 +7,7 @@
 #include "canvas.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -91,6 +92,17 @@ namespace djw::tests
                 return static_cast<float>(text.size()) * char_width * 2.0F * scale;
             }
 
+            struct DrawnPicture
+            {
+                    player_ui::sdl::Picture which = player_ui::sdl::Picture::Logo;
+                    player_ui::sdl::Rect    area;
+                    std::uint8_t            alpha = 0;
+            };
+            void picture(player_ui::sdl::Picture which, const player_ui::sdl::Rect &area, std::uint8_t alpha) override
+            {
+                pictures.push_back({which, area, alpha});
+            }
+
             void setClip(std::optional<player_ui::sdl::Rect> rect) override
             {
                 clip = rect;
@@ -109,6 +121,7 @@ namespace djw::tests
             float                               scale = 1.0F;
             std::vector<float>                  large_scales; ///< the text scale each large text was drawn with
             std::vector<RoundedRect>            rounded;
+            std::vector<DrawnPicture>           pictures;
             std::optional<player_ui::sdl::Rect> clip;
             std::vector<std::optional<player_ui::sdl::Rect>> clip_changes;
     };

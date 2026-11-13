@@ -32,6 +32,24 @@ FetchContent_Declare(SDL3_ttf
 )
 FetchContent_MakeAvailable(SDL3_ttf)
 
+include(DjwNanoSvg)
+
+# The id of the program on the desktop: the name of its .desktop file and icon, and what its windows say they belong
+# to (the app id on Wayland, the window class on X11), so the desktop shows the icon for them
+set(DJW_APP_ID com.dj_workstation.djw)
+configure_file(${PROJECT_SOURCE_DIR}/misc/linux/djw.desktop.in ${CMAKE_CURRENT_BINARY_DIR}/${DJW_APP_ID}.desktop @ONLY)
+
+# The logos of misc/logo, built into the program as SVG text: djw-logo.svg (no background of its own, for the dark
+# window) and djw-icon.svg (the window icon). Changing them configures again.
+set(djw_logo ${PROJECT_SOURCE_DIR}/misc/logo/djw-logo.svg)
+set(djw_icon ${PROJECT_SOURCE_DIR}/misc/logo/djw-icon.svg)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${djw_logo} ${djw_icon})
+file(READ ${djw_logo} logo_hex HEX)
+file(READ ${djw_icon} icon_hex HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," logo_bytes "${logo_hex}")
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," icon_bytes "${icon_hex}")
+configure_file(picture_data.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/picture_data.cpp @ONLY)
+
 # Everything except main(), so the tests can link it. Only the sdl_* files use SDL; the widgets draw on a Canvas.
 add_library(djw_player_sdl_ui STATIC
     i18n/language.cpp
@@ -78,10 +96,13 @@ add_library(djw_player_sdl_ui STATIC
     sdl_window.cpp
     sdl_file_dialogs.cpp
     sdl_app.cpp
+    sdl_pictures.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/picture_data.cpp
 )
 djw_set_options(djw_player_sdl_ui)
 target_include_directories(djw_player_sdl_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(djw_player_sdl_ui PUBLIC djw::core SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+target_link_libraries(djw_player_sdl_ui PUBLIC djw::core SDL3::SDL3 SDL3_ttf::SDL3_ttf PRIVATE djw::nanosvg)
+target_compile_definitions(djw_player_sdl_ui PUBLIC DJW_APP_ID="${DJW_APP_ID}")
 
 add_executable(djw_player_sdl
     main.cpp
@@ -100,3 +121,12 @@ add_custom_command(TARGET djw_player_sdl POST_BUILD
     # The controller mappings that come with the program
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/mappings $<TARGET_FILE_DIR:djw_player_sdl>/mappings
 )
+
+# The entry in the desktop's application menu, with the icon of misc/logo (Linux and other freedesktop systems)
+if(UNIX AND NOT APPLE)
+    include(GNUInstallDirs)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DJW_APP_ID}.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+    install(FILES ${PROJECT_SOURCE_DIR}/misc/logo/djw-icon.svg
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+            RENAME ${DJW_APP_ID}.svg)
+endif()

@@ -79,18 +79,12 @@ main, .topbar, .footer {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 3.5rem;
+  min-height: 4rem;
   border-bottom: 1px solid var(--border);
 }
 
-.brand {
-  display: inline-flex;
-  align-items: center;
-  font: 600 1rem var(--mono);
-  color: var(--text);
-  text-decoration: none;
-  white-space: nowrap;
-}
+.brand { display: inline-flex; flex: none; padding-block: 0.4rem; }
+.brand img { width: auto; height: 46px; }
 
 .topbar__nav { display: flex; align-items: center; gap: 0.25rem; }
 .topbar__nav > a,
@@ -271,12 +265,12 @@ main, .topbar, .footer {
 
 /* very narrow phones: keep brand, download and language on one line */
 @media (max-width: 24em) {
-  .brand { font-size: 0.9rem; }
+  .brand img { height: 40px; }
   .topbar__nav > a, .lang summary { padding: 0 0.45rem; font-size: 0.95rem; }
 }
 @media (max-width: 21em) {
   :root { --gutter: 12px; }
-  .brand .led, .lang summary::after { display: none; }
+  .lang summary::after { display: none; }
 }
 
 /* ---------- downloads ---------- */

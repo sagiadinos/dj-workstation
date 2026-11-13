@@ -16,6 +16,7 @@ namespace djw::player_ui::sdl
     namespace
     {
         constexpr Color background{20, 20, 20};
+        constexpr int   icon_size = 256;
 
         std::string sdlError(const char *what)
         {
@@ -52,12 +53,18 @@ namespace djw::player_ui::sdl
         {
             return std::unexpected{sdlError("cannot create window")};
         }
+        // The icon of the title bar and the task bar; a desktop that takes it from elsewhere ignores it
+        if (const SurfacePtr icon = pictureSurface(Picture::Icon, icon_size, icon_size))
+        {
+            SDL_SetWindowIcon(created->window.get(), icon.get());
+        }
         created->renderer.reset(SDL_CreateRenderer(created->window.get(), nullptr));
         if (!created->renderer)
         {
             return std::unexpected{sdlError("cannot create renderer")};
         }
-        created->vsync = options.vsync && SDL_SetRenderVSync(created->renderer.get(), 1);
+        created->pictures = std::make_unique<SdlPictures>(*created->renderer);
+        created->vsync    = options.vsync && SDL_SetRenderVSync(created->renderer.get(), 1);
 
         auto text = SdlText::open(*created->renderer, font_file);
         if (!text)
@@ -181,7 +188,7 @@ namespace djw::player_ui::sdl
 
         SDL_SetRenderDrawColor(renderer.get(), background.red, background.green, background.blue, background.alpha);
         SDL_RenderClear(renderer.get());
-        SdlCanvas canvas{*renderer, *text, SDL_GetWindowPixelDensity(window.get())};
+        SdlCanvas canvas{*renderer, *text, SDL_GetWindowPixelDensity(window.get()), pictures.get()};
         look::background(canvas, area());
         host.draw(canvas);
         SDL_RenderPresent(renderer.get());

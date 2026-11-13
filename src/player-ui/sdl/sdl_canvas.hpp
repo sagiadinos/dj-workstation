@@ -5,6 +5,7 @@
 #define DJW_PLAYER_UI_SDL_SDL_CANVAS_HPP
 
 #include "canvas.hpp"
+#include "sdl_pictures.hpp"
 #include "sdl_text.hpp"
 
 #include <SDL3/SDL_render.h>
@@ -18,8 +19,9 @@ namespace djw::player_ui::sdl
     class SdlCanvas final : public Canvas
     {
         public:
-            SdlCanvas(SDL_Renderer &renderer, SdlText &text, float density) noexcept
-                : renderer{&renderer}, text_renderer{&text}, density{density}
+            /// pictures may be nullptr: then pictures are left out
+            SdlCanvas(SDL_Renderer &renderer, SdlText &text, float density, SdlPictures *pictures = nullptr) noexcept
+                : renderer{&renderer}, text_renderer{&text}, pictures{pictures}, density{density}
             {
                 text.setDensity(density);
                 text.setScale(1.0F);
@@ -37,12 +39,14 @@ namespace djw::player_ui::sdl
             void                largeText(Point position, std::string_view text, Color color) override;
             [[nodiscard]] float largeTextHeight() const noexcept override;
             [[nodiscard]] float largeTextWidth(std::string_view text) const noexcept override;
+            void                picture(Picture which, const Rect &area, std::uint8_t alpha) override;
             void                setClip(std::optional<Rect> clip) override;
             void                setTextScale(float scale) override { text_renderer->setScale(scale); }
 
         private:
             SDL_Renderer *renderer;
             SdlText      *text_renderer;
+            SdlPictures  *pictures;
             float         density;
     };
 } // namespace djw::player_ui::sdl

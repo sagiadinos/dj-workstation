@@ -78,6 +78,11 @@ namespace djw::player_ui::sdl
      */
     [[nodiscard]] std::optional<Rect> freePlace(float width, float height, const Rect &window,
                                                 const std::vector<Rect> &taken, float grid = mdi_grid);
+
+    /// The biggest rectangle on the grid inside the window that overlaps none of the taken areas (touching their
+    /// edges is fine); std::nullopt if no grid cell is free
+    [[nodiscard]] std::optional<Rect> largestFree(const Rect &window, const std::vector<Rect> &taken,
+                                                  float grid = mdi_grid);
 } // namespace djw::player_ui::sdl
 
 #endif // DJW_PLAYER_UI_SDL_MDI_ARRANGEMENT_HPP

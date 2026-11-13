@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <vector>
 
 namespace djw::player_ui::sdl
 {
@@ -178,5 +180,72 @@ namespace djw::player_ui::sdl
             }
         }
         return std::nullopt;
+    }
+
+    std::optional<Rect> largestFree(const Rect &window, const std::vector<Rect> &taken, float grid)
+    {
+        const auto columns = static_cast<std::size_t>(std::max(0.0F, std::floor(window.width / grid)));
+        const auto rows    = static_cast<std::size_t>(std::max(0.0F, std::floor(window.height / grid)));
+        if (columns == 0 || rows == 0)
+        {
+            return std::nullopt;
+        }
+        // The cells a taken area covers more than at an edge
+        std::vector<bool> blocked(columns * rows, false);
+        const auto        cell = [grid](float offset, float size, std::size_t count, bool end)
+        {
+            const float position = (end ? std::ceil((offset + size) / grid) : std::floor(offset / grid));
+            return static_cast<std::size_t>(std::clamp(position, 0.0F, static_cast<float>(count)));
+        };
+        for (const Rect &area : taken)
+        {
+            const std::size_t first_column = cell(area.x - window.x, 0.0F, columns, false);
+            const std::size_t end_column   = cell(area.x - window.x, area.width, columns, true);
+            const std::size_t first_row    = cell(area.y - window.y, 0.0F, rows, false);
+            const std::size_t end_row      = cell(area.y - window.y, area.height, rows, true);
+            for (std::size_t row = first_row; row < end_row; ++row)
+            {
+                for (std::size_t column = first_column; column < end_column; ++column)
+                {
+                    blocked[(row * columns) + column] = true;
+                }
+            }
+        }
+        // Row by row, the free cells above each column as a histogram; its biggest rectangle with a stack
+        std::vector<std::size_t> heights(columns, 0);
+        std::size_t              best = 0;
+        Rect                     found;
+        for (std::size_t row = 0; row < rows; ++row)
+        {
+            for (std::size_t column = 0; column < columns; ++column)
+            {
+                heights[column] = blocked[(row * columns) + column] ? 0 : heights[column] + 1;
+            }
+            std::vector<std::size_t> stack;
+            for (std::size_t column = 0; column <= columns; ++column)
+            {
+                const std::size_t height = column < columns ? heights[column] : 0;
+                while (!stack.empty() && heights[stack.back()] >= height)
+                {
+                    const std::size_t top = heights[stack.back()];
+                    stack.pop_back();
+                    const std::size_t left  = stack.empty() ? 0 : stack.back() + 1;
+                    const std::size_t width = column - left;
+                    if (top * width > best)
+                    {
+                        best  = top * width;
+                        found = {window.x + (static_cast<float>(left) * grid),
+                                 window.y + (static_cast<float>(row + 1 - top) * grid),
+                                 static_cast<float>(width) * grid, static_cast<float>(top) * grid};
+                    }
+                }
+                stack.push_back(column);
+            }
+        }
+        if (best == 0)
+        {
+            return std::nullopt;
+        }
+        return found;
     }
 } // namespace djw::player_ui::sdl

@@ -5,7 +5,9 @@
 #define DJW_PLAYER_UI_SDL_CANVAS_HPP
 
 #include "geometry.hpp"
+#include "picture.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <string_view>
 
@@ -46,6 +48,10 @@ namespace djw::player_ui::sdl
             /// sizes textHeight(), textWidth() and so on then report are those of the scaled text. A canvas that cannot
             /// scale text ignores it.
             virtual void setTextScale(float /*scale*/) {}
+
+            /// The picture stretched over area (its aspect is the caller's business, see aspectOf()), alpha 255 opaque.
+            /// A canvas that cannot draw pictures leaves them out.
+            virtual void picture(Picture /*which*/, const Rect & /*area*/, std::uint8_t /*alpha*/) {}
 
             /// Drawing outside clip is cut off until the next setClip(); std::nullopt draws everywhere again
             virtual void setClip(std::optional<Rect> clip) = 0;

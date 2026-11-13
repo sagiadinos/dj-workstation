@@ -312,6 +312,7 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | UI, windowing, touch | SDL3 | zlib |
 | Font rendering | SDL3_ttf (FreeType, HarfBuzz) | zlib (FreeType: FTL, HarfBuzz: MIT) |
 | Vector graphics (optional) | NanoVG | zlib |
+| Logo (SVG) | nanosvg | zlib |
 | MIDI | RtMidi (+ custom backends for Android/Web) | MIT-style |
 | HID (optional) | hidapi | BSD |
 | Scripting | Lua 5.4 | MIT |

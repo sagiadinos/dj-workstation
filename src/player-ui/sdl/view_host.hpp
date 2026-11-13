@@ -13,6 +13,7 @@
 #include "view.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -30,7 +31,8 @@ namespace djw::player_ui::sdl
      * Input: pointer events go to the widgets of all views (they are in window coordinates), the wheel and the right
      * mouse button to the view under the pointer, typed text to the focused view: the one a pointer last went down
      * on, the first view until then. Where several views with areas of their own share the window, that one has a
-     * dark blue line around it.
+     * dark blue line around it. There the logo lies faintly in the biggest part of the window no view covers, if it
+     * is big enough; the views are transparent, so it never lies under one.
      *
      * Arranging (the layout editing of the MDI mode): the views are locked, their widgets get no input. Instead a
      * view with an area of its own can be dragged anywhere to move it, or at its lower right corner to resize it; it
@@ -98,6 +100,14 @@ namespace djw::player_ui::sdl
             static constexpr Color focus_color{30, 62, 104};
             /// The square at the lower right corner of a view that resizes it
             static constexpr float resize_handle = 32.0F;
+            /// The logo in the biggest free part of the window, where views lie side by side (the MDI mode): faint,
+            /// with room around it, not wider than this, and only where it can be at least this wide
+            static constexpr std::uint8_t logo_alpha     = 56;
+            static constexpr float        logo_margin    = 24.0F;
+            static constexpr float        logo_max_width = 560.0F;
+            static constexpr float        logo_min_width = 160.0F;
+            /// Where the logo is drawn after the last layout(); std::nullopt where there is no room for it
+            [[nodiscard]] std::optional<Rect> logoArea() const noexcept { return logo_area; }
 
             void               startArranging(Arranging arranging);
             void               stopArranging();
@@ -139,6 +149,8 @@ namespace djw::player_ui::sdl
                     bool        fits = true;
             };
             void arrangePointer(const PointerEvent &event);
+            /// The logo in the biggest free part of the arranged area, if there is room
+            void placeLogo();
             /// A line around the view the keys go to
             void drawFocus(Canvas &canvas) const;
             void drawArranging(Canvas &canvas) const;
@@ -149,6 +161,7 @@ namespace djw::player_ui::sdl
 
             Rect                     window_area;
             std::optional<Rect>      work_area;
+            std::optional<Rect>      logo_area;
             std::optional<Arranging> arrange;
             std::optional<Drag>      drag;
             TextButton               done_button;

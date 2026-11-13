@@ -3,6 +3,8 @@
 
 #include "sdl_app.hpp"
 
+#include "api/version.hpp"
+
 #include "fake_library.hpp"
 #include "mdi_arrangement.hpp"
 #include "settings.hpp"
@@ -76,6 +78,17 @@ TEST_CASE("SdlApp: starts with the deck it is given and its window")
     auto    app = fixture.openApp();
     CHECK(app->deckCount() == 1);
     CHECK(app->runFrame());
+}
+
+TEST_CASE("SdlApp: tells SDL its name, version and the id of its .desktop file")
+{
+    Fixture    fixture;
+    const auto app = fixture.openApp();
+    CHECK(std::string_view{SDL_GetAppMetadataProperty(SDL_PROP_APP_METADATA_IDENTIFIER_STRING)} ==
+          "com.dj_workstation.djw");
+    CHECK(std::string_view{SDL_GetAppMetadataProperty(SDL_PROP_APP_METADATA_NAME_STRING)} == "DJ-Workstation");
+    CHECK(std::string_view{SDL_GetAppMetadataProperty(SDL_PROP_APP_METADATA_VERSION_STRING)} ==
+          djw::core::api::version());
 }
 
 TEST_CASE("SdlApp: Ctrl+N adds a deck with its own window, as many as wanted")

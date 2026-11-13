@@ -342,3 +342,45 @@ TEST_CASE("MDI by hand: a new pane takes the first free place on the grid, small
 
     CHECK_FALSE(freePlace(300, 200, window, {window}).has_value());
 }
+
+namespace
+{
+    bool sameRect(const Rect &first, const Rect &second)
+    {
+        return same(first.x, second.x) && same(first.y, second.y) && same(first.width, second.width) &&
+               same(first.height, second.height);
+    }
+} // namespace
+
+TEST_CASE("largestFree: the whole window on the grid without views, else the biggest part none of them covers")
+{
+    const Rect window{0, 0, 805, 600};
+    const auto whole = largestFree(window, {});
+    REQUIRE(whole.has_value());
+    CHECK(sameRect(*whole, Rect{0, 0, 800, 600}));
+
+    // Below a wide view there is more room than beside it
+    const auto below = largestFree(window, {{0, 0, 600, 200}});
+    REQUIRE(below.has_value());
+    CHECK(sameRect(*below, Rect{0, 200, 800, 400}));
+
+    // Beside a high one there is more room than below it
+    const auto beside = largestFree(window, {{0, 0, 200, 550}});
+    REQUIRE(beside.has_value());
+    CHECK(sameRect(*beside, Rect{200, 0, 600, 600}));
+
+    CHECK_FALSE(largestFree(window, {{0, 0, 805, 600}}).has_value());
+    CHECK_FALSE(largestFree({0, 0, 5, 5}, {}).has_value());
+}
+
+TEST_CASE("largestFree: a view off the grid blocks every cell it covers, an edge does not; the window may be moved")
+{
+    const auto right = largestFree({0, 0, 800, 600}, {{0, 0, 405, 600}});
+    REQUIRE(right.has_value());
+    CHECK(sameRect(*right, Rect{410, 0, 390, 600}));
+
+    // The work area below a menu bar: its corner is where the grid starts
+    const auto moved = largestFree({0, 30, 800, 600}, {{0, 30, 400, 600}});
+    REQUIRE(moved.has_value());
+    CHECK(sameRect(*moved, Rect{400, 30, 400, 600}));
+}

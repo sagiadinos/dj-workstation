@@ -97,6 +97,7 @@ namespace djw::player_ui::sdl
             pane.placed = drag && drag->view == pane.view ? drag->target : pane.area.value_or(window);
             pane.view->layout(pane.placed);
         }
+        placeLogo();
         if (arrange)
         {
             constexpr float done_width  = 180.0F;
@@ -125,8 +126,43 @@ namespace djw::player_ui::sdl
         }
     }
 
+    void ViewHost::placeLogo()
+    {
+        logo_area.reset();
+        std::vector<Rect> taken;
+        for (const Pane &pane : panes)
+        {
+            if (pane.area && !pane.on_top)
+            {
+                taken.push_back(pane.placed);
+            }
+        }
+        if (taken.empty())
+        {
+            return; // one view over the whole window: no free part
+        }
+        const auto free = largestFree(arrangeArea(), taken);
+        if (!free)
+        {
+            return;
+        }
+        constexpr float aspect = aspectOf(Picture::Logo);
+        const float     width =
+            std::min({free->width - (2 * logo_margin), (free->height - (2 * logo_margin)) * aspect, logo_max_width});
+        if (width < logo_min_width)
+        {
+            return;
+        }
+        const float height = width / aspect;
+        logo_area = Rect{free->x + ((free->width - width) / 2), free->y + ((free->height - height) / 2), width, height};
+    }
+
     void ViewHost::draw(Canvas &canvas) const
     {
+        if (logo_area)
+        {
+            canvas.picture(Picture::Logo, *logo_area, logo_alpha);
+        }
         bool focus_shown = false;
         for (const Pane *pane : inOrder())
         {
