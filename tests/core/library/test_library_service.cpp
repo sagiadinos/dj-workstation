@@ -921,6 +921,7 @@ TEST_CASE("Library: the pending writes and analyses count what is queued and run
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{20};
     while (std::chrono::steady_clock::now() < deadline)
     {
+        library->analyze(id); // asked again while it runs: not queued twice
         const auto status = library->status();
         REQUIRE(status.pending_writes <= 2); // the cue point and the analysis result
         REQUIRE(status.analysis_pending <= 1);
@@ -931,4 +932,126 @@ TEST_CASE("Library: the pending writes and analyses count what is queued and run
         std::this_thread::sleep_for(std::chrono::microseconds{200});
     }
     CHECK(library->search({}).value().front().analyzed);
+}
+
+TEST_CASE("Library: a tag edit whose track cannot be looked up reports the database error")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    auto                      service = scannedService(music, data, {"a.mp3"});
+    const auto                id      = service->search({}).value().front().id;
+
+    const djw::tests::SqlFault fault{"SELECT path FROM tracks WHERE id"};
+    service->updateTags(id, {.title = "x"});
+    const auto status = afterWrite(*service, service->status().revision);
+    CHECK(fault.struck() == 1);
+    CHECK(status.write_error.find("injected fault") != std::string::npos);
+}
+
+TEST_CASE("Library: a write counts as pending while it runs")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::ofstream{music.path() / "a.mp3"} << "x";
+    auto service = openService(
+        data.path() / "library.db", [](const std::filesystem::path &) { return library::TrackTags{.title = "a"}; },
+        [](const std::filesystem::path &, const api::LibraryTagChange &) -> std::expected<void, std::string>
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{300});
+            return {};
+        });
+    REQUIRE(service->addFolder(music.path()).has_value());
+    waitForScan(*service);
+
+    service->updateTags(service->search({}).value().front().id, {.title = "b"});
+    std::this_thread::sleep_for(std::chrono::milliseconds{100}); // taken from the queue, still writing
+    CHECK(service->status().pending_writes == 1);
+    CHECK(waitForEdits(*service).pending_writes == 0);
+}
+
+TEST_CASE("Library: a new scan starts without the error of the scan before")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    for (int i = 0; i < 40; ++i)
+    {
+        std::ofstream{music.path() / ("track " + std::to_string(i) + ".mp3")} << "x";
+    }
+    auto service = openService(
+        data.path() / "library.db",
+        [](const std::filesystem::path &file)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{5}); // a slow scan, to look at it while it runs
+            return library::TrackTags{.title = file.stem().string()};
+        },
+        [](const std::filesystem::path &, const api::LibraryTagChange &) -> std::expected<void, std::string>
+        { return {}; });
+    {
+        const djw::tests::SqlFault fault{"SELECT path FROM folders"};
+        REQUIRE(service->addFolder(music.path()).has_value());
+        REQUIRE_FALSE(waitForScan(*service).scan_error.empty());
+    }
+
+    service->rescan();
+    bool       seen_scanning = false;
+    const auto deadline      = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        const auto status = service->status();
+        if (!status.scanning)
+        {
+            break;
+        }
+        if (status.files_found > 0)
+        {
+            seen_scanning = true;
+            REQUIRE(status.scan_error.empty());
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+    CHECK(seen_scanning);
+    CHECK(service->status().scan_error.empty());
+    CHECK(service->status().tracks_total == 40);
+}
+
+TEST_CASE("Library: a write between the files of a scan whose commit fails reports it")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    for (const char *name : {"a.mp3", "b.mp3", "c.mp3", "d.mp3"})
+    {
+        std::ofstream{music.path() / name} << "x";
+    }
+    library::LibraryService *service_of_reader = nullptr;
+    int                      files_read        = 0;
+    auto                     service           = openService(
+        data.path() / "library.db",
+        [&](const std::filesystem::path &file)
+        {
+            // Library thread, during the scan: after the first file a write is waiting and the next commit fails,
+            // from the second file on everything works again
+            ++files_read;
+            if (files_read == 1)
+            {
+                service_of_reader->setCuePoint(4711, 1.0);
+                library::testing::failSql("COMMIT");
+            }
+            else if (files_read == 2)
+            {
+                library::testing::failSql({});
+            }
+            return library::TrackTags{.title = file.stem().string()};
+        },
+        [](const std::filesystem::path &, const api::LibraryTagChange &) -> std::expected<void, std::string>
+        { return {}; });
+    service_of_reader = service.get();
+
+    REQUIRE(service->addFolder(music.path()).has_value());
+    const auto status = waitForScan(*service);
+    library::testing::failSql({});
+
+    CHECK(files_read == 4);
+    CHECK(status.write_error.find("injected fault") != std::string::npos);
+    CHECK(status.scan_error.empty());
+    CHECK(status.tracks_total == 4);
 }

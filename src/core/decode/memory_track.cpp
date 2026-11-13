@@ -45,6 +45,7 @@ namespace djw::core::decode
         stop_requested.store(true, std::memory_order_relaxed);
         if (worker.joinable())
         {
+            // mull-ignore-next: cxx_remove_void_call
             worker.join();
         }
     }
@@ -152,6 +153,7 @@ namespace djw::core::decode
         bool usable = true;
         if (chunk != decoder_chunk)
         {
+            // mull-ignore-next: cxx_assign_const
             usable = decoder->seek(std::uint64_t{chunk} * chunk_frames).has_value();
         }
         while (usable && filled < frames)

@@ -30,6 +30,8 @@ namespace djw::tests
             std::chrono::microseconds read_delay{0};
             /// Frames one read gives at most, like a real decoder that works in packets; 0 means as many as fit
             std::size_t max_frames_per_read = 0;
+            /// Every seek fails, the position stays
+            bool fail_seeks = false;
     };
 
     /**
@@ -79,6 +81,10 @@ namespace djw::tests
             std::expected<void, std::string> seek(std::uint64_t frame) override
             {
                 seeks->fetch_add(1);
+                if (options.fail_seeks)
+                {
+                    return std::unexpected{std::string{"fake seek error"}};
+                }
                 next_frame = std::min(frame, options.total_frames);
                 return {};
             }

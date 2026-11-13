@@ -191,9 +191,10 @@ TEST_CASE("MemoryTrack: can be destroyed while the worker is still decoding")
 {
     const auto start = std::chrono::steady_clock::now();
     {
-        auto track = makeTrack({.total_frames = 1'000'000, .read_delay = std::chrono::milliseconds{1}}, 1'000);
+        // Decoding all of it would take 5 s
+        auto track = makeTrack({.total_frames = 1'000'000, .read_delay = std::chrono::milliseconds{5}}, 1'000);
     }
-    CHECK(std::chrono::steady_clock::now() - start < std::chrono::seconds{2});
+    CHECK(std::chrono::steady_clock::now() - start < std::chrono::seconds{1});
 }
 
 TEST_CASE("MemoryTrack: the decoded fraction grows from the first chunk to the whole track")
@@ -206,4 +207,75 @@ TEST_CASE("MemoryTrack: the decoded fraction grows from the first chunk to the w
 
     REQUIRE(waitForAll(*track));
     CHECK(track->decodedFraction() == doctest::Approx(1.0F));
+}
+
+TEST_CASE("MemoryTrack: an empty track has nothing to decode and is complete")
+{
+    auto               track = makeTrack({.total_frames = 0}, 1'000);
+    std::vector<float> output(10 * 2);
+    CHECK(track->read(output) == 0);
+    CHECK(track->atEnd());
+    CHECK(track->fullyDecoded());
+    CHECK(track->decodedFraction() == 1.0F);
+    CHECK_FALSE(track->isDecoded(0));
+}
+
+TEST_CASE("MemoryTrack: the end of the track is not a decoded frame")
+{
+    auto track = makeTrack({.total_frames = 10'500}, 1'000);
+    REQUIRE(waitForAll(*track));
+    CHECK(track->isDecoded(10'499));
+    CHECK_FALSE(track->isDecoded(10'500));
+}
+
+TEST_CASE("MemoryTrack: a seek alone makes that part come next, then decoding goes on from there")
+{
+    // 200 chunks at 2 ms each: in order the far part would come after 300 ms
+    std::shared_ptr<std::atomic<int>> seeks;
+    auto track = makeTrack({.total_frames = 200'000, .read_delay = std::chrono::milliseconds{2}}, 1'000, &seeks);
+
+    track->seek(150'000); // no read: the seek alone asks for the part
+    REQUIRE(waitFor(*track, 150'000));
+    CHECK_FALSE(track->isDecoded(100'000));
+
+    REQUIRE(waitFor(*track, 151'000)); // the part after the seek follows
+    CHECK_FALSE(track->isDecoded(100'000));
+
+    REQUIRE(waitForAll(*track));
+    // Every part is decoded once: the worker has stopped, also after time for many more parts
+    std::this_thread::sleep_for(std::chrono::milliseconds{100});
+    CHECK(track->decodedFraction() == 1.0F);
+    CHECK(seeks->load() <= 3);               // to the part asked for and back to the first gap
+}
+
+TEST_CASE("MemoryTrack: reading into a part not decoded yet asks for it, also after a seek elsewhere")
+{
+    auto track = makeTrack({.total_frames = 200'000, .read_delay = std::chrono::milliseconds{2}}, 1'000);
+    track->seek(100'000);
+    REQUIRE(waitFor(*track, 100'000));
+
+    track->seek(0); // decoded already: the seek asks for nothing
+    std::vector<float> output(1'000 * 2);
+    REQUIRE(track->read(output) == 1'000);
+    if (!track->isDecoded(1'000))
+    {
+        CHECK(track->read(output) == 0); // the next part is asked for here
+    }
+    REQUIRE(waitFor(*track, 1'000));
+    CHECK_FALSE(track->isDecoded(199'000)); // it came before the rest after the seek
+    CHECK(track->read(output) == 1'000);
+    CHECK(isRampFrom(output, 1'000));
+}
+
+TEST_CASE("MemoryTrack: a decoder that cannot seek leaves silence there and is reported")
+{
+    auto track =
+        makeTrack({.total_frames = 100'000, .read_delay = std::chrono::milliseconds{2}, .fail_seeks = true}, 1'000);
+    track->seek(90'000);
+    REQUIRE(waitFor(*track, 90'000));
+
+    std::vector<float> output(100 * 2);
+    REQUIRE(track->read(output) == 100);
+    CHECK(std::ranges::all_of(output, [](float value) { return value == 0.0F; }));
+    CHECK(track->failed());
 }
