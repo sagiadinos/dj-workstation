@@ -3,6 +3,7 @@
 
 #include "sdl_app.hpp"
 
+#include "api/version.hpp"
 #include "mdi_arrangement.hpp"
 #include "player_number.hpp"
 
@@ -32,6 +33,9 @@ namespace djw::player_ui::sdl
 
         bool initSdl()
         {
+            // Name, version and id of the program: the id ties the windows to the .desktop file and its icon
+            const std::string version{core::api::version()};
+            SDL_SetAppMetadata("DJ-Workstation", version.c_str(), DJW_APP_ID);
             // Touch is handled as touch; no extra mouse events for it
             SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
             return SDL_Init(SDL_INIT_VIDEO);
