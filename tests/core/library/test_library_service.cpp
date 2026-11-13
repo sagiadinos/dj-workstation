@@ -5,6 +5,7 @@
 #include "library/library_service.hpp"
 #include "library/tag_reader.hpp"
 
+#include "sql_fault.hpp"
 #include "temp_dir.hpp"
 
 #include <doctest/doctest.h>
@@ -224,7 +225,7 @@ TEST_CASE("Library: a tag edit of an unknown track is an error")
 
     library->updateTags(4711, {.title = "x"});
 
-    CHECK(waitForEdits(*library).write_error.find("4711") != std::string::npos);
+    CHECK(waitForEdits(*library).write_error == "cannot write tags: track 4711 is no longer in the library");
 }
 
 TEST_CASE("Library: tag edits are written during a scan, not after it")
@@ -596,5 +597,338 @@ TEST_CASE("Library: scanning an unknown track again is an error")
     library->rescanTrack(4711);
     const api::LibraryStatus status = waitForAnalysis(*library);
 
-    CHECK(status.write_error.find("4711") != std::string::npos);
+    CHECK(status.write_error == "cannot scan again: track 4711 is no longer in the library");
+}
+
+namespace
+{
+    /// A service over these files in music, their titles from the file names, tag writing always fine
+    std::unique_ptr<library::LibraryService> scannedService(const djw::tests::TempDir          &music,
+                                                            const djw::tests::TempDir          &data,
+                                                            std::initializer_list<const char *> names)
+    {
+        for (const char *name : names)
+        {
+            std::ofstream{music.path() / name} << "x";
+        }
+        auto service = openService(
+            data.path() / "library.db",
+            [](const std::filesystem::path &file) { return library::TrackTags{.title = file.stem().string()}; },
+            [](const std::filesystem::path &, const api::LibraryTagChange &) -> std::expected<void, std::string>
+            { return {}; });
+        REQUIRE(service->addFolder(music.path()).has_value());
+        REQUIRE(waitForScan(*service).tracks_total == names.size());
+        return service;
+    }
+
+    /// The status once the write queued last is done, and while the fault is still there
+    api::LibraryStatus afterWrite(const api::Library &library, std::uint64_t revision)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+        while ((library.status().pending_writes > 0 ||
+                (library.status().write_error.empty() && library.status().revision <= revision)) &&
+               std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{2});
+        }
+        return library.status();
+    }
+} // namespace
+
+TEST_CASE("Library: a library whose reading or writing connection cannot be opened is an error")
+{
+    const djw::tests::TempDir data;
+    const char               *part = "";
+    int                       skip = 0;
+    SUBCASE("reading tracks")
+    {
+        part = "BEGIN EXCLUSIVE";
+    }
+    SUBCASE("writing tracks")
+    {
+        part = "BEGIN EXCLUSIVE";
+        skip = 1;
+    }
+    SUBCASE("reading playlists")
+    {
+        part = "SELECT id FROM playlists WHERE name";
+    }
+    SUBCASE("writing playlists")
+    {
+        part = "SELECT id FROM playlists WHERE name";
+        skip = 1;
+    }
+    const djw::tests::SqlFault fault{part, skip};
+    const auto                 opened = library::LibraryService::open(
+        data.path() / "library.db", [](const std::filesystem::path &) { return library::TrackTags{}; },
+        [](const std::filesystem::path &, const api::LibraryTagChange &) -> std::expected<void, std::string>
+        { return {}; });
+    REQUIRE_FALSE(opened.has_value());
+    CHECK(opened.error().find("injected fault") != std::string::npos);
+    CHECK(fault.struck() == 1);
+}
+
+TEST_CASE("Library: the counts are there right after opening, the missing tracks included")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    {
+        auto service = scannedService(music, data, {"a.mp3", "b.mp3"});
+        std::filesystem::remove(music.path() / "b.mp3");
+        service->rescan();
+        REQUIRE(waitForScan(*service).missing_total == 1);
+    }
+    const auto status = openLibrary(data.path() / "library.db")->status();
+    CHECK(status.tracks_total == 2);
+    CHECK(status.missing_total == 1);
+}
+
+TEST_CASE("Library: a file is not a folder to add, and a folder that cannot be stored is an error")
+{
+    const djw::tests::TempDir data;
+    std::ofstream{data.path() / "file.mp3"} << "x";
+    auto library = openLibrary(data.path() / "library.db");
+    CHECK_FALSE(library->addFolder(data.path() / "file.mp3").has_value());
+
+    {
+        const djw::tests::SqlFault fault{"INSERT OR IGNORE INTO folders"};
+        const auto                 added = library->addFolder(data.path());
+        REQUIRE_FALSE(added.has_value());
+        CHECK(added.error().find("injected fault") != std::string::npos);
+        CHECK(fault.struck() == 1);
+    }
+    CHECK(library->folders().empty());
+    CHECK_FALSE(library->status().scanning);
+}
+
+TEST_CASE("Library: a track whose state cannot be read is not analyzed")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    auto                      service = scannedService(music, data, {"a.mp3"});
+    const auto                id      = service->search({}).value().front().id;
+    const char               *part    = "";
+    SUBCASE("analyzed")
+    {
+        part = "SELECT analyzed FROM tracks";
+    }
+    SUBCASE("path")
+    {
+        part = "SELECT path FROM tracks WHERE id";
+    }
+    SUBCASE("all")
+    {
+        part = "WHERE analyzed = 0";
+    }
+    const djw::tests::SqlFault fault{part};
+    if (std::string_view{part} == "WHERE analyzed = 0")
+    {
+        service->analyzeAll();
+    }
+    else
+    {
+        service->analyze(id);
+    }
+    CHECK(fault.struck() == 1);
+    CHECK(service->status().analysis_pending == 0);
+}
+
+TEST_CASE("Library: an unknown track is not analyzed")
+{
+    const djw::tests::TempDir data;
+    auto                      library = openLibrary(data.path() / "library.db");
+    library->analyze(4711);
+    CHECK(library->status().analysis_pending == 0);
+}
+
+TEST_CASE("Library: a scan that cannot read the folders or check the files reports it")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    auto                      service = scannedService(music, data, {"a.mp3"});
+    const auto                before  = service->status().revision;
+    const char               *part    = "";
+    SUBCASE("folders")
+    {
+        part = "SELECT path FROM folders";
+    }
+    SUBCASE("missing files")
+    {
+        part = "SELECT id, path, missing FROM tracks";
+    }
+    api::LibraryStatus status;
+    {
+        const djw::tests::SqlFault fault{part};
+        service->rescan();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+        while (service->status().revision == before && std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{2});
+        }
+        status = service->status();
+        CHECK(fault.struck() > 0);
+    }
+    CHECK_FALSE(status.scanning);
+    CHECK(status.scan_error.find("injected fault") != std::string::npos);
+    CHECK(status.tracks_total == 1);
+}
+
+TEST_CASE("Library: a failed write reports its error and keeps the revision, the next good write clears it")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    auto                      service = scannedService(music, data, {"a.mp3"});
+    const auto                id      = service->search({}).value().front().id;
+    const auto                before  = service->status().revision;
+    {
+        const djw::tests::SqlFault fault{"UPDATE tracks SET cue"};
+        service->setCuePoint(id, 1.5);
+        const auto failed = afterWrite(*service, before);
+        CHECK(fault.struck() == 1);
+        CHECK(failed.write_error.find("injected fault") != std::string::npos);
+        CHECK(failed.revision == before);
+    }
+    CHECK_FALSE(service->search({}).value().front().cue_seconds.has_value());
+
+    service->setCuePoint(id, 1.5);
+    const auto stored = afterWrite(*service, before);
+    CHECK(stored.write_error.empty());
+    CHECK(stored.revision > before);
+}
+
+TEST_CASE("Library: playlist changes the database refuses report their error")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    auto                      service   = scannedService(music, data, {"a.mp3", "b.mp3"});
+    api::Playlists           &playlists = service->playlists();
+    const auto                tracks    = service->search({}).value();
+    playlists.create("Set");
+    auto revision = afterWrite(*service, service->status().revision).revision;
+    REQUIRE(playlists.list().value().size() == 1);
+    const auto id = playlists.list().value().front().id;
+
+    const char           *part = "";
+    std::function<void()> change;
+    SUBCASE("name check of a new playlist")
+    {
+        part   = "SELECT id FROM playlists WHERE name";
+        change = [&] { playlists.create("Other"); };
+    }
+    SUBCASE("new playlist")
+    {
+        part   = "INSERT INTO playlists";
+        change = [&] { playlists.create("Other"); };
+    }
+    SUBCASE("name check of a rename")
+    {
+        part   = "SELECT id FROM playlists WHERE name";
+        change = [&] { playlists.rename(id, "Other"); };
+    }
+    SUBCASE("entries")
+    {
+        part   = "SELECT track_id FROM playlist_entries";
+        change = [&] { playlists.add(id, {tracks[0].id}); };
+    }
+    {
+        const djw::tests::SqlFault fault{part};
+        change();
+        const auto status = afterWrite(*service, revision);
+        CHECK(fault.struck() == 1);
+        CHECK(status.write_error.find("injected fault") != std::string::npos);
+        CHECK(status.revision == revision);
+    }
+    const auto lists = playlists.list().value();
+    REQUIRE(lists.size() == 1);
+    CHECK(lists.front().name == "Set");
+    CHECK(playlists.tracks(id).value().empty());
+}
+
+TEST_CASE("Library: a rename to the name of another playlist is refused, to its own name it is fine")
+{
+    const djw::tests::TempDir data;
+    auto                      library   = openLibrary(data.path() / "library.db");
+    api::Playlists           &playlists = library->playlists();
+    playlists.create("A");
+    auto status = afterWrite(*library, 0);
+    playlists.create("B");
+    status = afterWrite(*library, status.revision);
+    REQUIRE(playlists.list().value().size() == 2);
+    const auto lists = playlists.list().value();
+    const auto a     = lists[0].name == "A" ? lists[0].id : lists[1].id;
+
+    playlists.rename(a, "B");
+    const auto refused = afterWrite(*library, status.revision);
+    CHECK(refused.write_error.find("exists") != std::string::npos);
+
+    playlists.rename(a, "A");
+    const auto kept = afterWrite(*library, refused.revision);
+    CHECK(kept.write_error.empty());
+    CHECK(kept.revision > refused.revision);
+}
+
+TEST_CASE("Library: an M3U file that cannot be read is an error, the last import stays")
+{
+    const djw::tests::TempDir data;
+    auto                      library = openLibrary(data.path() / "library.db");
+    library->playlists().importM3u(data.path() / "nowhere.m3u");
+    const auto status = afterWrite(*library, 0);
+    CHECK_FALSE(status.write_error.empty());
+    CHECK_FALSE(status.last_import.has_value());
+    CHECK(library->playlists().list().value().empty());
+}
+
+TEST_CASE("Library: a track whose file is gone cannot be scanned again and is not analyzed")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    auto                      service = scannedService(music, data, {"a.mp3"});
+    const auto                id      = service->search({}).value().front().id;
+    std::filesystem::remove(music.path() / "a.mp3");
+
+    service->rescanTrack(id);
+    const auto status = afterWrite(*service, service->status().revision);
+
+    CHECK(status.write_error.starts_with("cannot read "));
+    CHECK(waitForAnalysis(*service).analysis_pending == 0);
+    CHECK_FALSE(service->search({}).value().front().analyzed);
+}
+
+TEST_CASE("Library: every scan counts its files anew")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    auto                      service = scannedService(music, data, {"a.mp3", "b.mp3"});
+    CHECK(service->status().files_found == 2);
+    service->rescan();
+    const auto status = waitForScan(*service);
+    CHECK(status.files_found == 2);
+    CHECK(status.files_updated == 0);
+}
+
+TEST_CASE("Library: the pending writes and analyses count what is queued and running, never more")
+{
+    const djw::tests::TempDir music;
+    const djw::tests::TempDir data;
+    std::filesystem::copy_file(audio_dir / "sine_440hz_48k_stereo.wav", music.path() / "a.wav");
+    auto library = openLibrary(data.path() / "library.db");
+    REQUIRE(library->addFolder(music.path()).has_value());
+    waitForScan(*library);
+    const auto id = library->search({}).value().front().id;
+
+    library->setCuePoint(id, 1.0);
+    library->analyze(id);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{20};
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        const auto status = library->status();
+        REQUIRE(status.pending_writes <= 2); // the cue point and the analysis result
+        REQUIRE(status.analysis_pending <= 1);
+        if (status.pending_writes == 0 && status.analysis_pending == 0 && library->search({}).value().front().analyzed)
+        {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds{200});
+    }
+    CHECK(library->search({}).value().front().analyzed);
 }

@@ -4,9 +4,12 @@
 #include "library/track_store.hpp"
 
 #include "library_downgrade.hpp"
+#include "sql_fault.hpp"
 #include "temp_dir.hpp"
 
 #include <doctest/doctest.h>
+
+#include <functional>
 
 using djw::core::library::FileStamp;
 namespace api = djw::core::api;
@@ -436,4 +439,258 @@ TEST_CASE("TrackStore: sorting by tempo puts tracks without one last in both dir
     CHECK((*found)->title == "a");
     CHECK((*found)->bpm == 140.0);
     CHECK_FALSE(fixture.store.track(4711).value().has_value());
+}
+
+namespace
+{
+    /// Opening the store fails with the injected fault
+    void checkOpenFails(const std::filesystem::path &database_file, const djw::tests::SqlFault &fault)
+    {
+        const auto opened = TrackStore::open(database_file);
+        REQUIRE_FALSE(opened.has_value());
+        CHECK(opened.error().find("injected fault") != std::string::npos);
+        CHECK(fault.struck() > 0);
+    }
+
+    /// The schema version stored in the file
+    std::int64_t versionOf(const std::filesystem::path &database_file)
+    {
+        auto database = djw::core::library::SqliteDatabase::open(database_file);
+        REQUIRE(database.has_value());
+        auto query = database->prepare("PRAGMA user_version");
+        REQUIRE(query.has_value());
+        REQUIRE(query->step().value());
+        return query->integer(0);
+    }
+} // namespace
+
+TEST_CASE("TrackStore: a new database whose schema cannot be made is an error, and is made on the next try")
+{
+    const djw::tests::TempDir folder;
+    const auto                database_file = folder.path() / "library.db";
+    const char               *part          = "";
+    SUBCASE("lock")
+    {
+        part = "BEGIN EXCLUSIVE";
+    }
+    SUBCASE("schema")
+    {
+        part = "CREATE TABLE folders";
+    }
+    SUBCASE("migration")
+    {
+        part = "ADD COLUMN bpm";
+    }
+    SUBCASE("statements")
+    {
+        part = "INSERT OR IGNORE INTO folders";
+    }
+    SUBCASE("commit")
+    {
+        part = "COMMIT";
+    }
+    {
+        const djw::tests::SqlFault fault{part};
+        checkOpenFails(database_file, fault);
+    }
+    CHECK(TrackStore::open(database_file).has_value());
+    CHECK(versionOf(database_file) == TrackStore::schema_version);
+}
+
+TEST_CASE("TrackStore: a schema version that cannot be read is an error")
+{
+    Fixture fixture;
+    int     skip = 0;
+    SUBCASE("preparing")
+    {
+        skip = 0;
+    }
+    SUBCASE("reading")
+    {
+        skip = 1;
+    }
+    {
+        const djw::tests::SqlFault fault{"PRAGMA user_version", skip};
+        checkOpenFails(fixture.database(), fault);
+    }
+    CHECK(TrackStore::open(fixture.database()).has_value());
+}
+
+TEST_CASE("TrackStore: a migration that fails leaves the old version and its tracks, the next open migrates")
+{
+    Fixture fixture;
+    fixture.add("Some File.mp3", {.artist = "Die Ärzte", .title = "Westerland"});
+    djw::tests::downgradeLibrary(fixture.database(), 1);
+
+    const char *part = "";
+    int         skip = 0;
+    SUBCASE("keys")
+    {
+        part = "ADD COLUMN artist_key";
+    }
+    SUBCASE("reading the tracks")
+    {
+        part = "SELECT id, artist, title, album, genre, file_name FROM tracks";
+    }
+    SUBCASE("stepping the tracks")
+    {
+        part = "SELECT id, artist, title, album, genre, file_name FROM tracks";
+        skip = 1;
+    }
+    SUBCASE("preparing the keys")
+    {
+        part = "UPDATE tracks SET artist_key";
+    }
+    SUBCASE("storing the keys")
+    {
+        part = "UPDATE tracks SET artist_key";
+        skip = 1;
+    }
+    SUBCASE("version 2")
+    {
+        part = "PRAGMA user_version = 2";
+    }
+    SUBCASE("missing flag")
+    {
+        part = "ADD COLUMN missing";
+    }
+    SUBCASE("playlists")
+    {
+        part = "CREATE TABLE playlists";
+    }
+    SUBCASE("cue points")
+    {
+        part = "ADD COLUMN cue";
+    }
+    SUBCASE("analysis")
+    {
+        part = "ADD COLUMN bpm";
+    }
+    {
+        const djw::tests::SqlFault fault{part, skip};
+        checkOpenFails(fixture.database(), fault);
+    }
+    CHECK(versionOf(fixture.database()) == 1);
+
+    auto migrated = TrackStore::open(fixture.database());
+    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
+    fixture.store = std::move(*migrated);
+    CHECK(fixture.titles({.artist = "arzte"}) == std::vector<std::string>{"Westerland"});
+}
+
+TEST_CASE("TrackStore: an error that cannot be rolled back reports both errors")
+{
+    Fixture fixture;
+    {
+        auto database = djw::core::library::SqliteDatabase::open(fixture.database());
+        REQUIRE(database.has_value());
+        REQUIRE(database->execute("PRAGMA user_version = 99").has_value());
+    }
+    const djw::tests::SqlFault fault{"ROLLBACK"};
+    const auto                 opened = TrackStore::open(fixture.database());
+    REQUIRE_FALSE(opened.has_value());
+    CHECK(opened.error().find("schema version 99") != std::string::npos);
+    CHECK(opened.error().find("injected fault") != std::string::npos);
+    CHECK(fault.struck() == 1);
+}
+
+TEST_CASE("TrackStore: failing reads are reported as errors")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    const auto            id   = fixture.store.trackId(fixture.folder.path() / "a.mp3").value().value();
+    const char           *part = "";
+    int                   skip = 0;
+    std::function<bool()> read; // true when the read failed
+    SUBCASE("stamp")
+    {
+        part = "SELECT modified, size FROM tracks";
+        read = [&] { return !fixture.store.stamp(fixture.folder.path() / "a.mp3").has_value(); };
+    }
+    SUBCASE("search")
+    {
+        part = "FROM tracks t";
+        read = [&] { return !fixture.store.search({}).has_value(); };
+    }
+    SUBCASE("count")
+    {
+        part = "SELECT count(*) FROM tracks";
+        read = [&] { return !fixture.store.trackCount().has_value(); };
+    }
+    SUBCASE("missing count")
+    {
+        part = "WHERE missing = 1";
+        read = [&] { return !fixture.store.missingCount().has_value(); };
+    }
+    SUBCASE("waveform")
+    {
+        part = "SELECT peaks FROM waveforms";
+        read = [&] { return !fixture.store.waveform(id).has_value(); };
+    }
+    SUBCASE("analyzed")
+    {
+        part = "SELECT analyzed FROM tracks";
+        read = [&] { return !fixture.store.isAnalyzed(id).has_value(); };
+    }
+    SUBCASE("preparing a track")
+    {
+        part = "t.id = ?";
+        read = [&] { return !fixture.store.track(id).has_value(); };
+    }
+    SUBCASE("reading a track")
+    {
+        part = "t.id = ?";
+        skip = 1;
+        read = [&] { return !fixture.store.track(id).has_value(); };
+    }
+    SUBCASE("path")
+    {
+        part = "SELECT path FROM tracks WHERE id";
+        read = [&] { return !fixture.store.trackPath(id).has_value(); };
+    }
+    SUBCASE("id")
+    {
+        part = "SELECT id FROM tracks WHERE path";
+        read = [&] { return !fixture.store.trackId(fixture.folder.path() / "a.mp3").has_value(); };
+    }
+    const djw::tests::SqlFault fault{part, skip};
+    CHECK(read());
+    CHECK(fault.struck() > 0);
+}
+
+TEST_CASE("TrackStore: a track whose old waveform cannot be dropped is not stored")
+{
+    Fixture fixture;
+    {
+        const djw::tests::SqlFault fault{"DELETE FROM waveforms"};
+        CHECK_FALSE(fixture.store.store(fixture.folder.path() / "a.mp3", {.modified = 1, .size = 2}, {.title = "a"})
+                        .has_value());
+        CHECK(fault.struck() == 1);
+    }
+    CHECK(fixture.store.trackCount().value() == 0);
+}
+
+TEST_CASE("TrackStore: an analysis whose tempo cannot be stored keeps the track unanalyzed, without waveform")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    const auto                      id = fixture.store.trackId(fixture.folder.path() / "a.mp3").value().value();
+    const std::vector<std::uint8_t> waveform{1, 2, 3};
+    {
+        const djw::tests::SqlFault fault{"UPDATE tracks SET bpm"};
+        CHECK_FALSE(fixture.store.setAnalysis(id, 120.0, waveform).has_value());
+        CHECK(fault.struck() == 1);
+    }
+    CHECK_FALSE(fixture.store.isAnalyzed(id).value());
+    CHECK(fixture.store.waveform(id).value().empty());
+}
+
+TEST_CASE("TrackStore: an unknown track is not analyzed, the files to analyze are present")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "a"});
+    CHECK_FALSE(fixture.store.isAnalyzed(12345).value());
+    const auto files = fixture.store.unanalyzed().value();
+    REQUIRE(files.size() == 1);
+    CHECK_FALSE(files[0].missing);
 }

@@ -115,6 +115,18 @@ namespace djw::core::library
 
     /// Text of the last error on the connection, prefixed with what failed
     std::string sqliteError(sqlite3 *database, std::string_view what);
+
+    /// Faults for the tests of the error paths; without a call of failSql() they have no effect
+    namespace testing
+    {
+        /**
+         * From now on execute(), prepare() and step() fail for every SQL text that contains sql_part, once the first
+         * skip of them have passed; an empty sql_part switches the fault off. For all connections and threads.
+         */
+        void failSql(std::string sql_part, int skip = 0);
+        /// How many calls the fault made fail since the last failSql()
+        [[nodiscard]] int sqlFaults();
+    } // namespace testing
 } // namespace djw::core::library
 
 #endif // DJW_CORE_LIBRARY_SQLITE_DATABASE_HPP

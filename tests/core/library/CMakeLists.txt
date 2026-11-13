@@ -8,6 +8,7 @@ add_executable(djw_core_library_tests
     test_search_query.cpp
     test_tag_reader.cpp
     test_tag_writer.cpp
+    test_sqlite_database.cpp
     test_track_store.cpp
     test_playlist_store.cpp
     test_m3u.cpp

@@ -7,12 +7,72 @@
 
 #include <sqlite3.h>
 
+#include <atomic>
+#include <mutex>
+
 namespace djw::core::library
 {
     namespace
     {
         constexpr int busy_timeout_ms = 5'000;
+
+        /// The fault of testing::failSql()
+        struct SqlFault
+        {
+                std::atomic<bool> active{false}; ///< checked first, so without a fault no lock is taken
+                std::mutex        mutex;
+                std::string       sql_part;
+                int               skip   = 0;
+                int               struck = 0;
+        };
+
+        SqlFault &sqlFault()
+        {
+            static SqlFault fault;
+            return fault;
+        }
+
+        /// Whether the fault makes the call for this SQL text fail
+        bool faultStrikes(std::string_view sql)
+        {
+            SqlFault &fault = sqlFault();
+            if (!fault.active.load(std::memory_order_acquire))
+            {
+                return false;
+            }
+            const std::scoped_lock lock{fault.mutex};
+            if (sql.find(fault.sql_part) == std::string_view::npos)
+            {
+                return false;
+            }
+            if (fault.skip > 0)
+            {
+                --fault.skip;
+                return false;
+            }
+            ++fault.struck;
+            return true;
+        }
+
+        constexpr std::string_view injected_fault = ": injected fault";
     } // namespace
+
+    void testing::failSql(std::string sql_part, int skip)
+    {
+        SqlFault              &fault = sqlFault();
+        const std::scoped_lock lock{fault.mutex};
+        fault.active.store(!sql_part.empty(), std::memory_order_release);
+        fault.sql_part = std::move(sql_part);
+        fault.skip     = skip;
+        fault.struck   = 0;
+    }
+
+    int testing::sqlFaults()
+    {
+        SqlFault              &fault = sqlFault();
+        const std::scoped_lock lock{fault.mutex};
+        return fault.struck;
+    }
 
     std::string sqliteError(sqlite3 *database, std::string_view what)
     {
@@ -67,6 +127,10 @@ namespace djw::core::library
 
     std::expected<bool, std::string> Statement::step()
     {
+        if (const char *sql = sqlite3_sql(statement.get()); sql != nullptr && faultStrikes(sql))
+        {
+            return std::unexpected{"database query failed" + std::string{injected_fault}};
+        }
         const int result = sqlite3_step(statement.get());
         if (result == SQLITE_ROW)
         {
@@ -166,6 +230,10 @@ namespace djw::core::library
     std::expected<void, std::string> SqliteDatabase::execute(std::string_view sql)
     {
         const std::string text{sql};
+        if (faultStrikes(text))
+        {
+            return std::unexpected{"database command failed" + std::string{injected_fault}};
+        }
         if (sqlite3_exec(database.get(), text.c_str(), nullptr, nullptr, nullptr) != SQLITE_OK)
         {
             return std::unexpected{sqliteError(database.get(), "database command failed")};
@@ -175,6 +243,10 @@ namespace djw::core::library
 
     std::expected<Statement, std::string> SqliteDatabase::prepare(std::string_view sql)
     {
+        if (faultStrikes(sql))
+        {
+            return std::unexpected{"cannot prepare database query" + std::string{injected_fault}};
+        }
         sqlite3_stmt *statement = nullptr;
         if (sqlite3_prepare_v2(database.get(), sql.data(), static_cast<int>(sql.size()), &statement, nullptr) !=
             SQLITE_OK)
