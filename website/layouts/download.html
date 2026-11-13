@@ -1,0 +1,38 @@
+{{ define "main" }}
+{{- /* Size and date come from Apache mod_include at request time; a missing file prints nothing. */}}
+{{- partial "ssi.html" `config errmsg="" sizefmt="abbrev" timefmt="%Y-%m-%d"` }}
+<section class="section">
+  <h1 class="display"><span class="display__label">DJ-Workstation</span><span class="display__value">{{ .Title }}</span></h1>
+  <p class="status"><span class="led led--warn" aria-hidden="true"></span>{{ .Params.intro }}</p>
+</section>
+
+<section class="section" aria-labelledby="builds">
+  <h2 id="builds" class="section__title">{{ T "latest_builds" }}</h2>
+  <ul class="cards cards--downloads">
+    {{- range .Params.builds }}
+    {{- $path := printf "%s/%s" site.Params.downloads .file }}
+    <li class="panel card download">
+      <h3 class="panel__title"><span class="led led--on" aria-hidden="true"></span>{{ .system }}</h3>
+      <div class="download__body">
+        <p class="download__arch">{{ .arch }}</p>
+        <a class="btn btn--play download__btn" href="{{ $path }}" download>{{ T "download" }}</a>
+        {{- /* For a build that is not there yet fsize prints nothing; the CSS then swaps the button
+               for the note (SSI #if cannot test for files, -f is not allowed in parsed pages). */}}
+        <p class="download__missing">{{ T "not_available" }}</p>
+        <p class="download__meta">
+          <span class="download__file">{{ .file }}</span>
+          <span><span class="download__size">{{ partial "ssi.html" (printf `fsize virtual="%s"` $path) }}</span><span class="download__date">{{ partial "ssi.html" (printf `flastmod virtual="%s"` $path) }}</span></span>
+        </p>
+        <p class="download__hint">{{ .hint }}</p>
+      </div>
+    </li>
+    {{- end }}
+  </ul>
+</section>
+
+<section class="section" aria-labelledby="source">
+  <h2 id="source" class="section__title">{{ .Params.source.title }}</h2>
+  <p>{{ .Params.source.text }}</p>
+  <p><a class="btn" href="{{ site.Params.github }}">GitHub</a></p>
+</section>
+{{ end }}

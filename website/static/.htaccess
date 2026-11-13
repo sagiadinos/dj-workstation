@@ -1,0 +1,10 @@
+# Server side includes for the download pages (/download/, /de/download/, ...):
+# they show size and date of the newest builds. NOEXEC: no #exec, only #fsize and #flastmod.
+# Needs mod_include and AllowOverride Options FileInfo.
+Options +IncludesNOEXEC
+
+<If "%{REQUEST_URI} =~ m#^/([a-z]{2}/)?download/(index\.html)?$#">
+    SetOutputFilter INCLUDES
+    # The page changes with every new build, so it must not be cached as a static file.
+    Header set Cache-Control "no-cache"
+</If>

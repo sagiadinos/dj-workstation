@@ -1,9 +1,9 @@
 ---
 title: DJ-Workstation
-description: Schlanke DJ-Software für Touchscreens, mit Controller- und Timecode-Vinyl-Unterstützung. Linux, Raspberry Pi, Windows und macOS. Keine Cloud, keine Konten, keine Telemetrie.
+description: Schlanke DJ-Software für Touchscreens, mit Unterstützung für MIDI-Controller. Linux, Raspberry Pi, Windows und macOS. Keine Cloud, keine Konten, keine Telemetrie.
 
 hero:
-  tagline: Schlanke DJ-Software für Touchscreens, Controller und Timecode-Vinyl.
+  tagline: Schlanke DJ-Software für Touchscreens und MIDI-Controller.
   platforms: Linux · Raspberry Pi · Windows · macOS
   promise: Keine Cloud. Keine Konten. Keine Telemetrie.
   status: In früher Entwicklung, noch nicht produktiv nutzbar
@@ -19,11 +19,12 @@ features:
     - title: Bibliothek
       text: Schnelle Suche, Tag-Editor, Playlists und BPM-Analyse.
     - title: Controller
-      text: MIDI-Controller mit einfachen TOML-Mappings und optionalen Lua-Skripten.
+      text: MIDI-Controller mit einfachen TOML-Mappings und LED-Rückmeldung.
     - title: Timecode-Vinyl
       text: Steuerung der Player mit Serato Control Vinyl.
+      planned: true
     - title: Raspberry Pi
-      text: Läuft flüssig auf einem Pi 4 oder 5, auch als Kiosk ohne Desktop.
+      text: Gemacht, um flüssig auf einem Pi 4 oder 5 zu laufen, mit Vollbildmodus für Touch-Terminals.
 
 principles:
   title: Bewusst klein

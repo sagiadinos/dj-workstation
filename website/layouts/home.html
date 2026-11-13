@@ -7,7 +7,10 @@
     <p class="hero__promise">{{ .Params.hero.promise }}</p>
     <p class="status"><span class="led led--warn" aria-hidden="true"></span>{{ .Params.hero.status }}</p>
     <p class="actions">
-      <a class="btn btn--play" href="{{ site.Params.github }}">{{ T "source_code" }}</a>
+      {{- with site.GetPage "/download" }}
+      <a class="btn btn--play" href="{{ .RelPermalink }}">{{ T "download" }}</a>
+      {{- end }}
+      <a class="btn" href="{{ site.Params.github }}">{{ T "source_code" }}</a>
       <a class="btn" href="{{ site.Params.github }}/blob/main/FEATURES.md">{{ T "feature_list" }}</a>
     </p>
   </div>
@@ -24,7 +27,10 @@
   <ul class="cards">
     {{- range .Params.features.items }}
     <li class="panel card">
-      <h3 class="panel__title"><span class="led led--on" aria-hidden="true"></span>{{ .title }}</h3>
+      <h3 class="panel__title">
+        <span class="led {{ if .planned }}led--off{{ else }}led--on{{ end }}" aria-hidden="true"></span>{{ .title }}
+        {{- with .planned }}<span class="tag">{{ T "planned" }}</span>{{ end }}
+      </h3>
       <p>{{ .text }}</p>
     </li>
     {{- end }}

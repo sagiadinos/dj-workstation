@@ -89,20 +89,23 @@ main, .topbar, .footer {
   font: 600 1rem var(--mono);
   color: var(--text);
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.topbar__nav { display: flex; align-items: center; gap: 0.5rem; }
+.topbar__nav { display: flex; align-items: center; gap: 0.25rem; }
 .topbar__nav > a,
 .lang summary {
   display: inline-flex;
   align-items: center;
   min-height: 44px;           /* touch target */
-  padding: 0 0.75rem;
+  padding: 0 0.6rem;
   color: var(--text);
   text-decoration: none;
   border-radius: var(--radius);
 }
 .topbar__nav > a:hover, .lang summary:hover { background: var(--panel); }
+.topbar__nav > a[aria-current] { color: var(--display); }
+.topbar__wide { display: none !important; }   /* GitHub is in the hero and footer on small screens */
 
 .lang { position: relative; }
 .lang summary { cursor: pointer; list-style: none; border: 1px solid var(--border); }
@@ -171,7 +174,7 @@ main, .topbar, .footer {
   padding: 0.35rem 0.8rem;
   font-size: 0.9rem;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 1.2rem;
   background: var(--panel);
 }
 
@@ -236,6 +239,14 @@ main, .topbar, .footer {
   list-style: none;
 }
 .card p { color: var(--muted); }
+.tag {
+  margin-left: auto;
+  padding: 0.05rem 0.6rem;
+  font: 600 0.75rem var(--sans);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
 
 .split { display: grid; gap: 1.5rem; }
 .not-list { list-style: none; color: var(--muted); }
@@ -258,8 +269,51 @@ main, .topbar, .footer {
 
 /* ---------- larger screens ---------- */
 
+/* very narrow phones: keep brand, download and language on one line */
+@media (max-width: 24em) {
+  .brand { font-size: 0.9rem; }
+  .topbar__nav > a, .lang summary { padding: 0 0.45rem; font-size: 0.95rem; }
+}
+@media (max-width: 21em) {
+  :root { --gutter: 12px; }
+  .brand .led, .lang summary::after { display: none; }
+}
+
+/* ---------- downloads ---------- */
+
+.download__body { padding: 0.9rem 1rem 1.1rem; }
+.download__body p { margin: 0; }
+.download__arch { color: var(--text); }
+.download__btn { width: 100%; margin: 0.9rem 0 0.6rem; }
+.download__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 1rem;
+  font: 0.85rem var(--mono);
+  color: var(--muted);
+}
+.download__file { overflow-wrap: anywhere; }
+.download__size:not(:empty) + .download__date:not(:empty)::before { content: " · "; }
+.download__missing {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin: 0.9rem 0 0.6rem !important;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+/* No size from the server: the build is not there yet. */
+.download__body:has(.download__size:empty) .download__btn { display: none; }
+.download__body:has(.download__size:empty) .download__missing { display: flex; }
+.download:has(.download__size:empty) .led { background: #555; box-shadow: none; animation: none; }
+.download__hint { margin-top: 0.75rem !important; font-size: 0.9rem; color: var(--muted); }
+
 @media (min-width: 40em) {
   :root { --gutter: 24px; }
+  .topbar__wide { display: inline-flex !important; }
   .cards { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -271,6 +325,7 @@ main, .topbar, .footer {
 @media (min-width: 64em) {
   .hero { padding-block: 3.5rem 2rem; }
   .cards { grid-template-columns: repeat(3, 1fr); }
+  .cards--downloads { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (prefers-reduced-motion: no-preference) {

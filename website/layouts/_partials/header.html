@@ -3,7 +3,10 @@
     <span class="led led--on" aria-hidden="true"></span>DJ-Workstation
   </a>
   <nav class="topbar__nav">
-    <a href="{{ site.Params.github }}">GitHub</a>
+    {{- with site.GetPage "/download" }}
+    <a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $.RelPermalink }} aria-current="page"{{ end }}>{{ .Title }}</a>
+    {{- end }}
+    <a class="topbar__wide" href="{{ site.Params.github }}">GitHub</a>
     {{- /* A plain disclosure list instead of flags or a script, so more languages only add rows. */}}
     <details class="lang">
       <summary><span class="visually-hidden">{{ T "language" }}: </span>{{ site.Language.Label }}</summary>
