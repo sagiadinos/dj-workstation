@@ -162,11 +162,13 @@ namespace djw::core::library
 
     void LibraryService::updateTags(std::int64_t track_id, api::LibraryTagChange change)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue([this, track_id, change = std::move(change)] { return writeTags(track_id, change); });
     }
 
     void LibraryService::setCuePoint(std::int64_t track_id, std::optional<double> seconds)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue([this, track_id, seconds] { return writer.tracks.setCue(track_id, seconds); });
     }
 
@@ -215,6 +217,7 @@ namespace djw::core::library
         const auto path = reader.tracks.trackPath(track_id);
         if (path && *path)
         {
+            // mull-ignore-next: cxx_remove_void_call
             requestAnalysis({track_id, **path}, true);
         }
     }
@@ -228,12 +231,14 @@ namespace djw::core::library
         }
         for (const StoredFile &file : *files)
         {
+            // mull-ignore-next: cxx_remove_void_call
             requestAnalysis({file.track_id, file.path}, false);
         }
     }
 
     void LibraryService::rescanTrack(std::int64_t track_id)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue(
             [this, track_id]() -> std::expected<void, std::string>
             {
@@ -246,6 +251,7 @@ namespace djw::core::library
                 {
                     return stored;
                 }
+                // mull-ignore-next: cxx_remove_void_call
                 requestAnalysis({track_id, *path}, true);
                 return {};
             });
@@ -276,12 +282,14 @@ namespace djw::core::library
             auto analysis = analysis::analyzeFile(request.path, 48'000, stopping);
             if (analysis)
             {
+                // mull-ignore-next: cxx_remove_void_call
                 queue([this, id = request.track_id, result = std::move(*analysis)]
                       { return writer.tracks.setAnalysis(id, result.bpm, result.waveform); });
             }
             else if (!stopping.load())
             {
                 // A file that cannot be decoded is not tried again and again: marked analyzed, without tempo
+                // mull-ignore-next: cxx_remove_void_call
                 queue([this, id = request.track_id] { return writer.tracks.setAnalysis(id, std::nullopt, {}); });
             }
             const std::scoped_lock lock{analysis_mutex};
@@ -291,6 +299,7 @@ namespace djw::core::library
 
     void LibraryService::removeMissing()
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue([this] { return writer.tracks.removeMissing(); });
     }
 
@@ -341,6 +350,7 @@ namespace djw::core::library
 
     void LibraryService::create(std::string name)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue(
             [this, name = std::move(name)]() -> std::expected<void, std::string>
             {
@@ -359,6 +369,7 @@ namespace djw::core::library
 
     void LibraryService::rename(std::int64_t playlist_id, std::string name)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue(
             [this, playlist_id, name = std::move(name)]() -> std::expected<void, std::string>
             {
@@ -372,12 +383,14 @@ namespace djw::core::library
 
     void LibraryService::remove(std::int64_t playlist_id)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue([this, playlist_id] { return writer.playlists.remove(playlist_id); });
     }
 
     void LibraryService::changeEntries(std::int64_t                                     playlist_id,
                                        std::function<bool(std::vector<std::int64_t> &)> change)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue(
             [this, playlist_id, change = std::move(change)]() -> std::expected<void, std::string>
             {
@@ -396,6 +409,7 @@ namespace djw::core::library
 
     void LibraryService::add(std::int64_t playlist_id, std::vector<std::int64_t> track_ids)
     {
+        // mull-ignore-next: cxx_remove_void_call
         changeEntries(playlist_id,
                       [track_ids = std::move(track_ids)](std::vector<std::int64_t> &entries)
                       {
@@ -406,6 +420,7 @@ namespace djw::core::library
 
     void LibraryService::removeEntry(std::int64_t playlist_id, std::size_t index)
     {
+        // mull-ignore-next: cxx_remove_void_call
         changeEntries(playlist_id,
                       [index](std::vector<std::int64_t> &entries)
                       {
@@ -420,6 +435,7 @@ namespace djw::core::library
 
     void LibraryService::moveEntry(std::int64_t playlist_id, std::size_t from, std::size_t to)
     {
+        // mull-ignore-next: cxx_remove_void_call
         changeEntries(playlist_id,
                       [from, to](std::vector<std::int64_t> &entries)
                       {
@@ -446,6 +462,7 @@ namespace djw::core::library
 
     void LibraryService::importM3u(std::filesystem::path file)
     {
+        // mull-ignore-next: cxx_remove_void_call
         queue(
             [this, file = std::move(file)]() -> std::expected<void, std::string>
             {
