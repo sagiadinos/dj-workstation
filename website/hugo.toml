@@ -15,8 +15,8 @@ disableKinds = ['taxonomy', 'term', 'rss']
   # The self-hosted runners put the newest builds here under fixed names (latest_<os>_<arch>.<ext>).
   downloads = '/downloads/ci-builds'
 
-# A new language needs an entry here, content/_index.<code>.md,
-# i18n/<code>.toml and the two screenshots in static/images.
+# A new language needs an entry here, content/_index.<code>.md, content/download.<code>.md,
+# i18n/<code>.toml and the two screenshots in static/images (taken from the app in that language).
 [languages]
   [languages.en]
     label = 'English'
@@ -26,6 +26,22 @@ disableKinds = ['taxonomy', 'term', 'rss']
     label = 'Deutsch'
     locale = 'de'
     weight = 2
+  [languages.fr]
+    label = 'Français'
+    locale = 'fr'
+    weight = 3
+  [languages.es]
+    label = 'Español'
+    locale = 'es'
+    weight = 4
+  [languages.el]
+    label = 'Ελληνικά'
+    locale = 'el'
+    weight = 5
+  [languages.ru]
+    label = 'Русский'
+    locale = 'ru'
+    weight = 6
 
 [markup.goldmark.renderer]
   unsafe = false
