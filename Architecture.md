@@ -162,7 +162,8 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - They check that the tests actually detect changed behavior, not just execute the code. `tools/mutate.py` (Python, no dependency) changes one spot of a source file at a time (comparison, arithmetic and logical operators, constants, negations, conditions, removed statements), rebuilds, runs the tests of that module and lists the mutants no test noticed. Each surviving mutant is either a missing test or code that does not matter.
 - Run it on a separate checkout (`git worktree`) with its own build folder, never on the working tree; `--shard i/n` splits the work over several checkouts. The usage is in the script's header.
 - Scope for now: `src/core/`. A mutant that cannot matter (e.g. a log text) is marked in the source with a `mutation: skip` comment on its line.
-- Not part of CI (too slow); run before a milestone is closed. A compiler-based tool (Mull) may follow later; like every dependency it must be approved first.
+- `tools/mutate.py` is not part of CI (too slow); run it before a milestone is closed.
+- In CI the compiler-based tool Mull runs once a month and by hand (`.github/workflows/mutation.yml`, config in `mull.yml`): the core is built with clang-19 and the Mull plugin, which builds all mutants into the test programs, so nothing is rebuilt per mutant. Only lines covered by a test are mutated; the runs of all test programs are combined, so a mutant counts as killed when any test kills it. Lines are excluded with `// mull-ignore` (or `// mull-off` ... `// mull-on` for a block). The report with the surviving mutants is attached to the run, the mutation score badge goes to the branch `badges` like the coverage badge.
 
 ### Memory leaks
 - Avoid leaks by construction: every resource has an owner (RAII). Heap memory through `std::unique_ptr` or containers, C library handles (miniaudio, SQLite, SDL, ...) in a small RAII wrapper with a deleter, never with manual `free`/`close` calls spread over the code.
@@ -186,6 +187,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
   - Clang with libc++ is not in the CI; it is built on the Mac
   - clang-format check and clang-tidy
   - line coverage of `src/` with gcovr; the report is attached to the run. On `main` the coverage badge (an SVG made by `.github/scripts/coverage_badge.py`, no external service) is committed to the branch `badges`, from which the README shows it
+- Mutation tests with Mull run in their own workflow (`.github/workflows/mutation.yml`), once a month, see Tests: Mutation tests
 - The CI does not start the SDL player, so leaks in system graphics drivers (seen locally with Mesa/EGL) do not show up there. A LeakSanitizer suppression file is added once a CI job runs the player.
 
 ## Workflow

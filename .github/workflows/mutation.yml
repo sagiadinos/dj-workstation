@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Niko Sagiadinos
+#
+# Mutation tests of src/core/ with Mull, see Architecture.md ("Mutation tests"): once a month and by hand under
+# Actions. The config (paths, operators) is mull.yml. Mull is a clang plugin: the core is built with clang-19, the
+# plugin builds every mutant into the test programs, mull-runner switches them on one after the other. Only lines
+# covered by a test are mutated, so the score says how well the tests check the code they run; the line coverage is
+# in ci.yml. Every test program links more modules than its own, so all runs go into one SQLite report and a mutant
+# counts as killed when any test program kills it. The score goes into the badge of the README.
+name: Mutation tests
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: mutation
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+# clang-19, not the default clang-18 of Ubuntu 24.04: clang-18 does not offer std::expected of libstdc++ (its
+# __cpp_concepts is too old for the header)
+env:
+  MULL_VERSION: 0.38.0
+  LLVM_VERSION: 19
+  LLVM_FULL_VERSION: 19.1.1 # the clang-19 of Ubuntu 24.04, in the name of the package
+  MULL_CONFIG: ${{ github.workspace }}/mull.yml
+
+jobs:
+  mull:
+    name: Mutation tests with Mull
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240 # about 14 minutes on 32 cores, the library tests (SQLite) take most of it
+    permissions:
+      contents: write # the badge goes to the branch "badges"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools and Mull
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libasound2-dev \
+            clang-${LLVM_VERSION} libclang-rt-${LLVM_VERSION}-dev
+          # the packages of Mull are only in its GitHub releases: the tools and the plugin for this LLVM
+          url="https://github.com/mull-project/mull/releases/download/${MULL_VERSION}"
+          curl -fsSLO "${url}/Mull-${MULL_VERSION}-ubuntu-amd64-24.04.deb"
+          curl -fsSLO "${url}/Mull-${LLVM_VERSION}-${MULL_VERSION}-LLVM-${LLVM_FULL_VERSION}-ubuntu-amd64-24.04.deb"
+          sudo apt-get install -y --no-install-recommends ./Mull-*.deb
+          rm Mull-*.deb
+
+      # The plugin mutates while compiling. The coverage of clang tells Mull which mutants a test reaches.
+      # Without the SDL player: the mutation tests cover only the core. No scan for C++ modules: there are none,
+      # and clang-scan-deps is not installed.
+      - name: Configure
+        run: >
+          cmake --preset linux-debug -B build/mutation
+          -DDJW_PLAYER_SDL=OFF
+          -DCMAKE_C_COMPILER=clang-${LLVM_VERSION}
+          -DCMAKE_CXX_COMPILER=clang++-${LLVM_VERSION}
+          -DCMAKE_CXX_SCAN_FOR_MODULES=OFF
+          "-DCMAKE_CXX_FLAGS=-O0 -g -grecord-command-line -fprofile-instr-generate -fcoverage-mapping -fpass-plugin=/usr/lib/mull-ir-frontend-${LLVM_VERSION}"
+          -DCMAKE_EXE_LINKER_FLAGS=-fprofile-instr-generate
+
+      - name: Build
+        run: cmake --build build/mutation
+
+      - name: Mutation tests
+        run: |
+          mkdir -p mutation
+          # the test programs as CTest knows them; the architecture tests are CMake scripts, not programs
+          (cd build/mutation && ctest --show-only=json-v1) \
+            | python3 -c '
+          import json, os, sys
+          build = os.path.realpath("build/mutation")
+          for test in json.load(sys.stdin)["tests"]:
+              if test["command"][0].startswith(build):
+                  print(test["command"][0])' \
+            > mutation/tests.txt
+          cat mutation/tests.txt
+          # --timeout is for the first, unchanged run (default 3 s, too short for the analysis tests built with -O0
+          # and coverage); a mutant may take ten times as long as that run.
+          while read -r test; do
+            echo "::group::$(basename "$test")"
+            (cd build/mutation && mull-runner-${LLVM_VERSION} --reporters SQLite --report-dir ../../mutation \
+                         --report-name mutation --allow-surviving --no-output --timeout 60000 "$test")
+            echo "::endgroup::"
+          done < mutation/tests.txt
+          # all runs together: the surviving mutants as text, the HTML/JSON report with the score
+          mull-reporter-${LLVM_VERSION} --reporters IDE --reporters Elements --report-dir mutation --report-name mutation \
+                         --allow-surviving mutation/mutation.sqlite
+
+      - name: Show the numbers on the summary page
+        if: always()
+        run: |
+          python3 - mutation/mutation.json >> "$GITHUB_STEP_SUMMARY" <<'EOF' || echo 'no report' >> "$GITHUB_STEP_SUMMARY"
+          import collections, json, sys
+          report = json.load(open(sys.argv[1]))
+          status = collections.Counter(m["status"] for f in report["files"].values() for m in f["mutants"])
+          print("### Mutation tests of src/core/")
+          print("```")
+          print(f"mutation score {report['mutationScore']:.0f}%")
+          for name, count in sorted(status.items()):
+              print(f"{name:<10} {count}")
+          print("```")
+          EOF
+
+      - name: Make the badge
+        run: python3 .github/scripts/mutation_badge.py mutation/mutation.json mutation/mutation.svg
+
+      # the surviving mutants for the triage; mutation.txt lists them like compiler warnings
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: |
+            mutation/mutation.txt
+            mutation/mutation.html
+            mutation/mutation.json
+
+      # On main the badge is committed to the branch "badges", next to the coverage badge of ci.yml
+      - name: Commit badge to the branch badges
+        if: github.ref == 'refs/heads/main'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          badges=$(mktemp -d)
+          cd "$badges"
+          git init -q -b badges
+          git remote add origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # the first run creates the branch without history; later ones continue it
+          if git fetch -q --depth 1 origin badges; then git checkout -q -B badges FETCH_HEAD; fi
+          cp "$GITHUB_WORKSPACE/mutation/mutation.svg" .
+          git add mutation.svg
+          if git diff --cached --quiet; then echo "badge unchanged"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "mutation badge for ${GITHUB_SHA::7}"
+          git push -q origin badges

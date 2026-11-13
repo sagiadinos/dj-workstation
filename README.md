@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/sagiadinos/dj-workstation/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sagiadinos/dj-workstation/actions/workflows/ci.yml)
 ![coverage](https://raw.githubusercontent.com/sagiadinos/dj-workstation/badges/coverage.svg)
+[![mutation score](https://raw.githubusercontent.com/sagiadinos/dj-workstation/badges/mutation.svg)](https://github.com/sagiadinos/dj-workstation/actions/workflows/mutation.yml)
 
 Lean, touch-first DJ software with controller and timecode vinyl support. Runs on Linux, Raspberry Pi, Windows and macOS, with Android, iOS and a web build planned. No cloud, no accounts, no telemetry.
 
