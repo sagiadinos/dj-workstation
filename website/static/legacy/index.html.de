@@ -1,0 +1,73 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis" />
+		<meta name="description" content="Die DJ Workstation is eine freie kostenlose DJ Software mit der man mp3 und ogg/vorbis mixen kann" />	
+		<title>DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis</title>
+		<meta name="google-site-verification" content="4sZ5DYg9osS0HtlLNyKWZ8wldPqmG-81hU5rXwDCj5E" />
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.de"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.de">Start</a>
+			::
+			<a href="philosophy.html.de" >Philosophie</a>
+			::
+			<a href="features.html.de">Features</a>
+			::
+			<a href="gallery.html.de">Bilder</a>
+			::
+			<a href="download.html.de">Download</a>
+			::
+			<a href="tipps.html.de">Tipps</a>
+			::
+			<a href="impress.html.de">Impressum</a>
+			<h1>
+				Infos
+			</h1>
+			Die	<strong>DJ-Workstation</strong>
+			ist eine DJ Software für das stressfreie arbeiten mit ogg/vorbis-, mp3- und wave- Dateien
+			<p>
+			Im Vordergrund stehen Effektivität und Stabilität,
+			weniger das Design und die Anzahl der Features.
+			Die
+			<strong>
+				DJ-Workstation
+			</strong>
+			ist kein megabytegrosses featureüberladenes Monsterprogramm.
+			sondern ist klein und schnell. Es werden keine Registry-Einträge gemacht
+			und kein Müll in den Windows Systemverzeichnissen kopiert.
+			</p>
+			Um die 
+			<strong>
+				DJ Software
+			</strong>
+			zu installieren entpackt man die komplette Zip-Datei in ein Verzeichnis und
+			startet die "djw.exe". Das war es!
+			<p>
+				Das Projekt ist seit dem letzten Update am 13.12.2002 nicht mehr aktualisiert worden. Das liegt zum Teil daran, dass ich mit Programmiereren
+				mittlerweile mein Brötchen verdiene und nicht mehr so wirklich die Zeit habe mich um mich um eine DJ Software zu kümmern.<br />
+				Es ist aber definitiv nicht tot! 
+				Seit ca. einem Jahr läuft eine komplette plattformunabhängige Neuprogrammierung, da ich auf Apple OSX und Linux umgestiegen bin.
+				Allerdings ist aktuell nicht abzusehen wann die neue Version fertig sein wird.
+			</p>
+			<h2>
+				Systemvorausetzungen
+			</h2>
+			<h3>Betriebsystem:</h3>
+			Windows 9x ab Direct X 3 und Windows NT 4 ab SP 3 XP/Vista via Kompatibilitätsmodus
+			<h3>Prozessor:</h3> Intel Pentium 166 MMX oder gleichwertig
+			<h3>Speicher:</h3> ca. 2 MB zusätzlich zu dem Betriebsystem
+			<h3>Soundkarte:</h3> mind. eine Soundkarte mit DirectSound-Treibern (für Kopfhörerbetrieb sind zwei Soundkarten notwendig)
+			<div id="language_select">
+				<a href="index.html.en">english</a> | <a href="index.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>
+</html>

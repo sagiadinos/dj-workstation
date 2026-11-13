@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Impressum, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis" />
+		<meta name="description" content="Impressum der DJ Workstation. Eine freie kostenlose DJ Software mit der man mp3 und ogg/vorbis mixen kann" />	
+		<title>Impressum, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis</title>
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.de"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.de">Start</a>
+			::
+			<a href="philosophy.html.de" >Philosophie</a>
+			::
+			<a href="features.html.de">Features</a>
+			::
+			<a href="gallery.html.de">Bilder</a>
+			::
+			<a href="download.html.de">Download</a>
+			::
+			<a href="tipps.html.de">Tipps</a>
+			::
+			<a href="impress.html.de">Impressum</a>
+			<h1>
+				Impressum, Datenschutzerklärung und Disclaimer
+			</h1>
+			
+
+				<h2>Disclaimer</h2>
+				Ich weise ausdrücklich darauf hin, dass alle Angaben ohne Gewähr sind und jegliche Haftung durch
+				fehlerhafte, unvollständige oder veraltete Information ausgeschlossen ist.
+				<h2>Datenschutzerklärung</h2>
+				Alle auf dieser Website erhobenen Daten werden entsprechend den Vorschriften des Bundesdatenschutzgesetzes
+				(BDSG) und des Informations- und Telekommunikationsgesetzes (luTDG) behandelt.
+				<h2>Speicherung von Zugriffsdaten:</h2>
+
+				Bei jedem Zugriff eines Nutzenden auf eine Seite dieses Angebotes und bei jedem Abruf einer Datei werden
+				Zugriffsdaten über diesen Vorgang in einer Protokolldatei gespeichert.<br/>
+				jeder Datensatz besteht aus:
+				<ul>
+				    <li>der Seite, von der aus die Datei angefordert wurde </li>
+				    <li>den Namen der Datei </li>
+				    <li>dem Datum und der Uhrzeit der Anforderung </li>
+
+				    <li>der übertragenen Datenmenge </li>
+				    <li>dem Zugriffsstatus (Datei übertragen, Datei nicht gefunden etc.) </li>
+				    <li>einer Beschreibung des Typs des verwendeten Webbrowsers </li>
+				    <li>der Client IP-Adresse </li>
+				</ul>
+				Die gespeicherten Daten werden ausschließlich zu statistischen Zwecken ausgewertet. 
+				Eine Weitergabe an Dritte findet weder zu kommerziellen noch zu nichtkommerziellen Zwecken statt.
+				
+			<h2>
+				Impressum
+			</h2>
+			Nikolaos Saghaidinos<br />
+			Niederaue 1a<br />
+			30419 Hannover
+			<p>
+			<a href="mailto:niko@dj-workstation.de">niko@dj-workstation.de</a>
+			</p>
+			<div id="language_select">
+				<a href="impress.html.en">english</a> | <a href="impress.html.de">deutsch</a>
+			</div>	
+		</div>		
+	</body>
+</html>
+

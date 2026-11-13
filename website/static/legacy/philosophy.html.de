@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Philosophie, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis" />
+		<meta name="description" content="Philosophie der DJ Workstation. Eine freie kostenlose DJ Software mit der man mp3 und ogg/vorbis mixen kann" />	
+		<title>Philosophie, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis</title>
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.de"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.de">Start</a>
+			::
+			<a href="philosophy.html.de" >Philosophie</a>
+			::
+			<a href="features.html.de">Features</a>
+			::
+			<a href="gallery.html.de">Bilder</a>
+			::
+			<a href="download.html.de">Download</a>
+			::
+			<a href="tipps.html.de">Tipps</a>
+			::
+			<a href="impress.html.de">Impressum</a>
+			<h1>
+				Philosophie
+			</h1>
+
+			<h2>Eines vorweg: Die DJ-Workstation ist und bleibt OSS!</h2>
+		<p>
+			Der Grund aus dem dieses Projekt entstanden ist, nennt sich schlicht und
+			ergreifend
+			Eigenbedarf. Ich bin selber hauptberuflicher <a href="http://www.dj-niko.de">DJ</a> und habe im Winter
+			1998 durch meine erste Begegnung (Wir DJ's sind nicht die schnellsten :-))
+			mit dem mp3-Format erkannt, dass Musik aus einem Laptop bzw. Portable PC
+			äusserst arbeitserleichternd sein kann. Z.B. braucht man nicht mehr kistenweise
+			Tonträger und (im mobilen Bereich) Equipment mit sich
+			herumzuschleppen und in Verbindung mit einer Datenbank entfällt auch das
+			lästige Suchen.
+		</p>
+			
+			Da ich das Rad nicht zweimal erfinden wollte, habe ich mich
+			natürlich zuerst nach geeigneten Programmen umgesehen. Bin allerdings im Laufe
+			der Monate auf einen
+			Haufen bunten, schrillen, featureüberladenen und obendrein überteuerten Schrott
+			gestossen, der im Prinzip an meinem Anforderungsprofil vorbeiprogrammiert
+			wurde und von den Autoren dabei angepriesen wird als ob es die beste und
+			innovativste Software der Welt wäre.
+			Von den Bugs und den Versprechungen der nächsten Versionen will ich erst gar
+			nicht anfangen. Ich beschloss jedenfalls just for fun meinen eigenen Player zu
+			schreiben. Wichtig sind zwei Dinge:
+			<h3>
+				1. Eine Datenbank mit Suchfunktion.
+			</h3>
+			Das absolut wichtigste und grundlegenste ist und bleibt eine schnelle
+			Such- und Zugriffsfunktion. Wozu brauche ich sonst eine Software? Nur damit ich keine
+			Tonträger schleppen muss (Macht doch eh der LJ :-))?<br />
+
+			Anfangsbuchstaben des Titels oder Interpreten eingeben - "ENTER" drücken und ab!<br />
+
+			Ich kann absolut nicht verstehen wie jemand
+			ein DJ-Programm ohne integrierte Datenbank schreiben kann und dafür auch noch
+			Geld verlangt.
+			Wer einmal in das verwunderte Gesicht eines Gastes gesehen hat, nachdem man
+			innerhalb von 1-2 s. seinen Musikwunsch herausgesucht und gestartet hat, weiss
+			was ich meine.
+			<h3>
+				2. Symbiose zwischen Software und Stand-Alone-CD-Player
+			</h3>
+			Die Software sollte sich in etwa so wie ein Denon(TM) bedienen lassen und
+			funktionieren, aber warum soll man sich in den Möglichkeiten einschränken indem
+			man starr lediglich die Funktionalität der Hardware kopiert. In Software lassen
+			sich viel genialere Konzepte realisieren z.B. Mehrfachplayer. Ich kann z.B.
+			nicht verstehen,
+			weshalb viele Hersteller sich in ihrer Software auf lediglich zwei Player
+			fixieren.
+			<p>
+			Bis einschliesslich der Alpha 3 habe ich den Borland C++
+			Builder mit
+			VCL-Klassenbibliothek und BDE benutzt, weil ich bis zu diesem Zeitpunkt
+			lediglich Kenntnisse in Turbo Pascal/Delphi hatte. Ging auch alles recht
+			einfach zu
+			programmieren
+			resultierte aber in zu grosse ausführbare Dateien und die Benutzung von
+			hersstellerabhängigen Bibliotheken war mir immer ein Dorn im Auge. Ab der Alpha
+			4 ist dann alles zu Fuss programmiert worden.
+			</p>
+				<strong>
+					Die Zielsetzung ist es ein kleines aber professionelles schlankes Programm zu
+					entwickeln, dass stabil läuft
+				</strong>
+			<p>
+			D.H. Es soll einem DJ bei der Arbeit unterstützen und nicht in Schwierigkeiten
+			bringen.
+			Neue Funktionen werden erst dann integriert, wenn diese im Betrieb von mir
+			getestet
+			worden sind und wenn sichergestellt ist, dass die anderen Funktionen stabil
+			laufen. Ein BeatCounter wird beispielsweise erst dann integriert werden, wenn
+			ich einen Algorithmus gefunden habe, der mehr als nur eine Spielerei ist.
+			</p>
+			<p>
+			Durch die eher persönliche Natur des Projektes, ist es unabhängig von
+			ökonomischen
+			und marketingtechnischen Aspekten. Die Zeit spielt dabei keine Rolle.
+			Sollen sich doch andere darum schlagen welche unausgereiften Features als erstes
+			rauskommen.
+			</p>
+			Ich wünsche Euch, dass ihr genauso viel Spass mit der
+			<strong>
+				DJ-Workstation
+			</strong>
+			beim Arbeiten habt wie ich.<br />
+			<a href="mailto:niko@dj-workstation.de">Nikolaos Saghiadinos</a>
+			<div id="language_select">
+				<a href="philosophy.html.en">english</a> | <a href="philosophy.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Tipps, Tricks, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis" />
+		<meta name="description" content="Tipps und Tricks der DJ Workstation. Eine freie kostenlose DJ Software mit der man mp3 und ogg/vorbis mixen kann" />	
+		<title>Tipps Tricks, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis</title>
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.de"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.de">Start</a>
+			::
+			<a href="philosophy.html.de" >Philosophie</a>
+			::
+			<a href="features.html.de">Features</a>
+			::
+			<a href="gallery.html.de">Bilder</a>
+			::
+			<a href="download.html.de">Download</a>
+			::
+			<a href="tipps.html.de">Tipps</a>
+			::
+			<a href="impress.html.de">Impressum</a>
+			<h1>
+				Tipps zur Verbesserung des Laufzeitverhaltens
+			</h1>
+			<h2>
+				Probleme mit Windows XP und Vista beheben
+			</h2>
+			Die DJW versucht beim esten Start die Sprache des Systems zu erkennen. Da Microsoft diesen Prozess seinerzeit nicht vereinheitlicht hatte kann es passieren, dass die DJw beim esten Aufruf abstürzt.<br />
+			Es wurde berichtet, dass diese Problem nicht mehr auftritt, wenn man den Windows2000 Kompatibilitätsmodus aktiviert. Mangels realem XP und Vista kann ich das leider nicht selber testen. 
+			
+			<h2>
+				Den Cache bei Windows9x begrenzen
+			</h2>
+			Windows hat einen Festplatten-Cache. Dieser Cache puffert h&auml;ufig
+			ben&ouml;tigte Daten im schnelleren Hauptspeicher, um diese bei erneuter
+			Anforderung schneller zur Verfügung zu stellen. Der Cache ist dynamisch, d.h.
+			er ändern seine Grösse selbständig, aber nicht besonders
+			intelligent. Er hat nämlich die Angewohnheit sich ohne Rücksicht auf
+			Verluste ständig zu vergrössern. Bei schwächeren Rechnern mit
+			vergleichsweise wenig Hauptspeicher und der
+			<strong>
+				DJ-Workstation
+			</strong>
+			ist dieses Verhalten extrem nervig. Bei l&auml;ngerem Arbeiten mit evtl. sogar
+			voller Leseoptimierung wird der Cache explosionartig  grösser und das
+			System beginnt schizophrenerweise auf der Festplatte auszulagern. Ich habe
+			Situationen erlebt, wo bei einem 32 MB-Rechner 24,5 MB als Cache zugewiesen
+			waren und auf der Festplatte plötzlich eine 14 MB grosse Auslagerungsdatei
+			befand. Sehr clever...
+			<br />
+			Also setzt dem Festplattencache seine Grenzen.
+			<br />
+			Bei einem Rechner mit 32 MB Hauptspeicher sollten 8-12 MB völlig
+			reichen.
+			<br />
+			Das geht u.a. in der system.ini. (Vorher sichern!)
+			<br />
+			Sucht den Eintrag [vcache] oder erstellt ihn und schreibt darunter den maximalen
+			CacheWert in KBytes rein.
+			<br />
+			Sollte dann so aussehen (Für 8 MB).
+			<br />
+			[vcache]
+			<br />
+			MaxFileCache=8192
+
+			
+			<h2>
+				Die Leseoptimierun bei Windows 9x abschalten.
+			</h2>
+			
+			Die Leseoptimierung dient dazu Daten aus einer Datei, die sequentiell (also
+			nacheinander) angefordert werden im vorraus zu lesen und im Speicher zu
+			puffern, wenn dass die Anwendung erfordert.
+			Bei &auml;lteren Rechnern die u.U. noch mit einem PIO-Mode auf die Festplatte
+			zugreifen geht die Rechenleistung dabei derbe runter.
+			Bei der
+			<strong>
+				DJ-Workstation
+			</strong>
+			kann dass u.a. bedeuten, dass der gerade abgespielte Titel hackt (kurzes
+			Stottern analog dem Sprung in einer Vinyl), wenn zur gleichen Zeit in dem
+			anderen Player ein neuer Song geladen wird.
+			<br />
+			Dass muss nicht sein, also raus damit.
+			
+			In der Systemsteuerung auf System, dann auf den Tab -Leistungsmerkmale- klicken.
+			<br />
+			Unter den Erweiterten Einstellungen auf den Button -Dateisyssteme-, den
+			Schieberegler ganz nach links bewegen und dann auf -Uuml;bernehmen- bzw. -OK-
+			gehen.
+			<strong>
+				Anmrk.: Merkwürdigerweise laufen auch andere Windows-Anwendungen (Corel,
+				Netscape ... ) mit den obengenannten Einstellungen wesendlich runder.
+			</strong>
+			<div id="language_select">
+				<a href="tipps.html.en">english</a> | <a href="tipps.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>
+</html>

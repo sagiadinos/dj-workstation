@@ -1,0 +1,18 @@
+<header class="topbar">
+  <a class="brand" href="{{ site.Home.RelPermalink }}">
+    <span class="led led--on" aria-hidden="true"></span>DJ-Workstation
+  </a>
+  <nav class="topbar__nav">
+    <a href="{{ site.Params.github }}">GitHub</a>
+    {{- /* A plain disclosure list instead of flags or a script, so more languages only add rows. */}}
+    <details class="lang">
+      <summary><span class="visually-hidden">{{ T "language" }}: </span>{{ site.Language.Label }}</summary>
+      <ul>
+        {{- range .AllTranslations }}
+        <li><a href="{{ .RelPermalink }}" hreflang="{{ .Language.Locale }}" lang="{{ .Language.Locale }}"
+          {{- if eq .Language.Lang site.Language.Lang }} aria-current="page"{{ end }}>{{ .Language.Label }}</a></li>
+        {{- end }}
+      </ul>
+    </details>
+  </nav>
+</header>

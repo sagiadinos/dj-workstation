@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Features History DJ Workstation Mixen free OSS Discjockey mp3 ogg" />
+		<meta name="description" content="The Features and history of the DJ Workstation. A a free open sourced software with can beatmix mp3 ogg/vorbis and wav files" />	
+		<title>Features History Release DJ Workstation ogg/vorbis mp3 mix open source </title>
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.en"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.en">Start</a>
+			::
+			<a href="philosophy.html.en" >Philosophy</a>
+			::
+			<a href="features.html.en">Features</a>
+			::
+			<a href="gallery.html.en">Gallery</a>
+			::
+			<a href="download.html.en">Download</a>
+			::
+			<a href="tipps.html.en">Tips</a>
+			::
+			<a href="impress.html.en">Impres</a>
+			<h1>
+				Features and History
+			</h1>
+			<h2>
+				0.5.2 (Changes)
+			</h2>
+			<ul>
+				<li>
+				crash with some wave-files fixed
+				</li>
+				<li>
+				seek problems with wave-files fixed
+				</li>
+				<li>
+				wildcard search mismatches corrected
+				</li>
+			</ul>
+
+			<h2>
+				0.5.3 (Changes)
+			</h2>
+			<ul>
+				<li>
+				crash with writing ogg-comments fixed
+				</li><li>
+				crash with searching much ogg-files fixed
+				</li><li>
+				song length in search-table included
+				</li>
+			</ul>
+
+			<h2>
+				0.5.2 (Changes)
+			</h2>
+			<ul>
+				<li>
+				Crash on playing some wave-files fixed
+				</li><li>
+				seek problem on wave-files fixed
+				</li><li>
+				mismatches on wildcardsearch fixed
+				</li>
+			</ul>
+
+			<h2>
+				0.5.1 (Changes)
+			</h2>
+			<ul>
+				<li>
+				Crash on playing mono sound files fixed (see compiler optimization)
+				</li><li>
+				a wildcard search was implemented
+				</li><li>
+				change compiler optimization from size to speed
+				</li>
+			</ul>
+
+			<h2>
+				0.5.0 (Changes)
+			</h2>
+			<ul>
+				<li>
+				crash fixed when starting under some Win2000/XP installations (see automatic
+				language detect)
+				</li><li>
+				some bugs with colout-shemes in Win ME/2000 fixes
+				</li><li>
+				fixed bug in device dialog
+				</li><li>
+				crash on char-exteed in search-editbox fixed
+				</li><li>
+				workaround for Win2000 DirectSound-bug
+				</li><li>
+				automatic language-detect was remove, because of the incombatibilities between
+				different Windows-Versions
+				</li><li>
+				support for OGG/Vorbis and wave files
+				</li><li>
+				enhanced scan dialog
+				</li><li>
+				real-time Time-Stretch-algorithems (some called Mastertempo or Key-Adjust)
+				</li><li>
+				included comm-functions for a remote-control which is in development
+				</li>
+			</ul>
+			<h2>
+				Alpha 4 (Changes)
+			</h2>
+			<ul>
+				<li>
+				the complete sourcecode was rewitten (results smaller files, the programm and
+				database use now much lower resources)
+				</li><li>
+				new Playlistedesign and handling (Winamp(TM) like)
+				</li><li>
+				Mixer/Crossfader as standalone Dialogbox
+				</li><li>
+				Fadertime and mixstart-time are configurable
+				</li><li>
+				bug on actualize ID3-Tag fixed
+				</li><li>
+				bug in Device options (per Player fixed)
+				</li><li>
+				Sound-bug with moving/resizing windows fixed
+				</li><li>
+				Help-files include
+				</li><li>
+				support for french (experimental)
+				</li><li>
+				and a lot of minor changes
+				</li>
+			</ul>
+				
+			<h2>
+				Alpha 3 (changes)
+			</h2>
+			<ul>
+				<li>
+				new design
+				</li><li>
+				configurable and savable view
+				</li><li>
+				hotkeys
+				</li><li>
+				Drag'n Drop into player
+				</li><li>
+				as much sound-devices as you like useable
+				</li><li>
+				growable player as much as you like useable
+				</li><li>
+				bug on crossfader-refresh fixed
+				</li>
+			</ul>
+			<h2>
+				Alpha 2 (Changes)
+			</h2>
+			<ul>
+				<li>
+				new Modes at Sounddevice-selection
+				</li><li>
+				Seek and Cue at exactly fractal
+				</li><li>
+				Scan-Dialog optimized
+				</li><li>
+				integrated Online-Help
+				</li><li>
+				sorted printing of songlists
+				</li><li>
+				Internationalization (English, German.. more to come)
+				</li><li>
+				beautifited GUI
+				</li><li>
+				optimised autocue-function
+				</li><li>
+				downgrading to DirectX 3 (for NT 4.0 with SP 3)
+				</li><li>
+				some Exeptions on seeking fixed
+				</li><li>
+				Division by Zero on loading "dead mp3's" fixed
+				</li><li>
+				solve unrepruducable problems with threading
+				</li><li>
+				workaround for problems with some. WDM-Drivers
+				</li><li>
+				and some minor changes...
+				</li>
+			</ul>
+			<h2>
+				Alpha 1
+			</h2>
+			<ul>
+				<li>
+				realtime-mixing of two mp3-Files
+				</li><li>
+				seperatly changing of the playback-rate
+				</li><li>
+				integrated Mixer
+				</li><li>
+				prelisten function for headphones (needs second soundcard
+				</li><li>
+				autoplay
+				</li><li>
+				saving Cue-Point for every song (Autocue)
+				</li><li>
+				Playlist-support and import from Winamp-Playlists
+				</li><li>
+				ID3v1 Tag-editor
+				</li><li>
+				harddisk-scan for mp3-Dateien extraction of their ID3-Tags
+				</li><li>
+				integrated Database (Paradox)
+				</li><li>
+				comfortably search-function for Artist, titel , Genre, und Year
+				</li><li>
+				load blocked on songs which are currently playing
+				</li><li>
+				assignable cross-fader
+				</li>
+			</ul>
+			<div id="language_select">
+				<a href="index.html.en">english</a> | <a href="index.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>		
+</html>

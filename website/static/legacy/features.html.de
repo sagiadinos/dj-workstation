@@ -1,0 +1,282 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Features, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis" />
+		<meta name="description" content="Features der DJ Workstation. Eine freie kostenlose DJ Software mit der man mp3 und ogg/vorbis mixen kann" />	
+		<title>Features, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis</title>
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.de"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.de">Start</a>
+			::
+			<a href="philosophy.html.de" >Philosophie</a>
+			::
+			<a href="features.html.de">Features</a>
+			::
+			<a href="gallery.html.de">Bilder</a>
+			::
+			<a href="download.html.de">Download</a>
+			::
+			<a href="tipps.html.de">Tipps</a>
+			::
+			<a href="impress.html.de">Impressum</a>
+			<h1>
+				Features und Geschichte
+			</h1>
+			<h2>
+				0.5.3 (Veränderungen)
+			</h2>
+			<ul>
+				<li>
+				Absturz beim Schreiben von ogg/vorbis-Dateien behoben
+				</li>
+				<li>
+				gelegendliche Abstürze beim scannen nach  ogg/vorbis -Dateien behoben
+				</li>
+				<li>
+				Laufzeitlänge in Suchtabelle integriert (Datenbanken aus älteren Versionen müssen neu eingelesen werden)
+				</li>
+			</ul>
+
+			<h2>
+				0.5.2 (Ver&auml;nderungen)
+			</h2>
+			<ul>
+				<li>
+				Absturz beim Abspielen von manchen  Wavefiles behoben
+				</li>
+				<li>
+				seek-Problem bei Wave-Files behoben
+				</li>
+				<li>
+				Fehler bei der Jokersuche behoben
+				</li>
+			</ul>
+	
+			<h2>
+				0.5.1 (Veränderungen)
+			</h2>
+			<ul>
+				<li>
+				Absturz beim Laden bzw. Abspielen von mono Sounddateien wurde behoben (siehe Compileroptimierung)
+				</li>
+				<li>
+				Jokersuche wurde integriert
+				</li>
+				<li>
+				Compileroptimierung von Grösse auf Geschwindigkeit verändert
+				</li>
+			</ul>
+	
+			<h2>
+				0.5.0 (Ver&auml;nderungen)
+			</h2>
+			<ul>
+				<li>
+				Die Abstürze beim Start in manchen Win2000/XP Installationen wurde behoben
+				(siehe Spracherkennung)
+				</li>
+				<li>
+				kleinere Fehler bei der Farbdarstellung in Win ME/2000 behoben
+				</li>
+				<li>
+				Fehler bei Soundkartenauswahl im Gerätedialog behoben
+				</li>
+				<li>
+				Absturz bei Zeichenüberlauf in Such-Editboxen behoben
+				</li>
+				<li>
+				Workaround für den Win2000 DirectSound-Bug
+				</li>
+				<li>
+				Die automatische Spracherkennung wurde wegen Inkompatibilitäteten zwischen den
+				verschiedenen Windows-Version herausrausgenommen
+				</li>
+				<li>
+				Unterstützung von OGG/Vorbis und Wave-Dateien
+				</li>
+				<li>
+				Erweiterung im  Scan-Dialog
+				</li>
+				<li>
+				Echtzeit Time-Stretch-Algorithmus implementiert (manche nennen so etwas
+				Mastertempo bzw. Key-Adjust)
+				</li>
+				<li>
+				Comm-Routinen für im Prototypstadium befindliches Bedienteil implementiert
+				</li>
+			</ul>
+
+			<h2>
+				Alpha 4 (Ver&auml;nderungen)
+			</h2>
+			<ul>
+				<li>
+				der komplette Quelltext wurde von Grund auf neu geschrieben (wesendlich kleiner
+				Dateigrössen und geringerer Resourcenverbrauch sowohl in Programm als auch in
+				der Datenbank)
+				</li>
+				<li>
+				neues Playlistendesign und Handhabung (ähnlich Winamp)
+				</li>
+				<li>
+				Mixer als eigenständige Dialogbox
+				</li>
+				<li>
+				Faderzeit und Mixstartzeitpunkt einstellbar
+				</li>
+				<li>
+				Fehler beim ID3-Tag aktualisieren beseitigt
+				</li>
+				<li>
+				Fehler in Geräteinstellung pro Player behoben
+				</li>
+				<li>
+				Ruckeln beim verschieben/vergrössern eines Fensters beseitigt
+				</li>
+				<li>
+				Hilfedateien eingebunden
+				</li>
+				<li>
+				Französicher Sprachsupport (experimentell)
+				</li>
+				<li>
+				u.v.a.
+				</li>
+			</ul>
+
+			<h2>
+				Alpha 3 (Ver&auml;nderungen)
+			</h2>
+			<ul>
+				<li>
+				Neues Design
+				</li>
+				<li>
+				Erscheinungsbild konfigurier-und abspeicherbar
+				</li>
+				<li>
+				Hotkeys
+				</li>
+				<li>
+				Drag'n Drop in Player
+				</li>
+				<li>
+				beliebig viele Soundkarten verwendbar
+				</li>
+				<li>
+				beliebige grössenveränderbare Player möglich
+				</li>
+				<li>
+				Fehler beim Refresh des Crossfaders behoben
+				</li>
+			</ul>
+	
+			<h2>
+				Alpha 2 (Ver&auml;nderungen)
+			</h2>
+			<ul>
+				<li>
+				neue Modi bei der Soundkartenauswahl
+				</li>
+				<li>
+				Seek und Cue auf hunderstel Sekunde genau
+				</li>
+				<li>
+				Scandialog verfeinert
+				</li>
+				<li>
+				integrierte Online-Hilfe
+				</li>
+				<li>
+				sortiertes Drucken von Titellisten
+				</li>
+				<li>
+				Internationale Sprachunterstützung
+				</li>
+				<li>
+				Oberfläche wurde angehübscht
+				</li>
+				<li>
+				Optimierung der Autocue-Funktion
+				</li>
+				<li>
+				downgrading auf DirectX 3 (für NT 4.0 ab SP 3)
+				</li>
+				<li>
+				gelegendliche auftretende Exeptions beim Seeken gefixt
+				</li>
+				<li>
+				Division durch Zero beim Laden von nicht vorhandenen mp3-Dateien abgefangen
+				</li>
+				<li>
+				unreproduzierbar auftretende Threadingprobleme gelöst
+				</li>
+				<li>
+				Workaround für Probleme mit best. WDM-Treibern
+				</li>
+				<li>
+				und ein paar kleinere Änderungen...
+				</li>
+			</ul>
+			<h2>
+				Alpha 1
+			</h2>
+			<ul>
+				<li>
+				Echtzeitmischen von zwei mp3-Dateien
+				</li>
+				<li>
+				Geschwindigkeitsver&auml;nderung
+				</li>
+				<li>
+				integriertes Mischpult
+				</li>
+				<li>
+				Vorh&ouml;hrerfunktion &uuml;ber Kopfh&ouml;hrer (ben&ouml;tigt
+				zweite	Soundkarte)
+				</li>
+				<li>
+				Autoplay
+				</li>
+				<li>
+				speichern des Cue-Punktes f&uuml;r jeden Titel (Autocue)
+				</li>
+				<li>
+				Playliste und Import von Winamp-Playlisten
+				</li>
+				<li>
+				ID3 v1-Tag-Editor
+				</li>
+				<li>
+				Festplattenscan nach mp3-Dateien und auswertung des ID3-Tags
+				</li>
+				<li>
+				integrierte Datenbank
+				</li>
+				<li>
+				komfortable Suchfunktion nach Interpret, Titel , Genre, und Jahr
+				</li>
+				<li>
+				Scan nach mp3-Titeln und Auswertung des ID3-Tags
+				</li>
+				<li>
+				Ladesperre bei gerade abgespielten Titeln
+				</li>
+				<li>
+				assignf&auml;higer Crossfader
+				</li>
+			</ul>
+			<div id="language_select">
+				<a href="features.html.en">english</a> | <a href="features.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>
+</html>

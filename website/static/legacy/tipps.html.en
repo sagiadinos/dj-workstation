@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Performance Tuning Optimizing DJ Workstation Mixen free OSS Discjockey mp3 ogg" />
+		<meta name="description" content="Performance, Tuning Tips and Optimizing of DJ Workstation. A a free open sourced software with can beatmix mp3 ogg/vorbis and wav files" />	
+		<title>Performance Tuning Tips Optimizing DJ Workstation ogg/vorbis mp3 mix open source </title>
+		<link href="js/thickbox.css" rel="stylesheet" type="text/css" />
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+		<script type="text/javascript" src="js/jquery-1.2.6.js" ></script>
+		<script type="text/javascript" src="js/thickbox-compressed.js" ></script>
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.en"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.en">Start</a>
+			::
+			<a href="philosophy.html.en" >Philosophy</a>
+			::
+			<a href="features.html.en">Features</a>
+			::
+			<a href="gallery.html.en">Gallery</a>
+			::
+			<a href="download.html.en">Download</a>
+			::
+			<a href="tipps.html.en">Tips</a>
+			::
+			<a href="impress.html.en">Impres</a>
+			<h1>
+				Performance, Tuning Tips and Optimizing the runtime behaviour
+			</h1>
+			<h2>
+				Solving problems with Windows XP und Vista
+			</h2>
+			The DJ-Workstation tries on first startup to check the system language. It could unfortunately failed to crash, cause Microsoft earlier don't standartized this process.<br />
+			I get reports that this problem don't occur if the Windows 2000 compatibility layer is active. Due to lack of a XP or Vista I could not test this. 
+			
+						<h2>
+							1.1. Limit the Cache
+						</h2>
+						Windows 9x has a hard-disc-cache. This cache buffers data you often use in the
+						faster main memory, to load them
+						faster second time. The cache is dynamic, that means, that he change his size
+						himself. But in my opinion this cache 		is not very intelligent, because he has
+						the behaviour to grow only without any respects. On weaker machine with 		"low"
+						main memory and the	<strong>DJ-Workstation</strong>
+						is this behaviour is a pain.
+						If you work with the program e.g. with " full read ahed optimization" the cache
+						explode and at end the the system began to swap.
+						I saw machines with 32 MB memory which used 24,5 MB cache and get a swap-file
+						of 14 MB!
+						<p>
+						Very intelligent ...!
+						</p>
+						Limit this thing.
+						<br />
+						On a machine with 32 MB physical memory the needs are about 8-12 MB cache.
+						You can manage that in the system.ini. (do not forget to save before start
+						editing!)
+						<br />
+						Search for [vache] and enter the maximal file cache in KBytes
+						
+
+						It should looks like this (e.g.for 8 MB).
+						<p>
+						[vcache]
+						<br>
+						MaxFileCache=8192
+						</p>
+	
+						<h2>
+							Stop the read ahead optimization (Hope this called in english so)
+						</h2>
+						The read ahead optimization is used to pre-read and buffer data from a file, if
+						the file is read sequential from the application. If you have an older system
+						(Laptop), which reads from the hard disk in oneof the Pio-Modes the
+						system-performance gets down dramatically.	 The result with the
+						<strong>
+							DJ-Workstation
+						</strong>
+						is, that the currently playing titel hangs for a moment if you load a song at
+						the other player ( sound like a short hang in Vinyl).
+						<br />
+						That has not be a must.
+						Go in the System-Preferences? on System, then click on the Tab
+						-Performeance?-(last Tab right).
+						<br />
+						Press the button down right which called -Filesystem..-, den
+						Slide the Slidebar (Trackbar?) to left links and then -OK-
+						<p style="text-weight:bold">
+							The for me most wondering thing is, that after that changes are done it seemed
+							so, that other applications and windows itself runs more stable and faster.
+						</p>
+			<div id="language_select">
+				<a href="tipps.html.en">english</a> | <a href="tipps.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>
+</html>

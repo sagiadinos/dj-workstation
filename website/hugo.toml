@@ -1,0 +1,29 @@
+baseURL = 'https://dj-workstation.com/'
+title = 'DJ-Workstation'
+
+# English lives at the root, every other language in its own subdirectory (/de/, ...).
+# No automatic language detection.
+defaultContentLanguage = 'en'
+defaultContentLanguageInSubdir = false
+
+disableKinds = ['taxonomy', 'term', 'rss']
+
+[params]
+  github = 'https://github.com/sagiadinos/dj-workstation'
+  author = 'Niko Sagiadinos'
+  since  = 1998
+
+# A new language needs an entry here, content/_index.<code>.md,
+# i18n/<code>.toml and the two screenshots in static/images.
+[languages]
+  [languages.en]
+    label = 'English'
+    locale = 'en'
+    weight = 1
+  [languages.de]
+    label = 'Deutsch'
+    locale = 'de'
+    weight = 2
+
+[markup.goldmark.renderer]
+  unsafe = false

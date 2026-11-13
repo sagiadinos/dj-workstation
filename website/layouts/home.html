@@ -1,0 +1,54 @@
+{{ define "main" }}
+{{- $lang := site.Language.Lang }}
+<section class="hero">
+  <div class="hero__text">
+    <h1 class="display"><span class="display__label">{{ .Title }}</span><span class="display__value">{{ .Params.hero.tagline }}</span></h1>
+    <p class="hero__platforms">{{ .Params.hero.platforms }}</p>
+    <p class="hero__promise">{{ .Params.hero.promise }}</p>
+    <p class="status"><span class="led led--warn" aria-hidden="true"></span>{{ .Params.hero.status }}</p>
+    <p class="actions">
+      <a class="btn btn--play" href="{{ site.Params.github }}">{{ T "source_code" }}</a>
+      <a class="btn" href="{{ site.Params.github }}/blob/main/FEATURES.md">{{ T "feature_list" }}</a>
+    </p>
+  </div>
+  <figure class="hero__shot panel">
+    <picture>
+      <source media="(max-width: 47.99em)" srcset="{{ printf "images/player-mobile-%s.png" $lang | relURL }}" width="360" height="516">
+      <img src="{{ printf "images/players-%s.png" $lang | relURL }}" width="1150" height="516" alt="{{ .Params.hero.screenshot_alt }}">
+    </picture>
+  </figure>
+</section>
+
+<section class="section" aria-labelledby="features">
+  <h2 id="features" class="section__title">{{ .Params.features.title }}</h2>
+  <ul class="cards">
+    {{- range .Params.features.items }}
+    <li class="panel card">
+      <h3 class="panel__title"><span class="led led--on" aria-hidden="true"></span>{{ .title }}</h3>
+      <p>{{ .text }}</p>
+    </li>
+    {{- end }}
+  </ul>
+</section>
+
+<section class="section split" aria-labelledby="principles">
+  <div>
+    <h2 id="principles" class="section__title">{{ .Params.principles.title }}</h2>
+    <p>{{ .Params.principles.text }}</p>
+  </div>
+  <div class="panel">
+    <h3 class="panel__title"><span class="led led--off" aria-hidden="true"></span>{{ .Params.principles.not_title }}</h3>
+    <ul class="not-list">
+      {{- range .Params.principles.not_items }}
+      <li>{{ . }}</li>
+      {{- end }}
+    </ul>
+  </div>
+</section>
+
+<section class="section history" aria-labelledby="history">
+  <h2 id="history" class="section__title">{{ .Params.history.title }}</h2>
+  <p>{{ .Params.history.text }}</p>
+  <p><a class="btn" href="/legacy/">{{ .Params.history.link }}</a></p>
+</section>
+{{ end }}

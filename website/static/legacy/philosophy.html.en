@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Philosophy DJ Workstation Mixen free OSS Discjockey mp3 ogg" />
+		<meta name="description" content="The Philosophy DJ Workstation is a free open sourced software with can beatmix mp3 ogg/vorbis and wav files" />	
+		<title>Philosophy Release DJ Workstation ogg/vorbis mp3 mix open source </title>
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.en"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.en">Start</a>
+			::
+			<a href="philosophy.html.en" >Philosophy</a>
+			::
+			<a href="features.html.en">Features</a>
+			::
+			<a href="gallery.html.en">Gallery</a>
+			::
+			<a href="download.html.en">Download</a>
+			::
+			<a href="tipps.html.en">Tips</a>
+			::
+			<a href="impress.html.en">Impres</a>
+			<h1>
+				Philosophy
+			</h1>
+			<h2>
+				First one thing: The	DJ-Workstation is and will be open source freeware!
+			</h2>
+			The main reason for the existance of this project is very simple: my own need!
+			I am
+			professional <a href="http://www.dj-niko.de">DJ</a> (yes, that's possible) and I have realized after my first
+			encounter with the	mp3-format, some years ago, that music from a notebook or a portable PC can
+			make my work a lot easier.
+
+			<p>
+				For example: You don't have to carry heavy vinyl/ CD records and it also cuts
+				down on some of the mobile-DJ
+				equipment. With a search and find database you save time looking for the next
+				song.
+			</p>
+
+			I didn't want to invent the wheel a second time, so I made my way looking
+			for some useful programs. But during my search I saw a lot of shrilling,
+			colourful,
+			featureoverloded expensive trash, that never came up to my real claims,
+			excluding all the bugs and promises of the next "better" versions.
+			Therefore, I decided to improve my sardonic programming knowledge, so that I'm
+			able to write such an application myself.
+				<h3>
+					The main goal is to create a small but fast, professional and stable
+					application that supports a
+					DJ	at his work.
+				</h3>
+			That means, that the program is supposed to support a DJ at his work and
+			doesn't bring him in difficulties.
+			<p>
+			New features will be integrated, when I had them tested myself at my work and
+			when I can be sure that the other features work stable.
+			For example: A BeatCounter would be implemented when I found an algorithm that
+			is more than a toy.
+			</p>
+			The project, has of course a more personal nature, so that it is
+			independed from economical and
+			merchandising aspects. The primary motivation is to develop a tool that really
+			helps a DJ (but not makes him unemployed).
+			<p>
+			Other companys can have their "feature-war". They can fight for the honor to
+			present their buggy functions faster than the other.
+			I have even the luxury to tell you what my program is not able to do or what it
+			lacks of.
+			</p>
+			e.g.:
+			The
+			<strong>
+				DJ-Workstation
+			</strong>
+			is not as I want it to be. At least not at the moment.... So I call it Alpha!
+			Until release Alpha 3 the program was coded with Borland C++-Builder V 3 and
+			his great-featured but
+			big butted VCL, cause I'm Pascal/Delphi-programmer and wanted to concentrate
+			first on the important things: To build a stable runable program.
+			From the Alpha 4 there was eliminated all overhead.
+			
+			E-mails and the mailinglist are mentioned on the homepage.
+			I hope, you have the same fun as I have when you work with the
+			<strong>DJ Workstation</strong>
+			<p>
+				Greetings from cold Germany<br />
+				<a href="mailto:niko@dj-workstation.de">Nikolaos Saghiadinos</a>
+			</p>
+			<div id="language_select">
+				<a href="index.html.en">english</a> | <a href="index.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>		
+</html>

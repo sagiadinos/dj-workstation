@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Bilder, Galerie, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis" />
+		<meta name="description" content="Bilder Galerie der DJ Workstation. Eine freie kostenlose DJ Software mit der man mp3 und ogg/vorbis mixen kann" />	
+		<title>Bilder, Galerie, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis</title>
+		<link href="js/thickbox.css" rel="stylesheet" type="text/css" />
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+		<script type="text/javascript" src="js/jquery-1.2.6.js" ></script>
+		<script type="text/javascript" src="js/thickbox-compressed.js" ></script>
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.de"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.de">Start</a>
+			::
+			<a href="philosophy.html.de" >Philosophie</a>
+			::
+			<a href="features.html.de">Features</a>
+			::
+			<a href="gallery.html.de">Bilder</a>
+			::
+			<a href="download.html.de">Download</a>
+			::
+			<a href="tipps.html.de">Tipps</a>
+			::
+			<a href="impress.html.de">Impressum</a>
+			<h1>
+				Bilder der DJ-Workstation
+			</h1>
+			<h2>
+				Klick auf eines der Bilder um es zu vergrössern
+			</h2>
+			<div class="gallery">
+				<a href="bilder/djw.gif" class="thickbox" rel="gallery"><img src="bilder/djw_t.gif" alt="DJ-Workstation Hauptbild" /><br />DJ-Workstation</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/mixer.gif" class="thickbox" rel="gallery"><img src="bilder/mixer_t.gif" alt="DJ-Workstation Mixer Sektion" /><br />Die Mixer-Sektion</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/player.gif" class="thickbox" rel="gallery"><img src="bilder/player_t.gif" alt="Ein einzelner Player" /><br />Ein Player</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/search.gif" class="thickbox" rel="gallery"><img src="bilder/search_t.gif" alt="Die Suchmaske der DJ-Workstation" /><br />Die Suchmaske</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/playlist.gif" class="thickbox" rel="gallery"><img src="bilder/playlist_t.gif" alt="Playliste der DJ-Workstation" /><br />Die Playliste</a>
+			</div>
+			
+			<div id="language_select">
+				<a href="gallery.html.en">english</a> | <a href="gallery.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>
+</html>

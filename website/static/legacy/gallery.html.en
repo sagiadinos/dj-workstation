@@ -1,0 +1,61 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Pictures Images DJ Workstation Mixen free OSS Discjockey mp3 ogg" />
+		<meta name="description" content="Pictures of the DJ Workstation. A a free open sourced software with can beatmix mp3 ogg/vorbis and wav files" />	
+		<title>Gallery DJ Workstation ogg/vorbis mp3 mix open source </title>
+		<link href="js/thickbox.css" rel="stylesheet" type="text/css" />
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+		<script type="text/javascript" src="js/jquery-1.2.6.js" ></script>
+		<script type="text/javascript" src="js/thickbox-compressed.js" ></script>
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.en"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.en">Start</a>
+			::
+			<a href="philosophy.html.en" >Philosophy</a>
+			::
+			<a href="features.html.en">Features</a>
+			::
+			<a href="gallery.html.en">Gallery</a>
+			::
+			<a href="download.html.en">Download</a>
+			::
+			<a href="tipps.html.en">Tips</a>
+			::
+			<a href="impress.html.en">Impres</a>
+			<h1>
+				Gallery
+			</h1>
+					
+			<h2>
+				Click at an image to see a bigger picture
+			</h2>
+			<div class="gallery">
+				<a href="bilder/djw.gif" class="thickbox" rel="gallery"><img src="bilder/djw_t.gif" alt="DJ-Workstation main picture" /><br />DJ-Workstation</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/mixer.gif" class="thickbox" rel="gallery"><img src="bilder/mixer_t.gif" alt="DJ-Workstation mixer section" /><br />The mixer-section</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/player.gif" class="thickbox" rel="gallery"><img src="bilder/player_t.gif" alt="A single ülayer" /><br />A player</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/search.gif" class="thickbox" rel="gallery"><img src="bilder/search_t.gif" alt="The search mask of DJ-Workstation" /><br />The search mask</a>
+			</div>
+			<div class="gallery">
+				<a href="bilder/playlist.gif" class="thickbox" rel="gallery"><img src="bilder/playlist_t.gif" alt="Playlist of DJ-Workstation" /><br />The playlist</a>
+			</div>
+			
+			<div id="language_select">
+				<a href="gallery.html.en">english</a> | <a href="gallery.html.de">deutsch</a>
+			</div>	
+		</div>
+	</body>
+</html>

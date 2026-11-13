@@ -1,0 +1,62 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="publisher" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="copyright" content="Nikolaos Saghiadinos - saghiadinos.de" />
+		<meta name="robots" content="index, follow" />
+		<meta name="keywords" content="Downloads, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis" />
+		<meta name="description" content="Downloads der DJ Workstation. Eine freie kostenlose DJ Software mit der man mp3 und ogg/vorbis mixen kann" />	
+		<title>Downloads, DJ Workstation, mp3, Mixen, frei, kostenlos, Open Source, Diskjockey, ogg/vorbis</title>
+		<link rel="stylesheet" type="text/css" href="djw_styles.css" />
+	</head>
+	<body>
+		<div id="main">
+			<a href="index.html.de"><img src="bilder/logo.gif" style="width:150px;height:72px;padding-right:10px;" alt="dj-workstation Logo" /></a>
+	
+			<a href="index.html.de">Start</a>
+			::
+			<a href="philosophy.html.de" >Philosophie</a>
+			::
+			<a href="features.html.de">Features</a>
+			::
+			<a href="gallery.html.de">Bilder</a>
+			::
+			<a href="download.html.de">Download</a>
+			::
+			<a href="tipps.html.de">Tipps</a>
+			::
+			<a href="impress.html.de">Impressum</a>
+			<h1>
+				Download
+			</h1>
+		
+			<h2>
+				aktuelle Version:
+			</h2>
+			<a href="http://www.dj-workstation.de/files/djw.zip">0.5.3</a> |
+			<a href="http://www.dj-workstation.de/files/djw-src.zip">Quelltext 0.5.3 13.12.2002</a>
+			<h2>
+				Letzte stabile Version:
+			</h2>
+			<a href="http://www.dj-workstation.de/files/djw_a4.zip">Alpha 4</a>
+			<h2>
+				ältere Versionen:
+			</h2>
+			<a href="http://www.dj-workstation.de/files/djw-0.5.2.zip">0.5.2</a> |
+			<a href="http://www.dj-workstation.de/files/djw-0.5.2-src.zip">0.5.2 Quelltext 13.12.2002</a><br />
+			<a href="http://www.dj-workstation.de/files/djw-0.5.1.zip">0.5.1</a> |
+			<a href="http://www.dj-workstation.de/files/djw-0.5.1-src.zip">0.5.1 Quelltext 22.11.2002</a><br />
+			<a href="http://www.dj-workstation.de/files/djw-0.5.0.zip">0.5.0</a> |
+			<a href="http://www.dj-workstation.de/files/djw-0.5.0-src.zip">0.5.0 Quelltext 14.11.2002</a><br />
+			<a href="http://www.dj-workstation.de/files/djw_a3.zip">Alpha 3</a><br />
+			<a href="http://www.dj-workstation.de/files/djw_a2.zip">Alpha 2</a><br />
+			<a href="http://www.dj-workstation.de/files/djw_a1.zip">Alpha 1</a>
+
+			<div id="language_select">
+				<a href="download.html.en">english</a> | <a href="download.html.de">deutsch</a>
+			</div>	
+
+		</div>
+	</body>
+</html>
