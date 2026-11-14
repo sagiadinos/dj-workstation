@@ -3,13 +3,17 @@
 
 #include "decode/miniaudio_decoder.hpp"
 
+#include "temp_dir.hpp"
+
 #include <doctest/doctest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <numbers>
+#include <string>
 #include <vector>
 
 using djw::core::decode::MiniaudioDecoder;
@@ -70,6 +74,16 @@ namespace
     {
         const double expected = amplitude / std::numbers::sqrt2;
         return std::abs(rms(samples) - expected) <= tolerance * expected;
+    }
+
+    /// The first bytes of a test file, as an interrupted download or copy leaves it
+    std::filesystem::path cutCopy(const std::filesystem::path &folder, const std::string &name, std::size_t bytes)
+    {
+        std::ifstream     in{audio_dir / name, std::ios::binary};
+        const std::string content{std::istreambuf_iterator<char>{in}, {}};
+        const auto        path = folder / name;
+        std::ofstream{path, std::ios::binary}.write(content.data(), static_cast<std::streamsize>(bytes));
+        return path;
     }
 } // namespace
 
@@ -180,4 +194,55 @@ TEST_CASE("MiniaudioDecoder: after a seek decoding continues at that frame")
     REQUIRE((*decoder)->read(block) == 100);
 
     CHECK(std::equal(block.begin(), block.end(), all.begin() + 7'000 * 2));
+}
+
+TEST_CASE("MiniaudioDecoder: an empty file is an error")
+{
+    const djw::tests::TempDir folder;
+    for (const std::string name : {"empty.wav", "empty.flac", "empty.mp3", "empty.ogg"})
+    {
+        CAPTURE(name);
+        std::ofstream{folder.path() / name};
+        CHECK_FALSE(MiniaudioDecoder::open(folder.path() / name, 48'000).has_value());
+    }
+}
+
+TEST_CASE("MiniaudioDecoder: a WAV or MP3 file cut off in the middle gives the part that is there, then ends")
+{
+    const djw::tests::TempDir folder;
+    for (const std::string name : {"sine_440hz_48k_stereo.wav", "sine_440hz_48k_stereo.mp3"})
+    {
+        CAPTURE(name);
+        auto decoder = MiniaudioDecoder::open(
+            cutCopy(folder.path(), name, std::filesystem::file_size(audio_dir / name) / 2), 48'000);
+        REQUIRE_MESSAGE(decoder.has_value(), decoder.error());
+
+        // Reads until the end or an error; a bound on the reads catches a decoder that never ends
+        std::vector<float> block(1'000 * 2);
+        std::size_t        frames = 0;
+        bool               ended  = false;
+        for (int reads = 0; reads < 100 && !ended; ++reads)
+        {
+            const auto got = (*decoder)->read(block);
+            ended          = !got.has_value() || *got == 0;
+            frames += got.value_or(0);
+        }
+        CHECK(ended);
+        CHECK(frames > 0);
+        CHECK(frames < file_frames);
+    }
+}
+
+// miniaudio's FLAC and Vorbis decoders do not open a file whose end is missing at all
+TEST_CASE("MiniaudioDecoder: a FLAC or Ogg file cut off in the middle is an error naming the file")
+{
+    const djw::tests::TempDir folder;
+    for (const std::string name : {"sine_440hz_48k_stereo.flac", "sine_440hz_48k_stereo.ogg"})
+    {
+        CAPTURE(name);
+        const auto decoder = MiniaudioDecoder::open(
+            cutCopy(folder.path(), name, std::filesystem::file_size(audio_dir / name) / 2), 48'000);
+        REQUIRE_FALSE(decoder.has_value());
+        CHECK(decoder.error().find(name) != std::string::npos);
+    }
 }

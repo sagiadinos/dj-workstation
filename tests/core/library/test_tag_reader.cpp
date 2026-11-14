@@ -8,6 +8,8 @@
 #include <doctest/doctest.h>
 
 #include <fstream>
+#include <iterator>
+#include <string>
 
 using djw::core::library::readTags;
 using djw::core::library::TrackTags;
@@ -61,4 +63,33 @@ TEST_CASE("readTags: a file TagLib cannot read still gets a title from its name"
 
     CHECK(tags.title == "broken");
     CHECK(tags.duration_seconds == 0.0);
+}
+
+TEST_CASE("readTags: an empty file still gets artist and title from its name")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "Empty Artist - Empty Title.mp3";
+    std::ofstream{file};
+
+    const TrackTags tags = readTags(file);
+
+    CHECK(tags.artist == "Empty Artist");
+    CHECK(tags.title == "Empty Title");
+    CHECK(tags.duration_seconds == 0.0);
+}
+
+TEST_CASE("readTags: an MP3 cut off inside its ID3v2 tag still gets artist and title from its name")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "Cut Artist - Cut Title.mp3";
+    {
+        std::ifstream     in{audio_dir / "tagged_id3v2.mp3", std::ios::binary};
+        const std::string content{std::istreambuf_iterator<char>{in}, {}};
+        std::ofstream{file, std::ios::binary}.write(content.data(), 15); // the tag header and the start of a frame
+    }
+
+    const TrackTags tags = readTags(file);
+
+    CHECK(tags.artist == "Cut Artist");
+    CHECK(tags.title == "Cut Title");
 }
