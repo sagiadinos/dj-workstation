@@ -7,3 +7,4 @@ latest_builds = "Последние сборки"
 not_available = "Пока недоступно"
 planned = "в планах"
 license = "Лицензия AGPL-3.0-or-later"
+legal = 'Правовая информация'

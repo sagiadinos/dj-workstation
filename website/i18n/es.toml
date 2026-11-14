@@ -7,3 +7,4 @@ latest_builds = "Últimas versiones"
 not_available = "Aún no disponible"
 planned = "previsto"
 license = "Con licencia AGPL-3.0-or-later"
+legal = 'Aviso legal'

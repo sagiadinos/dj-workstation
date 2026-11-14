@@ -326,3 +326,12 @@ main, .topbar, .footer {
   .led--on { animation: pulse 2.4s ease-in-out infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 2px var(--green); } }
 }
+
+/* ---------- legal notice and privacy policy ---------- */
+
+.legal { max-width: 48rem; }
+.legal h2 { margin: 2rem 0 1rem; font: 600 1.35rem var(--mono); }
+.legal h2:first-child { margin-top: 0; }
+.legal h2::before { content: "▸ "; color: var(--display); }
+.legal h3 { margin: 1.75rem 0 0.75rem; font: 600 1.1rem var(--mono); }
+.legal h4 { margin: 1.25rem 0 0.5rem; font-size: 1rem; }

@@ -1,4 +1,7 @@
+{{- /* Legal notice and privacy policy exist only in English and German; other languages link to English. */}}
+{{- $legal := site.GetPage "/legal" }}
+{{- if not $legal }}{{ $legal = site.Sites.Default.GetPage "/legal" }}{{ end }}
 <footer class="footer">
   <p>© {{ site.Params.since }}–{{ now.Year }} {{ site.Params.author }} · {{ T "license" }}</p>
-  <p><a href="{{ site.Params.github }}">{{ T "source_code" }}</a> · <a href="/legacy/">{{ site.Home.Params.history.title }}</a></p>
+  <p><a href="{{ site.Params.github }}">{{ T "source_code" }}</a> · <a href="/legacy/">{{ site.Home.Params.history.title }}</a>{{ with $legal }} · <a href="{{ .RelPermalink }}">{{ T "legal" }}</a>{{ end }}</p>
 </footer>
