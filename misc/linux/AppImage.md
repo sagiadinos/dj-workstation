@@ -45,7 +45,7 @@ Check that the binary only needs libraries every system has:
 
 ```sh
 readelf -d build/appimage/src/player-ui/sdl/djw | grep NEEDED
-```
+```ha
 
 Expected: `libasound.so.2`, `libstdc++.so.6`, `libm.so.6`, `libgcc_s.so.1`, `libc.so.6`. If `libSDL3` or `libtag`
 shows up, a dependency was taken from the system or built shared.

@@ -9,11 +9,11 @@ include(FetchContent)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(SDL3
-    GIT_REPOSITORY    https://github.com/libsdl-org/SDL.git
-    GIT_TAG           release-3.4.18
-    GIT_SHALLOW       TRUE
-    SYSTEM
-    FIND_PACKAGE_ARGS 3.4 CONFIG
+        GIT_REPOSITORY    https://github.com/libsdl-org/SDL.git
+        GIT_TAG           release-3.4.18
+        GIT_SHALLOW       TRUE
+        SYSTEM
+        FIND_PACKAGE_ARGS 3.4 CONFIG
 )
 FetchContent_MakeAvailable(SDL3)
 
@@ -23,12 +23,12 @@ set(SDLTTF_HARFBUZZ ON CACHE BOOL "" FORCE)
 set(SDLTTF_PLUTOSVG OFF CACHE BOOL "" FORCE)
 set(SDLTTF_SAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(SDL3_ttf
-    GIT_REPOSITORY    https://github.com/libsdl-org/SDL_ttf.git
-    GIT_TAG           release-3.2.2
-    GIT_SHALLOW       TRUE
-    GIT_SUBMODULES    external/freetype external/harfbuzz
-    SYSTEM
-    FIND_PACKAGE_ARGS 3.2 CONFIG
+        GIT_REPOSITORY    https://github.com/libsdl-org/SDL_ttf.git
+        GIT_TAG           release-3.2.2
+        GIT_SHALLOW       TRUE
+        GIT_SUBMODULES    external/freetype external/harfbuzz
+        SYSTEM
+        FIND_PACKAGE_ARGS 3.2 CONFIG
 )
 FetchContent_MakeAvailable(SDL3_ttf)
 
@@ -52,52 +52,52 @@ configure_file(picture_data.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/picture_data.cpp 
 
 # Everything except main(), so the tests can link it. Only the sdl_* files use SDL; the widgets draw on a Canvas.
 add_library(djw_player_sdl_ui STATIC
-    i18n/language.cpp
-    i18n/message_format.cpp
-    i18n/catalog.cpp
-    i18n/catalog_en.cpp
-    i18n/catalog_de.cpp
-    i18n/catalog_fr.cpp
-    i18n/catalog_es.cpp
-    i18n/catalog_el.cpp
-    i18n/catalog_ru.cpp
-    i18n/translator.cpp
-    pointer_router.cpp
-    view_host.cpp
-    pane_frame.cpp
-    mdi_arrangement.cpp
-    fader.cpp
-    play_button.cpp
-    time_format.cpp
-    deck_view.cpp
-    mixer_view.cpp
-    text_field.cpp
-    text_button.cpp
-    slider.cpp
-    check_box.cpp
-    stepper.cpp
-    drop_down.cpp
-    layout.cpp
-    settings.cpp
-    devices_dialog.cpp
-    look.cpp
-    waveform_bar.cpp
-    menu_bar.cpp
-    context_menu.cpp
-    track_columns.cpp
-    column_header.cpp
-    track_list.cpp
-    library_view.cpp
-    playlist_view.cpp
-    command_line.cpp
-    sdl_events.cpp
-    sdl_text.cpp
-    sdl_canvas.cpp
-    sdl_window.cpp
-    sdl_file_dialogs.cpp
-    sdl_app.cpp
-    sdl_pictures.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/picture_data.cpp
+        i18n/language.cpp
+        i18n/message_format.cpp
+        i18n/catalog.cpp
+        i18n/catalog_en.cpp
+        i18n/catalog_de.cpp
+        i18n/catalog_fr.cpp
+        i18n/catalog_es.cpp
+        i18n/catalog_el.cpp
+        i18n/catalog_ru.cpp
+        i18n/translator.cpp
+        pointer_router.cpp
+        view_host.cpp
+        pane_frame.cpp
+        mdi_arrangement.cpp
+        fader.cpp
+        play_button.cpp
+        time_format.cpp
+        deck_view.cpp
+        mixer_view.cpp
+        text_field.cpp
+        text_button.cpp
+        slider.cpp
+        check_box.cpp
+        stepper.cpp
+        drop_down.cpp
+        layout.cpp
+        settings.cpp
+        devices_dialog.cpp
+        look.cpp
+        waveform_bar.cpp
+        menu_bar.cpp
+        context_menu.cpp
+        track_columns.cpp
+        column_header.cpp
+        track_list.cpp
+        library_view.cpp
+        playlist_view.cpp
+        command_line.cpp
+        sdl_events.cpp
+        sdl_text.cpp
+        sdl_canvas.cpp
+        sdl_window.cpp
+        sdl_file_dialogs.cpp
+        sdl_app.cpp
+        sdl_pictures.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/picture_data.cpp
 )
 djw_set_options(djw_player_sdl_ui)
 target_include_directories(djw_player_sdl_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -105,22 +105,30 @@ target_link_libraries(djw_player_sdl_ui PUBLIC djw::core SDL3::SDL3 SDL3_ttf::SD
 target_compile_definitions(djw_player_sdl_ui PUBLIC DJW_APP_ID="${DJW_APP_ID}")
 
 add_executable(djw_player_sdl
-    main.cpp
+        main.cpp
 )
 set_target_properties(djw_player_sdl PROPERTIES OUTPUT_NAME djw)
 djw_set_options(djw_player_sdl)
 target_link_libraries(djw_player_sdl PRIVATE djw_player_sdl_ui)
 
 # The UI font next to the binary, where SdlApp looks for it
+# The UI font next to the binary, where SdlApp looks for it (in the bundle's Resources on macOS)
+if(APPLE)
+    set(djw_data_dir $<TARGET_BUNDLE_CONTENT_DIR:djw_player_sdl>/Resources)
+else()
+    set(djw_data_dir $<TARGET_FILE_DIR:djw_player_sdl>)
+endif()
+
 add_custom_command(TARGET djw_player_sdl POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:djw_player_sdl>/fonts
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${djw_data_dir}/fonts
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${PROJECT_SOURCE_DIR}/third_party/fonts/NotoSans-Regular.ttf
         ${PROJECT_SOURCE_DIR}/third_party/fonts/NotoSans-OFL.txt
-        $<TARGET_FILE_DIR:djw_player_sdl>/fonts
-    # The controller mappings that come with the program
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/mappings $<TARGET_FILE_DIR:djw_player_sdl>/mappings
+        ${djw_data_dir}/fonts
+        # The controller mappings that come with the program
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/mappings ${djw_data_dir}/mappings
 )
+
 
 # The entry in the desktop's application menu, with the icon of misc/logo (Linux and other freedesktop systems)
 if(UNIX AND NOT APPLE)
@@ -129,4 +137,18 @@ if(UNIX AND NOT APPLE)
     install(FILES ${PROJECT_SOURCE_DIR}/misc/logo/djw-icon.svg
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
             RENAME ${DJW_APP_ID}.svg)
+endif()
+
+if(APPLE)
+    # The icon goes to Contents/Resources of the bundle; Info.plist names it as CFBundleIconFile.
+    set(djw_icns ${PROJECT_SOURCE_DIR}/misc/icons/macos/djw.icns)
+    target_sources(djw_player_sdl PRIVATE ${djw_icns})
+    set_source_files_properties(${djw_icns} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_target_properties(djw_player_sdl PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_GUI_IDENTIFIER "de.dj-workstation.app"
+            MACOSX_BUNDLE_BUNDLE_NAME "DJ-Workstation"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_ICON_FILE djw.icns
+    )
 endif()

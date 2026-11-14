@@ -6,10 +6,15 @@
 name: CI
 
 on:
+  # A change only to the website does not build anything.
   push:
     branches: [main]
+    paths-ignore:
+      - 'website/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'website/**'
   workflow_dispatch:
 
 concurrency:
