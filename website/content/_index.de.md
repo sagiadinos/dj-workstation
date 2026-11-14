@@ -1,9 +1,11 @@
 ---
 title: DJ-Workstation
-description: Schlanke DJ-Software für Touchscreens, mit Unterstützung für MIDI-Controller. Linux, Raspberry Pi, Windows und macOS. Keine Cloud, keine Konten, keine Telemetrie.
+description: Schlanke Open-Source-DJ-Software, gemacht für Touchscreens, mit Unterstützung für MIDI-Controller. Linux, Raspberry Pi, Windows und macOS. Keine Cloud, keine Konten, keine Telemetrie.
 
 hero:
-  tagline: Schlanke DJ-Software für Touchscreens und MIDI-Controller.
+  headline: Einfach DJing. Sonst nichts.
+  subline: Nur das, was du zum Auflegen brauchst.
+  tagline: Schlanke Open-Source-DJ-Software, gemacht für Touchscreens und MIDI-Controller.
   platforms: Linux · Raspberry Pi · Windows · macOS
   promise: Keine Cloud. Keine Konten. Keine Telemetrie.
   status: In früher Entwicklung, noch nicht produktiv nutzbar

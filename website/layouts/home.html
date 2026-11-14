@@ -2,9 +2,20 @@
 {{- $lang := site.Language.Lang }}
 <section class="hero">
   <div class="hero__text">
+    {{- /* A language with a headline shows headline and subline in the display and the tagline after the promise;
+           one without (not translated yet) shows the tagline in the display as before. */}}
+    {{- with .Params.hero.headline }}
+    <div class="display">
+      <h1 class="display__title"><span class="display__label">{{ $.Title }}</span><span class="display__value">{{ . }}</span></h1>
+      {{- with $.Params.hero.subline }}
+      <p class="display__sub">{{ . }}</p>
+      {{- end }}
+    </div>
+    {{- else }}
     <h1 class="display"><span class="display__label">{{ .Title }}</span><span class="display__value">{{ .Params.hero.tagline }}</span></h1>
+    {{- end }}
     <p class="hero__platforms">{{ .Params.hero.platforms }}</p>
-    <p class="hero__promise">{{ .Params.hero.promise }}</p>
+    <p class="hero__promise">{{ .Params.hero.promise }}{{ with .Params.hero.headline }} | {{ $.Params.hero.tagline }}{{ end }}</p>
     <p class="status"><span class="led led--warn" aria-hidden="true"></span>{{ .Params.hero.status }}</p>
     <p class="actions">
       {{- with site.GetPage "/download" }}

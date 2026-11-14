@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ .Title }}</title>
+  {{- /* The home page adds its headline (what search results show); other pages keep their own title. */}}
+  <title>{{ .Title }}{{ if .IsHome }}{{ with .Params.hero.headline }} – {{ . }}{{ end }}{{ end }}</title>
   <meta name="description" content="{{ .Description }}">
   <meta name="theme-color" content="#16181c">
   <link rel="icon" href="{{ "favicon.svg" | relURL }}" type="image/svg+xml">

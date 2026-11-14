@@ -1,9 +1,11 @@
 ---
 title: DJ-Workstation
-description: Lean, touch-first DJ software with MIDI controller support. Linux, Raspberry Pi, Windows and macOS. No cloud, no accounts, no telemetry.
+description: Lean, open-source, touch-first DJ software with MIDI controller support. Linux, Raspberry Pi, Windows and macOS. No cloud, no accounts, no telemetry.
 
 hero:
-  tagline: Lean, touch-first DJ software for touchscreens and MIDI controllers.
+  headline: Just DJing. Nothing else.
+  subline: Only what you need to mix.
+  tagline: Lean, open-source, touch-first DJ software for touchscreens and MIDI controllers.
   platforms: Linux · Raspberry Pi · Windows · macOS
   promise: No cloud. No accounts. No telemetry.
   status: Early development, not usable in production yet

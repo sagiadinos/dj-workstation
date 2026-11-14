@@ -1,9 +1,11 @@
 ---
 title: DJ-Workstation
-description: "Λιτό λογισμικό DJ σχεδιασμένο για οθόνες αφής, με υποστήριξη για MIDI controllers. Linux, Raspberry Pi, Windows και macOS. Χωρίς cloud, χωρίς λογαριασμούς, χωρίς τηλεμετρία."
+description: "Λιτό λογισμικό DJ ανοιχτού κώδικα, σχεδιασμένο για οθόνες αφής, με υποστήριξη για MIDI controllers. Linux, Raspberry Pi, Windows και macOS. Χωρίς cloud, χωρίς λογαριασμούς, χωρίς τηλεμετρία."
 
 hero:
-  tagline: "Λιτό λογισμικό DJ για οθόνες αφής και MIDI controllers."
+  headline: "Μόνο DJing. Τίποτα άλλο."
+  subline: "Ακριβώς ό,τι χρειάζεσαι για να παίξεις μουσική."
+  tagline: "Λιτό λογισμικό DJ ανοιχτού κώδικα, σχεδιασμένο για οθόνες αφής και MIDI controllers."
   platforms: "Linux · Raspberry Pi · Windows · macOS"
   promise: "Χωρίς cloud. Χωρίς λογαριασμούς. Χωρίς τηλεμετρία."
   status: "Σε πρώιμο στάδιο ανάπτυξης, δεν είναι ακόμη έτοιμο για παραγωγική χρήση"
