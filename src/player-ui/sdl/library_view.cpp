@@ -104,12 +104,8 @@ namespace djw::player_ui::sdl
 
     void LibraryView::layout(const Rect &area)
     {
-        // A menu bar shown elsewhere (the top of the one window) takes no room here
-        const float bar_height = menu_elsewhere ? 0.0F : std::min(MenuBar::bar_height, area.height);
-        if (!menu_elsewhere)
-        {
-            menu.place({area.x, area.y, area.width, bar_height}, area);
-        }
+        const float bar_height = std::min(MenuBar::bar_height, area.height);
+        menu.place({area.x, area.y, area.width, bar_height}, area);
         context_menu.place(area);
         const Rect below{area.x, area.y + bar_height, area.width, area.height - bar_height};
         const Rect inner = below.inset(margin);
@@ -148,10 +144,7 @@ namespace djw::player_ui::sdl
         router.add(add_button);
         router.add(cell_editor);  // on top of the list; without an edit it has no area and catches nothing
         router.add(context_menu); // covers the window while open
-        if (!menu_elsewhere)
-        {
-            router.add(menu); // on top of everything: an open menu covers the window
-        }
+        router.add(menu);         // on top of everything: an open menu covers the view
     }
 
     void LibraryView::resolveFocus()
@@ -804,10 +797,7 @@ namespace djw::player_ui::sdl
         remove_button.draw(canvas);
         add_button.draw(canvas);
         context_menu.draw(canvas);
-        if (!menu_elsewhere)
-        {
-            menu.draw(canvas); // last, so an open menu lies over everything
-        }
+        menu.draw(canvas); // last, so an open menu lies over everything
     }
 
     void LibraryView::wheel(Point position, float dy)

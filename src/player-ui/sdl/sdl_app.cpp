@@ -67,7 +67,8 @@ namespace djw::player_ui::sdl
                 int height = 0;
         };
         constexpr WindowSize library_size{720, 640};
-        constexpr WindowSize mixer_size{440, 280};
+        constexpr WindowSize mixer_size{static_cast<int>(MixerView::design_width),
+                                        static_cast<int>(MixerView::design_height)};
         constexpr WindowSize playlist_size{560, 640};
 
         /// The part of the display the windows may use (without panels and docks); std::nullopt if unknown
@@ -200,10 +201,6 @@ namespace djw::player_ui::sdl
                 app->library_frame = std::make_unique<PaneFrame>(
                     *app->library_view, [owner] { return paneTitle(owner->translator.tr("window.library")); });
                 app->host_window->views().add(*app->library_frame);
-                // The menus go to the top of the window, over everything, and drop down over the whole window
-                app->menu_strip = std::make_unique<MenuStrip>(app->library_view->moveMenuBarOut(),
-                                                              [owner] { return owner->host_window->area(); });
-                app->host_window->views().add(*app->menu_strip, Rect{}, true);
                 app->library_view->setFullscreen([owner] { owner->setFullscreen(!owner->fullscreen()); },
                                                  [owner] { return owner->fullscreen(); });
                 app->library_view->setLayoutEditing([owner] { owner->startArranging(); },
@@ -338,26 +335,12 @@ namespace djw::player_ui::sdl
 
     Rect SdlApp::workArea() const
     {
-        Rect area = host_window->area();
-        if (menu_strip)
-        {
-            const float bar = std::min(MenuBar::bar_height, area.height);
-            area.y += bar;
-            area.height -= bar;
-        }
-        return area;
+        return host_window->area();
     }
 
     void SdlApp::arrangeHost()
     {
-        // The menu bar across the top, the parts below it
         ViewHost &host = host_window->views();
-        if (menu_strip)
-        {
-            const Rect window = host_window->area();
-            host.place(*menu_strip,
-                       Rect{window.x, window.y, window.width, std::min(MenuBar::bar_height, window.height)});
-        }
         host.setWorkArea(workArea());
         if (hand_places)
         {

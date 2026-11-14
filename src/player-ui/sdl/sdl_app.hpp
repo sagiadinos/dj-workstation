@@ -13,7 +13,6 @@
 #include "i18n/translator.hpp"
 #include "layout.hpp"
 #include "library_view.hpp"
-#include "menu_strip.hpp"
 #include "mixer_view.hpp"
 #include "pane_frame.hpp"
 #include "playlist_view.hpp"
@@ -171,7 +170,6 @@ namespace djw::player_ui::sdl
             /// The library view; for tests (there must be a library)
             [[nodiscard]] const LibraryView &libraryView() const { return *library_view; }
             /// The menu bar on top of the one window in the MDI mode, nullptr in the other; for tests
-            [[nodiscard]] const MenuStrip *menuStrip() const noexcept { return menu_strip.get(); }
             /// The frame of the library in the MDI mode, nullptr in the other; for tests
             [[nodiscard]] const PaneFrame *libraryFrame() const noexcept { return library_frame.get(); }
             /// The SDL id of the window of a tool window that is open; for tests
@@ -328,7 +326,6 @@ namespace djw::player_ui::sdl
             int                                      deck_counter = 0;
             std::unique_ptr<LibraryView>             library_view;
             std::unique_ptr<PaneFrame>               library_frame;           ///< MDI mode only
-            std::unique_ptr<MenuStrip>               menu_strip;              ///< MDI mode only: the menus on top
             std::unique_ptr<DevicesDialog>           devices_dialog;          ///< while Settings > Devices is open
             std::unique_ptr<LanguageDialog>          language_dialog;         ///< while Settings > Language is open
             SdlWindow                               *dialog_window = nullptr; ///< the window the dialog lies over
