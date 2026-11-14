@@ -27,7 +27,7 @@ namespace djw::player_ui::sdl
         whole = outer;
         // Title bar and content lie inside the border
         const Rect  area       = outer.inset(border);
-        const float bar_height = std::min(title_height, area.height);
+        const float bar_height = title || close ? std::min(title_height, area.height) : 0.0F;
         title_bar              = {area.x, area.y, area.width, bar_height};
         if (close)
         {

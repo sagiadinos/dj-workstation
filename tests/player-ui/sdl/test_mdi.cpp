@@ -224,6 +224,17 @@ TEST_CASE("PaneFrame: a title bar on top, the content below it, all inside a vis
     CHECK(same(content.laid_out.height, 0));
 }
 
+TEST_CASE("PaneFrame: without title and close action there is no title bar, only the border")
+{
+    Content         content;
+    PaneFrame       frame{content, PaneFrame::Title{}};
+    constexpr float border = PaneFrame::border;
+    frame.layout({10, 20, 400, 300});
+    CHECK(same(frame.bar().height, 0));
+    CHECK(same(content.laid_out.y, 20 + border));
+    CHECK(same(content.laid_out.height, 300 - (2 * border)));
+}
+
 TEST_CASE("PaneFrame: the close button at the right end of the bar asks for the pane to go, on update")
 {
     Content       content;

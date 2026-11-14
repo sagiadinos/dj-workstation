@@ -1110,7 +1110,7 @@ TEST_CASE("SdlApp: in separate windows there is no fullscreen and Ctrl+F does no
     CHECK_FALSE(app->fullscreen());
 }
 
-TEST_CASE("SdlApp: in the MDI mode the menu bar is in the library, as in the separate windows")
+TEST_CASE("SdlApp: in the MDI mode the menu bar heads the library, which has no title bar")
 {
     const djw::tests::TempDir folder;
     const auto                file = folder.path() / "layout";
@@ -1122,9 +1122,9 @@ TEST_CASE("SdlApp: in the MDI mode the menu bar is in the library, as in the sep
     REQUIRE(app->runFrame());
     const MenuBar &menu = app->libraryView().menuBar();
     const Rect     pane = *app->paneArea(*app->libraryFrame());
-    // Right below the library's title bar, within the library
-    CHECK(menu.bounds().y >= pane.y + PaneFrame::title_height);
-    CHECK(menu.bounds().y < pane.y + PaneFrame::title_height + 5);
+    // On top of the library, which has no title bar
+    CHECK(menu.bounds().y >= pane.y);
+    CHECK(menu.bounds().y < pane.y + 5);
     CHECK(menu.bounds().x >= pane.x);
     CHECK(menu.bounds().x + menu.bounds().width <= pane.x + pane.width);
     // No menu bar across the window: the players start at its top

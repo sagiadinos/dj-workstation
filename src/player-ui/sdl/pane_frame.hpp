@@ -29,7 +29,7 @@ namespace djw::player_ui::sdl
 
             static constexpr float title_height = 30.0F;
 
-            /// The content must outlive the frame
+            /// The content must outlive the frame; without title and close there is no title bar
             PaneFrame(View &content, Title title, Close close = {});
 
             void layout(const Rect &area) override;

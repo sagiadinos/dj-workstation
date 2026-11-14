@@ -198,8 +198,8 @@ namespace djw::player_ui::sdl
             }
             if (mdi)
             {
-                app->library_frame = std::make_unique<PaneFrame>(
-                    *app->library_view, [owner] { return paneTitle(owner->translator.tr("window.library")); });
+                // No title bar: the library cannot be closed and its menu bar heads it
+                app->library_frame = std::make_unique<PaneFrame>(*app->library_view, PaneFrame::Title{});
                 app->host_window->views().add(*app->library_frame);
                 app->library_view->setFullscreen([owner] { owner->setFullscreen(!owner->fullscreen()); },
                                                  [owner] { return owner->fullscreen(); });
