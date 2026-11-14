@@ -13,7 +13,11 @@ namespace djw::player_ui::sdl
         for (std::size_t index = 0; index < arguments.size(); ++index)
         {
             const std::string_view argument{arguments[index]};
-            if (argument == "--headphones")
+            if (argument == "--version")
+            {
+                result.version = true;
+            }
+            else if (argument == "--headphones")
             {
                 result.headphones = true;
             }

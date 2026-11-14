@@ -3,6 +3,7 @@
 
 #include "api/core.hpp"
 #include "api/library.hpp"
+#include "api/version.hpp"
 #include "command_line.hpp"
 #include "api/controllers.hpp"
 #include "sdl_app.hpp"
@@ -195,6 +196,11 @@ int main(int argc, char *argv[])
     {
         std::cerr << "djw: " << command_line.error() << '\n' << sdl::usage;
         return 2;
+    }
+    if (command_line->version)
+    {
+        std::cout << "djw " << api::version() << '\n';
+        return 0;
     }
 
     const std::filesystem::path settings_file = settingsFile();

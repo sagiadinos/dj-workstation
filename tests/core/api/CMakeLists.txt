@@ -9,7 +9,7 @@ add_executable(djw_core_api_tests
     test_commands.cpp
 )
 djw_set_options(djw_core_api_tests TEST)
-target_compile_definitions(djw_core_api_tests PRIVATE DJW_EXPECTED_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(djw_core_api_tests PRIVATE DJW_EXPECTED_VERSION="${DJW_VERSION}")
 target_link_libraries(djw_core_api_tests PRIVATE
     djw::core::api
     doctest::doctest

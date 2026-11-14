@@ -9,4 +9,4 @@ djw_set_options(djw_core_api)
 
 # Project headers are included relative to src/core, e.g. "api/version.hpp"
 target_include_directories(djw_core_api PUBLIC ${PROJECT_SOURCE_DIR}/src/core)
-target_compile_definitions(djw_core_api PRIVATE DJW_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(djw_core_api PRIVATE DJW_VERSION="${DJW_VERSION}")

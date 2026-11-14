@@ -13,6 +13,7 @@ TEST_CASE("parseCommandLine: no arguments is fine")
 {
     const auto parsed = parseCommandLine({});
     REQUIRE(parsed.has_value());
+    CHECK_FALSE(parsed->version);
     CHECK_FALSE(parsed->headphones);
     CHECK(parsed->add_folders.empty());
     CHECK_FALSE(parsed->file);
@@ -27,6 +28,14 @@ TEST_CASE("parseCommandLine: options and a file in any order, folders may repeat
     CHECK(parsed->headphones);
     CHECK(parsed->add_folders == std::vector<std::filesystem::path>{"/music", "/more"});
     CHECK(parsed->file == std::filesystem::path{"track.mp3"});
+}
+
+TEST_CASE("parseCommandLine: --version")
+{
+    const std::array<const char *, 1> arguments{"--version"};
+    const auto                        parsed = parseCommandLine(arguments);
+    REQUIRE(parsed.has_value());
+    CHECK(parsed->version);
 }
 
 TEST_CASE("parseCommandLine: errors name the problem")

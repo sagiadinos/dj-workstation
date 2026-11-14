@@ -3,8 +3,18 @@
 
 cmake_minimum_required(VERSION 3.25)
 
+# The version: src/player-ui/VERSION is the only place it is kept, e.g. 1.0.0 or 1.0.0-dev. project() takes only the
+# numbers; DJW_VERSION is the whole string. Changing the file configures again.
+set(djw_version_file ${CMAKE_CURRENT_SOURCE_DIR}/src/player-ui/VERSION)
+file(STRINGS ${djw_version_file} DJW_VERSION LIMIT_COUNT 1)
+if(NOT DJW_VERSION MATCHES "^([0-9]+\\.[0-9]+\\.[0-9]+)(-[0-9A-Za-z.]+)?$")
+    message(FATAL_ERROR "${djw_version_file}: '${DJW_VERSION}' is not a version like 1.0.0 or 1.0.0-dev")
+endif()
+set(djw_version_numbers ${CMAKE_MATCH_1})
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${djw_version_file})
+
 project(djw
-    VERSION 0.1.0
+    VERSION ${djw_version_numbers}
     DESCRIPTION "DJ-Workstation: lean, touch-first DJ software"
     LANGUAGES C CXX # C for miniaudio
 )

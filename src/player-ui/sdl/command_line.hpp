@@ -16,6 +16,8 @@ namespace djw::player_ui::sdl
     /// What the player was started with
     struct CommandLine
     {
+            /// Print the version and stop
+            bool version = false;
             /// Master on output channels 1/2, headphones on 3/4
             bool headphones = false;
             /// Folders to add to the library (and scan) at start
@@ -24,10 +26,12 @@ namespace djw::player_ui::sdl
             std::optional<std::filesystem::path> file;
     };
 
-    inline constexpr const char *usage = "usage: djw [--headphones] [--add-folder <folder>]... [<audio file>]\n"
-                                         "  --headphones          master on output channels 1/2, headphones on 3/4\n"
-                                         "                        (needs a 4-channel audio device)\n"
-                                         "  --add-folder <folder> add a music folder to the library and scan it\n";
+    inline constexpr const char *usage =
+        "usage: djw [--version] [--headphones] [--add-folder <folder>]... [<audio file>]\n"
+        "  --version             print the version and stop\n"
+        "  --headphones          master on output channels 1/2, headphones on 3/4\n"
+        "                        (needs a 4-channel audio device)\n"
+        "  --add-folder <folder> add a music folder to the library and scan it\n";
 
     /// Parses the arguments after the program name; an error names the argument that is wrong
     std::expected<CommandLine, std::string> parseCommandLine(std::span<const char *const> arguments);
