@@ -233,7 +233,7 @@ namespace djw::player_ui::sdl
         return {.players       = {core::api::CrossfaderSide::A, core::api::CrossfaderSide::B},
                 .mixer_open    = true,
                 .playlist_open = false,
-                .fullscreen    = true,
+                .fullscreen    = false, // maximized, with title bar
                 .places        = std::nullopt};
     }
 

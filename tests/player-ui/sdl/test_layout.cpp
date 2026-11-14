@@ -193,12 +193,13 @@ TEST_CASE("Layout: a damaged mode or one-window part is no layout")
     CHECK_FALSE(parseLayout(formatLayout(crowded)).has_value());
 }
 
-TEST_CASE("Layout: without a saved one window two players on the sides A and B and the crossfader are shown")
+TEST_CASE("Layout: without a saved one window two players on the sides A and B and the crossfader are shown, maximized")
 {
     const MdiLayout mdi = defaultMdiLayout();
     CHECK(mdi.players == std::vector{api::CrossfaderSide::A, api::CrossfaderSide::B});
     CHECK(mdi.mixer_open);
     CHECK_FALSE(mdi.playlist_open);
+    CHECK_FALSE(mdi.fullscreen); // a maximized window, not fullscreen
 }
 
 TEST_CASE("Layout: the places of the one window set by hand come back as saved")
@@ -230,6 +231,7 @@ TEST_CASE("Layout: places of the one window without the library's, or damaged on
 {
     Layout layout          = fiveWithMixer();
     layout.mdi             = defaultMdiLayout();
+    layout.mdi->fullscreen = true; // the line removed below
     const std::string good = formatLayout(layout);
     const std::size_t at   = good.find("mdi player A");
     REQUIRE(at != std::string::npos);
