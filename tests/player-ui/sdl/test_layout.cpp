@@ -140,18 +140,38 @@ TEST_CASE("Layout: the window mode and the layout of the one window come back as
     CHECK_FALSE(parseLayout(formatLayout(layout))->mdi.has_value());
 
     layout.mode      = WindowMode::Mdi;
-    layout.mdi       = MdiLayout{.players       = {api::CrossfaderSide::B, api::CrossfaderSide::None, api::CrossfaderSide::A},
-                                 .mixer_open    = false,
-                                 .playlist_open = true,
-                                 .fullscreen    = true,
-                                 .places        = std::nullopt};
+    layout.mdi       = MdiLayout{.players = {api::CrossfaderSide::B, api::CrossfaderSide::None, api::CrossfaderSide::A},
+                                 // Each player's Time and Cue-Load: on, off, one of them
+                                 .player_options = {{.show_remaining = true, .cue_load = true}, {}, {.cue_load = true}},
+                                 .mixer_open     = false,
+                                 .playlist_open  = true,
+                                 .fullscreen     = true,
+                                 .places         = std::nullopt};
     const auto again = parseLayout(formatLayout(layout));
     REQUIRE(again.has_value());
     CHECK(*again == layout);
 
     // The one window without players is fine: only the library
     layout.mdi->players.clear();
+    layout.mdi->player_options.clear();
     CHECK(*parseLayout(formatLayout(layout)) == layout);
+}
+
+TEST_CASE("Layout: each player keeps its Time and Cue-Load options; a line from before them has both off")
+{
+    Layout layout                  = fiveWithMixer();
+    layout.players.front().options = {.show_remaining = true, .cue_load = true};
+    const std::string text         = formatLayout(layout);
+    CHECK(text.find("remaining cue-load") != std::string::npos);
+    const auto again = parseLayout(text);
+    REQUIRE(again.has_value());
+    CHECK(again->players.front().options == layout.players.front().options);
+    CHECK(again->players.back().options == PlayerOptions{});
+
+    // An option twice is no layout
+    std::string twice = text;
+    twice.insert(twice.find("remaining") + std::string_view{"remaining"}.size(), " remaining");
+    CHECK_FALSE(parseLayout(twice).has_value());
 }
 
 TEST_CASE("Layout: a layout from before the window modes is read as separate windows")
@@ -209,18 +229,19 @@ TEST_CASE("Layout: the places of the one window set by hand come back as saved")
 {
     Layout layout          = fiveWithMixer();
     layout.mode            = WindowMode::Mdi;
-    layout.mdi             = MdiLayout{.players       = {api::CrossfaderSide::A, api::CrossfaderSide::B},
-                                       .mixer_open    = false,
-                                       .playlist_open = true,
-                                       .fullscreen    = false,
-                                       .places        = MdiPlaces{.area     = Placement{0, 0, 1920, 1080},
-                                                                  .players  = {Placement{0, 0, 380, 540}, std::nullopt},
-                                                                  .mixer    = Placement{400, 0, 440, 280},
-                                                                  .playlist = std::nullopt,
-                                                                  .library  = Placement{0, 560, 1000, 400}}};
+    layout.mdi             = MdiLayout{.players        = {api::CrossfaderSide::A, api::CrossfaderSide::B},
+                                       .player_options = {{}, {.show_remaining = true}},
+                                       .mixer_open     = false,
+                                       .playlist_open  = true,
+                                       .fullscreen     = false,
+                                       .places         = MdiPlaces{.area     = Placement{0, 0, 1920, 1080},
+                                                                   .players  = {Placement{0, 0, 380, 540}, std::nullopt},
+                                                                   .mixer    = Placement{400, 0, 440, 280},
+                                                                   .playlist = std::nullopt,
+                                                                   .library  = Placement{0, 560, 1000, 400}}};
     const std::string text = formatLayout(layout);
     CHECK(text.find("mdi player A 0 0 380 540\n") != std::string::npos);
-    CHECK(text.find("mdi player B\n") != std::string::npos);
+    CHECK(text.find("mdi player B remaining\n") != std::string::npos);         // the Time option after the side
     CHECK(text.find("mdi mixer closed 400 0 440 280\n") != std::string::npos); // closed, the place stays
     CHECK(text.find("mdi library 0 560 1000 400\n") != std::string::npos);
     CHECK(text.find("mdi area 1920 1080\n") != std::string::npos);

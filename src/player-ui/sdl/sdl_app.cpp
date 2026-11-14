@@ -99,6 +99,12 @@ namespace djw::player_ui::sdl
             return size;
         }
 
+        /// What a player keeps with the layout
+        PlayerOptions playerOptions(const DeckView &view)
+        {
+            return {.show_remaining = view.showsRemaining(), .cue_load = view.cueLoad()};
+        }
+
         /// A window title as the title bar of a part of the one window: without the program name in front, which the
         /// window shows once
         std::string paneTitle(std::string title)
@@ -264,13 +270,16 @@ namespace djw::player_ui::sdl
         if (layout)
         {
             // The other players, the crossfader sides and the tool windows, as the mode in use left them
-            std::vector<core::api::CrossfaderSide> sides = mdi_start.players;
+            std::vector<core::api::CrossfaderSide> sides   = mdi_start.players;
+            std::vector<PlayerOptions>             options = mdi_start.player_options;
             if (!mdi)
             {
                 sides.clear();
+                options.clear();
                 for (std::size_t player = 0; player < layout->players.size(); ++player)
                 {
                     sides.push_back(layout->players[player].side);
+                    options.push_back(layout->players[player].options);
                     if (player > 0)
                     {
                         app->addDeck(app->fitToDisplay(layout->players[player].place));
@@ -287,6 +296,11 @@ namespace djw::player_ui::sdl
             {
                 const core::api::MixerAssignCrossfader assign{app->decks[player]->id, sides[player]};
                 static_cast<void>(core.commandQueue().tryPush(assign));
+            }
+            for (std::size_t player = 0; player < options.size() && player < app->decks.size(); ++player)
+            {
+                app->decks[player]->view->setShowsRemaining(options[player].show_remaining);
+                app->decks[player]->view->setCueLoad(options[player].cue_load);
             }
             if (mdi ? mdi_start.mixer_open : layout->mixer.open)
             {
@@ -768,11 +782,12 @@ namespace djw::player_ui::sdl
         layout.mode   = next_mode;
         if (mode == WindowMode::Mdi)
         {
-            MdiLayout             shown{.players       = {},
-                                        .mixer_open    = toolWindowOpen(Tool::Mixer),
-                                        .playlist_open = toolWindowOpen(Tool::Playlist),
-                                        .fullscreen    = host_fullscreen,
-                                        .places        = hand_places};
+            MdiLayout             shown{.players        = {},
+                                        .player_options = {},
+                                        .mixer_open     = toolWindowOpen(Tool::Mixer),
+                                        .playlist_open  = toolWindowOpen(Tool::Playlist),
+                                        .fullscreen     = host_fullscreen,
+                                        .places         = hand_places};
             const HostWindowState state = hostWindowState();
             shown.maximized             = state.maximized;
             shown.window_width          = state.width;
@@ -780,6 +795,7 @@ namespace djw::player_ui::sdl
             for (const auto &deck : decks)
             {
                 shown.players.push_back(deck->view->crossfaderSide());
+                shown.player_options.push_back(playerOptions(*deck->view));
             }
             layout.mdi = std::move(shown);
             return layout;
@@ -787,7 +803,8 @@ namespace djw::player_ui::sdl
         layout.players.clear();
         for (const auto &deck : decks)
         {
-            layout.players.push_back({deck->window->placement(), deck->view->crossfaderSide()});
+            layout.players.push_back(
+                {deck->window->placement(), deck->view->crossfaderSide(), playerOptions(*deck->view)});
         }
         layout.library  = library_window != nullptr ? library_window->placement()
                                                     : Placement{0, 0, library_size.width, library_size.height};

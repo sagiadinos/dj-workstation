@@ -16,6 +16,7 @@ namespace djw::player_ui::sdl
         constexpr std::string_view device_label     = "output-device ";
         constexpr std::string_view channels_label   = "output-channels ";
         constexpr std::string_view controller_label = "controller ";
+        constexpr std::string_view language_label   = "language ";
         /// Between a port and its mapping on a controller line: names may hold spaces, never a tab
         constexpr char separator = '\t';
 
@@ -35,6 +36,10 @@ namespace djw::player_ui::sdl
             out << device_label << settings.output_device << '\n';
         }
         out << channels_label << (settings.headphone_output ? 4 : 2) << '\n';
+        if (settings.language)
+        {
+            out << language_label << languageCode(*settings.language) << '\n';
+        }
         for (const auto &[port, mapping] : settings.controllers)
         {
             if (!port.empty() && noTab(port) && noTab(mapping))
@@ -64,6 +69,11 @@ namespace djw::player_ui::sdl
             if (line.starts_with(channels_label))
             {
                 settings.headphone_output = line.substr(channels_label.size()) == "4";
+                continue;
+            }
+            if (line.starts_with(language_label))
+            {
+                settings.language = languageFromCode(std::string_view{line}.substr(language_label.size()));
                 continue;
             }
             if (line.starts_with(controller_label))

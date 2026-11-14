@@ -734,11 +734,12 @@ namespace
     {
         Layout layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
         layout.mode   = WindowMode::Mdi;
-        layout.mdi    = MdiLayout{.players       = std::move(players),
-                                  .mixer_open    = true,
-                                  .playlist_open = playlist_open,
-                                  .fullscreen    = true,
-                                  .places        = std::nullopt};
+        layout.mdi    = MdiLayout{.players        = players,
+                                  .player_options = std::vector<PlayerOptions>(players.size()),
+                                  .mixer_open     = true,
+                                  .playlist_open  = playlist_open,
+                                  .fullscreen     = true,
+                                  .places         = std::nullopt};
         std::ofstream{file} << formatLayout(layout);
     }
 
@@ -1026,10 +1027,11 @@ TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the part
     const auto                file   = folder.path() / "layout";
     Layout                    layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
     layout.mode                      = WindowMode::Mdi;
-    layout.mdi = MdiLayout{.players       = {api::CrossfaderSide::A, api::CrossfaderSide::B},
-                           .mixer_open    = false,
-                           .playlist_open = false,
-                           .fullscreen    = true,
+    layout.mdi = MdiLayout{.players        = {api::CrossfaderSide::A, api::CrossfaderSide::B},
+                           .player_options = {PlayerOptions{}, PlayerOptions{}},
+                           .mixer_open     = false,
+                           .playlist_open  = false,
+                           .fullscreen     = true,
                            // Made in a window twice as big as the test's (1024 x 768): everything comes at half
                            // the size
                            .places = MdiPlaces{.area     = Placement{0, 0, 2048, 1536},

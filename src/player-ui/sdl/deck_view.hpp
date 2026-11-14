@@ -141,6 +141,9 @@ namespace djw::player_ui::sdl
             /// The Cue-Load option is on: a track loaded into this player starts at its cue point
             [[nodiscard]] bool cueLoad() const noexcept { return cue_load_box.checked(); }
             void               setCueLoad(bool on) noexcept { cue_load_box.setChecked(on); }
+            /// The display shows the remaining time instead of the elapsed one (the Time button)
+            [[nodiscard]] bool showsRemaining() const noexcept { return show_remaining; }
+            void               setShowsRemaining(bool on) noexcept { show_remaining = on; }
             /// The state shown next to the buttons, e.g. "playing"; a notice while there is one
             [[nodiscard]] std::string stateText() const;
             /// Shows a message (a catalog key) in place of the state for notice_time, e.g. why nothing was loaded

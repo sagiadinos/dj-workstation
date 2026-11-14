@@ -64,6 +64,44 @@ namespace djw::player_ui::sdl
             return value;
         }
 
+        constexpr std::string_view remaining_word = "remaining";
+        constexpr std::string_view cue_load_word  = "cue-load";
+
+        /// Takes the option words of a player line out of parts, from the word at first on; false if one is there
+        /// twice
+        bool takePlayerOptions(std::vector<std::string_view> &parts, std::size_t first, PlayerOptions &options)
+        {
+            bool remaining = false;
+            bool cue_load  = false;
+            bool twice     = false;
+            for (std::size_t at = first; at < parts.size();)
+            {
+                bool &seen = parts[at] == remaining_word ? remaining : cue_load;
+                if (parts[at] != remaining_word && parts[at] != cue_load_word)
+                {
+                    ++at;
+                    continue;
+                }
+                twice = twice || seen;
+                seen  = true;
+                parts.erase(parts.begin() + static_cast<std::ptrdiff_t>(at));
+            }
+            options = {.show_remaining = remaining, .cue_load = cue_load};
+            return !twice;
+        }
+
+        void writePlayerOptions(std::ostringstream &out, const PlayerOptions &options)
+        {
+            if (options.show_remaining)
+            {
+                out << ' ' << remaining_word;
+            }
+            if (options.cue_load)
+            {
+                out << ' ' << cue_load_word;
+            }
+        }
+
         std::vector<std::string_view> words(std::string_view line)
         {
             std::vector<std::string_view> result;
@@ -136,6 +174,8 @@ namespace djw::player_ui::sdl
                 bool      has_area    = false;
                 bool      has_screen  = false;
                 bool      has_window  = false;
+                /// The options taken from the player line being read
+                PlayerOptions player_options;
         };
 
         /// The place after the first two words of an mdi line: none (two words) or x y width height (six words);
@@ -210,6 +250,7 @@ namespace djw::player_ui::sdl
                     return false;
                 }
                 lines.layout.players.push_back(*side);
+                lines.layout.player_options.push_back(lines.player_options);
                 lines.places.players.push_back(place);
                 return true;
             }
@@ -247,12 +288,13 @@ namespace djw::player_ui::sdl
 
     MdiLayout defaultMdiLayout()
     {
-        return {.players       = {core::api::CrossfaderSide::A, core::api::CrossfaderSide::B},
-                .mixer_open    = true,
-                .playlist_open = false,
-                .fullscreen    = false,
-                .maximized     = false, // a window of the default size
-                .places        = std::nullopt};
+        return {.players        = {core::api::CrossfaderSide::A, core::api::CrossfaderSide::B},
+                .player_options = {PlayerOptions{}, PlayerOptions{}},
+                .mixer_open     = true,
+                .playlist_open  = false,
+                .fullscreen     = false,
+                .maximized      = false, // a window of the default size
+                .places         = std::nullopt};
     }
 
     std::string formatLayout(const Layout &layout)
@@ -263,6 +305,7 @@ namespace djw::player_ui::sdl
         for (const PlayerPlacement &player : layout.players)
         {
             out << "player " << sideLetter(player.side);
+            writePlayerOptions(out, player.options);
             writePlacement(out, player.place);
             out << '\n';
         }
@@ -281,6 +324,10 @@ namespace djw::player_ui::sdl
             for (std::size_t player = 0; player < layout.mdi->players.size(); ++player)
             {
                 out << "mdi player " << sideLetter(layout.mdi->players[player]);
+                if (player < layout.mdi->player_options.size())
+                {
+                    writePlayerOptions(out, layout.mdi->player_options[player]);
+                }
                 if (places && player < places->players.size())
                 {
                     writeOptionalPlacement(out, places->players[player]);
@@ -331,11 +378,19 @@ namespace djw::player_ui::sdl
         bool       has_mdi = false;
         while (std::getline(in, line))
         {
-            const auto parts = words(line);
+            auto parts = words(line);
             if (parts.empty())
             {
                 continue;
             }
+            // The option words of a player line, wherever they are after the side
+            PlayerOptions options;
+            const bool    mdi_player = parts.size() > 2 && parts[0] == "mdi" && parts[1] == "player";
+            if ((parts[0] == "player" || mdi_player) && !takePlayerOptions(parts, mdi_player ? 3 : 2, options))
+            {
+                return std::nullopt;
+            }
+            mdi.player_options = options;
             if (!version_1 && parts[0] == "mode" && parts.size() == 2 && !has_mode &&
                 (parts[1] == "separate" || parts[1] == "mdi"))
             {
@@ -358,7 +413,7 @@ namespace djw::player_ui::sdl
                 {
                     return std::nullopt;
                 }
-                layout.players.push_back({*place, *side});
+                layout.players.push_back({*place, *side, options});
             }
             else if (parts[0] == "library" && parts.size() == 5)
             {

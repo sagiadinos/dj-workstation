@@ -40,19 +40,6 @@ namespace
         return file;
     }
 
-    /// The file with the language the user chose, e.g. ~/.local/share/djw/language on Linux
-    std::optional<std::filesystem::path> languageFile()
-    {
-        char *folder = SDL_GetPrefPath("", "djw");
-        if (folder == nullptr)
-        {
-            return std::nullopt;
-        }
-        std::filesystem::path file = std::filesystem::path{folder} / "language";
-        SDL_free(folder);
-        return file;
-    }
-
     /// The controller mappings: those that come with the program (next to it), then the user's own
     /// (e.g. ~/.local/share/djw/mappings on Linux)
     std::vector<std::filesystem::path> mappingFolders()
@@ -122,18 +109,11 @@ namespace
     }
 
     /// The language chosen before, otherwise the first language of the system's locales that we have, otherwise English
-    sdl::Language startLanguage()
+    sdl::Language startLanguage(const sdl::Settings &settings)
     {
-        if (const auto file = languageFile())
+        if (settings.language)
         {
-            std::string code;
-            if (std::ifstream{*file} >> code)
-            {
-                if (const auto saved = sdl::languageFromCode(code))
-                {
-                    return *saved;
-                }
-            }
+            return *settings.language;
         }
         int           count   = 0;
         SDL_Locale  **locales = SDL_GetPreferredLocales(&count);
@@ -153,12 +133,16 @@ namespace
         return found;
     }
 
-    void saveLanguage(sdl::Language language)
+    /// Keeps the language in the settings file, with the other settings as they are there now
+    void saveLanguage(const std::filesystem::path &file, sdl::Language language)
     {
-        if (const auto file = languageFile())
+        if (file.empty())
         {
-            std::ofstream{*file} << sdl::languageCode(language) << '\n';
+            return;
         }
+        sdl::Settings settings = startSettings(file);
+        settings.language      = language;
+        std::ofstream{file} << sdl::formatSettings(settings);
     }
 
     /// The library, or nullptr (with a message) if it cannot be opened: the player then works without it
@@ -246,7 +230,9 @@ int main(int argc, char *argv[])
 
     const std::unique_ptr<api::Library> library = openLibrary(*command_line);
 
-    auto app = sdl::SdlApp::create(**core, deck, library.get(), startLanguage(), saveLanguage, layoutFile());
+    auto app = sdl::SdlApp::create(
+        **core, deck, library.get(), startLanguage(settings),
+        [&settings_file](sdl::Language language) { saveLanguage(settings_file, language); }, layoutFile());
     if (!app)
     {
         std::cerr << "djw: " << app.error() << '\n';

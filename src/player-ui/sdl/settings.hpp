@@ -4,9 +4,12 @@
 #ifndef DJW_PLAYER_UI_SDL_SETTINGS_HPP
 #define DJW_PLAYER_UI_SDL_SETTINGS_HPP
 
+#include "i18n/language.hpp"
+
 #include <array>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -33,6 +36,8 @@ namespace djw::player_ui::sdl
             /// Which mapping a controller's MIDI port uses (by the port's stable name); empty for none. A port not
             /// listed gets the mapping that matches it.
             std::map<std::string, std::string> controllers{};
+            /// The language of the user interface (Settings > Language); std::nullopt: the system's
+            std::optional<Language> language{};
 
             bool operator==(const Settings &) const = default;
     };

@@ -217,3 +217,14 @@ TEST_CASE("DevicesDialog: the import button asks the owner to import, a message 
     dialog.update();
     CHECK(dialog.takeOutcome() == DevicesDialog::Outcome::ImportMixxx);
 }
+
+TEST_CASE("Settings: the language is kept by its code; none or an unknown one means the system's")
+{
+    CHECK_FALSE(parseSettings(formatSettings(Settings{})).language.has_value());
+    Settings settings;
+    settings.language      = Language::Greek;
+    const std::string text = formatSettings(settings);
+    CHECK(text.find("language el\n") != std::string::npos);
+    CHECK(parseSettings(text) == settings);
+    CHECK_FALSE(parseSettings("djw-settings 1\nlanguage xx\n").language.has_value());
+}

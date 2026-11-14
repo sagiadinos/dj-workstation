@@ -25,11 +25,23 @@ namespace djw::player_ui::sdl
             bool operator==(const Placement &) const = default;
     };
 
+    /// What a player shows and does, kept with the layout
+    struct PlayerOptions
+    {
+            /// The display shows the remaining time instead of the elapsed one
+            bool show_remaining = false;
+            /// A track loaded into the player starts at its cue point (Cue-Load)
+            bool cue_load = false;
+
+            bool operator==(const PlayerOptions &) const = default;
+    };
+
     struct PlayerPlacement
     {
             Placement place;
             /// The side of the crossfader the player is on
             core::api::CrossfaderSide side = core::api::CrossfaderSide::None;
+            PlayerOptions             options{};
 
             bool operator==(const PlayerPlacement &) const = default;
     };
@@ -66,8 +78,10 @@ namespace djw::player_ui::sdl
     struct MdiLayout
     {
             std::vector<core::api::CrossfaderSide> players;
-            bool                                   mixer_open    = true;
-            bool                                   playlist_open = false;
+            /// The options of each player, as many as players
+            std::vector<PlayerOptions> player_options;
+            bool                       mixer_open    = true;
+            bool                       playlist_open = false;
             /// The one window covers the display; otherwise it is a window with a title bar
             bool fullscreen = true;
             /// Not in fullscreen (and after it): maximized, else a window of window_width x window_height (0 x 0:
