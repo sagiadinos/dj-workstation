@@ -16,8 +16,8 @@ builds:
     hint: "Haz el archivo ejecutable e inícialo."
   - system: "Windows"
     arch: "x86 64 bits, Windows 10 y 11"
-    file: latest_windows.zip
-    hint: "Descomprime el archivo y ejecuta djw.exe. No requiere instalación. Si Windows SmartScreen muestra una advertencia, elige «Más información» y «Ejecutar de todas formas»."
+    file: latest_windows.exe
+    hint: "Ejecuta el instalador y sigue los pasos. Si Windows SmartScreen muestra una advertencia, elige «Más información» y «Ejecutar de todas formas»."
   - system: "macOS"
     arch: "Apple Silicon"
     file: latest_macos.dmg

@@ -16,8 +16,8 @@ builds:
     hint: "Сделайте файл исполняемым и запустите его."
   - system: "Windows"
     arch: "x86 64 бит, Windows 10 и 11"
-    file: latest_windows.zip
-    hint: "Распакуйте архив и запустите djw.exe. Установка не требуется. Если Windows SmartScreen выдаёт предупреждение, выберите «Подробнее» и «Выполнить в любом случае»."
+    file: latest_windows.exe
+    hint: "Запустите установщик и следуйте инструкциям. Если Windows SmartScreen выдаёт предупреждение, выберите «Подробнее» и «Выполнить в любом случае»."
   - system: "macOS"
     arch: "Apple Silicon"
     file: latest_macos.dmg

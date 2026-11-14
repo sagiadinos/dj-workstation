@@ -16,8 +16,8 @@ builds:
     hint: "Κάντε το αρχείο εκτελέσιμο και εκκινήστε το."
   - system: "Windows"
     arch: "x86 64 bit, Windows 10 και 11"
-    file: latest_windows.zip
-    hint: "Αποσυμπιέστε το αρχείο και εκκινήστε το djw.exe. Δεν χρειάζεται εγκατάσταση. Αν το Windows SmartScreen εμφανίσει προειδοποίηση, επιλέξτε «Περισσότερες πληροφορίες» και «Εκτέλεση οπωσδήποτε»."
+    file: latest_windows.exe
+    hint: "Εκκινήστε το πρόγραμμα εγκατάστασης και ακολουθήστε τα βήματα. Αν το Windows SmartScreen εμφανίσει προειδοποίηση, επιλέξτε «Περισσότερες πληροφορίες» και «Εκτέλεση οπωσδήποτε»."
   - system: "macOS"
     arch: "Apple Silicon"
     file: latest_macos.dmg

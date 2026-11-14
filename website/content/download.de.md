@@ -16,8 +16,8 @@ builds:
     hint: Datei ausführbar machen und starten.
   - system: Windows
     arch: x86 64 Bit, Windows 10 und 11
-    file: latest_windows.zip
-    hint: Archiv entpacken und djw.exe starten. Keine Installation nötig. Falls Windows SmartScreen warnt, „Weitere Informationen“ und „Trotzdem ausführen“ wählen.
+    file: latest_windows.exe
+    hint: Installer starten und den Schritten folgen. Falls Windows SmartScreen warnt, „Weitere Informationen“ und „Trotzdem ausführen“ wählen.
   - system: macOS
     arch: Apple Silicon
     file: latest_macos.dmg

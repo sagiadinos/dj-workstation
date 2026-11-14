@@ -12,7 +12,7 @@ disableKinds = ['taxonomy', 'term', 'rss']
   github = 'https://github.com/sagiadinos/dj-workstation'
   author = 'Niko Sagiadinos'
   since  = 1998
-  # The self-hosted runners put the newest builds here under fixed names: latest_linux_x86_64.AppImage, latest_linux_aarch64.AppImage, latest_macos.dmg, latest_windows.zip.
+  # The self-hosted runners put the newest builds here under fixed names: latest_linux_x86_64.AppImage, latest_linux_aarch64.AppImage, latest_macos.dmg, latest_windows.exe.
   downloads = '/downloads/artifacts'
 
 # A new language needs an entry here, content/_index.<code>.md, content/download.<code>.md,

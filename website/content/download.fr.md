@@ -16,8 +16,8 @@ builds:
     hint: "Rendre le fichier exécutable et le lancer."
   - system: "Windows"
     arch: "x86 64 bits, Windows 10 et 11"
-    file: latest_windows.zip
-    hint: "Décompresser l’archive et lancer djw.exe. Aucune installation nécessaire. Si Windows SmartScreen affiche un avertissement, choisir « Informations complémentaires » puis « Exécuter quand même »."
+    file: latest_windows.exe
+    hint: "Lancer le programme d’installation et suivre les étapes. Si Windows SmartScreen affiche un avertissement, choisir « Informations complémentaires » puis « Exécuter quand même »."
   - system: "macOS"
     arch: "Apple Silicon"
     file: latest_macos.dmg
