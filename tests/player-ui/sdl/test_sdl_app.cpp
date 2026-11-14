@@ -15,6 +15,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <sstream>
@@ -1131,7 +1132,7 @@ TEST_CASE("SdlApp: in the MDI mode the menu bar runs across the top of the windo
           app->paneArea(*app->libraryFrame())->y + PaneFrame::title_height + 20);
 
     // View > Fullscreen, the last entry: the menu drops down over the players, the entry is reachable
-    constexpr std::size_t view_menu  = 4;
+    constexpr std::size_t view_menu  = 3;
     constexpr std::size_t fullscreen = 10;
     const Rect            title      = menu.titleArea(view_menu);
     click(app->libraryWindowId(), {title.x + 10, title.y + 10});
@@ -1255,6 +1256,45 @@ TEST_CASE("SdlApp: Settings > Devices opens a dialog over the library window; OK
     REQUIRE(app->runFrame());
     CHECK(app->devicesDialog() == nullptr);
     CHECK(parseSettings(readFile(settings_file)).buffer_frames == latency_choices.back());
+}
+
+TEST_CASE("SdlApp: Settings > Language opens a dialog; OK switches the language at once, Escape keeps it")
+{
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    std::vector<Language>   changed;
+    auto                    created = SdlApp::create(*fixture.core, fixture.deck, &library, Language::English,
+                                                     [&changed](Language language) { changed.push_back(language); });
+    REQUIRE(created.has_value());
+    auto &app = *created;
+
+    // Escape cancels
+    app->openLanguageDialog();
+    REQUIRE(app->languageDialog() != nullptr);
+    REQUIRE(app->runFrame());
+    SDL_Event escape{};
+    escape.type         = SDL_EVENT_KEY_DOWN;
+    escape.key.key      = SDLK_ESCAPE;
+    escape.key.windowID = app->libraryWindowId();
+    SDL_PushEvent(&escape);
+    REQUIRE(app->runFrame());
+    CHECK(app->languageDialog() == nullptr);
+    CHECK(changed.empty());
+
+    // German from the list and OK
+    app->openLanguageDialog();
+    REQUIRE(app->runFrame());
+    const auto middle = [](const Rect &area) { return Point{area.x + (area.width / 2), area.y + (area.height / 2)}; };
+    click(app->libraryWindowId(), middle(app->languageDialog()->languageList().bounds()));
+    REQUIRE(app->runFrame());
+    REQUIRE(app->languageDialog()->languageList().isOpen());
+    const auto german = static_cast<std::size_t>(std::ranges::find(languages, Language::German) - languages.begin());
+    click(app->libraryWindowId(), middle(app->languageDialog()->languageList().itemArea(german)));
+    REQUIRE(app->runFrame());
+    click(app->libraryWindowId(), middle(app->languageDialog()->okButton().bounds()));
+    REQUIRE(app->runFrame());
+    CHECK(app->languageDialog() == nullptr);
+    CHECK(changed == std::vector{Language::German});
 }
 
 TEST_CASE("SdlApp: without a saved layout the program starts in the one window with two players and the crossfader")

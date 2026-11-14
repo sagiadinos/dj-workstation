@@ -18,7 +18,7 @@ namespace djw::player_ui::sdl
         constexpr float header_height = 30.0F;
         constexpr float status_height = 28.0F;
 
-        /// Ids of the menu entries; the languages follow language_base in the order of languages
+        /// Ids of the menu entries
         namespace menu_id
         {
             constexpr int add_folder             = 1;
@@ -42,7 +42,7 @@ namespace djw::player_ui::sdl
             constexpr int arrange_automatically  = 19;
             constexpr int fullscreen             = 20;
             constexpr int devices                = 21;
-            constexpr int language_base          = 100;
+            constexpr int language               = 22;
         } // namespace menu_id
 
         constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
@@ -552,16 +552,6 @@ namespace djw::player_ui::sdl
         const bool can_add_track = has_playlists && add_to_playlist && list.selected().has_value();
         const bool has_mode      = mode_chosen && mode_shown;
 
-        std::vector<MenuItem> language_items;
-        language_items.reserve(languages.size());
-        for (std::size_t index = 0; index < languages.size(); ++index)
-        {
-            language_items.push_back({.id      = menu_id::language_base + static_cast<int>(index),
-                                      .label   = std::string{languageName(languages[index])},
-                                      .enabled = true,
-                                      .checked = languages[index] == translator->language()});
-        }
-
         std::vector<Menu> menus;
         menus.push_back({tr("menu.database"),
                          {{.id = menu_id::add_folder, .label = tr("menu.database.add_folder")},
@@ -573,12 +563,13 @@ namespace djw::player_ui::sdl
               {.id = menu_id::playlist_import, .label = tr("menu.playlist.import"), .enabled = has_playlists},
               {.id = menu_id::playlist_export, .label = tr("menu.playlist.export"), .enabled = has_playlists},
               {.id = menu_id::playlist_add_track, .label = tr("menu.playlist.add_track"), .enabled = can_add_track}}});
-        // The language has a menu of its own
         menus.push_back({tr("menu.settings"),
                          {{.id      = menu_id::devices,
                            .label   = tr("menu.settings.devices"),
-                           .enabled = static_cast<bool>(devices_dialog)}}});
-        menus.push_back({tr("menu.language"), std::move(language_items)});
+                           .enabled = static_cast<bool>(devices_dialog)},
+                          {.id      = menu_id::language,
+                           .label   = tr("menu.settings.language"),
+                           .enabled = static_cast<bool>(language_dialog)}}});
         menus.push_back({tr("menu.view"),
                          {{.id       = menu_id::new_deck_entry,
                            .label    = tr("menu.view.new_deck"),
@@ -631,15 +622,6 @@ namespace djw::player_ui::sdl
 
     void LibraryView::chooseMenuEntry(int id)
     {
-        if (id >= menu_id::language_base)
-        {
-            const auto index = static_cast<std::size_t>(id - menu_id::language_base);
-            if (index < languages.size() && language_chosen)
-            {
-                language_chosen(languages[index]);
-            }
-            return;
-        }
         switch (id)
         {
             case menu_id::add_folder:
@@ -680,6 +662,12 @@ namespace djw::player_ui::sdl
                 if (devices_dialog)
                 {
                     devices_dialog();
+                }
+                break;
+            case menu_id::language:
+                if (language_dialog)
+                {
+                    language_dialog();
                 }
                 break;
             case menu_id::fullscreen:

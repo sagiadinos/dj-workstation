@@ -476,7 +476,7 @@ namespace
     }
 } // namespace
 
-TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings, Language and View")
+TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings and View")
 {
     Fixture fixture;
     CHECK(fixture.view.menuBar().bounds().y == 0.0F);
@@ -486,7 +486,7 @@ TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settin
     CHECK(canvas.drew("Database"));
     CHECK(canvas.drew("Playlist"));
     CHECK(canvas.drew("Settings"));
-    CHECK(canvas.drew("Language"));
+    CHECK_FALSE(canvas.drew("Language")); // under Settings
     CHECK(canvas.drew("View"));
 }
 
@@ -554,23 +554,21 @@ TEST_CASE("LibraryView: Add selected track needs a selected track")
     CHECK(added[0] == fixture.view.trackList().tracks()[0].id);
 }
 
-TEST_CASE("LibraryView: the Language menu lists the languages and reports the one chosen")
+TEST_CASE("LibraryView: Settings > Language is off without an owner, with one it opens the dialog")
 {
-    Fixture               fixture;
-    std::vector<Language> chosen;
-    fixture.view.setOnLanguage([&chosen](Language language) { chosen.push_back(language); });
-    chooseEntry(fixture, 3, 1);
-    REQUIRE(chosen.size() == 1);
-    CHECK(chosen[0] == Language::German);
-
-    const Rect title = fixture.view.menuBar().titleArea(3);
-    fixture.tap({title.x + 10, title.y + 10});
+    Fixture fixture;
+    chooseEntry(fixture, 2, 1);
+    CHECK(fixture.view.menuBar().isOpen()); // off
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
-    for (const Language language : languages)
-    {
-        CHECK(canvas.drew(languageName(language)));
-    }
+    CHECK(canvas.drew("Language…"));
+    fixture.view.keyboard(EditKey::Escape);
+
+    int opened = 0;
+    fixture.view.setLanguageDialog([&opened] { ++opened; });
+    fixture.view.update();
+    chooseEntry(fixture, 2, 1);
+    CHECK(opened == 1);
 }
 
 TEST_CASE("LibraryView: View clears the search and the filters, and shows only missing tracks")
@@ -580,17 +578,17 @@ TEST_CASE("LibraryView: View clears the search and the filters, and shows only m
     fixture.view.keyboard(std::string{"abc"});
     fixture.view.update();
     CHECK(fixture.view.query().text == "abc");
-    chooseEntry(fixture, 4, 3);
+    chooseEntry(fixture, 3, 3);
     fixture.view.update();
     CHECK(fixture.view.query().text.empty());
 
     // Missing tracks only: disabled without missing tracks
-    chooseEntry(fixture, 4, 4);
+    chooseEntry(fixture, 3, 4);
     CHECK_FALSE(fixture.view.query().only_missing);
     fixture.view.keyboard(EditKey::Escape); // closes the menu
     fixture.library.library_status.missing_total = 2;
     fixture.view.update();
-    chooseEntry(fixture, 4, 4);
+    chooseEntry(fixture, 3, 4);
     fixture.view.update();
     CHECK(fixture.view.query().only_missing);
 }
@@ -656,7 +654,7 @@ TEST_CASE("LibraryView: Settings offers Devices once the owner can open it, the 
 TEST_CASE("LibraryView: View shows or hides the playlist window and tells whether it is shown")
 {
     Fixture fixture;
-    chooseEntry(fixture, 4, 2);
+    chooseEntry(fixture, 3, 2);
     CHECK(fixture.view.menuBar().isOpen()); // off without a playlist window
     fixture.view.keyboard(EditKey::Escape);
 
@@ -665,13 +663,13 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
     fixture.view.setPlaylistCommands([&commands](LibraryView::PlaylistCommand command) { commands.push_back(command); },
                                      [&shown] { return shown; });
     fixture.view.update();
-    chooseEntry(fixture, 4, 2);
+    chooseEntry(fixture, 3, 2);
     CHECK(commands == std::vector{LibraryView::PlaylistCommand::ToggleWindow});
 
     shown = true;
     fixture.view.update();
     RecordingCanvas canvas;
-    const Rect      title = fixture.view.menuBar().titleArea(4);
+    const Rect      title = fixture.view.menuBar().titleArea(3);
     fixture.tap({title.x + 10, title.y + 10});
     fixture.view.draw(canvas);
     CHECK(canvas.drew("Playlist window"));
@@ -680,17 +678,17 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
 TEST_CASE("LibraryView: View > New player calls the app and shows its shortcut")
 {
     Fixture fixture;
-    chooseEntry(fixture, 4, 0);
+    chooseEntry(fixture, 3, 0);
     CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
     fixture.view.keyboard(EditKey::Escape);
 
     int decks = 0;
     fixture.view.setOnNewDeck([&decks] { ++decks; });
     fixture.view.update();
-    chooseEntry(fixture, 4, 0);
+    chooseEntry(fixture, 3, 0);
     CHECK(decks == 1);
 
-    const Rect title = fixture.view.menuBar().titleArea(4);
+    const Rect title = fixture.view.menuBar().titleArea(3);
     fixture.tap({title.x + 10, title.y + 10});
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
@@ -701,7 +699,7 @@ TEST_CASE("LibraryView: View > New player calls the app and shows its shortcut")
 TEST_CASE("LibraryView: View > Crossfader window shows or hides the window and tells whether it is shown")
 {
     Fixture fixture;
-    chooseEntry(fixture, 4, 1);
+    chooseEntry(fixture, 3, 1);
     CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
     fixture.view.keyboard(EditKey::Escape);
 
@@ -709,12 +707,12 @@ TEST_CASE("LibraryView: View > Crossfader window shows or hides the window and t
     bool shown   = false;
     fixture.view.setMixerWindow([&toggles] { ++toggles; }, [&shown] { return shown; });
     fixture.view.update();
-    chooseEntry(fixture, 4, 1);
+    chooseEntry(fixture, 3, 1);
     CHECK(toggles == 1);
 
     shown = true;
     fixture.view.update();
-    const Rect title = fixture.view.menuBar().titleArea(4);
+    const Rect title = fixture.view.menuBar().titleArea(3);
     fixture.tap({title.x + 10, title.y + 10});
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
@@ -853,18 +851,18 @@ TEST_CASE("LibraryView: Analyze all tracks in the Database menu queues the analy
 TEST_CASE("LibraryView: View > Save layout is off without a handler, with one it saves and says so")
 {
     Fixture fixture;
-    chooseEntry(fixture, 4, 5);
+    chooseEntry(fixture, 3, 5);
     CHECK(fixture.view.menuBar().isOpen()); // disabled: stays open
     fixture.view.keyboard(EditKey::Escape);
 
     int saves = 0;
     fixture.view.setSaveLayout([&saves] { return ++saves == 1; });
     fixture.view.update();
-    chooseEntry(fixture, 4, 5);
+    chooseEntry(fixture, 3, 5);
     CHECK(saves == 1);
     CHECK(fixture.view.statusText().find("layout saved") != std::string::npos);
 
-    chooseEntry(fixture, 4, 5);
+    chooseEntry(fixture, 3, 5);
     CHECK(saves == 2);
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
@@ -872,7 +870,7 @@ TEST_CASE("LibraryView: View > Save layout is off without a handler, with one it
 TEST_CASE("LibraryView: View offers separate windows or one window for the next start and says so")
 {
     Fixture               fixture;
-    constexpr std::size_t view_menu  = 4;
+    constexpr std::size_t view_menu  = 3;
     constexpr std::size_t separate   = 6;
     constexpr std::size_t one_window = 7;
 
@@ -915,7 +913,7 @@ TEST_CASE("LibraryView: View offers separate windows or one window for the next 
 TEST_CASE("LibraryView: View offers editing the layout and the automatic arrangement once the owner enables them")
 {
     Fixture               fixture;
-    constexpr std::size_t view_menu   = 4;
+    constexpr std::size_t view_menu   = 3;
     constexpr std::size_t edit_layout = 8;
     constexpr std::size_t automatic   = 9;
     fixture.view.layout({0, 0, 600, 700}); // room for the whole View menu

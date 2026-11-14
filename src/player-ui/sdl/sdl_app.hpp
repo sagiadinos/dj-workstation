@@ -9,6 +9,7 @@
 #include "api/controllers.hpp"
 #include "deck_view.hpp"
 #include "devices_dialog.hpp"
+#include "language_dialog.hpp"
 #include "i18n/translator.hpp"
 #include "layout.hpp"
 #include "library_view.hpp"
@@ -161,6 +162,10 @@ namespace djw::player_ui::sdl
             /// Imports a Mixxx mapping (the dialog's import button, after the file was chosen), connects the
             /// controllers again and opens the dialog again, saying what the import made of it
             void importMixxxMapping(const std::filesystem::path &file);
+            /// Settings > Language: opens the dialog over the library window (in the MDI mode the one window)
+            void openLanguageDialog();
+            /// The dialog of Settings > Language while it is open, nullptr otherwise; for tests
+            [[nodiscard]] LanguageDialog *languageDialog() noexcept { return language_dialog.get(); }
             /// The dialog of Settings > Devices while it is open, nullptr otherwise; for tests
             [[nodiscard]] DevicesDialog *devicesDialog() noexcept { return devices_dialog.get(); }
             /// The library view; for tests (there must be a library)
@@ -325,6 +330,7 @@ namespace djw::player_ui::sdl
             std::unique_ptr<PaneFrame>               library_frame;           ///< MDI mode only
             std::unique_ptr<MenuStrip>               menu_strip;              ///< MDI mode only: the menus on top
             std::unique_ptr<DevicesDialog>           devices_dialog;          ///< while Settings > Devices is open
+            std::unique_ptr<LanguageDialog>          language_dialog;         ///< while Settings > Language is open
             SdlWindow                               *dialog_window = nullptr; ///< the window the dialog lies over
             std::unique_ptr<PlaylistView>            playlist_view;
             std::unique_ptr<MixerView>               mixer_view;

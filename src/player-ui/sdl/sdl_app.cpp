@@ -183,7 +183,7 @@ namespace djw::player_ui::sdl
                                                { return deck_window->loaded_file == file; });
                 });
             app->library_view->setOnNewDeck([owner] { ++owner->new_decks_requested; });
-            app->library_view->setOnLanguage([owner](Language chosen) { owner->setLanguage(chosen); });
+            app->library_view->setLanguageDialog([owner] { owner->openLanguageDialog(); });
             app->library_view->setPlaylistCommands([owner](LibraryView::PlaylistCommand command)
                                                    { owner->runPlaylistCommand(command); },
                                                    [owner] { return owner->toolWindowOpen(Tool::Playlist); });
@@ -1154,7 +1154,7 @@ namespace djw::player_ui::sdl
     void SdlApp::openDevicesDialog()
     {
         SdlWindow *over = host_window != nullptr ? host_window : library_window;
-        if (devices_dialog || over == nullptr || settings_file.empty())
+        if (devices_dialog || language_dialog || over == nullptr || settings_file.empty())
         {
             return;
         }
@@ -1177,6 +1177,19 @@ namespace djw::player_ui::sdl
         dialog_window   = over;
         over->views().add(*devices_dialog, std::nullopt, true); // over everything, modal
         over->views().setFocus(*devices_dialog);
+    }
+
+    void SdlApp::openLanguageDialog()
+    {
+        SdlWindow *over = host_window != nullptr ? host_window : library_window;
+        if (devices_dialog || language_dialog || over == nullptr)
+        {
+            return;
+        }
+        language_dialog = std::make_unique<LanguageDialog>(translator, translator.language());
+        dialog_window   = over;
+        over->views().add(*language_dialog, std::nullopt, true); // over everything, modal
+        over->views().setFocus(*language_dialog);
     }
 
     void SdlApp::importMixxxMapping(const std::filesystem::path &file)
@@ -1210,6 +1223,19 @@ namespace djw::player_ui::sdl
 
     void SdlApp::applyWindowRequests()
     {
+        if (language_dialog)
+        {
+            if (const auto outcome = language_dialog->takeOutcome())
+            {
+                if (*outcome == LanguageDialog::Outcome::Accepted)
+                {
+                    setLanguage(language_dialog->chosen()); // at once, kept for the next start by the owner
+                }
+                dialog_window->views().remove(*language_dialog);
+                language_dialog.reset();
+                dialog_window = nullptr;
+            }
+        }
         if (devices_dialog)
         {
             if (const auto outcome = devices_dialog->takeOutcome())

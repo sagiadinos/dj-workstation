@@ -75,7 +75,6 @@ namespace djw::player_ui::sdl
             };
             using PlaylistAction = std::function<void(PlaylistCommand command)>;
             using PlaylistShown  = std::function<bool()>;
-            using LanguageChosen = std::function<void(Language language)>;
             using NewDeck        = std::function<void()>;
             /// Saves the window layout; true when it was saved
             using SaveLayout = std::function<bool()>;
@@ -164,6 +163,8 @@ namespace djw::player_ui::sdl
             /// editing tells whether it is on, automatic goes back to the automatic arrangement
             /// Enables Settings > Devices: open shows the dialog
             void setDevicesDialog(Toggle open) { devices_dialog = std::move(open); }
+            /// Enables Settings > Language: open shows the dialog
+            void setLanguageDialog(Toggle open) { language_dialog = std::move(open); }
             /// Enables View > Fullscreen (the MDI mode): toggle switches, shown tells whether the window is fullscreen
             void setFullscreen(Toggle toggle, Shown shown)
             {
@@ -188,8 +189,6 @@ namespace djw::player_ui::sdl
             void setNotice(std::string_view key);
             /// Enables View > New deck, which calls new_deck
             void setOnNewDeck(NewDeck new_deck) { new_deck_requested = std::move(new_deck); }
-            /// Called when the user picks a language in the Language menu
-            void setOnLanguage(LanguageChosen chosen) { language_chosen = std::move(chosen); }
 
         private:
             /// The cell being edited; the track is kept by id, as a refresh may move its row
@@ -239,6 +238,7 @@ namespace djw::player_ui::sdl
             Toggle                   fullscreen_toggle;
             bool                     menu_elsewhere = false;
             Toggle                   devices_dialog;
+            Toggle                   language_dialog;
             Shown                    fullscreen_shown;
             std::int64_t             context_track = 0; // the track the context menu is about
             TextField                search_field;
@@ -257,7 +257,6 @@ namespace djw::player_ui::sdl
             Shown                    mixer_shown;
             ModeChosen               mode_chosen;
             ModeShown                mode_shown;
-            LanguageChosen           language_chosen;
             bool                     only_missing = false;
             std::optional<CellEdit>  edit;
             /// Key of the message about the last edit, empty if none; translated when shown
