@@ -47,7 +47,8 @@ SetupIconFile=..\icons\windows\djw.ico
 UninstallDisplayIcon={app}\djw.exe
 UninstallDisplayName=DJ-Workstation
 OutputDir={#OutputDir}
-OutputBaseFilename=DJ-Workstation-{#AppVersion}Compression=lzma2/max
+OutputBaseFilename=DJ-Workstation-{#AppVersion}
+Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 
