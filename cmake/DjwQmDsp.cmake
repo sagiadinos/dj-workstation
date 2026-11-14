@@ -30,9 +30,12 @@ target_include_directories(djw_qmdsp SYSTEM PRIVATE
 target_compile_definitions(djw_qmdsp PRIVATE kiss_fft_scalar=double)
 if(MSVC)
     target_compile_options(djw_qmdsp PRIVATE /w)
+    # M_PI and friends; public because the headers (base/Window.h) use them too
+    target_compile_definitions(djw_qmdsp PUBLIC _USE_MATH_DEFINES)
 else()
     # -O2 even in debug builds: the analysis runs over whole tracks and would crawl otherwise
     target_compile_options(djw_qmdsp PRIVATE -w -O2)
 endif()
+
 set_target_properties(djw_qmdsp PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(djw::qmdsp ALIAS djw_qmdsp)

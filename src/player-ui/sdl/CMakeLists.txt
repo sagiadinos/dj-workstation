@@ -111,7 +111,6 @@ set_target_properties(djw_player_sdl PROPERTIES OUTPUT_NAME djw)
 djw_set_options(djw_player_sdl)
 target_link_libraries(djw_player_sdl PRIVATE djw_player_sdl_ui)
 
-# The UI font next to the binary, where SdlApp looks for it
 # The UI font next to the binary, where SdlApp looks for it (in the bundle's Resources on macOS)
 if(APPLE)
     set(djw_data_dir $<TARGET_BUNDLE_CONTENT_DIR:djw_player_sdl>/Resources)
