@@ -349,3 +349,29 @@ TEST_CASE("MixerView: the master meter lies above the crossfader and shows the m
     CHECK(std::ranges::any_of(canvas.rects, [&meter](const Rect &rect)
                               { return rect.y >= meter.y && rect.y + rect.height <= meter.y + meter.height + 0.01F; }));
 }
+
+TEST_CASE("MixerView: the layout scales evenly with its area and stays inside it, at the top")
+{
+    api::CommandQueue        queue;
+    api::MixerSnapshotBuffer snapshot{api::MixerSnapshot{}};
+    Translator               translator;
+    MixerView                view{queue, snapshot, translator, [] { return std::vector<MixerDeck>{}; }};
+
+    // A pane as wide as the design but less high, as in a crowded single window: everything still inside
+    const Rect low{10, 20, MixerView::design_width, MixerView::design_height / 2};
+    view.layout(low);
+    CHECK(view.scale() == doctest::Approx(0.5F));
+    const Rect last = view.fadeTime().bounds();
+    CHECK(last.y + last.height <= low.y + low.height);
+    CHECK(view.sideA().bounds().y >= low.y);
+    // Narrower content than the area: centered across
+    const Rect first = view.momentaryA().bounds();
+    const Rect end   = view.momentaryB().bounds();
+    CHECK((first.x - low.x) == doctest::Approx((low.x + low.width) - (end.x + end.width)));
+
+    // A pane twice the design size: twice as big
+    view.layout({0, 0, 2 * MixerView::design_width, 2 * MixerView::design_height});
+    CHECK(view.scale() == doctest::Approx(2.0F));
+    const Rect big = view.fadeTime().bounds();
+    CHECK(big.y + big.height <= 2 * MixerView::design_height);
+}

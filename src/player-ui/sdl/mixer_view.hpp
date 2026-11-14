@@ -42,11 +42,17 @@ namespace djw::player_ui::sdl
      * A drop-down lists the players with a "(none)" entry first. Choosing a player for a side takes it away from the
      * player that was there; a player stands on one side only. The state shown comes from the mixer snapshot and the
      * players the owner reports, the changes go out as commands.
+     *
+     * The layout is made for design_width x design_height and scales evenly with the area, text included; it sits
+     * at the top of the area, centered across.
      */
     class MixerView final : public View
     {
         public:
             using Decks = std::function<std::vector<MixerDeck>()>;
+
+            static constexpr float design_width  = 440.0F;
+            static constexpr float design_height = 280.0F;
 
             static constexpr int min_fade_seconds     = 1;
             static constexpr int max_fade_seconds     = 60;
@@ -69,6 +75,8 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const Slider     &crossfader() const noexcept { return slider; }
             [[nodiscard]] const Stepper    &fadeTime() const noexcept { return fade_time; }
             [[nodiscard]] bool              fading() const noexcept { return fade.has_value(); }
+            /// How much the layout and its text are scaled from the design size
+            [[nodiscard]] float scale() const noexcept { return text_scale; }
 
             /// The crossfader position of a slider value and back: -1 (A) ... +1 (B)
             [[nodiscard]] static float positionOf(float slider_value) noexcept { return (slider_value * 2.0F) - 1.0F; }
@@ -113,6 +121,7 @@ namespace djw::player_ui::sdl
             Stepper    fade_time{min_fade_seconds, max_fade_seconds, default_fade_seconds};
             Rect       fade_label_area;
             Rect       meter_area;
+            float      text_scale = 1.0F;
 
             /// The master level as last read, and until when the clip lamp stays lit
             core::api::StereoLevel                master_level{};

@@ -38,33 +38,43 @@ namespace djw::player_ui::sdl
 
     void MixerView::layout(const Rect &area)
     {
-        const Rect  inner = area.inset(margin);
+        // Laid out in design units, then scaled evenly to fit the area: at the top, centered across, text with it
+        const float scale = std::max(0.0F, std::min(area.width / design_width, area.height / design_height));
+        const float left  = area.x + ((area.width - (design_width * scale)) / 2);
+        text_scale        = std::clamp(scale, 0.5F, 6.0F);
+        const auto fitted = [&](const Rect &design)
+        {
+            return Rect{left + (design.x * scale), area.y + (design.y * scale), design.width * scale,
+                        design.height * scale};
+        };
+
+        const Rect  inner = Rect{0, 0, design_width, design_height}.inset(margin);
         const float half  = std::max(0.0F, (inner.width - zero_width - (2 * gap)) / 2);
         float       y     = inner.y;
 
-        side_a.place({inner.x, y, half, row_height}, area);
-        zero_button.setBounds({inner.x + half + gap, y, zero_width, row_height});
-        side_b.place({inner.x + half + gap + zero_width + gap, y, half, row_height}, area);
+        side_a.place(fitted({inner.x, y, half, row_height}), area);
+        zero_button.setBounds(fitted({inner.x + half + gap, y, zero_width, row_height}));
+        side_b.place(fitted({inner.x + half + gap + zero_width + gap, y, half, row_height}), area);
         y += row_height + gap;
 
         // The master meter right above the crossfader, as wide as its track
         const float track_x = inner.x + side_button + gap;
-        meter_area          = {track_x, y, std::max(0.0F, inner.width - (2 * (side_button + gap))), meter_height};
+        meter_area = fitted({track_x, y, std::max(0.0F, inner.width - (2 * (side_button + gap))), meter_height});
         y += meter_height + gap;
 
-        button_a.setBounds({inner.x, y, side_button, row_height});
-        button_b.setBounds({inner.x + std::max(0.0F, inner.width - side_button), y, side_button, row_height});
-        slider.setBounds(
-            {inner.x + side_button + gap, y, std::max(0.0F, inner.width - (2 * (side_button + gap))), row_height});
+        button_a.setBounds(fitted({inner.x, y, side_button, row_height}));
+        button_b.setBounds(fitted({inner.x + std::max(0.0F, inner.width - side_button), y, side_button, row_height}));
+        slider.setBounds(fitted(
+            {inner.x + side_button + gap, y, std::max(0.0F, inner.width - (2 * (side_button + gap))), row_height}));
         y += row_height + gap;
 
         const float fade_width = std::min(inner.width, 220.0F);
-        fade_button.setBounds({inner.x + ((inner.width - fade_width) / 2), y, fade_width, row_height});
+        fade_button.setBounds(fitted({inner.x + ((inner.width - fade_width) / 2), y, fade_width, row_height}));
         y += row_height + gap;
 
         const float stepper_x = inner.x + std::max(0.0F, inner.width - stepper_width);
-        fade_label_area       = {inner.x, y, std::max(0.0F, stepper_x - gap - inner.x), row_height};
-        fade_time.setBounds({stepper_x, y, stepper_width, row_height});
+        fade_label_area       = fitted({inner.x, y, std::max(0.0F, stepper_x - gap - inner.x), row_height});
+        fade_time.setBounds(fitted({stepper_x, y, stepper_width, row_height}));
     }
 
     void MixerView::addTo(PointerRouter &router)
@@ -217,6 +227,7 @@ namespace djw::player_ui::sdl
 
     void MixerView::draw(Canvas &canvas) const
     {
+        canvas.setTextScale(text_scale);
         look::meter(canvas, meter_area, master_level.left, master_level.right, false, clock() < clip_until);
         zero_button.draw(canvas);
         button_a.draw(canvas);
