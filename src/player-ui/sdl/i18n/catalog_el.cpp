@@ -121,7 +121,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.layout_saved", "η διάταξη αποθηκεύτηκε"},
             {"library.notice.layout_failed", "η διάταξη δεν αποθηκεύτηκε"},
             {"library.notice.next_start", "ισχύει από την επόμενη εκκίνηση"},
-            {"deck.cannot_load", "Αδυναμία φόρτωσης: {error}"},
+            {"deck.cannot_load", "Κατεστραμμένο ή μη υποστηριζόμενο αρχείο: {file}"},
+            {"deck.file_missing", "Το αρχείο δεν βρέθηκε: {file}"},
         });
     } // namespace
 

@@ -122,7 +122,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.layout_saved", "Layout gespeichert"},
             {"library.notice.layout_failed", "Layout konnte nicht gespeichert werden"},
             {"library.notice.next_start", "gilt ab dem nächsten Start"},
-            {"deck.cannot_load", "Laden nicht möglich: {error}"},
+            {"deck.cannot_load", "Datei beschädigt oder nicht unterstützt: {file}"},
+            {"deck.file_missing", "Datei nicht gefunden: {file}"},
         });
     } // namespace
 

@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <ranges>
 #include <sstream>
@@ -882,7 +883,12 @@ namespace djw::player_ui::sdl
         }
         if (auto loaded = core->loadTrack(target.id, track.path, options); !loaded)
         {
-            target.view->setMessage(translator.tr("deck.cannot_load", {{"error", loaded.error()}}));
+            // The display shows the reason in words and the file name; the decoder's own text goes to the log
+            SDL_Log("djw: %s", loaded.error().c_str());
+            const std::u8string name = track.path.filename().u8string();
+            std::error_code     error;
+            const char *key = std::filesystem::exists(track.path, error) ? "deck.cannot_load" : "deck.file_missing";
+            target.view->setMessage(translator.tr(key, {{"file", std::string{name.begin(), name.end()}}}));
             return false;
         }
         target.loaded_file = track.path;

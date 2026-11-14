@@ -122,7 +122,8 @@ namespace djw::player_ui::sdl::catalogs
             {"library.notice.layout_saved", "disposition enregistrée"},
             {"library.notice.layout_failed", "la disposition n'a pas pu être enregistrée"},
             {"library.notice.next_start", "prend effet au prochain démarrage"},
-            {"deck.cannot_load", "Chargement impossible : {error}"},
+            {"deck.cannot_load", "Fichier endommagé ou non pris en charge : {file}"},
+            {"deck.file_missing", "Fichier introuvable : {file}"},
         });
     } // namespace
 
