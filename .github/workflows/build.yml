@@ -34,9 +34,6 @@ jobs:
             runner: [self-hosted, Windows, X64]
             script: C:\BuildEssentials\buildDJW.bat
     steps:
-      # The commit CI tested; the scripts find it in GITHUB_WORKSPACE (and its hash in GITHUB_SHA)
-      - uses: actions/checkout@v4
-
       - name: Build, package and upload
         if: runner.os != 'Windows'
         shell: bash
