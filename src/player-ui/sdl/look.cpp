@@ -198,4 +198,46 @@ namespace djw::player_ui::sdl::look
         canvas.fillRoundedRect({area.x, area.y + (area.height * 0.42F), area.width * 0.94F, area.height * 0.48F}, 3.0F,
                                color, shade(color, -30));
     }
+
+    namespace
+    {
+        /// A straight line of the given thickness, as two triangles
+        void line(Canvas &canvas, Point from, Point to, float thickness, Color color)
+        {
+            const float dx     = to.x - from.x;
+            const float dy     = to.y - from.y;
+            const float length = std::sqrt((dx * dx) + (dy * dy));
+            if (length <= 0.0F)
+            {
+                return;
+            }
+            const Point side{-dy / length * thickness / 2, dx / length * thickness / 2};
+            const Point a{from.x + side.x, from.y + side.y};
+            const Point b{from.x - side.x, from.y - side.y};
+            const Point c{to.x - side.x, to.y - side.y};
+            const Point d{to.x + side.x, to.y + side.y};
+            canvas.fillTriangle(a, b, c, color);
+            canvas.fillTriangle(a, c, d, color);
+        }
+    } // namespace
+
+    void clearFilterIcon(Canvas &canvas, const Rect &area, Color color)
+    {
+        if (area.width <= 0.0F || area.height <= 0.0F)
+        {
+            return;
+        }
+        // The funnel: a wide top narrowing to a stem, in the upper left three quarters
+        const float w = area.width;
+        const float h = area.height;
+        canvas.fillTriangle({area.x, area.y + (h * 0.08F)}, {area.x + (w * 0.74F), area.y + (h * 0.08F)},
+                            {area.x + (w * 0.37F), area.y + (h * 0.50F)}, color);
+        canvas.fillRect({area.x + (w * 0.31F), area.y + (h * 0.45F), w * 0.12F, h * 0.42F}, color);
+        // The cross, at the lower right
+        const float thickness = std::max(2.0F, w * 0.11F);
+        line(canvas, {area.x + (w * 0.58F), area.y + (h * 0.56F)}, {area.x + (w * 0.96F), area.y + (h * 0.94F)},
+             thickness, color);
+        line(canvas, {area.x + (w * 0.96F), area.y + (h * 0.56F)}, {area.x + (w * 0.58F), area.y + (h * 0.94F)},
+             thickness, color);
+    }
 } // namespace djw::player_ui::sdl::look

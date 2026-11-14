@@ -17,6 +17,7 @@ namespace djw::player_ui::sdl
     {
         if (event.phase == PointerPhase::Down)
         {
+            hover          = nullptr; // a press hides the help
             Widget *widget = widgetAt(event.position);
             if (widget != nullptr && !isCaptured(*widget))
             {
@@ -29,6 +30,11 @@ namespace djw::player_ui::sdl
         const auto capture = captures.find(event.pointer);
         if (capture == captures.end())
         {
+            if (event.phase == PointerPhase::Move)
+            {
+                hover    = widgetAt(event.position);
+                hover_at = event.position;
+            }
             return;
         }
         if (event.phase == PointerPhase::Move)

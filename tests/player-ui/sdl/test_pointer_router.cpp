@@ -159,3 +159,33 @@ TEST_CASE("PointerRouter: overlapping widgets, the one added last is on top")
     CHECK(below.events.empty());
     CHECK(above.events.size() == 1);
 }
+
+TEST_CASE("PointerRouter: a pointer moving without being down rests on the widget under it, until a press or leave")
+{
+    RecordingWidget left{{0, 0, 100, 100}};
+    RecordingWidget right{{100, 0, 100, 100}};
+    PointerRouter   router;
+    router.add(left);
+    router.add(right);
+    CHECK(router.hovered() == nullptr);
+
+    router.handle(move(finger_a, 150, 50));
+    CHECK(router.hovered() == &right);
+    CHECK(router.hoverPosition().x == 150.0F);
+    CHECK(right.events.empty()); // only noted, the widget gets nothing
+    router.handle(move(finger_a, 50, 50));
+    CHECK(router.hovered() == &left);
+    router.handle(move(finger_a, 500, 50));
+    CHECK(router.hovered() == nullptr); // over no widget
+
+    router.handle(move(finger_a, 50, 50));
+    router.handle(down(finger_a, 50, 50));
+    CHECK(router.hovered() == nullptr);
+    router.handle(move(finger_a, 60, 50)); // while down: a move of the capture, no resting
+    CHECK(router.hovered() == nullptr);
+    router.handle(up(finger_a, 60, 50));
+
+    router.handle(move(finger_a, 50, 50));
+    router.leave();
+    CHECK(router.hovered() == nullptr);
+}

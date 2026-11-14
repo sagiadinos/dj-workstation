@@ -55,6 +55,8 @@ namespace djw::player_ui::sdl::look
 
     /// An open folder, for the Load button
     void folderIcon(Canvas &canvas, const Rect &area, Color color);
+    /// A filter funnel with a small cross at its lower right: clear the filters
+    void clearFilterIcon(Canvas &canvas, const Rect &area, Color color);
 } // namespace djw::player_ui::sdl::look
 
 #endif // DJW_PLAYER_UI_SDL_LOOK_HPP

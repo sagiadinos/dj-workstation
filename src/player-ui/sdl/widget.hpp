@@ -7,6 +7,9 @@
 #include "canvas.hpp"
 #include "geometry.hpp"
 
+#include <string>
+#include <utility>
+
 namespace djw::player_ui::sdl
 {
     /**
@@ -27,6 +30,9 @@ namespace djw::player_ui::sdl
 
             [[nodiscard]] const Rect &bounds() const noexcept { return area; }
             void                      setBounds(const Rect &rect) noexcept { area = rect; }
+            /// A short help shown while the mouse rests on the widget (see ViewHost); empty for none
+            void                             setTip(std::string text) { tip_text = std::move(text); }
+            [[nodiscard]] const std::string &tip() const noexcept { return tip_text; }
 
             virtual void pointerDown(Point position) = 0;
             virtual void pointerMove(Point position) = 0;
@@ -36,7 +42,8 @@ namespace djw::player_ui::sdl
             virtual void draw(Canvas &canvas) const = 0;
 
         private:
-            Rect area;
+            Rect        area;
+            std::string tip_text;
     };
 } // namespace djw::player_ui::sdl
 

@@ -113,6 +113,11 @@ namespace djw::player_ui::sdl
         {
             pane.view->update();
         }
+        if (const Widget *under = arrange ? nullptr : router.hovered(); under != tip_widget)
+        {
+            tip_widget = under;
+            tip_since  = clock();
+        }
         if (arrange)
         {
             if (arrange->done_label)
@@ -183,6 +188,42 @@ namespace djw::player_ui::sdl
         {
             drawArranging(canvas);
         }
+        drawTip(canvas);
+    }
+
+    std::string ViewHost::shownTip() const
+    {
+        // The router's widget, not tip_widget: the router forgets a widget whose view went
+        const Widget *under = router.hovered();
+        if (arrange || under == nullptr || under != tip_widget || clock() - tip_since < tip_delay)
+        {
+            return {};
+        }
+        return under->tip();
+    }
+
+    void ViewHost::drawTip(Canvas &canvas) const
+    {
+        const std::string tip = shownTip();
+        if (tip.empty())
+        {
+            return;
+        }
+        constexpr float padding = 6.0F;
+        constexpr Point offset{12.0F, 20.0F}; // below the right of the pointer, clear of its arrow
+        const float     width  = canvas.textWidth(tip) + (2 * padding);
+        const float     height = canvas.textHeight() + (2 * padding);
+        const Point     at     = router.hoverPosition();
+        const float     right  = window_area.x + window_area.width;
+        const float     bottom = window_area.y + window_area.height;
+        // Left of or above the pointer where it would leave the window
+        const float x = at.x + offset.x + width <= right ? at.x + offset.x : std::max(window_area.x, right - width);
+        const float y =
+            at.y + offset.y + height <= bottom ? at.y + offset.y : std::max(window_area.y, at.y - height - 4);
+        const Rect bubble{x, y, width, height};
+        canvas.fillRect(bubble, look::text_dim);
+        canvas.fillRect(bubble.inset(1.0F), Color{36, 37, 41});
+        canvas.text({x + padding, y + padding}, tip, look::text);
     }
 
     void ViewHost::startArranging(Arranging arranging)

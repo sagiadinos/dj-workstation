@@ -268,6 +268,74 @@ TEST_CASE("ViewHost: the wheel and the right button go to the view under the poi
     CHECK(first.secondary == 0);
 }
 
+TEST_CASE("ViewHost: the help of a widget shows after the mouse rested on it a while, and goes on a press or leave")
+{
+    ViewHost                              host;
+    FakeView                              view{"view"};
+    std::chrono::steady_clock::time_point now{};
+    host.setClock([&now] { return now; });
+    host.add(view);
+    host.layout(window);
+    view.widget.setTip("Help text");
+    constexpr PointerId mouse{0, 0};
+
+    host.pointer({mouse, PointerPhase::Move, {100, 100}});
+    host.update();
+    CHECK(host.shownTip().empty()); // not yet
+    now += ViewHost::tip_delay;
+    CHECK(host.shownTip() == "Help text");
+    RecordingCanvas canvas;
+    host.draw(canvas);
+    CHECK(canvas.drew("Help text"));
+
+    // Moving on the same widget keeps it
+    host.pointer({mouse, PointerPhase::Move, {120, 100}});
+    host.update();
+    CHECK(host.shownTip() == "Help text");
+
+    // A press hides it, a new rest starts the wait again
+    host.pointer({mouse, PointerPhase::Down, {120, 100}});
+    host.update();
+    CHECK(host.shownTip().empty());
+    host.pointer({mouse, PointerPhase::Up, {120, 100}});
+    host.pointer({mouse, PointerPhase::Move, {130, 100}});
+    host.update();
+    CHECK(host.shownTip().empty());
+    now += ViewHost::tip_delay;
+    CHECK(host.shownTip() == "Help text");
+
+    // Leaving the window hides it; a widget without help shows none
+    host.pointerLeft();
+    host.update();
+    CHECK(host.shownTip().empty());
+    view.widget.setTip({});
+    host.pointer({mouse, PointerPhase::Move, {100, 100}});
+    host.update();
+    now += ViewHost::tip_delay;
+    CHECK(host.shownTip().empty());
+}
+
+TEST_CASE("ViewHost: the help stays inside the window near its right and bottom edges")
+{
+    ViewHost                              host;
+    FakeView                              view{"view"};
+    std::chrono::steady_clock::time_point now{};
+    host.setClock([&now] { return now; });
+    host.add(view);
+    host.layout(window);
+    view.widget.setTip("A help text long enough to need room");
+    host.pointer({PointerId{0, 0}, PointerPhase::Move, {window.width - 5, window.height - 5}});
+    host.update();
+    now += ViewHost::tip_delay;
+    RecordingCanvas canvas;
+    host.draw(canvas);
+    REQUIRE(canvas.rects.size() >= 2);
+    const Rect bubble = canvas.rects.at(canvas.rects.size() - 2);
+    CHECK(bubble.x >= window.x);
+    CHECK(bubble.x + bubble.width <= window.x + window.width);
+    CHECK(bubble.y + bubble.height <= window.y + window.height);
+}
+
 TEST_CASE("ViewHost: without views nothing happens")
 {
     ViewHost host;

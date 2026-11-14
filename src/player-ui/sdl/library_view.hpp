@@ -122,8 +122,10 @@ namespace djw::player_ui::sdl
             [[nodiscard]] bool                           editing() const noexcept { return edit.has_value(); }
             [[nodiscard]] const TextField               &cellEditor() const noexcept { return cell_editor; }
             [[nodiscard]] const TextButton              &missingButton() const noexcept { return missing_button; }
-            [[nodiscard]] const TextButton              &removeButton() const noexcept { return remove_button; }
-            [[nodiscard]] const TextButton              &addButton() const noexcept { return add_button; }
+            /// Clears the search and the filters; shown right of the year filter while any of them is set
+            [[nodiscard]] const TextButton &clearButton() const noexcept { return clear_button; }
+            [[nodiscard]] const TextButton &removeButton() const noexcept { return remove_button; }
+            [[nodiscard]] const TextButton &addButton() const noexcept { return add_button; }
             /// What View > Save layout does; without it the entry is off
             void                             setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
             [[nodiscard]] const MenuBar     &menuBar() const noexcept { return menu; }
@@ -197,6 +199,8 @@ namespace djw::player_ui::sdl
             void applyTranslations();
             /// Builds the menus for the current state and carries out the entry chosen
             void updateMenu();
+            /// The clear button: shown while a search or filter is set, clears them when pressed
+            void updateClearButton();
             void chooseMenuEntry(int id);
             /// Tab: the focus to the next search field (the search, then the filters), round; Shift+Tab backwards
             void focusNextField(bool forward);
@@ -238,6 +242,7 @@ namespace djw::player_ui::sdl
             TrackList                list;
             TextField                cell_editor;
             TextButton               missing_button;
+            TextButton               clear_button;
             TextButton               remove_button;
             TextButton               add_button;
             Add                      add_to_playlist;
@@ -257,6 +262,7 @@ namespace djw::player_ui::sdl
             core::api::LibraryColumn              sort_by    = core::api::LibraryColumn::Artist;
             bool                                  descending = false;
             Rect                                  status_area;
+            Rect                                  clear_area; ///< where the clear button goes
             std::string                           status_text;
             std::string                           search_error;
             core::api::LibraryQuery               searched;

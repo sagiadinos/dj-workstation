@@ -30,7 +30,6 @@ namespace djw::player_ui::sdl
             constexpr int playlist_import        = 7;
             constexpr int playlist_export        = 8;
             constexpr int playlist_add_track     = 9;
-            constexpr int clear_filters          = 10;
             constexpr int toggle_playlist_window = 12;
             constexpr int new_deck_entry         = 13;
             constexpr int toggle_mixer_window    = 14;
@@ -116,6 +115,10 @@ namespace djw::player_ui::sdl
             const Rect column = columnArea(filter_row, filter_columns.at(index));
             filters.at(index).setBounds({column.x, column.y, std::max(0.0F, column.width - 4.0F), column.height});
         }
+        // The clear button right of the last filter (the year), within the row
+        const Rect &last = filters.back().bounds();
+        clear_area       = {std::min(last.x + last.width + 4.0F, filter_row.x + filter_row.width - filter_height),
+                            filter_row.y, filter_height, filter_height};
 
         const float header_top = filter_row.y + filter_height + 4.0F;
         header.setBounds({inner.x, header_top, inner.width, header_height});
@@ -138,6 +141,7 @@ namespace djw::player_ui::sdl
         router.add(header);
         router.add(list);
         router.add(missing_button);
+        router.add(clear_button);
         router.add(remove_button);
         router.add(add_button);
         router.add(cell_editor);  // on top of the list; without an edit it has no area and catches nothing
@@ -403,6 +407,7 @@ namespace djw::player_ui::sdl
         applySortTap();
         const core::api::LibraryStatus status = library->status();
         updateMissingButtons(status);
+        updateClearButton();
         updateMenu();
         updateContextMenu();
 
@@ -422,6 +427,25 @@ namespace djw::player_ui::sdl
         {
             load(list.tracks()[*row]);
         }
+    }
+
+    void LibraryView::updateClearButton()
+    {
+        if (clear_button.takePress())
+        {
+            search_field.setText({});
+            for (TextField &filter : filters)
+            {
+                filter.setText({});
+            }
+            only_missing = false;
+            confirm_remove.cancel();
+        }
+        const bool set = !search_field.text().empty() || only_missing ||
+                         std::ranges::any_of(filters, [](const TextField &filter) { return !filter.text().empty(); });
+        clear_button.setIcon(TextButton::Icon::ClearFilter);
+        clear_button.setTip(translator->tr("library.clear_filters"));
+        clear_button.setBounds(set ? clear_area : Rect{});
     }
 
     void LibraryView::updateMissingButtons(const core::api::LibraryStatus &status)
@@ -578,7 +602,6 @@ namespace djw::player_ui::sdl
                            .label   = tr("menu.view.playlist_window"),
                            .enabled = has_playlists,
                            .checked = playlist_shown && playlist_shown()},
-                          {.id = menu_id::clear_filters, .label = tr("menu.view.clear_filters")},
                           {.id      = menu_id::save_layout_entry,
                            .label   = tr("menu.view.save_layout"),
                            .enabled = static_cast<bool>(save_layout)},
@@ -698,14 +721,6 @@ namespace djw::player_ui::sdl
                 {
                     add_to_playlist(list.tracks()[*selected]);
                 }
-                break;
-            case menu_id::clear_filters:
-                search_field.setText({});
-                for (TextField &filter : filters)
-                {
-                    filter.setText({});
-                }
-                only_missing = false;
                 break;
             default:
                 break;

@@ -47,7 +47,8 @@ namespace djw::player_ui::sdl
             enum class Icon : unsigned char
             {
                 None,
-                Folder
+                Folder,
+                ClearFilter
             };
             void setIcon(Icon new_icon) noexcept { icon = new_icon; }
 

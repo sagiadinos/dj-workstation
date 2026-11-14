@@ -61,14 +61,19 @@ namespace djw::player_ui::sdl
 
         // Icon and label as one group, in the middle
         const float icon_size = icon == Icon::None ? 0.0F : std::min(area.height - 16.0F, 26.0F);
-        const float icon_gap  = icon == Icon::None ? 0.0F : 10.0F;
+        const float icon_gap  = icon == Icon::None || text.empty() ? 0.0F : 10.0F;
         const float room      = area.width - (2 * padding) - icon_size - icon_gap;
         const float width     = std::min(canvas.textWidth(text), std::max(0.0F, room));
         const float group     = icon_size + icon_gap + width;
         const float left      = area.x + ((area.width - group) / 2);
+        const Rect  icon_area{left, area.y + ((area.height - icon_size) / 2), icon_size, icon_size};
         if (icon == Icon::Folder && icon_size > 0.0F)
         {
-            look::folderIcon(canvas, {left, area.y + ((area.height - icon_size) / 2), icon_size, icon_size}, ink);
+            look::folderIcon(canvas, icon_area, ink);
+        }
+        if (icon == Icon::ClearFilter && icon_size > 0.0F)
+        {
+            look::clearFilterIcon(canvas, icon_area, ink);
         }
         canvas.textElided({left + icon_size + icon_gap, area.y + ((area.height - canvas.textHeight()) / 2)}, text, ink,
                           std::max(0.0F, room));

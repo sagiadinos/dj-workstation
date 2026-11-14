@@ -144,7 +144,11 @@ namespace djw::player_ui::sdl
     void SdlWindow::handle(const SDL_Event &event)
     {
         const Rect size = area();
-        if (const auto pointer = toPointerEvent(event, size.width, size.height))
+        if (event.type == SDL_EVENT_WINDOW_MOUSE_LEAVE)
+        {
+            host.pointerLeft();
+        }
+        else if (const auto pointer = toPointerEvent(event, size.width, size.height))
         {
             host.pointer(*pointer);
         }

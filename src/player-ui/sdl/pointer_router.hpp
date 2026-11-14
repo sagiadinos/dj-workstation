@@ -30,11 +30,21 @@ namespace djw::player_ui::sdl
 
             [[nodiscard]] bool isCaptured(const Widget &widget) const noexcept;
 
+            /// The widget under a pointer that moves without being down (the mouse resting somewhere); nullptr if
+            /// there is none, after a press, and after leave()
+            [[nodiscard]] const Widget *hovered() const noexcept { return hover; }
+            /// Where that pointer was last
+            [[nodiscard]] Point hoverPosition() const noexcept { return hover_at; }
+            /// The mouse left the window
+            void leave() noexcept { hover = nullptr; }
+
         private:
             [[nodiscard]] Widget *widgetAt(Point position) const noexcept;
 
             std::vector<Widget *>         widgets;
             std::map<PointerId, Widget *> captures;
+            const Widget                 *hover = nullptr;
+            Point                         hover_at;
     };
 } // namespace djw::player_ui::sdl
 

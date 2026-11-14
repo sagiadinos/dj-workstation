@@ -5,6 +5,7 @@
 #define DJW_PLAYER_UI_SDL_VIEW_HOST_HPP
 
 #include "canvas.hpp"
+#include "clock.hpp"
 #include "geometry.hpp"
 #include "keyboard_input.hpp"
 #include "pointer_event.hpp"
@@ -12,6 +13,7 @@
 #include "text_button.hpp"
 #include "view.hpp"
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -78,6 +80,8 @@ namespace djw::player_ui::sdl
             void draw(Canvas &canvas) const;
 
             void pointer(const PointerEvent &event);
+            /// The mouse left the window: a help shown goes away
+            void pointerLeft() noexcept { router.leave(); }
             void keyboard(const KeyboardInput &input);
             void wheel(Point position, float dy);
             void secondaryClick(Point position);
@@ -118,6 +122,13 @@ namespace djw::player_ui::sdl
             [[nodiscard]] bool              dragFits() const noexcept { return drag && drag->fits; }
             [[nodiscard]] const TextButton &doneButton() const noexcept { return done_button; }
 
+            /// How long the mouse rests on a widget before its help (Widget::tip) shows
+            static constexpr std::chrono::milliseconds tip_delay{500};
+            /// The time source for the help; tests pass their own
+            void setClock(Clock time) { clock = std::move(time); }
+            /// The help shown now, empty if none; for tests
+            [[nodiscard]] std::string shownTip() const;
+
         private:
             struct Pane
             {
@@ -154,6 +165,8 @@ namespace djw::player_ui::sdl
             /// A line around the view the keys go to
             void drawFocus(Canvas &canvas) const;
             void drawArranging(Canvas &canvas) const;
+            /// The help of the widget the mouse rests on, near the pointer and inside the window
+            void drawTip(Canvas &canvas) const;
 
             std::vector<Pane> panes;
             PointerRouter     router;
@@ -166,6 +179,10 @@ namespace djw::player_ui::sdl
             std::optional<Drag>      drag;
             TextButton               done_button;
             std::optional<PointerId> done_pointer;
+            Clock                    clock = steadyClock();
+            /// The widget the mouse rests on and since when (only compared, never used: it may be gone)
+            const Widget                         *tip_widget = nullptr;
+            std::chrono::steady_clock::time_point tip_since;
     };
 } // namespace djw::player_ui::sdl
 
