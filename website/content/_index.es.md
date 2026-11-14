@@ -3,7 +3,7 @@ title: DJ-Workstation
 description: "Software DJ ligero y de código abierto, pensado para pantallas táctiles, con soporte para controladores MIDI. Linux, Raspberry Pi, Windows y macOS. Sin nube, sin cuentas, sin telemetría."
 
 hero:
-  headline: "Solo mezclar. Nada más."
+  headline: "Solo DJing. Nada más."
   subline: "Justo lo que necesitas para tus sesiones."
   tagline: "Software DJ ligero y de código abierto, pensado para pantallas táctiles y controladores MIDI."
   platforms: "Linux · Raspberry Pi · Windows · macOS"
