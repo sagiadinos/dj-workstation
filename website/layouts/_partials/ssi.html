@@ -1,5 +1,5 @@
 {{- /*
   Apache server side include. Go templates drop HTML comments, so the directive goes out through safeHTML.
-  Context: the directive text, e.g. `fsize virtual="/downloads/ci-builds/file"`.
+  Context: the directive text, e.g. `fsize virtual="/downloads/artifacts/file"`.
 */ -}}
 {{- printf "<!--#%s -->" . | safeHTML -}}

@@ -8,7 +8,7 @@ intro: Entwicklungsversionen, automatisch aus dem aktuellen Quellcode gebaut. DJ
 builds:
   - system: Linux
     arch: x86 64 Bit
-    file: latest_linux_x64.AppImage
+    file: latest_linux_x86_64.AppImage
     hint: Datei ausführbar machen und starten.
   - system: Linux ARM
     arch: ARM 64 Bit, Raspberry Pi 4 und 5
@@ -16,11 +16,11 @@ builds:
     hint: Datei ausführbar machen und starten.
   - system: Windows
     arch: x86 64 Bit, Windows 10 und 11
-    file: latest_windows_x64.zip
+    file: latest_windows.zip
     hint: Archiv entpacken und djw.exe starten. Keine Installation nötig. Falls Windows SmartScreen warnt, „Weitere Informationen“ und „Trotzdem ausführen“ wählen.
   - system: macOS
     arch: Apple Silicon
-    file: latest_macos_arm64.dmg
+    file: latest_macos.dmg
     hint: Disk-Image öffnen und die App in den Programme-Ordner ziehen. Falls macOS die App blockiert, unter Systemeinstellungen → Datenschutz & Sicherheit erlauben.
 
 source:

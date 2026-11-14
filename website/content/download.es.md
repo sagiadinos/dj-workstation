@@ -8,7 +8,7 @@ intro: "Versiones de desarrollo, compiladas automáticamente a partir del códig
 builds:
   - system: "Linux"
     arch: "x86 64 bits"
-    file: latest_linux_x64.AppImage
+    file: latest_linux_x86_64.AppImage
     hint: "Haz el archivo ejecutable e inícialo."
   - system: "Linux ARM"
     arch: "ARM 64 bits, Raspberry Pi 4 y 5"
@@ -16,11 +16,11 @@ builds:
     hint: "Haz el archivo ejecutable e inícialo."
   - system: "Windows"
     arch: "x86 64 bits, Windows 10 y 11"
-    file: latest_windows_x64.zip
+    file: latest_windows.zip
     hint: "Descomprime el archivo y ejecuta djw.exe. No requiere instalación. Si Windows SmartScreen muestra una advertencia, elige «Más información» y «Ejecutar de todas formas»."
   - system: "macOS"
     arch: "Apple Silicon"
-    file: latest_macos_arm64.dmg
+    file: latest_macos.dmg
     hint: "Abre la imagen de disco y arrastra la app a Aplicaciones. Si macOS bloquea la app, permítela en Ajustes del Sistema → Privacidad y seguridad."
 
 source:
