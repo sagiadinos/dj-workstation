@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Niko Sagiadinos
+#
+# The release builds on the four self-hosted runners. Each runner's own script builds, packages and uploads.
+# Called by ci.yml after all CI jobs passed on main (a push that only changes website/ starts no CI, so no build
+# either); can also be started by hand.
+name: Build
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false # one broken platform does not stop the others
+      matrix:
+        include:
+          - name: Linux x86_64
+            runner: [self-hosted, Linux, X64]
+            script: /home/niko/scripts/build-djw/build.sh
+          - name: Linux ARM64
+            runner: [self-hosted, Linux, ARM64]
+            script: /home/niko/scripts/build-djw/build.sh
+          - name: macOS
+            runner: [self-hosted, macOS, ARM64]
+            script: /Users/niko/Deployment/scripts/build-djw/build.sh
+          - name: Windows
+            runner: [self-hosted, Windows, X64]
+            script: C:\BuildEssentials\buildDJW.bat
+    steps:
+      # The commit CI tested; the scripts find it in GITHUB_WORKSPACE (and its hash in GITHUB_SHA)
+      - uses: actions/checkout@v4
+
+      - name: Build, package and upload
+        if: runner.os != 'Windows'
+        shell: bash
+        run: '"${{ matrix.script }}"'
+
+      - name: Build, package and upload
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call "${{ matrix.script }}"

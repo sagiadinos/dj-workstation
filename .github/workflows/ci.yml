@@ -166,3 +166,11 @@ jobs:
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -q -m "coverage badge for ${GITHUB_SHA::7}"
           git push -q origin badges
+
+  # The release builds on the self-hosted runners (build.yml), only for a push to main and only when everything above
+  # passed
+  build:
+    name: Build
+    needs: [sanitizers, lint, coverage]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/build.yml
