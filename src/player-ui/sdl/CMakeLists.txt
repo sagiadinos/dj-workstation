@@ -139,6 +139,11 @@ if(UNIX AND NOT APPLE)
             RENAME ${DJW_APP_ID}.svg)
 endif()
 
+if(WIN32)
+    # The icon of djw.exe, compiled by rc (MSVC) or windres (MinGW).
+    target_sources(djw_player_sdl PRIVATE ${PROJECT_SOURCE_DIR}/misc/icons/windows/djw.rc)
+endif()
+
 if(APPLE)
     # The icon goes to Contents/Resources of the bundle; Info.plist names it as CFBundleIconFile.
     set(djw_icns ${PROJECT_SOURCE_DIR}/misc/icons/macos/djw.icns)

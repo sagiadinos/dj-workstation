@@ -1,7 +1,7 @@
 # Program icons
 
 Made from `misc/logo/djw-icon.svg` by `tools/make_icons.py` (needs `rsvg-convert` and ImageMagick). Do not edit
-the files here; change the SVG and run the script again.
+the files here; change the SVG and run the script again. Only `windows/djw.rc` is written by hand.
 
 | Platform | File | Use |
 |---|---|---|

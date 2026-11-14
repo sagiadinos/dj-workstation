@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Niko Sagiadinos
+
+// The icon of djw.exe. Written by hand, not by tools/make_icons.py; the path is relative to this file.
+IDI_ICON1 ICON "djw.ico"
