@@ -571,7 +571,7 @@ TEST_CASE("LibraryView: Settings > Language is off without an owner, with one it
     CHECK(opened == 1);
 }
 
-TEST_CASE("LibraryView: View clears the search and the filters, and shows only missing tracks")
+TEST_CASE("LibraryView: View clears the search and the filters")
 {
     Fixture fixture;
     fixture.tap(fixture.searchField());
@@ -581,16 +581,6 @@ TEST_CASE("LibraryView: View clears the search and the filters, and shows only m
     chooseEntry(fixture, 3, 3);
     fixture.view.update();
     CHECK(fixture.view.query().text.empty());
-
-    // Missing tracks only: disabled without missing tracks
-    chooseEntry(fixture, 3, 4);
-    CHECK_FALSE(fixture.view.query().only_missing);
-    fixture.view.keyboard(EditKey::Escape); // closes the menu
-    fixture.library.library_status.missing_total = 2;
-    fixture.view.update();
-    chooseEntry(fixture, 3, 4);
-    fixture.view.update();
-    CHECK(fixture.view.query().only_missing);
 }
 
 TEST_CASE("LibraryView: all texts follow the language at once")
@@ -851,31 +841,30 @@ TEST_CASE("LibraryView: Analyze all tracks in the Database menu queues the analy
 TEST_CASE("LibraryView: View > Save layout is off without a handler, with one it saves and says so")
 {
     Fixture fixture;
-    chooseEntry(fixture, 3, 5);
+    chooseEntry(fixture, 3, 4);
     CHECK(fixture.view.menuBar().isOpen()); // disabled: stays open
     fixture.view.keyboard(EditKey::Escape);
 
     int saves = 0;
     fixture.view.setSaveLayout([&saves] { return ++saves == 1; });
     fixture.view.update();
-    chooseEntry(fixture, 3, 5);
+    chooseEntry(fixture, 3, 4);
     CHECK(saves == 1);
     CHECK(fixture.view.statusText().find("layout saved") != std::string::npos);
 
-    chooseEntry(fixture, 3, 5);
+    chooseEntry(fixture, 3, 4);
     CHECK(saves == 2);
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
 
-TEST_CASE("LibraryView: View offers separate windows or one window for the next start and says so")
+TEST_CASE("LibraryView: Settings > One-window mode switches the mode of the next start and says so")
 {
     Fixture               fixture;
-    constexpr std::size_t view_menu  = 3;
-    constexpr std::size_t separate   = 6;
-    constexpr std::size_t one_window = 7;
+    constexpr std::size_t settings_menu = 2;
+    constexpr std::size_t one_window    = 2;
 
     // Off without a place to keep the choice: the menu stays open
-    chooseEntry(fixture, view_menu, one_window);
+    chooseEntry(fixture, settings_menu, one_window);
     CHECK(fixture.view.menuBar().isOpen());
     fixture.view.keyboard(EditKey::Escape);
 
@@ -892,20 +881,20 @@ TEST_CASE("LibraryView: View offers separate windows or one window for the next 
         [&next] { return next; });
     fixture.view.update();
     RecordingCanvas canvas;
-    const Rect      title = fixture.view.menuBar().titleArea(view_menu);
+    const Rect      title = fixture.view.menuBar().titleArea(settings_menu);
     fixture.tap({title.x + 10, title.y + 10});
     fixture.view.draw(canvas);
-    CHECK(canvas.drew("Separate windows"));
-    CHECK(canvas.drew("One window"));
+    CHECK(canvas.drew("One-window mode"));
     fixture.view.keyboard(EditKey::Escape);
 
-    chooseEntry(fixture, view_menu, one_window);
-    chooseEntry(fixture, view_menu, separate);
+    // Each choice switches between the two modes
+    chooseEntry(fixture, settings_menu, one_window);
+    chooseEntry(fixture, settings_menu, one_window);
     CHECK(chosen == std::vector{WindowMode::Mdi, WindowMode::Separate});
     CHECK(fixture.view.statusText().find("applies at the next start") != std::string::npos);
 
     keeps = false;
-    chooseEntry(fixture, view_menu, one_window);
+    chooseEntry(fixture, settings_menu, one_window);
     fixture.view.update();
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
@@ -914,8 +903,8 @@ TEST_CASE("LibraryView: View offers editing the layout and the automatic arrange
 {
     Fixture               fixture;
     constexpr std::size_t view_menu   = 3;
-    constexpr std::size_t edit_layout = 8;
-    constexpr std::size_t automatic   = 9;
+    constexpr std::size_t edit_layout = 5;
+    constexpr std::size_t automatic   = 6;
     fixture.view.layout({0, 0, 600, 700}); // room for the whole View menu
 
     // Off without an owner (separate windows): the menu stays open
@@ -948,7 +937,7 @@ TEST_CASE("LibraryView: View offers editing the layout and the automatic arrange
     CHECK(automatic_runs == 1);
 
     // Fullscreen, with its key, checked while on
-    constexpr std::size_t fullscreen_entry = 10;
+    constexpr std::size_t fullscreen_entry = 7;
     chooseEntry(fixture, view_menu, fullscreen_entry);
     CHECK(fixture.view.menuBar().isOpen()); // off without an owner
     fixture.view.keyboard(EditKey::Escape);

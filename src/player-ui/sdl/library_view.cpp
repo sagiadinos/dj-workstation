@@ -31,13 +31,11 @@ namespace djw::player_ui::sdl
             constexpr int playlist_export        = 8;
             constexpr int playlist_add_track     = 9;
             constexpr int clear_filters          = 10;
-            constexpr int missing_only           = 11;
             constexpr int toggle_playlist_window = 12;
             constexpr int new_deck_entry         = 13;
             constexpr int toggle_mixer_window    = 14;
             constexpr int save_layout_entry      = 15;
-            constexpr int separate_windows       = 16;
-            constexpr int one_window             = 17;
+            constexpr int one_window_mode        = 16;
             constexpr int edit_layout            = 18;
             constexpr int arrange_automatically  = 19;
             constexpr int fullscreen             = 20;
@@ -405,7 +403,7 @@ namespace djw::player_ui::sdl
         applySortTap();
         const core::api::LibraryStatus status = library->status();
         updateMissingButtons(status);
-        updateMenu(status);
+        updateMenu();
         updateContextMenu();
 
         const core::api::LibraryQuery query            = currentQuery();
@@ -538,7 +536,7 @@ namespace djw::player_ui::sdl
         add_button.setLabel(translator->tr("library.add_to_playlist"));
     }
 
-    void LibraryView::updateMenu(const core::api::LibraryStatus &status)
+    void LibraryView::updateMenu()
     {
         const auto tr            = [this](std::string_view key) { return translator->tr(key); };
         const bool has_playlists = static_cast<bool>(playlist_action);
@@ -562,7 +560,11 @@ namespace djw::player_ui::sdl
                            .enabled = static_cast<bool>(devices_dialog)},
                           {.id      = menu_id::language,
                            .label   = tr("menu.settings.language"),
-                           .enabled = static_cast<bool>(language_dialog)}}});
+                           .enabled = static_cast<bool>(language_dialog)},
+                          {.id      = menu_id::one_window_mode,
+                           .label   = tr("menu.settings.one_window"),
+                           .enabled = has_mode,
+                           .checked = has_mode && mode_shown() == WindowMode::Mdi}}});
         menus.push_back({tr("menu.view"),
                          {{.id       = menu_id::new_deck_entry,
                            .label    = tr("menu.view.new_deck"),
@@ -577,21 +579,9 @@ namespace djw::player_ui::sdl
                            .enabled = has_playlists,
                            .checked = playlist_shown && playlist_shown()},
                           {.id = menu_id::clear_filters, .label = tr("menu.view.clear_filters")},
-                          {.id      = menu_id::missing_only,
-                           .label   = tr("menu.view.missing_only"),
-                           .enabled = status.missing_total > 0 || only_missing,
-                           .checked = only_missing},
                           {.id      = menu_id::save_layout_entry,
                            .label   = tr("menu.view.save_layout"),
                            .enabled = static_cast<bool>(save_layout)},
-                          {.id      = menu_id::separate_windows,
-                           .label   = tr("menu.view.separate_windows"),
-                           .enabled = has_mode,
-                           .checked = has_mode && mode_shown() == WindowMode::Separate},
-                          {.id      = menu_id::one_window,
-                           .label   = tr("menu.view.one_window"),
-                           .enabled = has_mode,
-                           .checked = has_mode && mode_shown() == WindowMode::Mdi},
                           {.id      = menu_id::edit_layout,
                            .label   = tr("menu.view.edit_layout"),
                            .enabled = static_cast<bool>(edit_layout),
@@ -637,11 +627,11 @@ namespace djw::player_ui::sdl
                     setNotice(save_layout() ? "library.notice.layout_saved" : "library.notice.layout_failed");
                 }
                 break;
-            case menu_id::separate_windows:
-            case menu_id::one_window:
-                if (mode_chosen)
+            case menu_id::one_window_mode:
+                if (mode_chosen && mode_shown)
                 {
-                    const WindowMode mode = id == menu_id::one_window ? WindowMode::Mdi : WindowMode::Separate;
+                    // Switches the mode of the next start
+                    const WindowMode mode = mode_shown() == WindowMode::Mdi ? WindowMode::Separate : WindowMode::Mdi;
                     setNotice(mode_chosen(mode) ? "library.notice.next_start" : "library.notice.layout_failed");
                 }
                 break;
@@ -716,10 +706,6 @@ namespace djw::player_ui::sdl
                     filter.setText({});
                 }
                 only_missing = false;
-                break;
-            case menu_id::missing_only:
-                only_missing = !only_missing;
-                confirm_remove.cancel();
                 break;
             default:
                 break;

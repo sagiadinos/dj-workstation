@@ -196,7 +196,7 @@ namespace djw::player_ui::sdl
             /// Sets the texts of fields, header and buttons in the current language
             void applyTranslations();
             /// Builds the menus for the current state and carries out the entry chosen
-            void updateMenu(const core::api::LibraryStatus &status);
+            void updateMenu();
             void chooseMenuEntry(int id);
             /// Tab: the focus to the next search field (the search, then the filters), round; Shift+Tab backwards
             void focusNextField(bool forward);
