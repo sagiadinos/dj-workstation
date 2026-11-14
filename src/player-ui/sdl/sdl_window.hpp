@@ -69,9 +69,12 @@ namespace djw::player_ui::sdl
             [[nodiscard]] Placement placement() const;
             /// Makes this window the one that waits for the display (vsync) or not
             void setPaced(bool paced);
-            /// Covers the whole display, or back to a normal window with a title bar, maximized
+            /// Covers the whole display, or back to the window it was before
             void               setFullscreen(bool on);
             [[nodiscard]] bool fullscreen() const noexcept;
+            /// As big as the display allows next to panels, with a title bar
+            void               maximize();
+            [[nodiscard]] bool maximized() const noexcept;
 
             /// The views the window shows
             [[nodiscard]] ViewHost       &views() noexcept { return host; }

@@ -1281,6 +1281,27 @@ TEST_CASE("SdlApp: Settings > Language opens a dialog; OK switches the language 
     CHECK(changed == std::vector{Language::German});
 }
 
+TEST_CASE("SdlApp: without a saved layout the one window is a normal window; saved, its size comes back")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout"; // not written yet
+    {
+        Fixture                 fixture;
+        djw::tests::FakeLibrary library;
+        auto                    app = fixture.openApp(&library, file);
+        REQUIRE(app->runFrame());
+        CHECK_FALSE(app->fullscreen());
+        REQUIRE(app->saveLayout());
+    }
+    const auto saved = parseLayout(readFile(file));
+    REQUIRE(saved.has_value());
+    REQUIRE(saved->mdi.has_value());
+    CHECK_FALSE(saved->mdi->fullscreen);
+    CHECK_FALSE(saved->mdi->maximized);
+    CHECK(saved->mdi->window_width > 0);
+    CHECK(saved->mdi->window_height > 0);
+}
+
 TEST_CASE("SdlApp: without a saved layout the program starts in the one window with two players and the crossfader")
 {
     const djw::tests::TempDir folder;

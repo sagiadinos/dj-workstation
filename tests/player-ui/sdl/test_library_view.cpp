@@ -476,7 +476,7 @@ namespace
     }
 } // namespace
 
-TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings and View")
+TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings, View and Layout")
 {
     Fixture fixture;
     CHECK(fixture.view.menuBar().bounds().y == 0.0F);
@@ -488,6 +488,7 @@ TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settin
     CHECK(canvas.drew("Settings"));
     CHECK_FALSE(canvas.drew("Language")); // under Settings
     CHECK(canvas.drew("View"));
+    CHECK(canvas.drew("Layout"));
 }
 
 TEST_CASE("LibraryView: Add music folder asks for a folder and adds it to the library")
@@ -587,6 +588,10 @@ TEST_CASE("LibraryView: the clear button right of the year filter shows while so
     CHECK(button.width > 0.0F);
     CHECK(button.x >= year.x + year.width);
     CHECK(button.y == doctest::Approx(year.y));
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(std::ranges::any_of(canvas.rounded, [&button](const auto &drawn)
+                              { return drawn.rect.x == button.x && drawn.rect.y == button.y; }));
 
     tapButton(fixture, fixture.view.clearButton());
     fixture.view.update();
@@ -849,33 +854,33 @@ TEST_CASE("LibraryView: Analyze all tracks in the Database menu queues the analy
     CHECK(fixture.view.statusText().find("analyzing") == std::string::npos);
 }
 
-TEST_CASE("LibraryView: View > Save layout is off without a handler, with one it saves and says so")
+TEST_CASE("LibraryView: Layout > Save layout is off without a handler, with one it saves and says so")
 {
     Fixture fixture;
-    chooseEntry(fixture, 3, 3);
+    chooseEntry(fixture, 4, 2);
     CHECK(fixture.view.menuBar().isOpen()); // disabled: stays open
     fixture.view.keyboard(EditKey::Escape);
 
     int saves = 0;
     fixture.view.setSaveLayout([&saves] { return ++saves == 1; });
     fixture.view.update();
-    chooseEntry(fixture, 3, 3);
+    chooseEntry(fixture, 4, 2);
     CHECK(saves == 1);
     CHECK(fixture.view.statusText().find("layout saved") != std::string::npos);
 
-    chooseEntry(fixture, 3, 3);
+    chooseEntry(fixture, 4, 2);
     CHECK(saves == 2);
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
 
-TEST_CASE("LibraryView: Settings > One-window mode switches the mode of the next start and says so")
+TEST_CASE("LibraryView: View > One-window mode switches the mode of the next start and says so")
 {
     Fixture               fixture;
-    constexpr std::size_t settings_menu = 2;
-    constexpr std::size_t one_window    = 2;
+    constexpr std::size_t view_menu  = 3;
+    constexpr std::size_t one_window = 3;
 
     // Off without a place to keep the choice: the menu stays open
-    chooseEntry(fixture, settings_menu, one_window);
+    chooseEntry(fixture, view_menu, one_window);
     CHECK(fixture.view.menuBar().isOpen());
     fixture.view.keyboard(EditKey::Escape);
 
@@ -892,34 +897,36 @@ TEST_CASE("LibraryView: Settings > One-window mode switches the mode of the next
         [&next] { return next; });
     fixture.view.update();
     RecordingCanvas canvas;
-    const Rect      title = fixture.view.menuBar().titleArea(settings_menu);
+    const Rect      title = fixture.view.menuBar().titleArea(view_menu);
     fixture.tap({title.x + 10, title.y + 10});
     fixture.view.draw(canvas);
     CHECK(canvas.drew("One-window mode"));
     fixture.view.keyboard(EditKey::Escape);
 
     // Each choice switches between the two modes
-    chooseEntry(fixture, settings_menu, one_window);
-    chooseEntry(fixture, settings_menu, one_window);
+    chooseEntry(fixture, view_menu, one_window);
+    chooseEntry(fixture, view_menu, one_window);
     CHECK(chosen == std::vector{WindowMode::Mdi, WindowMode::Separate});
     CHECK(fixture.view.statusText().find("applies at the next start") != std::string::npos);
 
     keeps = false;
-    chooseEntry(fixture, settings_menu, one_window);
+    chooseEntry(fixture, view_menu, one_window);
     fixture.view.update();
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
 
-TEST_CASE("LibraryView: View offers editing the layout and the automatic arrangement once the owner enables them")
+TEST_CASE(
+    "LibraryView: Layout offers editing and the automatic arrangement once the owner enables them, View fullscreen")
 {
     Fixture               fixture;
+    constexpr std::size_t layout_menu = 4;
+    constexpr std::size_t automatic   = 0;
+    constexpr std::size_t edit_layout = 1;
     constexpr std::size_t view_menu   = 3;
-    constexpr std::size_t edit_layout = 4;
-    constexpr std::size_t automatic   = 5;
     fixture.view.layout({0, 0, 600, 700}); // room for the whole View menu
 
     // Off without an owner (separate windows): the menu stays open
-    chooseEntry(fixture, view_menu, edit_layout);
+    chooseEntry(fixture, layout_menu, edit_layout);
     CHECK(fixture.view.menuBar().isOpen());
     fixture.view.keyboard(EditKey::Escape);
 
@@ -935,20 +942,21 @@ TEST_CASE("LibraryView: View offers editing the layout and the automatic arrange
         [&editing] { return editing; }, [&automatic_runs] { ++automatic_runs; });
     fixture.view.update();
     RecordingCanvas canvas;
-    const Rect      title = fixture.view.menuBar().titleArea(view_menu);
-    fixture.tap({title.x + 10, title.y + 10});
+    const Rect      layout_title = fixture.view.menuBar().titleArea(layout_menu);
+    fixture.tap({layout_title.x + 10, layout_title.y + 10});
     fixture.view.draw(canvas);
     CHECK(canvas.drew("Edit layout"));
     CHECK(canvas.drew("Arrange automatically"));
     fixture.view.keyboard(EditKey::Escape);
 
-    chooseEntry(fixture, view_menu, edit_layout);
+    chooseEntry(fixture, layout_menu, edit_layout);
     CHECK(edits == 1);
-    chooseEntry(fixture, view_menu, automatic);
+    chooseEntry(fixture, layout_menu, automatic);
     CHECK(automatic_runs == 1);
 
     // Fullscreen, with its key, checked while on
-    constexpr std::size_t fullscreen_entry = 6;
+    constexpr std::size_t fullscreen_entry = 4;
+    const Rect            title            = fixture.view.menuBar().titleArea(view_menu);
     chooseEntry(fixture, view_menu, fullscreen_entry);
     CHECK(fixture.view.menuBar().isOpen()); // off without an owner
     fixture.view.keyboard(EditKey::Escape);

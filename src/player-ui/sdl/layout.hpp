@@ -68,15 +68,21 @@ namespace djw::player_ui::sdl
             std::vector<core::api::CrossfaderSide> players;
             bool                                   mixer_open    = true;
             bool                                   playlist_open = false;
-            /// The one window covers the display; otherwise it is a normal window with a title bar
+            /// The one window covers the display; otherwise it is a window with a title bar
             bool fullscreen = true;
+            /// Not in fullscreen (and after it): maximized, else a window of window_width x window_height (0 x 0:
+            /// the default size, see SdlApp)
+            bool maximized     = true;
+            int  window_width  = 0;
+            int  window_height = 0;
             /// std::nullopt: arranged automatically
             std::optional<MdiPlaces> places;
 
             bool operator==(const MdiLayout &) const = default;
     };
 
-    /// What the MDI mode shows without a saved layout: two players on the sides A and B, the crossfader open
+    /// What the MDI mode shows without a saved layout: two players on the sides A and B, the crossfader open, in a
+    /// window of the default size
     [[nodiscard]] MdiLayout defaultMdiLayout();
 
     struct ToolPlacement

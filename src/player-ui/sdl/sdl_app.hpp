@@ -271,7 +271,16 @@ namespace djw::player_ui::sdl
             [[nodiscard]] std::optional<Layout> readSavedLayout() const;
             [[nodiscard]] bool                  writeLayout(const Layout &layout) const;
             /// MDI mode: opens the one window, on the main display: covering it, or as a maximized normal window
-            bool openHost(bool fullscreen);
+            /// The one window as start says: fullscreen, maximized or a window of its size
+            bool openHost(const MdiLayout &start);
+            /// The one window apart from fullscreen: maximized, or its size
+            struct HostWindowState
+            {
+                    bool maximized = false;
+                    int  width     = 0;
+                    int  height    = 0;
+            };
+            [[nodiscard]] HostWindowState hostWindowState() const;
             /// MDI mode: gives every part shown its area in the one window, for the window's size now
             void arrangeHost();
             /// MDI mode: where the parts go, the window without the menu bar on top
@@ -347,6 +356,10 @@ namespace djw::player_ui::sdl
             std::optional<MdiPlaces> hand_places;
             /// MDI mode: the one window covers the display
             bool host_fullscreen = true;
+            /// The one window when not in fullscreen: maximized, or its size; kept for the layout while fullscreen
+            bool host_maximized     = false;
+            int  host_window_width  = 0;
+            int  host_window_height = 0;
             /// The controllers; destroyed after the views their events go to are no longer needed
             std::unique_ptr<core::api::Controllers> controllers;
 

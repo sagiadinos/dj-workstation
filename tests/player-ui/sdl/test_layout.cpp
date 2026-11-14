@@ -193,13 +193,16 @@ TEST_CASE("Layout: a damaged mode or one-window part is no layout")
     CHECK_FALSE(parseLayout(formatLayout(crowded)).has_value());
 }
 
-TEST_CASE("Layout: without a saved one window two players on the sides A and B and the crossfader are shown, maximized")
+TEST_CASE(
+    "Layout: without a saved one window two players on the sides A and B and the crossfader are shown, in a window")
 {
     const MdiLayout mdi = defaultMdiLayout();
     CHECK(mdi.players == std::vector{api::CrossfaderSide::A, api::CrossfaderSide::B});
     CHECK(mdi.mixer_open);
     CHECK_FALSE(mdi.playlist_open);
-    CHECK_FALSE(mdi.fullscreen); // a maximized window, not fullscreen
+    CHECK_FALSE(mdi.fullscreen);
+    CHECK_FALSE(mdi.maximized);
+    CHECK(mdi.window_width == 0); // the default size
 }
 
 TEST_CASE("Layout: the places of the one window set by hand come back as saved")
@@ -225,6 +228,35 @@ TEST_CASE("Layout: the places of the one window set by hand come back as saved")
     const auto again = parseLayout(text);
     REQUIRE(again.has_value());
     CHECK(*again == layout);
+}
+
+TEST_CASE("Layout: the one window comes back maximized or as a window of its size; before that line maximized")
+{
+    Layout layout          = fiveWithMixer();
+    layout.mode            = WindowMode::Mdi;
+    layout.mdi             = defaultMdiLayout();
+    layout.mdi->fullscreen = false;
+
+    layout.mdi->maximized = true;
+    std::string text      = formatLayout(layout);
+    CHECK(text.find("mdi window maximized\n") != std::string::npos);
+    REQUIRE(parseLayout(text).has_value());
+    CHECK(parseLayout(text)->mdi == layout.mdi);
+
+    layout.mdi->maximized     = false;
+    layout.mdi->window_width  = 1224;
+    layout.mdi->window_height = 928;
+    text                      = formatLayout(layout);
+    CHECK(text.find("mdi window 1224 928\n") != std::string::npos);
+    REQUIRE(parseLayout(text).has_value());
+    CHECK(parseLayout(text)->mdi == layout.mdi);
+
+    CHECK_FALSE(parseLayout(text + "mdi window maximized\n").has_value()); // twice
+    CHECK_FALSE(parseLayout(text + "mdi window 1224\n").has_value());
+    std::string without = text;
+    without.erase(without.find("mdi window 1224 928\n"), std::string_view{"mdi window 1224 928\n"}.size());
+    REQUIRE(parseLayout(without).has_value());
+    CHECK(parseLayout(without)->mdi->maximized);
 }
 
 TEST_CASE("Layout: places of the one window without the library's, or damaged ones, are no layout")

@@ -584,11 +584,7 @@ namespace djw::player_ui::sdl
                            .enabled = static_cast<bool>(devices_dialog)},
                           {.id      = menu_id::language,
                            .label   = tr("menu.settings.language"),
-                           .enabled = static_cast<bool>(language_dialog)},
-                          {.id      = menu_id::one_window_mode,
-                           .label   = tr("menu.settings.one_window"),
-                           .enabled = has_mode,
-                           .checked = has_mode && mode_shown() == WindowMode::Mdi}}});
+                           .enabled = static_cast<bool>(language_dialog)}}});
         menus.push_back({tr("menu.view"),
                          {{.id       = menu_id::new_deck_entry,
                            .label    = tr("menu.view.new_deck"),
@@ -602,21 +598,26 @@ namespace djw::player_ui::sdl
                            .label   = tr("menu.view.playlist_window"),
                            .enabled = has_playlists,
                            .checked = playlist_shown && playlist_shown()},
-                          {.id      = menu_id::save_layout_entry,
-                           .label   = tr("menu.view.save_layout"),
-                           .enabled = static_cast<bool>(save_layout)},
-                          {.id      = menu_id::edit_layout,
-                           .label   = tr("menu.view.edit_layout"),
-                           .enabled = static_cast<bool>(edit_layout),
-                           .checked = layout_editing && layout_editing()},
-                          {.id      = menu_id::arrange_automatically,
-                           .label   = tr("menu.view.arrange_automatically"),
-                           .enabled = static_cast<bool>(arrange_automatic)},
+                          {.id      = menu_id::one_window_mode,
+                           .label   = tr("menu.view.one_window"),
+                           .enabled = has_mode,
+                           .checked = has_mode && mode_shown() == WindowMode::Mdi},
                           {.id       = menu_id::fullscreen,
                            .label    = tr("menu.view.fullscreen"),
                            .enabled  = static_cast<bool>(fullscreen_toggle),
                            .checked  = fullscreen_shown && fullscreen_shown(),
                            .shortcut = "Ctrl+F"}}});
+        menus.push_back({tr("menu.layout"),
+                         {{.id      = menu_id::arrange_automatically,
+                           .label   = tr("menu.layout.arrange_automatically"),
+                           .enabled = static_cast<bool>(arrange_automatic)},
+                          {.id      = menu_id::edit_layout,
+                           .label   = tr("menu.layout.edit"),
+                           .enabled = static_cast<bool>(edit_layout),
+                           .checked = layout_editing && layout_editing()},
+                          {.id      = menu_id::save_layout_entry,
+                           .label   = tr("menu.layout.save"),
+                           .enabled = static_cast<bool>(save_layout)}}});
         menu.setMenus(std::move(menus));
         menu.setRightToLeft(translator->rightToLeft());
 
@@ -795,6 +796,7 @@ namespace djw::player_ui::sdl
         canvas.textElided({status_area.x, status_area.y + ((status_area.height - canvas.textHeight()) / 2)},
                           status_text, status_color, std::max(0.0F, buttons_left - gap - status_area.x));
         missing_button.draw(canvas);
+        clear_button.draw(canvas);
         remove_button.draw(canvas);
         add_button.draw(canvas);
         context_menu.draw(canvas);

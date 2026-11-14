@@ -135,6 +135,7 @@ namespace djw::player_ui::sdl
                 bool      has_library = false;
                 bool      has_area    = false;
                 bool      has_screen  = false;
+                bool      has_window  = false;
         };
 
         /// The place after the first two words of an mdi line: none (two words) or x y width height (six words);
@@ -167,6 +168,22 @@ namespace djw::player_ui::sdl
                 lines.layout.fullscreen = parts[1] == "on";
                 lines.has_screen        = true;
                 return true;
+            }
+            if (parts.size() == 2 && parts[0] == "window" && parts[1] == "maximized" && !lines.has_window)
+            {
+                lines.layout.maximized = true;
+                lines.has_window       = true;
+                return true;
+            }
+            if (parts.size() == 3 && parts[0] == "window" && !lines.has_window)
+            {
+                const std::array<std::string_view, 4> four{"0", "0", parts[1], parts[2]};
+                const auto                            size = placementOf(four);
+                lines.layout.maximized                     = false;
+                lines.layout.window_width                  = size ? size->width : 0;
+                lines.layout.window_height                 = size ? size->height : 0;
+                lines.has_window                           = size.has_value();
+                return size.has_value();
             }
             if (parts.size() == 5 && parts[0] == "library" && !lines.has_library)
             {
@@ -233,7 +250,8 @@ namespace djw::player_ui::sdl
         return {.players       = {core::api::CrossfaderSide::A, core::api::CrossfaderSide::B},
                 .mixer_open    = true,
                 .playlist_open = false,
-                .fullscreen    = false, // maximized, with title bar
+                .fullscreen    = false,
+                .maximized     = false, // a window of the default size
                 .places        = std::nullopt};
     }
 
@@ -270,6 +288,14 @@ namespace djw::player_ui::sdl
                 out << '\n';
             }
             out << "mdi fullscreen " << (layout.mdi->fullscreen ? "on" : "off") << '\n';
+            if (layout.mdi->maximized)
+            {
+                out << "mdi window maximized\n";
+            }
+            else if (layout.mdi->window_width > 0 && layout.mdi->window_height > 0)
+            {
+                out << "mdi window " << layout.mdi->window_width << ' ' << layout.mdi->window_height << '\n';
+            }
             out << "mdi mixer " << openWord(layout.mdi->mixer_open);
             writeOptionalPlacement(out, places ? places->mixer : std::nullopt);
             out << '\n';

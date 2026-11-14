@@ -82,6 +82,23 @@ namespace djw::player_ui::sdl
             return Placement{usable.x, usable.y, usable.w, usable.h};
         }
 
+        /// The one window without a saved size: two players with the crossfader between them at full size in the
+        /// row, which takes mdi_row_share of the height; below them the library, high enough for the menus to open
+        /// in full. Not bigger than the display allows.
+        WindowSize defaultHostSize()
+        {
+            constexpr float row    = DeckView::design_height + PaneFrame::title_height + (2 * mdi_gap);
+            constexpr float width  = (2 * DeckView::design_width) + MixerView::design_width + (4 * mdi_gap);
+            const float     height = std::ceil(row / mdi_row_share);
+            WindowSize      size{static_cast<int>(std::ceil(width)), static_cast<int>(height)};
+            if (const auto usable = usableBounds(SDL_GetPrimaryDisplay()))
+            {
+                size.width  = std::min(size.width, usable->width);
+                size.height = std::min(size.height, usable->height);
+            }
+            return size;
+        }
+
         /// A window title as the title bar of a part of the one window: without the program name in front, which the
         /// window shows once
         std::string paneTitle(std::string title)
@@ -151,7 +168,7 @@ namespace djw::player_ui::sdl
         app->mode = app->next_mode = layout ? layout->mode : WindowMode::Separate;
         const bool      mdi        = app->mode == WindowMode::Mdi;
         const MdiLayout mdi_start  = mdi && layout ? layout->mdi.value_or(defaultMdiLayout()) : MdiLayout{};
-        if (mdi && !app->openHost(mdi_start.fullscreen))
+        if (mdi && !app->openHost(mdi_start))
         {
             return std::unexpected{std::string{"cannot open the window"}};
         }
@@ -303,14 +320,23 @@ namespace djw::player_ui::sdl
         return translator.tr("window.deck", {{"number", playerNumber(number)}});
     }
 
-    bool SdlApp::openHost(bool fullscreen)
+    bool SdlApp::openHost(const MdiLayout &start)
     {
+        WindowSize size{start.window_width, start.window_height};
+        if (size.width <= 0 || size.height <= 0)
+        {
+            size = defaultHostSize();
+        }
+        host_maximized     = start.maximized;
+        host_window_width  = size.width;
+        host_window_height = size.height;
+        // In fullscreen the window keeps its size and state underneath, for when it leaves fullscreen
         auto created = SdlWindow::create({.title      = std::string{program_name},
-                                          .width      = library_size.width,
-                                          .height     = library_size.height,
+                                          .width      = size.width,
+                                          .height     = size.height,
                                           .vsync      = true,
-                                          .fullscreen = fullscreen,
-                                          .maximized  = !fullscreen},
+                                          .fullscreen = start.fullscreen,
+                                          .maximized  = !start.fullscreen && start.maximized},
                                          font);
         if (!created)
         {
@@ -318,7 +344,7 @@ namespace djw::player_ui::sdl
             return false;
         }
         host_window     = created->get();
-        host_fullscreen = fullscreen;
+        host_fullscreen = start.fullscreen;
         windows.push_back(std::move(*created));
         return true;
     }
@@ -329,8 +355,37 @@ namespace djw::player_ui::sdl
         {
             return;
         }
+        if (on && !host_fullscreen)
+        {
+            const HostWindowState state = hostWindowState(); // what it goes back to
+            host_maximized              = state.maximized;
+            host_window_width           = state.width;
+            host_window_height          = state.height;
+        }
         host_fullscreen = on;
         host_window->setFullscreen(on);
+        if (!on && host_maximized)
+        {
+            host_window->maximize(); // a window opened in fullscreen was never maximized underneath
+        }
+    }
+
+    SdlApp::HostWindowState SdlApp::hostWindowState() const
+    {
+        // In fullscreen the window shows nothing of it: what it was before
+        HostWindowState state{.maximized = host_maximized, .width = host_window_width, .height = host_window_height};
+        if (host_window == nullptr || host_fullscreen)
+        {
+            return state;
+        }
+        state.maximized = host_window->maximized();
+        if (!state.maximized)
+        {
+            const Rect area = host_window->area();
+            state.width     = static_cast<int>(area.width);
+            state.height    = static_cast<int>(area.height);
+        }
+        return state;
     }
 
     Rect SdlApp::workArea() const
@@ -713,11 +768,15 @@ namespace djw::player_ui::sdl
         layout.mode   = next_mode;
         if (mode == WindowMode::Mdi)
         {
-            MdiLayout shown{.players       = {},
-                            .mixer_open    = toolWindowOpen(Tool::Mixer),
-                            .playlist_open = toolWindowOpen(Tool::Playlist),
-                            .fullscreen    = host_fullscreen,
-                            .places        = hand_places};
+            MdiLayout             shown{.players       = {},
+                                        .mixer_open    = toolWindowOpen(Tool::Mixer),
+                                        .playlist_open = toolWindowOpen(Tool::Playlist),
+                                        .fullscreen    = host_fullscreen,
+                                        .places        = hand_places};
+            const HostWindowState state = hostWindowState();
+            shown.maximized             = state.maximized;
+            shown.window_width          = state.width;
+            shown.window_height         = state.height;
             for (const auto &deck : decks)
             {
                 shown.players.push_back(deck->view->crossfaderSide());
@@ -867,7 +926,7 @@ namespace djw::player_ui::sdl
         if (auto loaded = core->loadTrack(target.id, track.path, options); !loaded)
         {
             // The display shows the reason in words and the file name; the decoder's own text goes to the log
-            SDL_Log("djw: %s", loaded.error().c_str());
+            logError(loaded.error());
             const std::u8string name = track.path.filename().u8string();
             std::error_code     error;
             const char *key = std::filesystem::exists(track.path, error) ? "deck.cannot_load" : "deck.file_missing";

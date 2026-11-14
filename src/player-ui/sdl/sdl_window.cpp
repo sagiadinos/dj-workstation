@@ -122,10 +122,16 @@ namespace djw::player_ui::sdl
     void SdlWindow::setFullscreen(bool on)
     {
         SDL_SetWindowFullscreen(window.get(), on);
-        if (!on)
-        {
-            SDL_MaximizeWindow(window.get());
-        }
+    }
+
+    void SdlWindow::maximize()
+    {
+        SDL_MaximizeWindow(window.get());
+    }
+
+    bool SdlWindow::maximized() const noexcept
+    {
+        return (SDL_GetWindowFlags(window.get()) & SDL_WINDOW_MAXIMIZED) != 0;
     }
 
     bool SdlWindow::fullscreen() const noexcept
