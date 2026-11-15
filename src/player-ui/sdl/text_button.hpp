@@ -49,8 +49,7 @@ namespace djw::player_ui::sdl
                 None,
                 ClearFilter,
                 LanesHorizontal,
-                LanesVertical,
-                Headphones
+                LanesVertical
             };
             void setIcon(Icon new_icon) noexcept { icon = new_icon; }
             /// An LED at the top of the button, lit or not; std::nullopt: none

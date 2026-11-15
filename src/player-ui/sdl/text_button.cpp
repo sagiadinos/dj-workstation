@@ -57,9 +57,13 @@ namespace djw::player_ui::sdl
         }
         look::raised(canvas, area, fill, down && enabled);
 
-        // An LED takes the top third, icon and label share the rest
+        // An LED takes the top third and icon and label share the rest; alone it sits in the middle
         Rect content = area;
-        if (led)
+        if (led && icon == Icon::None && text.empty())
+        {
+            look::led(canvas, area.inset(area.height * 0.2F), *led);
+        }
+        else if (led)
         {
             const float led_height = area.height * 0.32F;
             look::led(canvas, {area.x, area.y + (area.height * 0.06F), area.width, led_height}, *led);
@@ -84,10 +88,6 @@ namespace djw::player_ui::sdl
         if ((icon == Icon::LanesHorizontal || icon == Icon::LanesVertical) && icon_size > 0.0F)
         {
             look::lanesIcon(canvas, icon_area, icon == Icon::LanesVertical, ink);
-        }
-        if (icon == Icon::Headphones && icon_size > 0.0F)
-        {
-            look::headphonesIcon(canvas, icon_area, ink);
         }
         canvas.textElided({left + icon_size + icon_gap, content.y + ((content.height - canvas.textHeight()) / 2)}, text,
                           ink, std::max(0.0F, room));

@@ -82,7 +82,7 @@ TEST_CASE("look::groove and look::knob stay inside their area, the fill follows 
     CHECK(allInside(knob, {5, 5, 40, 24}));
 }
 
-TEST_CASE("look::background covers the whole window, sunken and the headphones icon stay inside")
+TEST_CASE("look::background covers the whole window, sunken and the lanes icon stay inside")
 {
     const Rect                  window{0, 0, 300, 200};
     djw::tests::RecordingCanvas canvas;
@@ -97,7 +97,7 @@ TEST_CASE("look::background covers the whole window, sunken and the headphones i
     CHECK(allInside(panel, {10, 10, 80, 30}));
 
     djw::tests::RecordingCanvas icon;
-    look::headphonesIcon(icon, {4, 4, 24, 24}, look::colors().text);
+    look::lanesIcon(icon, {4, 4, 24, 24}, true, look::colors().text);
     CHECK(allInside(icon, {4, 4, 24, 24}));
     CHECK_FALSE(icon.rounded.empty());
 }

@@ -480,7 +480,7 @@ TEST_CASE("DeckView: the headphone button toggles the cue from the state shown, 
     REQUIRE(std::holds_alternative<api::MixerSetHeadphoneCue>(commands[0]));
     CHECK(std::get<api::MixerSetHeadphoneCue>(commands[0]).enabled);
 
-    // The headphones on the button, its LED lit while the cue is on
+    // Only an LED on the button (the fader below says Head), lit while the cue is on
     CHECK(fixture.view.headphoneButton().label().empty());
     CHECK(fixture.view.headphoneButton().ledLit() == false);
     fixture.show({.deck = deck, .headphone_cue = true});

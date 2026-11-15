@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cmath>
 #include <cstdint>
-#include <numbers>
 
 namespace djw::player_ui::sdl::look
 {
@@ -344,36 +343,6 @@ namespace djw::player_ui::sdl::look
                                        : Rect{area.x, area.y + (h * at), w, h * 0.32F};
             canvas.fillRoundedRect(lane, 2.0F, color, color);
         }
-    }
-
-    void headphonesIcon(Canvas &canvas, const Rect &area, Color color)
-    {
-        if (area.width <= 0.0F || area.height <= 0.0F)
-        {
-            return;
-        }
-        // The headband: a half circle of short lines from one ear to the other
-        const float     w         = area.width;
-        const float     h         = area.height;
-        const float     thickness = std::max(2.0F, w * 0.10F);
-        const Point     center{area.x + (w * 0.5F), area.y + (h * 0.55F)};
-        const float     radius_x = w * 0.40F;
-        const float     radius_y = h * 0.45F;
-        constexpr int   steps    = 12;
-        constexpr float pi       = std::numbers::pi_v<float>;
-        for (int step = 0; step < steps; ++step)
-        {
-            const float from = pi + (pi * static_cast<float>(step) / steps);
-            const float to   = pi + (pi * static_cast<float>(step + 1) / steps);
-            line(canvas, {center.x + (radius_x * std::cos(from)), center.y + (radius_y * std::sin(from))},
-                 {center.x + (radius_x * std::cos(to)), center.y + (radius_y * std::sin(to))}, thickness, color);
-        }
-        // The ear cups at the ends of the band
-        const float cup_w = w * 0.24F;
-        const float cup_h = h * 0.42F;
-        const float cup_y = area.y + h - cup_h;
-        canvas.fillRoundedRect({area.x + (w * 0.04F), cup_y, cup_w, cup_h}, 2.0F, color, color);
-        canvas.fillRoundedRect({area.x + w - (w * 0.04F) - cup_w, cup_y, cup_w, cup_h}, 2.0F, color, color);
     }
 
     void led(Canvas &canvas, const Rect &area, bool lit)

@@ -23,16 +23,15 @@ namespace djw::player_ui::sdl
         constexpr float top_row_height = 44.0F;
         constexpr float display_height = 118.0F;
         /// The widest time the display shows, and how much of its field the time fills
-        constexpr std::string_view widest_clock            = "-88:88:88:88";
-        constexpr float            clock_fill              = 0.92F;
-        constexpr float            waveform_height         = 60.0F;
-        constexpr float            transport_height        = 70.0F;
-        constexpr float            column_width            = 56.0F;
-        constexpr float            small_button            = 26.0F;
-        constexpr float            label_height            = 20.0F;
-        constexpr float            info_height             = 62.0F;
-        constexpr float            bend_width              = 48.0F;
-        constexpr float            headphone_button_height = 40.0F;
+        constexpr std::string_view widest_clock     = "-88:88:88:88";
+        constexpr float            clock_fill       = 0.92F;
+        constexpr float            waveform_height  = 60.0F;
+        constexpr float            transport_height = 70.0F;
+        constexpr float            column_width     = 56.0F;
+        constexpr float            small_button     = 26.0F;
+        constexpr float            label_height     = 20.0F;
+        constexpr float            info_height      = 62.0F;
+        constexpr float            bend_width       = 48.0F;
 
         constexpr Color yellow{255, 225, 0};
         constexpr Color red{225, 40, 40};
@@ -81,7 +80,6 @@ namespace djw::player_ui::sdl
         play_button.setPlaying(state.play_state == core::api::PlayState::Playing);
         cue_button.setColors(cue_background, cue_text);
         load_button.setEnabled(false);
-        headphone_button.setIcon(TextButton::Icon::Headphones);
         headphone_button.setLed(false);
     }
 
@@ -136,7 +134,7 @@ namespace djw::player_ui::sdl
         const float faders_height = std::max(0.0F, bottom - y - label_height);
         const float head_x        = inner.x + column_width + gap;
         volume_fader.setBounds(stretch({inner.x, y, column_width, faders_height}));
-        const float hp_height = std::min(headphone_button_height, faders_height); // LED over the icon
+        const float hp_height = std::min(small_button + 4.0F, faders_height);
         headphone_button.setBounds(stretch({head_x, y, column_width, hp_height}));
         headphone_fader.setBounds(
             stretch({head_x, y + hp_height + 4.0F, column_width, std::max(0.0F, faders_height - hp_height - 4.0F)}));
