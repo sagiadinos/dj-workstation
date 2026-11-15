@@ -28,7 +28,18 @@ namespace djw::player_ui::sdl
         Right,
         /// Shift with the cursor keys: a bigger step
         ShiftLeft,
-        ShiftRight
+        ShiftRight,
+        ShiftUp,
+        ShiftDown,
+        /// Ctrl with the cursor keys, with or without Shift: e.g. resizing a part while the layout is edited
+        CtrlLeft,
+        CtrlRight,
+        CtrlUp,
+        CtrlDown,
+        CtrlShiftLeft,
+        CtrlShiftRight,
+        CtrlShiftUp,
+        CtrlShiftDown
     };
 
     /// The keys of a player, from the original version: P play/pause, C cue, L load. Pressed without Ctrl, Alt or the

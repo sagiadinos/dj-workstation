@@ -50,6 +50,10 @@ namespace djw::player_ui::sdl
         {
             focus = nullptr;
         }
+        if (selected == &view)
+        {
+            selected = nullptr;
+        }
         rebuildRouter();
     }
 
@@ -231,6 +235,8 @@ namespace djw::player_ui::sdl
         arrange = std::move(arranging);
         drag.reset();
         done_pointer.reset();
+        selected = nullptr;
+        selectNext(false); // the first view that can be arranged
     }
 
     void ViewHost::stopArranging()
@@ -269,13 +275,14 @@ namespace djw::player_ui::sdl
                         const Rect &area = pane.placed;
                         const bool  corner =
                             at.x >= area.x + area.width - resize_handle && at.y >= area.y + area.height - resize_handle;
-                        drag = Drag{.pointer = event.pointer,
-                                    .view    = pane.view,
-                                    .start   = area,
-                                    .from    = at,
-                                    .resize  = corner,
-                                    .target  = area,
-                                    .fits    = true};
+                        selected = pane.view;
+                        drag     = Drag{.pointer = event.pointer,
+                                        .view    = pane.view,
+                                        .start   = area,
+                                        .from    = at,
+                                        .resize  = corner,
+                                        .target  = area,
+                                        .fits    = true};
                         return;
                     }
                 }
@@ -387,10 +394,13 @@ namespace djw::player_ui::sdl
             {
                 continue;
             }
-            const Rect &area  = pane.placed;
-            const bool  held  = drag && drag->view == pane.view;
-            const Color color = held ? (drag->fits ? Color{70, 200, 90} : Color{230, 60, 50}) : look::accent_blue;
-            frame(area, color, 2.0F);
+            const Rect &area   = pane.placed;
+            const bool  held   = drag && drag->view == pane.view;
+            const bool  marked = !drag && selected == pane.view; // the keys go to it: thicker and lighter
+            const Color color  = held     ? (drag->fits ? Color{70, 200, 90} : Color{230, 60, 50})
+                                 : marked ? Color{120, 190, 255}
+                                          : look::accent_blue;
+            frame(area, color, marked ? 4.0F : 2.0F);
             // The resize handle: a triangle in the lower right corner
             const float right  = area.x + area.width;
             const float bottom = area.y + area.height;
@@ -398,6 +408,140 @@ namespace djw::player_ui::sdl
                                 color);
         }
         done_button.draw(canvas);
+    }
+
+    void ViewHost::selectNext(bool backwards)
+    {
+        std::vector<const View *> arrangeable;
+        for (const Pane &pane : panes)
+        {
+            if (pane.area && !pane.on_top)
+            {
+                arrangeable.push_back(pane.view);
+            }
+        }
+        if (arrangeable.empty())
+        {
+            selected = nullptr;
+            return;
+        }
+        const auto current = std::ranges::find(arrangeable, selected);
+        if (current == arrangeable.end())
+        {
+            selected = backwards ? arrangeable.back() : arrangeable.front();
+            return;
+        }
+        const auto count = static_cast<std::ptrdiff_t>(arrangeable.size());
+        const auto at    = current - arrangeable.begin();
+        selected         = arrangeable[static_cast<std::size_t>((at + (backwards ? count - 1 : 1)) % count)];
+    }
+
+    void ViewHost::nudge(EditKey key)
+    {
+        struct Step
+        {
+                float dx     = 0.0F;
+                float dy     = 0.0F;
+                bool  resize = false;
+        };
+        constexpr float small = 1.0F;
+        constexpr float big   = 10.0F;
+        Step            step;
+        switch (key)
+        {
+            case EditKey::Left:
+                step = {-small, 0.0F, false};
+                break;
+            case EditKey::Right:
+                step = {small, 0.0F, false};
+                break;
+            case EditKey::Up:
+                step = {0.0F, -small, false};
+                break;
+            case EditKey::Down:
+                step = {0.0F, small, false};
+                break;
+            case EditKey::ShiftLeft:
+                step = {-big, 0.0F, false};
+                break;
+            case EditKey::ShiftRight:
+                step = {big, 0.0F, false};
+                break;
+            case EditKey::ShiftUp:
+                step = {0.0F, -big, false};
+                break;
+            case EditKey::ShiftDown:
+                step = {0.0F, big, false};
+                break;
+            case EditKey::CtrlLeft:
+                step = {-small, 0.0F, true};
+                break;
+            case EditKey::CtrlRight:
+                step = {small, 0.0F, true};
+                break;
+            case EditKey::CtrlUp:
+                step = {0.0F, -small, true};
+                break;
+            case EditKey::CtrlDown:
+                step = {0.0F, small, true};
+                break;
+            case EditKey::CtrlShiftLeft:
+                step = {-big, 0.0F, true};
+                break;
+            case EditKey::CtrlShiftRight:
+                step = {big, 0.0F, true};
+                break;
+            case EditKey::CtrlShiftUp:
+                step = {0.0F, -big, true};
+                break;
+            case EditKey::CtrlShiftDown:
+                step = {0.0F, big, true};
+                break;
+            default:
+                return;
+        }
+        const auto pane = std::ranges::find(panes, selected, &Pane::view);
+        if (drag || pane == panes.end())
+        {
+            return;
+        }
+        const std::optional<Rect> put = pane->area;
+        if (!put)
+        {
+            return;
+        }
+        // From where it was put last, which may be newer than the last layout (several keys within one frame)
+        Rect target = *put;
+        if (step.resize)
+        {
+            target.width += step.dx;
+            target.height += step.dy;
+        }
+        else
+        {
+            target.x += step.dx;
+            target.y += step.dy;
+        }
+        const Rect area       = arrangeArea();
+        const bool inside     = target.x >= area.x && target.y >= area.y &&
+                                target.x + target.width <= area.x + area.width &&
+                                target.y + target.height <= area.y + area.height;
+        const bool big_enough = target.width >= mdi_min_width && target.height >= mdi_min_height;
+        const bool free       = std::ranges::none_of(panes,
+                                                     [&](const Pane &other)
+                                                     {
+                                                   return other.view != selected && other.area && !other.on_top &&
+                                                          overlap(target, other.area.value_or(other.placed));
+                                                     });
+        if (!inside || !big_enough || !free)
+        {
+            return;
+        }
+        place(*selected, target);
+        if (arrange && arrange->moved)
+        {
+            arrange->moved(*selected, target);
+        }
     }
 
     void ViewHost::pointer(const PointerEvent &event)
@@ -421,9 +565,22 @@ namespace djw::player_ui::sdl
     {
         if (arrange)
         {
-            if (input == KeyboardInput{EditKey::Escape} && arrange->done)
+            const auto *key = std::get_if<EditKey>(&input);
+            if (key == nullptr)
+            {
+                return;
+            }
+            if (*key == EditKey::Escape && arrange->done)
             {
                 arrange->done();
+            }
+            else if (*key == EditKey::Tab || *key == EditKey::BackTab)
+            {
+                selectNext(*key == EditKey::BackTab);
+            }
+            else
+            {
+                nudge(*key);
             }
             return;
         }

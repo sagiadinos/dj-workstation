@@ -7,6 +7,7 @@
 #include "fake_dialogs.hpp"
 #include "fake_library.hpp"
 #include "library_view.hpp"
+#include "mdi_arrangement.hpp"
 #include "mixer_view.hpp"
 #include "playlist_view.hpp"
 #include "recording_canvas.hpp"
@@ -414,6 +415,50 @@ TEST_CASE("ViewHost arranging: a view dragged anywhere moves with the finger, sn
     // The widgets of the views got nothing
     CHECK(fixture.first.widget.downs == 0);
     CHECK(fixture.second.widget.downs == 0);
+}
+
+TEST_CASE("ViewHost arranging: the cursor keys move the selected view by 1 point, Shift by 10, Ctrl resizes")
+{
+    ArrangeFixture fixture;
+    CHECK(fixture.host.arrangeSelected() == &fixture.first); // the first one at the start
+
+    fixture.host.keyboard(EditKey::Right);
+    fixture.host.keyboard(EditKey::ShiftDown); // two keys within one frame add up
+    fixture.host.layout(window);
+    CHECK(shifted(fixture.first.laid_out, {1, 10, 300, 200}, {}));
+    CHECK(fixture.moved_view == &fixture.first);
+    CHECK(shifted(fixture.moved_to, {1, 10, 300, 200}, {}));
+
+    fixture.host.keyboard(EditKey::CtrlRight);
+    fixture.host.keyboard(EditKey::CtrlShiftUp);
+    fixture.host.layout(window);
+    CHECK(shifted(fixture.first.laid_out, {1, 10, 301, 190}, {}));
+
+    // Not out of the window, not into the other view, not below the smallest size
+    fixture.host.keyboard(EditKey::ShiftLeft);
+    fixture.host.layout(window);
+    CHECK(fixture.first.laid_out.x == doctest::Approx(1)); // 1 - 10 would leave the window
+    for (int step = 0; step < 20; ++step)
+    {
+        fixture.host.keyboard(EditKey::CtrlShiftRight);
+    }
+    fixture.host.layout(window);
+    CHECK(fixture.first.laid_out.x + fixture.first.laid_out.width <= 400.0F); // stops at the second view
+    for (int step = 0; step < 50; ++step)
+    {
+        fixture.host.keyboard(EditKey::CtrlShiftUp);
+    }
+    fixture.host.layout(window);
+    CHECK(fixture.first.laid_out.height >= mdi_min_height);
+
+    // Tab goes to the next view, Shift+Tab back; touching a view selects it as well
+    fixture.host.keyboard(EditKey::Tab);
+    CHECK(fixture.host.arrangeSelected() == &fixture.second);
+    fixture.host.keyboard(EditKey::BackTab);
+    CHECK(fixture.host.arrangeSelected() == &fixture.first);
+    fixture.drag({650, 150}, {650, 150}); // clear of the Done button at the top
+    fixture.release({650, 150});
+    CHECK(fixture.host.arrangeSelected() == &fixture.second);
 }
 
 TEST_CASE("ViewHost arranging: the lower right corner resizes; a view let go over another goes back")

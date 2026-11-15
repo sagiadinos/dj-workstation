@@ -130,6 +130,18 @@ TEST_CASE("toKeyboardInput: typed text and the editing keys, nothing else")
     CHECK(toKeyboardInput(shifted) == KeyboardInput{EditKey::ShiftLeft});
     shifted.key.key = SDLK_RIGHT;
     CHECK(toKeyboardInput(shifted) == KeyboardInput{EditKey::ShiftRight});
+    shifted.key.key = SDLK_UP;
+    CHECK(toKeyboardInput(shifted) == KeyboardInput{EditKey::ShiftUp});
+
+    // Ctrl, with and without Shift
+    SDL_Event ctrl{};
+    ctrl.type    = SDL_EVENT_KEY_DOWN;
+    ctrl.key.key = SDLK_DOWN;
+    ctrl.key.mod = SDL_KMOD_LCTRL;
+    CHECK(toKeyboardInput(ctrl) == KeyboardInput{EditKey::CtrlDown});
+    ctrl.key.mod = SDL_KMOD_LCTRL | SDL_KMOD_LSHIFT;
+    ctrl.key.key = SDLK_LEFT;
+    CHECK(toKeyboardInput(ctrl) == KeyboardInput{EditKey::CtrlShiftLeft});
 }
 
 TEST_CASE("toKeyboardInput: P, C and L are player keys, C also when let go; not with Ctrl, not repeated")

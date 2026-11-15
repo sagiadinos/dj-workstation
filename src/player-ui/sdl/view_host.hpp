@@ -121,6 +121,10 @@ namespace djw::player_ui::sdl
             /// While a view is dragged: whether it could be let go where it is (it overlaps no other view)
             [[nodiscard]] bool              dragFits() const noexcept { return drag && drag->fits; }
             [[nodiscard]] const TextButton &doneButton() const noexcept { return done_button; }
+            /// While arranging: the view the cursor keys move by 1 point (Shift: 10) and Ctrl with them resizes at its
+            /// lower right corner; the one touched last, the first one at the start; Tab goes to the next. The keys
+            /// do not snap; a step that would leave the area or overlap another view is not taken.
+            [[nodiscard]] const View *arrangeSelected() const noexcept { return selected; }
 
             /// How long the mouse rests on a widget before its help (Widget::tip) shows
             static constexpr std::chrono::milliseconds tip_delay{500};
@@ -160,6 +164,10 @@ namespace djw::player_ui::sdl
                     bool        fits = true;
             };
             void arrangePointer(const PointerEvent &event);
+            /// A cursor key while arranging: moves or resizes the selected view
+            void nudge(EditKey key);
+            /// Tab while arranging: the next (or, backwards, the previous) view that can be arranged
+            void selectNext(bool backwards);
             /// The logo in the biggest free part of the arranged area, if there is room
             void placeLogo();
             /// A line around the view the keys go to
@@ -179,7 +187,8 @@ namespace djw::player_ui::sdl
             std::optional<Drag>      drag;
             TextButton               done_button;
             std::optional<PointerId> done_pointer;
-            Clock                    clock = steadyClock();
+            const View              *selected = nullptr;
+            Clock                    clock    = steadyClock();
             /// The widget the mouse rests on and since when (only compared, never used: it may be gone)
             const Widget                         *tip_widget = nullptr;
             std::chrono::steady_clock::time_point tip_since;

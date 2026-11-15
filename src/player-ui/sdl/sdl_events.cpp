@@ -59,6 +59,20 @@ namespace djw::player_ui::sdl
         }
     }
 
+    namespace
+    {
+        /// A cursor key with Shift, Ctrl or both
+        EditKey arrow(SDL_Keymod mod, EditKey plain, EditKey shift, EditKey ctrl, EditKey ctrl_shift)
+        {
+            const bool with_shift = (mod & SDL_KMOD_SHIFT) != 0;
+            if ((mod & SDL_KMOD_CTRL) != 0)
+            {
+                return with_shift ? ctrl_shift : ctrl;
+            }
+            return with_shift ? shift : plain;
+        }
+    } // namespace
+
     std::optional<KeyboardInput> toKeyboardInput(const SDL_Event &event)
     {
         if (event.type == SDL_EVENT_TEXT_INPUT && event.text.text != nullptr)
@@ -106,17 +120,21 @@ namespace djw::player_ui::sdl
             case SDLK_TAB:
                 return KeyboardInput{(event.key.mod & SDL_KMOD_SHIFT) != 0 ? EditKey::BackTab : EditKey::Tab};
             case SDLK_UP:
-                return KeyboardInput{EditKey::Up};
+                return KeyboardInput{
+                    arrow(event.key.mod, EditKey::Up, EditKey::ShiftUp, EditKey::CtrlUp, EditKey::CtrlShiftUp)};
             case SDLK_DOWN:
-                return KeyboardInput{EditKey::Down};
+                return KeyboardInput{
+                    arrow(event.key.mod, EditKey::Down, EditKey::ShiftDown, EditKey::CtrlDown, EditKey::CtrlShiftDown)};
             case SDLK_PAGEUP:
                 return KeyboardInput{EditKey::PageUp};
             case SDLK_PAGEDOWN:
                 return KeyboardInput{EditKey::PageDown};
             case SDLK_LEFT:
-                return KeyboardInput{(event.key.mod & SDL_KMOD_SHIFT) != 0 ? EditKey::ShiftLeft : EditKey::Left};
+                return KeyboardInput{
+                    arrow(event.key.mod, EditKey::Left, EditKey::ShiftLeft, EditKey::CtrlLeft, EditKey::CtrlShiftLeft)};
             case SDLK_RIGHT:
-                return KeyboardInput{(event.key.mod & SDL_KMOD_SHIFT) != 0 ? EditKey::ShiftRight : EditKey::Right};
+                return KeyboardInput{arrow(event.key.mod, EditKey::Right, EditKey::ShiftRight, EditKey::CtrlRight,
+                                           EditKey::CtrlShiftRight)};
             default:
                 return std::nullopt;
         }
