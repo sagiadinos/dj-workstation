@@ -191,6 +191,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Additional formats | 1 | AIFF, Opus. AAC/M4A optional via FFmpeg. |
 | Fast search | M | Search as you type across all fields (SQLite FTS5). |
 | Column filters | M | From the original version: separate search fields for artist, title, genre and year directly above the columns. |
+| Clear search | M | One button empties the search field and all filters. |
 | Wildcard search | M | `*` and `?` in search fields. |
 | Sorting | M | By any column. |
 | Columns | M | Artist, title, genre, year, duration, BPM. |
@@ -252,12 +253,17 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 | Multitouch | M | Several fingers at once, each finger captures a widget on touch down. |
 | Custom widget layer | M | Fader, button, waveform, list with kinetic scrolling (it runs on after a drag and slows down), text field. Knob and jog wheel come with M2. |
 | Player windows | M | Core idea of the original version: every player unit is its own OS window, any number can be opened and closed, freely movable and resizable, also across several monitors. On platforms with only one window (KMSDRM kiosk, Android, iOS, Web) the player units are arranged inside the main window. |
-| Saved layouts | M | Save and load position and size of all player windows. |
-| HiDPI | M | Resolution-independent scaling. |
-| Fullscreen/kiosk | M | Borderless, for touch terminals. |
+| One-window mode | M | View > One-window mode (from the next start): players, crossfader, playlist and library as parts of one window, arranged automatically without overlap. The default without a saved layout. |
+| Menu bar | M | In the library, in both window modes: File, Playlist, Settings, View, Layout. |
+| Saved layouts | M | Layout > Save layout keeps the window mode, position and size of all windows and parts, and per player the time display and Cue-Load; the program opens as saved. |
+| Edit layout | M | Layout > Edit layout in the one window: drag a part to move it or at its corner to resize it; edges snap to neighbouring parts and the window, else to a 5-point grid. Cursor keys move the selected part by 1 point (Shift: 10), with Ctrl they resize it; Tab selects the next part. Layout > Arrange automatically goes back to the automatic arrangement. |
+| HiDPI | M | Resolution-independent scaling. Player, crossfader and playlist scale with their window or part. |
+| Fullscreen/kiosk | M | Borderless, for touch terminals (View > Fullscreen, Ctrl+F). Without a saved layout the program starts as a window. |
+| Help bubbles | M | A short help for a widget when the mouse rests on it; with touch everything works without it. |
+| Safe quit | M | While a track plays, nothing closes that would stop it; File > Quit then asks first, Cancel being the default. |
 | On-screen keyboard | M | For search on touch-only devices (SDL3 text input). |
 | Themes | 1 | Dark/light, colors defined in a file. |
-| Multilingual | M | Language files, starting with German, English and French (like the original version). |
+| Multilingual | M | German, English, French, Spanish, Greek and Russian, chosen in Settings > Language and kept in the settings file. |
 | Always on top | L | Desktop option from the original version. |
 
 Layout reference: the original version, see [djw.gif](https://dj-workstation.de/bilder/djw.gif). The new UI keeps its structure, adapted for touch:

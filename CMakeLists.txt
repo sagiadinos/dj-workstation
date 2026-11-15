@@ -15,7 +15,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${djw_version_fil
 
 project(djw
     VERSION ${djw_version_numbers}
-    DESCRIPTION "DJ-Workstation: lean, touch-first DJ software"
+    DESCRIPTION "Nick's DJ-Workstation: lean, touch-first DJ software"
     LANGUAGES C CXX # C for miniaudio
 )
 
