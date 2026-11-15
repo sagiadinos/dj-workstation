@@ -11,9 +11,6 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr Color dim_color{110, 110, 110};
-        constexpr Color field_color{35, 35, 35};
-        constexpr Color text_color{230, 230, 230};
     } // namespace
 
     void Stepper::setValue(int value) noexcept
@@ -63,9 +60,9 @@ namespace djw::player_ui::sdl
         const float side = std::min(area.height, area.width / 3);
         const Rect  minus{area.x, area.y, side, area.height};
         const Rect  plus{area.x + area.width - side, area.y, side, area.height};
-        look::sunken(canvas, area, field_color, 5.0F);
-        look::raised(canvas, minus, look::button_gray, pressed == Part::Minus, 5.0F);
-        look::raised(canvas, plus, look::button_gray, pressed == Part::Plus, 5.0F);
+        look::sunken(canvas, area, look::colors().field, 5.0F);
+        look::raised(canvas, minus, look::colors().button_gray, pressed == Part::Minus, 5.0F);
+        look::raised(canvas, plus, look::colors().button_gray, pressed == Part::Plus, 5.0F);
 
         const auto center = [&canvas](const Rect &where, const std::string &text, Color color)
         {
@@ -73,8 +70,9 @@ namespace djw::player_ui::sdl
                          where.y + ((where.height - canvas.textHeight()) / 2)},
                         text, color);
         };
-        center(minus, "-", current > low ? text_color : dim_color);
-        center(plus, "+", current < high ? text_color : dim_color);
-        center({area.x + side, area.y, area.width - (2 * side), area.height}, std::to_string(current), text_color);
+        center(minus, "-", current > low ? look::colors().text : look::colors().disabled_text);
+        center(plus, "+", current < high ? look::colors().text : look::colors().disabled_text);
+        center({area.x + side, area.y, area.width - (2 * side), area.height}, std::to_string(current),
+               look::colors().text);
     }
 } // namespace djw::player_ui::sdl

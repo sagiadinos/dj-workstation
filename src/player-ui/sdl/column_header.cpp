@@ -15,8 +15,6 @@ namespace djw::player_ui::sdl
         constexpr float padding    = 10.0F;
         constexpr float arrow_size = 8.0F;
 
-        constexpr Color background{45, 45, 45};
-        constexpr Color text_color{200, 200, 200};
         constexpr Color sorted_color{80, 160, 255};
     } // namespace
 
@@ -72,7 +70,8 @@ namespace djw::player_ui::sdl
 
     void ColumnHeader::draw(Canvas &canvas) const
     {
-        canvas.fillRoundedRect(bounds(), 0.0F, look::shade(background, 22), look::shade(background, -12));
+        canvas.fillRoundedRect(bounds(), 0.0F, look::shade(look::colors().header, 22),
+                               look::shade(look::colors().header, -12));
         for (const core::api::LibraryColumn column : track_columns)
         {
             const Rect         area   = columnArea(bounds(), column);
@@ -80,7 +79,7 @@ namespace djw::player_ui::sdl
             const float        text_y = area.y + ((area.height - canvas.textHeight()) / 2);
             const float        arrow  = sorted ? arrow_size + padding : 0.0F;
             const std::string &name   = names[columnIndex(column)];
-            canvas.textElided({area.x + padding, text_y}, name, sorted ? sorted_color : text_color,
+            canvas.textElided({area.x + padding, text_y}, name, sorted ? sorted_color : look::colors().label,
                               area.width - (2 * padding) - arrow);
             if (sorted)
             {

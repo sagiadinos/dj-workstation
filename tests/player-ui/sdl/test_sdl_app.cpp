@@ -6,6 +6,7 @@
 #include "api/version.hpp"
 
 #include "fake_library.hpp"
+#include "look.hpp"
 #include "mdi_arrangement.hpp"
 #include "settings.hpp"
 #include "temp_dir.hpp"
@@ -1303,25 +1304,51 @@ TEST_CASE("SdlApp: Settings > Sound opens a dialog; OK keeps the keylock quality
     app->setSettingsFile(settings_file);
     app->openSoundDialog();
     REQUIRE(app->soundDialog() != nullptr);
-    CHECK(app->soundDialog()->chosen().time_stretch == api::TimeStretch::SoundTouch);
+    CHECK(app->soundDialog()->chosen().time_stretch == api::TimeStretch::Signalsmith); // the default
     app->openDevicesDialog();
     CHECK(app->devicesDialog() == nullptr); // one dialog at a time
     REQUIRE(app->runFrame());
 
-    // The last quality offered (High when Signalsmith Stretch is built in) and OK
-    const auto offered = api::timeStretchers();
-    const auto middle  = [](const Rect &area) { return Point{area.x + (area.width / 2), area.y + (area.height / 2)}; };
+    // Standard and OK
+    const auto middle = [](const Rect &area) { return Point{area.x + (area.width / 2), area.y + (area.height / 2)}; };
     click(app->libraryWindowId(), middle(app->soundDialog()->qualityList().bounds()));
     REQUIRE(app->runFrame());
     REQUIRE(app->soundDialog()->qualityList().isOpen());
-    click(app->libraryWindowId(), middle(app->soundDialog()->qualityList().itemArea(offered.size() - 1)));
+    click(app->libraryWindowId(), middle(app->soundDialog()->qualityList().itemArea(0)));
     REQUIRE(app->runFrame());
     click(app->libraryWindowId(), middle(app->soundDialog()->okButton().bounds()));
     REQUIRE(app->runFrame());
     CHECK(app->soundDialog() == nullptr);
     const Settings kept = parseSettings(readFile(settings_file));
-    CHECK(kept.time_stretch == offered.back());
+    CHECK(kept.time_stretch == api::TimeStretch::SoundTouch);
     CHECK(kept.buffer_frames == 512);
+}
+
+TEST_CASE("SdlApp: View > Daylight colors switches at once and keeps the choice in the settings, the rest stays")
+{
+    const djw::tests::TempDir folder;
+    const auto                settings_file = folder.path() / "settings";
+    std::ofstream{settings_file} << formatSettings(Settings{.buffer_frames = 512});
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library);
+
+    // Without a settings file it only switches
+    app->setDaylight(true);
+    CHECK(look::daylight());
+    REQUIRE(app->runFrame()); // draws in the daylight colors
+    app->setDaylight(false);
+    CHECK_FALSE(look::daylight());
+    CHECK_FALSE(parseSettings(readFile(settings_file)).daylight);
+
+    app->setSettingsFile(settings_file);
+    app->setDaylight(true);
+    CHECK(look::daylight());
+    const Settings kept = parseSettings(readFile(settings_file));
+    CHECK(kept.daylight);
+    CHECK(kept.buffer_frames == 512);
+    app->setDaylight(false); // the other tests draw dark
+    CHECK_FALSE(parseSettings(readFile(settings_file)).daylight);
 }
 
 TEST_CASE("SdlApp: Settings > Language opens a dialog; OK switches the language at once, Escape keeps it")

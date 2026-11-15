@@ -10,15 +10,68 @@
 
 namespace djw::player_ui::sdl::look
 {
-    // The palette: dark brushed metal, glossy controls, yellow on black for what the display shows
-    inline constexpr Color text{232, 232, 235};
-    inline constexpr Color text_dim{120, 122, 128};
+    /**
+     * The colors that differ between the dark look (brushed metal, light text) and the daylight look (light surfaces,
+     * dark text, strong contrast for sun or bright rooms). What signals something stays the same in both: play green,
+     * CUE red, the meters, and the black displays with what they show (time, waveforms), which read well in daylight
+     * too.
+     */
+    struct Palette
+    {
+            Color window;    ///< behind everything
+            Color metal_top; ///< the background of a window, top to bottom
+            Color metal_bottom;
+            Color frame;   ///< around a display or field
+            Color outline; ///< around buttons, faders, grooves
+            Color text;
+            Color text_dim;    ///< hints, shortcuts, what is off
+            Color label;       ///< names next to controls
+            Color status;      ///< the status line of library and playlist
+            Color button_gray; ///< the body of a plain button
+            Color button_blue; ///< the body of a button that is on
+            Color disabled_background;
+            Color disabled_text;
+            Color field;     ///< the inside of a check box or stepper
+            Color field_top; ///< the inside of a text field, top to bottom
+            Color field_bottom;
+            Color field_frame;
+            Color groove_top; ///< the groove of a fader, top to bottom
+            Color groove_bottom;
+            Color row; ///< list rows, one after the other
+            Color row_alternate;
+            Color secondary_text; ///< columns other than artist and title
+            Color missing_text;   ///< a track whose file is gone
+            Color highlight_top;  ///< the entry under the pointer or chosen in a menu or list, top to bottom
+            Color highlight_bottom;
+            Color highlight_text;
+            Color menu_bar_top; ///< the menu bar, top to bottom
+            Color menu_bar_bottom;
+            Color menu_box_top; ///< an open menu, top to bottom
+            Color menu_box_bottom;
+            Color item_top; ///< an entry of an open drop-down list, top to bottom
+            Color item_bottom;
+            Color separator;
+            Color header;      ///< the column header of a list
+            Color pane_border; ///< around a part of the one window
+            Color pane_bar;    ///< its title bar
+            Color focus;       ///< the line around the part that has the keyboard
+            Color bubble;      ///< a help bubble
+    };
+
+    /// The dark look, the default
+    [[nodiscard]] const Palette &darkPalette() noexcept;
+    /// The daylight look
+    [[nodiscard]] const Palette &daylightPalette() noexcept;
+    /// The look in use; every widget asks for its colors when it draws, so a switch shows on the next frame
+    [[nodiscard]] const Palette &colors() noexcept;
+    /// Switches between the dark look and the daylight look (View > Daylight colors)
+    void               setDaylight(bool on) noexcept;
+    [[nodiscard]] bool daylight() noexcept;
+
+    // Colors the same in both looks: yellow on black for what the display shows
     inline constexpr Color display_black{0, 0, 0};
     inline constexpr Color display_yellow{255, 218, 0};
     inline constexpr Color accent_blue{20, 130, 235};
-    inline constexpr Color button_gray{68, 70, 75};
-    inline constexpr Color button_blue{40, 75, 120};
-    inline constexpr Color outline{14, 14, 16};
 
     /// A color moved towards white (amount > 0) or black (amount < 0), in steps of 0 to 255
     [[nodiscard]] Color shade(Color color, int amount) noexcept;

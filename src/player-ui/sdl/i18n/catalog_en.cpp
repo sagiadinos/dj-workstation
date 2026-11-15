@@ -105,6 +105,7 @@ namespace djw::player_ui::sdl::catalogs
             {"window.beats", "djw - Beat waveforms"},
             {"menu.view.beats_window", "Beat waveforms"},
             {"menu.view.beats_vertical", "Vertical beat waveforms"},
+            {"menu.view.daylight", "Daylight colors"},
             {"player.load", "Load"},
             {"player.time", "Time"},
             {"player.keylock", "KEY"},

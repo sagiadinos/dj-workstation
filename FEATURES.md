@@ -11,7 +11,7 @@ License: **AGPLv3**
 - **Lean over complete.** Not a clone of VirtualDJ, Serato or Traktor. Every feature has to earn its place.
 - **Performance:** fast startup, low latency, runs smoothly on a Raspberry Pi 4/5.
 - **Touch first:** multitouch is the primary input method, mouse and keyboard work just as well.
-- **Offline:** no cloud, no accounts, no telemetry, no streaming.
+- **Offline:** no cloud, no accounts, no telemetry, no streaming services.
 - **Core / UI separation:** the core runs headless and is testable without a UI. The UI talks to the core exclusively through commands and state snapshots.
 - **Extensible through data, not code:** controller mappings, layouts and languages are files.
 
@@ -20,7 +20,7 @@ License: **AGPLv3**
 - Streaming services, cloud sync, accounts
 - Video, visuals, karaoke
 - Sampler, stem separation, AI features
-- Large effect racks
+- Effects and filters, loops, key detection, beatmatched automix
 - Telemetry of any kind
 
 ---
@@ -42,7 +42,7 @@ License: **AGPLv3**
 **Raspberry Pi**
 - Target hardware: Pi 4 (4 GB) and Pi 5 with the official touch display or an HDMI touchscreen.
 - Kiosk mode via SDL3 KMSDRM directly on the console, without X11/Wayland.
-- Enable NEON optimizations in SoundTouch.
+- Enable NEON optimizations in SoundTouch (the Standard keylock quality).
 
 **Android**
 - RtMidi has no Android backend. A custom MIDI transport based on the NDK AMidi API is required.
@@ -51,7 +51,7 @@ License: **AGPLv3**
 
 **iOS/iPadOS**
 - RtMidi supports CoreMIDI, miniaudio supports CoreAudio.
-- **License:** GPL/AGPL code is incompatible with the App Store terms. The copyright holder can additionally license their own code under different terms, but third-party GPL code (e.g. the xwax timecoder) cannot be relicensed without the authors' consent. Distribution therefore initially via sideloading or alternative marketplaces, or an iOS build without the DVS module.
+- **License:** GPL/AGPL code is incompatible with the App Store terms. The copyright holder can additionally license their own code under different terms, but third-party GPL code (QM-DSP for the BPM analysis, later the xwax timecoder) cannot be relicensed without the authors' consent. Distribution therefore initially via sideloading or alternative marketplaces, or an iOS build without those modules (no BPM analysis, no DVS).
 
 **Web (WebAssembly)**
 - Built with Emscripten. Core, miniaudio, SDL3, SQLite and SoundTouch compile cleanly.
@@ -71,22 +71,20 @@ License: **AGPLv3**
 djw/
   src/
     core/               libdjw-core (C++23, no UI dependency)
+      api/              the core as the frontends see it: commands, state snapshots, library and controller interfaces
       engine/           decks, buses, mixer, resampler, keylock
-      transport/        per-deck transport sources: internal | jog | timecode
-      decode/           decoder interface and implementations
-      analysis/         BPM, beatgrid, waveform, loudness (worker threads)
+      decode/           decoders, tracks in memory or streamed
+      analysis/         BPM, overview waveform (on the library's analysis thread)
       library/          SQLite, scanner, tags, playlists
-      control/          MIDI/HID transport, mapping (TOML), feedback
-      automix/          autoplay, autofade, queue
-      api/              command definitions, state snapshots
+      control/          MIDI, mappings (TOML), Mixxx import, light feedback
       audio_io/         audio devices (miniaudio) behind an interface
       runtime/          implements the core API on top of engine, decode and audio_io
     player-ui/          frontends on top of the core
-      sdl/              SDL3 player (custom widget layer)
-    platform/           platform-specific code (Android, iOS, Web)
+      sdl/              SDL3 player (custom widget layer), languages in i18n/ as built-in catalogs
   mappings/             controller mappings (TOML)
-  i18n/                 language files
-  tests/                unit and offline render tests
+  tests/                unit, integration and offline render tests
+  website/              the project website (Hugo)
+  misc/, tools/         logo, icons, packaging, the mutation test script
 ```
 
 ### Threading
@@ -127,7 +125,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Pitch | done | Fader with range ±12 %, display in percent. Formant correction comes later. |
 | Pitch bend | done | +/- buttons for temporary nudging. |
 | Pitch zero | done | Reset fader to 0 with a double tap on the pitch fader. |
-| Keylock (master tempo) | done | Tempo change without pitch change. Settings > Sound sets the keylock quality (next start): Standard (SoundTouch, little computing power) or High (Signalsmith Stretch, more), behind one interface (`engine::TimeStretcher`, made by `makeTimeStretcher`). |
+| Keylock (master tempo) | done | Tempo change without pitch change. Settings > Sound sets the keylock quality (next start): High (Signalsmith Stretch, the default) or Standard (SoundTouch, less computing power), behind one interface (`engine::TimeStretcher`, made by `makeTimeStretcher`). |
 | Seek with audible scrub | done | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
 | Waveform overview | done | Whole track, click/touch to jump. |
 | Scrolling waveform | done | Beat waveforms: the players on crossfader sides A and B in a part of their own (View menu), 6 s of real time around a fixed playhead, the pitch taken into account, in three colours (bass red, mids green, highs blue); lanes horizontal or vertical. Zoom and beatgrid are planned. |
@@ -135,11 +133,9 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Beatgrid | planned | From analysis, manually adjustable. |
 | Sync | planned | Match tempo and phase to the master deck. |
 | Hot cues | planned | 4 to 8 per track, stored in the database. |
-| Loops | planned | Auto loop (1/4 to 32 beats), loop in/out, halve/double. |
 | Jog wheel | done | Via controller. Turned at the edge (`deck.jog`): while the deck plays it bends the pitch for as long as it turns (beatmatching), while it stands it steps through the track. Touched on top (`deck.scratch_touch`) it scratches: turning the top (`deck.scratch`) moves the track at the hand's speed, also backwards and held still, a turn in 1.8 s being the normal speed (a record at 33 1/3); let go, a deck that played plays on. The steps of one turn are set in the TOML mapping (`ticks_per_turn`); no scripts. Not touched, or a track too long to be held in memory (streamed): the top works like the edge. |
 | Gain/autogain | planned | Manual, optionally automatic from loudness analysis. |
 | Slip mode | planned | |
-| Key detection | planned | |
 
 ### 4.2 Mixer
 
@@ -148,14 +144,11 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Channel volume | done | Per deck. |
 | VU meters | done | Per deck in the groove of the channel fader (level before the fader, the grip narrower and see-through over it), the master above the crossfader. LED segments from -40 dBFS, yellow from -12, red from -3, a clip lamp lit 2 s after a peak at full scale. |
 | Crossfader | done | Decks freely assignable to side A, B or none. |
-| Crossfader curve | planned | Linear, constant power, cut. |
 | Crossfader zero | done | Fader to center position. |
 | Momentary A/B | done | From the original version: tap and hold jumps to one side and back on release. |
 | Headphone cue | done | Per deck, headphone volume. |
 | Master limiter | done | Prevents clipping. |
-| 3-band EQ with kill | planned | |
-| Filter | planned | One knob per deck: lowpass to the left, highpass to the right. |
-| Effects | planned | At most echo and reverb, no effect racks. |
+| Bass with kill | planned | One bass knob per deck (low shelf) and a kill button that takes the bass out entirely, for swapping the bass in a transition; on a controller such as the Hercules DJControl Starlight its bass knob. No mids or highs. |
 
 ### 4.3 Audio routing
 
@@ -168,7 +161,6 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | DVS inputs | planned | One input channel pair per deck, see 4.6. |
 | Latency | done | Settings > Devices: buffer size from shortest to safe (128 to 1024 frames, 2.7 to 21 ms at 48 kHz), takes effect at the next start. The dialog is where driver and device are chosen later. |
 | Sample rate | planned | The device's rate is used, tracks are converted when loaded; float32 internally. A choice only if a device needs it. |
-| Live switching | planned | Change devices without restart (the original version required a restart). |
 
 ### 4.4 Automix and playlist
 
@@ -178,7 +170,6 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Fade now | done | Immediate transition with the configured fade time. |
 | Autoplay/autofade | planned | From the original version, in the crossfader window: start the next track a set time before the end and fade over. |
 | Silence detection | planned | Start/end from analysis instead of file boundaries. |
-| Beatmatched automix | planned | Transition with sync on the beatgrid. |
 
 ### 4.5 Library
 
@@ -187,9 +178,8 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Folder scan | done | Scan selected folders recursively, read tags. |
 | Incremental rescan | done | Only changed files (mtime, size). |
 | Dead link check | done | From the original version: find missing files and mark/remove them. |
-| File watching | planned | inotify / FSEvents / ReadDirectoryChangesW. |
 | Formats | done | MP3, Ogg Vorbis, FLAC, WAV. |
-| Additional formats | planned | AIFF, Opus. AAC/M4A optional via FFmpeg. |
+| Additional formats | planned | AIFF, Opus. |
 | Fast search | done | Search as you type across all fields (SQLite FTS5). |
 | Column filters | done | From the original version: separate search fields for artist, title, genre and year directly above the columns. |
 | Clear search | done | One button empties the search field and all filters. |
@@ -199,9 +189,8 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Tag editor | done | Table-based, writes to file and database (TagLib): ID3v2, Vorbis comments, FLAC. |
 | Missing tags | done | Derive artist/title from the file name. |
 | Saved playlists | done | In the database, import/export M3U/M3U8. |
-| Crates | planned | Manual collections. |
 | Analysis on import | planned | BPM, beatgrid, waveform, loudness in the background, results cached. |
-| Track list export | planned | Replaces the old print dialog: export as PDF, CSV or HTML, sortable by artist, title, genre, year. |
+| Track list export | planned | Replaces the old print dialog: export as HTML with a print layout, opened in the browser to print it (or save it as PDF there), or as CSV; sortable by artist, title, genre, year. |
 | Play history | planned | Per session, exportable. |
 
 ### 4.6 DVS (timecode vinyl)
@@ -248,7 +237,7 @@ The mapping format is described in [mappings/README.md](mappings/README.md).
 | Help bubbles | done | A short help for a widget when the mouse rests on it; with touch everything works without it. |
 | Safe quit | done | While a track plays, nothing closes that would stop it; File > Quit then asks first, Cancel being the default. |
 | On-screen keyboard | done | For search on touch-only devices (SDL3 text input). |
-| Themes | planned | Dark/light, colors defined in a file. |
+| Daylight colors | done | Two fixed color sets, dark and daylight (light surfaces, dark text, strong contrast for sun or bright rooms), switched with View > Daylight colors at once and kept in the settings. The displays (time, waveforms) and what signals something (play, CUE, meters) look the same in both. No color files. |
 | Multilingual | done | German, English, French, Spanish, Greek and Russian, chosen in Settings > Language and kept in the settings file. |
 | Always on top | planned | Desktop option from the original version. |
 
@@ -258,11 +247,12 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 - Playlist window: numbered list, next track highlighted.
 - Library window: search fields directly above the columns (artist, title, genre, year), sortable list.
 
-### 4.9 Recording
+### 4.9 Recording and webradio
 
 | Feature | Status | Description |
 |---|---|---|
-| Record mix | planned | Master to WAV or FLAC, with track list (cue sheet). |
+| Record mix | planned | Master to WAV, with track list (cue sheet). Compressing it (MP3, Ogg, FLAC) is left to other programs. |
+| Webradio | planned | Send the master live to an Icecast or Shoutcast server, as the original version was used for. |
 
 ### 4.10 Remote
 
@@ -281,7 +271,7 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Decks on Pi 4 | 4 decks with keylock without dropouts |
 | UI | 60 fps on Pi 5, GPU-accelerated waveform rendering |
 | Library search | < 50 ms with 100,000 tracks |
-| Binary (desktop, static, without FFmpeg) | single-digit MB |
+| Binary (desktop, static) | single-digit MB |
 | RAM | No target. Decoded tracks up to the configured length are held in memory (about 23 MB per minute at 48 kHz); this is audio, not video. |
 
 ---
@@ -293,22 +283,21 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Language | C++23 (without modules) | |
 | Build | CMake with presets per platform | |
 | Audio I/O, decoding MP3/FLAC/WAV | miniaudio | Public domain / MIT-0 |
-| Ogg Vorbis | stb_vorbis | Public domain / MIT |
-| Opus | libopusfile | BSD |
-| AAC/M4A (optional) | FFmpeg | LGPL |
-| Keylock/timestretch | SoundTouch, Signalsmith Stretch (to choose from) | LGPL-2.1 / MIT |
-| BPM/beat detection | SoundTouch BPMDetect, optional aubio | LGPL / GPL-3+ |
+| Ogg Vorbis | stb_vorbis (with miniaudio) | Public domain / MIT |
+| Opus (planned) | libopusfile | BSD |
+| Keylock/timestretch | SoundTouch, Signalsmith Stretch (Settings > Sound) | LGPL-2.1 / MIT |
+| BPM detection | QM-DSP (onset detection, tempo tracking) | GPL-2+ |
 | Database | SQLite (FTS5) | Public domain |
 | Tags | TagLib | LGPL-2.1 / MPL-1.1 |
 | UI, windowing, touch | SDL3 | zlib |
 | Font rendering | SDL3_ttf (FreeType, HarfBuzz) | zlib (FreeType: FTL, HarfBuzz: MIT) |
-| Vector graphics (optional) | NanoVG | zlib |
+| Font | Noto Sans | OFL-1.1 |
 | Logo (SVG) | nanosvg | zlib |
 | MIDI | RtMidi (+ custom backends for Android/Web) | MIT-style |
-| HID (optional) | hidapi | BSD |
-| Config | toml++ | MIT |
-| DVS | xwax timecoder | GPL-2+ |
-| Tests | doctest or Catch2 | MIT / BSL |
+| HID (planned) | hidapi | BSD |
+| Controller mappings | toml++ | MIT |
+| DVS (planned) | xwax timecoder | GPL-2+ |
+| Tests | doctest | MIT |
 
 ---
 
@@ -316,6 +305,6 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 
 - Core fully testable headless.
 - Offline render tests: a defined command sequence renders to WAV, compared against a reference.
-- Audio thread checks: debug builds detect allocations and locks in the audio callback.
-- GitHub Actions: builds for Linux x86_64, Linux arm64, Windows, macOS, Android, Web.
-- Sanitizers (ASan, UBSan, TSan) in CI for the core.
+- Audio thread checks: the tests count heap allocations in the audio path (decks, time stretchers, engine rendering); there must be none.
+- GitHub Actions on every push: tests with ASan, UBSan and LSan and with TSan, clang-format and clang-tidy, line coverage; mutation tests with Mull once a month and on request.
+- Release builds on a push to main once everything passed: Linux x86_64, Linux arm64, macOS and Windows. Android and Web are not built yet.

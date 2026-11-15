@@ -6,6 +6,7 @@
 #include "api/version.hpp"
 #include "command_line.hpp"
 #include "api/controllers.hpp"
+#include "look.hpp"
 #include "sdl_app.hpp"
 #include "settings.hpp"
 
@@ -189,6 +190,7 @@ int main(int argc, char *argv[])
 
     const std::filesystem::path settings_file = settingsFile();
     const sdl::Settings         settings      = startSettings(settings_file);
+    sdl::look::setDaylight(settings.daylight);
     // The controllers first: with the output on Automatic, a connected controller's sound card is used, with the
     // headphones on 3/4
     auto        controllers = connectControllers(settings);

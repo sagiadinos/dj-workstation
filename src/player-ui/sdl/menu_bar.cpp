@@ -12,9 +12,6 @@ namespace djw::player_ui::sdl
     {
         constexpr float padding = 14.0F;
 
-        constexpr Color separator{80, 80, 80};
-        constexpr Color text_color{230, 230, 230};
-        constexpr Color dim_color{120, 120, 120};
     } // namespace
 
     void MenuBar::setMenus(std::vector<Menu> new_menus)
@@ -141,18 +138,19 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        canvas.fillRoundedRect(bar, 0.0F, {58, 60, 66}, {30, 31, 35});
-        canvas.fillRect({bar.x, bar.y + bar.height - 1.0F, bar.width, 1.0F}, separator);
+        canvas.fillRoundedRect(bar, 0.0F, look::colors().menu_bar_top, look::colors().menu_bar_bottom);
+        canvas.fillRect({bar.x, bar.y + bar.height - 1.0F, bar.width, 1.0F}, look::colors().separator);
         const float text_y = (bar.height - canvas.textHeight()) / 2;
         for (std::size_t menu = 0; menu < menus.size(); ++menu)
         {
             const Rect title = titleArea(menu);
             if (open == menu)
             {
-                canvas.fillRoundedRect(title, 0.0F, {62, 112, 172}, {36, 72, 118});
+                canvas.fillRoundedRect(title, 0.0F, look::colors().highlight_top, look::colors().highlight_bottom);
             }
             const float width = std::min(canvas.textWidth(menus[menu].title), title.width - (2 * padding));
-            canvas.textElided({title.x + ((title.width - width) / 2), bar.y + text_y}, menus[menu].title, text_color,
+            canvas.textElided({title.x + ((title.width - width) / 2), bar.y + text_y}, menus[menu].title,
+                              open == menu ? look::colors().highlight_text : look::colors().text,
                               title.width - (2 * padding));
         }
         if (!open)
@@ -162,15 +160,15 @@ namespace djw::player_ui::sdl
 
         const Menu &shown = menus[*open];
         const Rect  box   = dropdownArea(*open);
-        canvas.fillRoundedRect(box.inset(-1.0F), 4.0F, look::outline, look::outline);
-        canvas.fillRoundedRect(box, 3.0F, {64, 66, 72}, {44, 46, 51});
+        canvas.fillRoundedRect(box.inset(-1.0F), 4.0F, look::colors().outline, look::colors().outline);
+        canvas.fillRoundedRect(box, 3.0F, look::colors().menu_box_top, look::colors().menu_box_bottom);
         for (std::size_t item = 0; item < shown.items.size(); ++item)
         {
             const MenuItem &entry = shown.items[item];
             const Rect      area  = itemArea(*open, item);
             if (entry.checked)
             {
-                canvas.fillRoundedRect(area, 0.0F, {62, 112, 172}, {36, 72, 118});
+                canvas.fillRoundedRect(area, 0.0F, look::colors().highlight_top, look::colors().highlight_bottom);
             }
             const float text_y    = area.y + ((area.height - canvas.textHeight()) / 2);
             float       available = area.width - (2 * padding);
@@ -179,13 +177,17 @@ namespace djw::player_ui::sdl
                 // At the end of the entry: right in left-to-right layout, left in right-to-left
                 const float shortcut_width = canvas.textWidth(entry.shortcut);
                 const float shortcut_x     = rtl ? area.x + padding : area.x + area.width - padding - shortcut_width;
-                canvas.text({shortcut_x, text_y}, entry.shortcut, dim_color);
+                canvas.text({shortcut_x, text_y}, entry.shortcut, look::colors().text_dim);
                 available = std::max(0.0F, available - shortcut_width - padding);
             }
             const float width = std::min(canvas.textWidth(entry.label), available);
             const float x     = rtl ? area.x + area.width - padding - width : area.x + padding;
-            canvas.textElided({x, text_y}, entry.label, entry.enabled ? text_color : dim_color, available);
+            canvas.textElided({x, text_y}, entry.label,
+                              !entry.enabled  ? look::colors().text_dim
+                              : entry.checked ? look::colors().highlight_text
+                                              : look::colors().text,
+                              available);
         }
-        canvas.fillRect({box.x, box.y + box.height, box.width, 1.0F}, separator);
+        canvas.fillRect({box.x, box.y + box.height, box.width, 1.0F}, look::colors().separator);
     }
 } // namespace djw::player_ui::sdl

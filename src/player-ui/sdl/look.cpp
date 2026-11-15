@@ -13,10 +13,113 @@ namespace djw::player_ui::sdl::look
 {
     namespace
     {
-        constexpr Color metal_top{40, 42, 46};
-        constexpr Color metal_bottom{24, 25, 28};
-        constexpr Color frame{70, 72, 78};
+        constexpr Palette dark{.window              = {20, 20, 20},
+                               .metal_top           = {40, 42, 46},
+                               .metal_bottom        = {24, 25, 28},
+                               .frame               = {70, 72, 78},
+                               .outline             = {14, 14, 16},
+                               .text                = {232, 232, 235},
+                               .text_dim            = {120, 122, 128},
+                               .label               = {205, 205, 205},
+                               .status              = {160, 160, 160},
+                               .button_gray         = {68, 70, 75},
+                               .button_blue         = {40, 75, 120},
+                               .disabled_background = {42, 42, 42},
+                               .disabled_text       = {110, 110, 110},
+                               .field               = {35, 35, 35},
+                               .field_top           = {16, 17, 20},
+                               .field_bottom        = {30, 32, 36},
+                               .field_frame         = {70, 70, 70},
+                               .groove_top          = {18, 19, 22},
+                               .groove_bottom       = {44, 46, 51},
+                               .row                 = {28, 28, 28},
+                               .row_alternate       = {34, 34, 34},
+                               .secondary_text      = {160, 160, 160},
+                               .missing_text        = {205, 105, 105},
+                               .highlight_top       = {62, 112, 172},
+                               .highlight_bottom    = {36, 72, 118},
+                               .highlight_text      = {232, 232, 235},
+                               .menu_bar_top        = {58, 60, 66},
+                               .menu_bar_bottom     = {30, 31, 35},
+                               .menu_box_top        = {64, 66, 72},
+                               .menu_box_bottom     = {44, 46, 51},
+                               .item_top            = {64, 66, 72},
+                               .item_bottom         = {50, 52, 57},
+                               .separator           = {80, 80, 80},
+                               .header              = {45, 45, 45},
+                               .pane_border         = {62, 64, 70},
+                               .pane_bar            = {34, 35, 38},
+                               .focus               = {30, 62, 104},
+                               .bubble              = {36, 37, 41}};
+
+        // Light surfaces, near-black text; the blue of what is chosen darker, so white text on it stays readable
+        constexpr Palette day{.window              = {236, 236, 233},
+                              .metal_top           = {242, 242, 240},
+                              .metal_bottom        = {218, 219, 222},
+                              .frame               = {120, 122, 128},
+                              .outline             = {80, 82, 88},
+                              .text                = {12, 12, 14},
+                              .text_dim            = {82, 84, 90},
+                              .label               = {30, 30, 34},
+                              .status              = {60, 60, 64},
+                              .button_gray         = {206, 208, 213},
+                              .button_blue         = {120, 170, 232},
+                              .disabled_background = {226, 226, 226},
+                              .disabled_text       = {150, 150, 150},
+                              .field               = {255, 255, 255},
+                              .field_top           = {255, 255, 255},
+                              .field_bottom        = {244, 245, 247},
+                              .field_frame         = {130, 130, 130},
+                              .groove_top          = {176, 178, 184},
+                              .groove_bottom       = {214, 216, 220},
+                              .row                 = {255, 255, 255},
+                              .row_alternate       = {240, 241, 243},
+                              .secondary_text      = {72, 72, 76},
+                              .missing_text        = {176, 30, 30},
+                              .highlight_top       = {40, 100, 180},
+                              .highlight_bottom    = {24, 70, 140},
+                              .highlight_text      = {255, 255, 255},
+                              .menu_bar_top        = {232, 233, 236},
+                              .menu_bar_bottom     = {208, 210, 214},
+                              .menu_box_top        = {252, 252, 253},
+                              .menu_box_bottom     = {234, 235, 238},
+                              .item_top            = {226, 228, 232},
+                              .item_bottom         = {212, 214, 218},
+                              .separator           = {170, 170, 170},
+                              .header              = {214, 216, 220},
+                              .pane_border         = {140, 142, 148},
+                              .pane_bar            = {218, 220, 224},
+                              .focus               = {70, 130, 210},
+                              .bubble              = {255, 252, 230}};
+
+        // The look in use; the frontend's thread alone draws, so a plain flag does
+        bool use_daylight = false; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): one look per program
     } // namespace
+
+    const Palette &darkPalette() noexcept
+    {
+        return dark;
+    }
+
+    const Palette &daylightPalette() noexcept
+    {
+        return day;
+    }
+
+    const Palette &colors() noexcept
+    {
+        return use_daylight ? day : dark;
+    }
+
+    void setDaylight(bool on) noexcept
+    {
+        use_daylight = on;
+    }
+
+    bool daylight() noexcept
+    {
+        return use_daylight;
+    }
 
     Color shade(Color color, int amount) noexcept
     {
@@ -27,7 +130,7 @@ namespace djw::player_ui::sdl::look
 
     void background(Canvas &canvas, const Rect &area)
     {
-        canvas.fillRoundedRect(area, 0.0F, metal_top, metal_bottom);
+        canvas.fillRoundedRect(area, 0.0F, colors().metal_top, colors().metal_bottom);
         // Brushed: fine horizontal lines, a little lighter or darker, the same every frame
         constexpr float line_step = 3.0F;
         std::uint32_t   seed      = 12'345;
@@ -49,7 +152,7 @@ namespace djw::player_ui::sdl::look
         {
             return;
         }
-        canvas.fillRoundedRect(area, radius, outline, outline);
+        canvas.fillRoundedRect(area, radius, colors().outline, colors().outline);
         const Rect  body  = area.inset(1.0F);
         const Color light = shade(base, pressed ? -10 : 28);
         const Color dark  = shade(base, pressed ? -32 : -18);
@@ -67,7 +170,7 @@ namespace djw::player_ui::sdl::look
         {
             return;
         }
-        canvas.fillRoundedRect(area, radius, frame, frame);
+        canvas.fillRoundedRect(area, radius, colors().frame, colors().frame);
         canvas.fillRoundedRect(area.inset(1.0F), std::max(0.0F, radius - 1.0F), fill, fill);
     }
 
@@ -78,9 +181,9 @@ namespace djw::player_ui::sdl::look
             return;
         }
         const float radius = std::min(area.width, area.height) / 2;
-        canvas.fillRoundedRect(area, radius, outline, outline);
+        canvas.fillRoundedRect(area, radius, colors().outline, colors().outline);
         const Rect inner = area.inset(1.0F);
-        canvas.fillRoundedRect(inner, std::max(0.0F, radius - 1.0F), {18, 19, 22}, {44, 46, 51});
+        canvas.fillRoundedRect(inner, std::max(0.0F, radius - 1.0F), colors().groove_top, colors().groove_bottom);
         if (level < 0.0F)
         {
             return;
@@ -111,7 +214,7 @@ namespace djw::player_ui::sdl::look
             color.alpha = static_cast<unsigned char>((color.alpha * alpha) / 255);
             return color;
         };
-        canvas.fillRoundedRect(area, 4.0F, with(outline), with(outline));
+        canvas.fillRoundedRect(area, 4.0F, with(colors().outline), with(colors().outline));
         const Rect body = area.inset(1.0F);
         canvas.fillRoundedRect(body, 3.0F, with(held ? Color{250, 250, 252} : Color{228, 229, 233}),
                                with(held ? Color{150, 152, 158} : Color{116, 118, 124}));

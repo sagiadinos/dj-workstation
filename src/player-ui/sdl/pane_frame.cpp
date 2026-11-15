@@ -12,7 +12,6 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr Color bar_color{34, 35, 38};
         constexpr float text_inset = 10.0F;
         constexpr float button_gap = 3.0F;
     } // namespace
@@ -58,19 +57,19 @@ namespace djw::player_ui::sdl
 
     void PaneFrame::draw(Canvas &canvas) const
     {
-        canvas.fillRect(title_bar, bar_color);
+        canvas.fillRect(title_bar, look::colors().pane_bar);
         if (title)
         {
             const float room = title_bar.width - (2 * text_inset) - (close ? title_height : 0.0F);
             const float y    = title_bar.y + ((title_bar.height - canvas.textHeight()) / 2);
-            canvas.textElided({title_bar.x + text_inset, y}, title(), look::text, std::max(0.0F, room));
+            canvas.textElided({title_bar.x + text_inset, y}, title(), look::colors().text, std::max(0.0F, room));
         }
         close_button.draw(canvas);
         content->draw(canvas);
         // The border, last, so the content cannot cover it
-        canvas.fillRect({whole.x, whole.y, whole.width, border}, border_color);
-        canvas.fillRect({whole.x, whole.y + whole.height - border, whole.width, border}, border_color);
-        canvas.fillRect({whole.x, whole.y, border, whole.height}, border_color);
-        canvas.fillRect({whole.x + whole.width - border, whole.y, border, whole.height}, border_color);
+        canvas.fillRect({whole.x, whole.y, whole.width, border}, look::colors().pane_border);
+        canvas.fillRect({whole.x, whole.y + whole.height - border, whole.width, border}, look::colors().pane_border);
+        canvas.fillRect({whole.x, whole.y, border, whole.height}, look::colors().pane_border);
+        canvas.fillRect({whole.x + whole.width - border, whole.y, border, whole.height}, look::colors().pane_border);
     }
 } // namespace djw::player_ui::sdl

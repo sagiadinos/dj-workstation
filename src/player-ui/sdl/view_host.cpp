@@ -225,9 +225,9 @@ namespace djw::player_ui::sdl
         const float y =
             at.y + offset.y + height <= bottom ? at.y + offset.y : std::max(window_area.y, at.y - height - 4);
         const Rect bubble{x, y, width, height};
-        canvas.fillRect(bubble, look::text_dim);
-        canvas.fillRect(bubble.inset(1.0F), Color{36, 37, 41});
-        canvas.text({x + padding, y + padding}, tip, look::text);
+        canvas.fillRect(bubble, look::colors().text_dim);
+        canvas.fillRect(bubble.inset(1.0F), look::colors().bubble);
+        canvas.text({x + padding, y + padding}, tip, look::colors().text);
     }
 
     void ViewHost::startArranging(Arranging arranging)
@@ -356,10 +356,10 @@ namespace djw::player_ui::sdl
             return;
         }
         const Rect &area = pane->placed;
-        canvas.fillRect({area.x, area.y, area.width, focus_line}, focus_color);
-        canvas.fillRect({area.x, area.y + area.height - focus_line, area.width, focus_line}, focus_color);
-        canvas.fillRect({area.x, area.y, focus_line, area.height}, focus_color);
-        canvas.fillRect({area.x + area.width - focus_line, area.y, focus_line, area.height}, focus_color);
+        canvas.fillRect({area.x, area.y, area.width, focus_line}, look::colors().focus);
+        canvas.fillRect({area.x, area.y + area.height - focus_line, area.width, focus_line}, look::colors().focus);
+        canvas.fillRect({area.x, area.y, focus_line, area.height}, look::colors().focus);
+        canvas.fillRect({area.x + area.width - focus_line, area.y, focus_line, area.height}, look::colors().focus);
     }
 
     void ViewHost::drawArranging(Canvas &canvas) const

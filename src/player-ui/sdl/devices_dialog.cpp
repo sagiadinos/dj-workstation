@@ -250,27 +250,27 @@ namespace djw::player_ui::sdl
     void DevicesDialog::draw(Canvas &canvas) const
     {
         canvas.fillRect(window_area, {0, 0, 0, 140}); // what lies below does not react
-        look::raised(canvas, panel_area, look::button_gray, false, 10.0F);
+        look::raised(canvas, panel_area, look::colors().button_gray, false, 10.0F);
         const float middle = (row_height - canvas.textHeight()) / 2;
         const auto  text   = [&canvas, middle](const Rect &area, const std::string &line, Color color)
         { canvas.textElided({area.x, area.y + middle}, line, color, area.width - 8.0F); };
-        text(title_area, translator->tr("dialog.devices.title"), look::text);
-        text(output_label, translator->tr("dialog.devices.output"), look::text);
-        text(channels_label, translator->tr("dialog.devices.channels"), look::text);
-        text(latency_label, translator->tr("dialog.devices.latency"), look::text);
-        text(hint_area, translator->tr("dialog.devices.latency_hint"), look::text_dim);
+        text(title_area, translator->tr("dialog.devices.title"), look::colors().text);
+        text(output_label, translator->tr("dialog.devices.output"), look::colors().text);
+        text(channels_label, translator->tr("dialog.devices.channels"), look::colors().text);
+        text(latency_label, translator->tr("dialog.devices.latency"), look::colors().text);
+        text(hint_area, translator->tr("dialog.devices.latency_hint"), look::colors().text_dim);
         text({hint_area.x, hint_area.y + row_height, hint_area.width, row_height},
-             translator->tr("dialog.devices.next_start"), look::text_dim);
+             translator->tr("dialog.devices.next_start"), look::colors().text_dim);
         text(controllers_area,
              translator->tr(choices.ports.empty() ? "dialog.devices.no_controllers" : "dialog.devices.controllers"),
-             look::text);
+             look::colors().text);
         for (std::size_t port = 0; port < port_labels.size(); ++port)
         {
-            text(port_labels.at(port), choices.ports.at(port), look::text_dim);
+            text(port_labels.at(port), choices.ports.at(port), look::colors().text_dim);
         }
         if (!choices.message.empty())
         {
-            text(message_area, choices.message, look::text);
+            text(message_area, choices.message, look::colors().text);
         }
         import_button.draw(canvas);
         ok_button.draw(canvas);

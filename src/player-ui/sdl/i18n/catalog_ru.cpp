@@ -106,6 +106,7 @@ namespace djw::player_ui::sdl::catalogs
             {"window.beats", "djw - Волновые формы битов"},
             {"menu.view.beats_window", "Волновые формы битов"},
             {"menu.view.beats_vertical", "Вертикальные волновые формы"},
+            {"menu.view.daylight", "Цвета для дневного света"},
             {"player.load", "Загрузить"},
             {"player.time", "Время"},
             {"player.keylock", "KEY"},

@@ -145,6 +145,7 @@ namespace djw::player_ui::sdl
         label += "  ";
         label += deck ? translator->tr("mixer.player", {{"number", playerNumber(deck->number)}})
                       : translator->tr("mixer.none");
-        canvas.textElided({inner.x + frame, inner.y + frame}, label, look::text_dim, inner.width - (2 * frame));
+        canvas.textElided({inner.x + frame, inner.y + frame}, label, look::colors().text_dim,
+                          inner.width - (2 * frame));
     }
 } // namespace djw::player_ui::sdl

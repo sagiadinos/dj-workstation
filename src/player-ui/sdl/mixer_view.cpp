@@ -25,7 +25,6 @@ namespace djw::player_ui::sdl
         /// How long the master's clip lamp stays lit after a peak at full scale
         constexpr std::chrono::milliseconds clip_hold{2'000};
 
-        constexpr Color label_color{210, 210, 210};
     } // namespace
 
     MixerView::MixerView(core::api::CommandQueue &queue, core::api::MixerSnapshotBuffer &snapshot,
@@ -236,7 +235,7 @@ namespace djw::player_ui::sdl
         fade_button.draw(canvas);
         const std::string label = translator->tr("mixer.fade_time");
         canvas.textElided({fade_label_area.x, fade_label_area.y + ((fade_label_area.height - canvas.textHeight()) / 2)},
-                          label, label_color, fade_label_area.width);
+                          label, look::colors().label, fade_label_area.width);
         fade_time.draw(canvas);
         side_a.draw(canvas);
         side_b.draw(canvas);

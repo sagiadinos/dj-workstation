@@ -3,6 +3,8 @@
 
 #include "track_list.hpp"
 
+#include "look.hpp"
+
 #include "time_format.hpp"
 #include "track_columns.hpp"
 
@@ -15,13 +17,6 @@ namespace djw::player_ui::sdl
     namespace
     {
         constexpr float padding = 10.0F;
-
-        constexpr Color row_color{28, 28, 28};
-        constexpr Color alternate_row_color{34, 34, 34};
-        constexpr Color selected_row_color{40, 75, 120};
-        constexpr Color text_color{230, 230, 230};
-        constexpr Color secondary_text_color{160, 160, 160};
-        constexpr Color missing_text_color{205, 105, 105}; // the file is gone: dead link
 
     } // namespace
 
@@ -307,12 +302,11 @@ namespace djw::player_ui::sdl
             {
                 break;
             }
-            const Color background = selection == index ? selected_row_color
-                                     : index % 2 == 0   ? row_color
-                                                        : alternate_row_color;
+            const Color background = index % 2 == 0 ? look::colors().row : look::colors().row_alternate;
             if (selection == index)
             {
-                canvas.fillRoundedRect({area.x, y, area.width, rowHeight()}, 0.0F, {62, 112, 172}, {36, 72, 118});
+                canvas.fillRoundedRect({area.x, y, area.width, rowHeight()}, 0.0F, look::colors().highlight_top,
+                                       look::colors().highlight_bottom);
             }
             else
             {
@@ -328,8 +322,14 @@ namespace djw::player_ui::sdl
                 canvas.textElided({cell_area.x + (padding * scale), text_y}, text, color,
                                   cell_area.width - (2 * padding * scale));
             };
-            const Color primary   = track.missing ? missing_text_color : text_color;
-            const Color secondary = track.missing ? missing_text_color : secondary_text_color;
+            // On the chosen row's blue the text is what a chosen entry shows; a missing file stays in its color
+            const bool  chosen    = selection == index;
+            const Color primary   = track.missing ? look::colors().missing_text
+                                    : chosen      ? look::colors().highlight_text
+                                                  : look::colors().text;
+            const Color secondary = track.missing ? look::colors().missing_text
+                                    : chosen      ? look::colors().highlight_text
+                                                  : look::colors().secondary_text;
             cell(core::api::LibraryColumn::Artist, track.artist, primary);
             cell(core::api::LibraryColumn::Title, track.title, primary);
             cell(core::api::LibraryColumn::Genre, track.genre, secondary);

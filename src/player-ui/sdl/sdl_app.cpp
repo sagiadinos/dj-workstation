@@ -4,6 +4,7 @@
 #include "sdl_app.hpp"
 
 #include "api/version.hpp"
+#include "look.hpp"
 #include "mdi_arrangement.hpp"
 #include "player_number.hpp"
 
@@ -232,6 +233,8 @@ namespace djw::player_ui::sdl
             app->library_view->setBeatsWindow(
                 [owner] { owner->requestToolWindow(Tool::Beats, !owner->toolWindowOpen(Tool::Beats)); },
                 [owner] { return owner->toolWindowOpen(Tool::Beats); });
+            app->library_view->setDaylight([owner] { owner->setDaylight(!look::daylight()); },
+                                           [] { return look::daylight(); });
             app->library_view->setBeatsVertical([owner] { owner->setBeatsVertical(!owner->beat_view->vertical()); },
                                                 [owner] { return owner->beat_view->vertical(); });
             if (!app->layout_file.empty())
@@ -1168,6 +1171,27 @@ namespace djw::player_ui::sdl
             }
         }
         return sides;
+    }
+
+    void SdlApp::setDaylight(bool on)
+    {
+        look::setDaylight(on);
+        if (settings_file.empty())
+        {
+            return;
+        }
+        // Only this line changes; the rest of the settings stays as it is
+        const std::ifstream in{settings_file};
+        std::ostringstream  text;
+        text << in.rdbuf();
+        Settings settings = parseSettings(text.str());
+        settings.daylight = on;
+        std::ofstream out{settings_file, std::ios::trunc};
+        out << formatSettings(settings);
+        if (!out)
+        {
+            logError("cannot write the settings to " + settings_file.string());
+        }
     }
 
     void SdlApp::setBeatsVertical(bool on)

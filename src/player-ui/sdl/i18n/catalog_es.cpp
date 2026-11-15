@@ -106,6 +106,7 @@ namespace djw::player_ui::sdl::catalogs
             {"window.beats", "djw - Formas de onda de beats"},
             {"menu.view.beats_window", "Formas de onda de beats"},
             {"menu.view.beats_vertical", "Formas de onda verticales"},
+            {"menu.view.daylight", "Colores para luz diurna"},
             {"player.load", "Cargar"},
             {"player.time", "Tiempo"},
             {"player.keylock", "KEY"},

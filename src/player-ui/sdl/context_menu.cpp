@@ -12,8 +12,6 @@ namespace djw::player_ui::sdl
     {
         constexpr float padding = 12.0F;
 
-        constexpr Color text_color{230, 230, 230};
-        constexpr Color disabled_color{120, 120, 120};
     } // namespace
 
     void ContextMenu::setItems(std::vector<MenuItem> new_items)
@@ -112,20 +110,24 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        canvas.fillRoundedRect(menuArea(), 4.0F, look::outline, look::outline);
+        canvas.fillRoundedRect(menuArea(), 4.0F, look::colors().outline, look::colors().outline);
         for (std::size_t index = 0; index < items.size(); ++index)
         {
             const Rect area = itemArea(index);
             if (pressed == index)
             {
-                canvas.fillRoundedRect(area.inset(1.0F), 0.0F, {62, 112, 172}, {36, 72, 118});
+                canvas.fillRoundedRect(area.inset(1.0F), 0.0F, look::colors().highlight_top,
+                                       look::colors().highlight_bottom);
             }
             else
             {
-                canvas.fillRoundedRect(area.inset(1.0F), 0.0F, {64, 66, 72}, {50, 52, 57});
+                canvas.fillRoundedRect(area.inset(1.0F), 0.0F, look::colors().item_top, look::colors().item_bottom);
             }
             canvas.textElided({area.x + padding, area.y + ((area.height - canvas.textHeight()) / 2)},
-                              items[index].label, items[index].enabled ? text_color : disabled_color,
+                              items[index].label,
+                              !items[index].enabled ? look::colors().text_dim
+                              : pressed == index    ? look::colors().highlight_text
+                                                    : look::colors().text,
                               area.width - (2 * padding));
         }
     }

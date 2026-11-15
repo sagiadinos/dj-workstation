@@ -48,7 +48,6 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const Rect &bar() const noexcept { return title_bar; }
             /// Width of the line around the part
             static constexpr float border = 1.0F;
-            static constexpr Color border_color{62, 64, 70};
 
         private:
             View      *content;

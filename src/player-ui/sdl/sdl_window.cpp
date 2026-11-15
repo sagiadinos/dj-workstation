@@ -15,8 +15,7 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr Color background{20, 20, 20};
-        constexpr int   icon_size = 256;
+        constexpr int icon_size = 256;
 
         std::string sdlError(const char *what)
         {
@@ -196,7 +195,8 @@ namespace djw::player_ui::sdl
         host.update();
         syncTextInput();
 
-        SDL_SetRenderDrawColor(renderer.get(), background.red, background.green, background.blue, background.alpha);
+        const Color clear = look::colors().window;
+        SDL_SetRenderDrawColor(renderer.get(), clear.red, clear.green, clear.blue, clear.alpha);
         SDL_RenderClear(renderer.get());
         SdlCanvas canvas{*renderer, *text, SDL_GetWindowPixelDensity(window.get()), pictures.get()};
         look::background(canvas, area());

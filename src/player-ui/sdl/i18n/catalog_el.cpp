@@ -105,6 +105,7 @@ namespace djw::player_ui::sdl::catalogs
             {"window.beats", "djw - Κυματομορφές beat"},
             {"menu.view.beats_window", "Κυματομορφές beat"},
             {"menu.view.beats_vertical", "Κάθετες κυματομορφές beat"},
+            {"menu.view.daylight", "Χρώματα για φως ημέρας"},
             {"player.load", "Φόρτωση"},
             {"player.time", "Χρόνος"},
             {"player.keylock", "KEY"},

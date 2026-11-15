@@ -121,13 +121,13 @@ namespace djw::player_ui::sdl
     void SoundDialog::draw(Canvas &canvas) const
     {
         canvas.fillRect(window_area, {0, 0, 0, 140}); // what lies below does not react
-        look::raised(canvas, panel_area, look::button_gray, false, 10.0F);
+        look::raised(canvas, panel_area, look::colors().button_gray, false, 10.0F);
         const float middle = (row_height - canvas.textHeight()) / 2;
         const auto  text   = [&canvas, middle](const Rect &area, const std::string &line, Color color)
         { canvas.textElided({area.x, area.y + middle}, line, color, area.width - 8.0F); };
-        text(title_area, translator->tr("dialog.sound.title"), look::text);
-        text(quality_label, translator->tr("dialog.sound.keylock_quality"), look::text);
-        text(hint_area, translator->tr("dialog.devices.next_start"), look::text_dim);
+        text(title_area, translator->tr("dialog.sound.title"), look::colors().text);
+        text(quality_label, translator->tr("dialog.sound.keylock_quality"), look::colors().text);
+        text(hint_area, translator->tr("dialog.devices.next_start"), look::colors().text_dim);
         ok_button.draw(canvas);
         cancel_button.draw(canvas);
         quality.draw(canvas); // last: an open list lies over the buttons

@@ -14,9 +14,7 @@ namespace djw::player_ui::sdl
         constexpr float box_size = 22.0F;
         constexpr float gap      = 8.0F;
 
-        constexpr Color box_color{35, 35, 35};
         constexpr Color check_color{0, 190, 90};
-        constexpr Color text_color{230, 230, 230};
     } // namespace
 
     void CheckBox::pointerUp(Point position)
@@ -38,13 +36,13 @@ namespace djw::player_ui::sdl
         }
         const float size = std::min(box_size, area.height);
         const Rect  box{area.x, area.y + ((area.height - size) / 2), size, size};
-        look::sunken(canvas, box, box_color, 5.0F);
+        look::sunken(canvas, box, look::colors().field, 5.0F);
         if (on)
         {
             canvas.fillRoundedRect(box.inset(5.0F), 3.0F, check_color, {0, 150, 70});
         }
         const float text_x = area.x + size + gap;
-        canvas.textElided({text_x, area.y + ((area.height - canvas.textHeight()) / 2)}, text, text_color,
+        canvas.textElided({text_x, area.y + ((area.height - canvas.textHeight()) / 2)}, text, look::colors().text,
                           std::max(0.0F, area.x + area.width - text_x));
     }
 } // namespace djw::player_ui::sdl

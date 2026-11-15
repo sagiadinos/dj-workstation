@@ -38,8 +38,8 @@ namespace djw::core::api
             /// The audio output: the first whose name contains this (ignoring case); empty, or none matching: the
             /// system's default output
             std::string output_device{};
-            /// The keylock library; one not built in falls back to SoundTouch
-            TimeStretch time_stretch = TimeStretch::SoundTouch;
+            /// The keylock library, by default the better one; one not built in falls back to SoundTouch
+            TimeStretch time_stretch = TimeStretch::Signalsmith;
     };
 
     /// How loadTrack starts the deck

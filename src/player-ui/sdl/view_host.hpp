@@ -100,8 +100,6 @@ namespace djw::player_ui::sdl
             };
             /// Width of the line around the view typed keys go to, when several views share the window
             static constexpr float focus_line = 2.0F;
-            /// A dark blue, just enough to tell which part has the focus
-            static constexpr Color focus_color{30, 62, 104};
             /// The square at the lower right corner of a view that resizes it
             static constexpr float resize_handle = 32.0F;
             /// The logo in the biggest free part of the window, where views lie side by side (the MDI mode): faint,

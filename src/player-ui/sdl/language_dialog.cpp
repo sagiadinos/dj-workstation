@@ -106,9 +106,9 @@ namespace djw::player_ui::sdl
     void LanguageDialog::draw(Canvas &canvas) const
     {
         canvas.fillRect(window_area, {0, 0, 0, 140}); // what lies below does not react
-        look::raised(canvas, panel_area, look::button_gray, false, 10.0F);
+        look::raised(canvas, panel_area, look::colors().button_gray, false, 10.0F);
         canvas.textElided({title_area.x, title_area.y + ((row_height - canvas.textHeight()) / 2)},
-                          translator->tr("dialog.language.title"), look::text, title_area.width - 8.0F);
+                          translator->tr("dialog.language.title"), look::colors().text, title_area.width - 8.0F);
         ok_button.draw(canvas);
         cancel_button.draw(canvas);
         list.draw(canvas); // last: an open list lies over the buttons

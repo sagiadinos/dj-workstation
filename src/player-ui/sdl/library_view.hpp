@@ -171,6 +171,12 @@ namespace djw::player_ui::sdl
             void setDevicesDialog(Toggle open) { devices_dialog = std::move(open); }
             /// Enables Settings > Language: open shows the dialog
             void setLanguageDialog(Toggle open) { language_dialog = std::move(open); }
+            /// Enables View > Daylight colors: toggle switches the colors, shown tells whether daylight is on
+            void setDaylight(Toggle toggle, Shown shown)
+            {
+                daylight_toggle = std::move(toggle);
+                daylight_shown  = std::move(shown);
+            }
             /// Enables Settings > Sound: open shows the dialog
             void setSoundDialog(Toggle open) { sound_dialog = std::move(open); }
             /// Enables File > Quit: quit asks the owner to end the program
@@ -251,6 +257,8 @@ namespace djw::player_ui::sdl
             Toggle                   devices_dialog;
             Toggle                   language_dialog;
             Toggle                   sound_dialog;
+            Toggle                   daylight_toggle;
+            Shown                    daylight_shown;
             Toggle                   quit_requested;
             Shown                    fullscreen_shown;
             std::int64_t             context_track = 0; // the track the context menu is about

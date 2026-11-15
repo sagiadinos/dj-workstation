@@ -336,7 +336,7 @@ TEST_CASE("SoundDialog: Standard and High in words, without the libraries' names
     }
     CHECK_FALSE(canvas.drew("Signalsmith Stretch"));
 
-    SoundFixture german{Settings{}};
+    SoundFixture german{Settings{.time_stretch = TimeStretch::SoundTouch}};
     german.translator.setLanguage(Language::German);
     german.dialog.update();
     RecordingCanvas deutsch;
@@ -349,7 +349,7 @@ TEST_CASE("SoundDialog: Standard and High in words, without the libraries' names
 
 TEST_CASE("SoundDialog: a quality picked and OK take it, the other settings stay; Cancel, Escape and Enter")
 {
-    SoundFixture fixture{Settings{.buffer_frames = 1'024}};
+    SoundFixture fixture{Settings{.buffer_frames = 1'024, .time_stretch = TimeStretch::SoundTouch}};
     CHECK(fixture.dialog.qualityList().selectedIndex() == 0U);
     fixture.tapAt(middle(fixture.dialog.qualityList().bounds()));
     REQUIRE(fixture.dialog.qualityList().isOpen());

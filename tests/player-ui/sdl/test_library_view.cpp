@@ -776,6 +776,34 @@ TEST_CASE("LibraryView: View > Beat waveforms shows or hides them, View > Vertic
     CHECK(canvas.drew("Vertical beat waveforms"));
 }
 
+TEST_CASE("LibraryView: View > Daylight colors switches the colors and shows whether they are on")
+{
+    constexpr std::size_t view_menu = 3;
+    constexpr std::size_t daylight  = 7;
+    Fixture               fixture;
+    chooseEntry(fixture, view_menu, daylight);
+    CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
+    fixture.view.keyboard(EditKey::Escape);
+
+    int  toggles = 0;
+    bool on      = false;
+    fixture.view.setDaylight([&toggles] { ++toggles; }, [&on] { return on; });
+    fixture.view.update();
+    chooseEntry(fixture, view_menu, daylight);
+    CHECK(toggles == 1);
+
+    on = true;
+    fixture.view.update();
+    const Rect title = fixture.view.menuBar().titleArea(view_menu);
+    fixture.tap({title.x + 10, title.y + 10});
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Daylight colors"));
+    const Rect entry = fixture.view.menuBar().itemArea(view_menu, daylight);
+    CHECK(std::ranges::any_of(canvas.rounded, [&entry](const RecordingCanvas::RoundedRect &band)
+                              { return band.rect.y == entry.y && band.rect.height == entry.height; })); // checked
+}
+
 TEST_CASE("LibraryView: View > New player calls the app and shows its shortcut")
 {
     Fixture fixture;

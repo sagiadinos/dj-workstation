@@ -18,6 +18,7 @@ namespace djw::player_ui::sdl
         constexpr std::string_view controller_label = "controller ";
         constexpr std::string_view language_label   = "language ";
         constexpr std::string_view keylock_label    = "keylock ";
+        constexpr std::string_view colors_label     = "colors ";
 
         std::string_view keylockWord(core::api::TimeStretch library)
         {
@@ -50,6 +51,7 @@ namespace djw::player_ui::sdl
         }
         out << channels_label << (settings.headphone_output ? 4 : 2) << '\n';
         out << keylock_label << keylockWord(settings.time_stretch) << '\n';
+        out << colors_label << (settings.daylight ? "daylight" : "dark") << '\n';
         if (settings.language)
         {
             out << language_label << languageCode(*settings.language) << '\n';
@@ -83,6 +85,11 @@ namespace djw::player_ui::sdl
             if (line.starts_with(channels_label))
             {
                 settings.headphone_output = line.substr(channels_label.size()) == "4";
+                continue;
+            }
+            if (line.starts_with(colors_label))
+            {
+                settings.daylight = std::string_view{line}.substr(colors_label.size()) == "daylight";
                 continue;
             }
             if (line.starts_with(keylock_label))

@@ -204,6 +204,9 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const BeatView &beatView() const noexcept { return *beat_view; }
             /// View > Vertical beat waveforms: the lanes side by side or one above the other; saved with the layout
             void setBeatsVertical(bool on);
+            /// View > Daylight colors: switches the colors of every window at once and keeps the choice in the settings
+            /// file, if there is one
+            void setDaylight(bool on);
 
             [[nodiscard]] bool toolWindowOpen(Tool tool) const noexcept
             {

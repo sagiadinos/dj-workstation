@@ -365,16 +365,31 @@ TEST_CASE("DevicesDialog: Automatic adds no empty output; Escape closes an open 
     CHECK(no_rate.latencyText(0) == "Shortest (128000.0 ms)");
 }
 
-TEST_CASE("Settings: the keylock library comes back as saved; none or an unknown one means SoundTouch")
+TEST_CASE("Settings: the keylock library comes back as saved; none or an unknown one means the better one")
 {
     using djw::core::api::TimeStretch;
-    CHECK(parseSettings(formatSettings(Settings{})).time_stretch == TimeStretch::SoundTouch);
-    CHECK(formatSettings(Settings{}).find("keylock soundtouch\n") != std::string::npos);
+    CHECK(Settings{}.time_stretch == TimeStretch::Signalsmith);
+    CHECK(parseSettings("").time_stretch == TimeStretch::Signalsmith);
+    CHECK(parseSettings(formatSettings(Settings{})).time_stretch == TimeStretch::Signalsmith);
+    CHECK(formatSettings(Settings{}).find("keylock signalsmith\n") != std::string::npos);
     Settings settings;
-    settings.time_stretch  = TimeStretch::Signalsmith;
+    settings.time_stretch  = TimeStretch::SoundTouch;
     const std::string text = formatSettings(settings);
-    CHECK(text.find("keylock signalsmith\n") != std::string::npos);
+    CHECK(text.find("keylock soundtouch\n") != std::string::npos);
     CHECK(parseSettings(text) == settings);
-    CHECK(parseSettings("djw-settings 1\nkeylock rubberband\n").time_stretch == TimeStretch::SoundTouch);
-    CHECK(parseSettings("djw-settings 1\nkeylock \n").time_stretch == TimeStretch::SoundTouch);
+    CHECK(parseSettings("djw-settings 1\nkeylock rubberband\n").time_stretch == TimeStretch::Signalsmith);
+    CHECK(parseSettings("djw-settings 1\nkeylock \n").time_stretch == TimeStretch::Signalsmith);
+}
+
+TEST_CASE("Settings: the daylight colors come back as saved; none or anything else means dark")
+{
+    CHECK_FALSE(Settings{}.daylight);
+    CHECK(formatSettings(Settings{}).find("colors dark\n") != std::string::npos);
+    Settings settings;
+    settings.daylight      = true;
+    const std::string text = formatSettings(settings);
+    CHECK(text.find("colors daylight\n") != std::string::npos);
+    CHECK(parseSettings(text) == settings);
+    CHECK_FALSE(parseSettings("djw-settings 1\ncolors sunny\n").daylight);
+    CHECK_FALSE(parseSettings("djw-settings 1\n").daylight);
 }

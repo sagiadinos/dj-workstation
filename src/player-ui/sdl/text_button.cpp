@@ -13,8 +13,6 @@ namespace djw::player_ui::sdl
     {
         constexpr float padding = 8.0F;
 
-        constexpr Color disabled_background{42, 42, 42};
-        constexpr Color disabled_text_color{110, 110, 110};
     } // namespace
 
     void TextButton::setEnabled(bool on) noexcept
@@ -46,16 +44,16 @@ namespace djw::player_ui::sdl
         {
             return;
         }
-        Color fill = highlighted ? look::button_blue : look::button_gray;
+        Color fill = highlighted ? look::colors().button_blue : look::colors().button_gray;
         if (custom_background)
         {
             fill = *custom_background;
         }
-        Color ink = custom_text.value_or(look::text);
+        Color ink = custom_text.value_or(look::colors().text);
         if (!enabled)
         {
-            fill = disabled_background;
-            ink  = disabled_text_color;
+            fill = look::colors().disabled_background;
+            ink  = look::colors().disabled_text;
         }
         look::raised(canvas, area, fill, down && enabled);
 

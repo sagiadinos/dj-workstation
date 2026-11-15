@@ -3,6 +3,8 @@
 
 #include "playlist_view.hpp"
 
+#include "look.hpp"
+
 #include <algorithm>
 #include <utility>
 
@@ -14,8 +16,6 @@ namespace djw::player_ui::sdl
         constexpr float gap        = 8.0F;
         constexpr float row_height = 44.0F;
         constexpr float step_width = 48.0F;
-
-        constexpr Color status_color{160, 160, 160};
 
         /// Lays out buttons side by side over area, equally wide
         void placeInRow(std::initializer_list<TextButton *> row, const Rect &area, float space)
@@ -423,6 +423,6 @@ namespace djw::player_ui::sdl
         name_field.draw(canvas);
         list.draw(canvas);
         canvas.textElided({status_area.x, status_area.y + ((status_area.height - canvas.textHeight()) / 2)},
-                          status_text, status_color, status_area.width);
+                          status_text, look::colors().status, status_area.width);
     }
 } // namespace djw::player_ui::sdl

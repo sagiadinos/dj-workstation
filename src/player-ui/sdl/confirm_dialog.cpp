@@ -77,11 +77,11 @@ namespace djw::player_ui::sdl
     void ConfirmDialog::draw(Canvas &canvas) const
     {
         canvas.fillRect(window_area, {0, 0, 0, 140}); // what lies below does not react
-        look::raised(canvas, panel_area, look::button_gray, false, 10.0F);
+        look::raised(canvas, panel_area, look::colors().button_gray, false, 10.0F);
         const float middle = (row_height - canvas.textHeight()) / 2;
-        canvas.textElided({title_area.x, title_area.y + middle}, translator->tr(title_key), look::text,
+        canvas.textElided({title_area.x, title_area.y + middle}, translator->tr(title_key), look::colors().text,
                           title_area.width - 8.0F);
-        canvas.textElided({message_area.x, message_area.y + middle}, translator->tr(message_key), look::text,
+        canvas.textElided({message_area.x, message_area.y + middle}, translator->tr(message_key), look::colors().text,
                           message_area.width - 8.0F);
         confirm_button.draw(canvas);
         cancel_button.draw(canvas);

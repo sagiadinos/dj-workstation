@@ -34,8 +34,10 @@ namespace djw::player_ui::sdl
             std::string output_device{};
             /// Master on 1/2 and headphones on 3/4 instead of stereo (a controller's sound card always gets them)
             bool headphone_output = false;
-            /// The keylock library
-            core::api::TimeStretch time_stretch = core::api::TimeStretch::SoundTouch;
+            /// The keylock library (Settings > Sound), by default the better one
+            core::api::TimeStretch time_stretch = core::api::TimeStretch::Signalsmith;
+            /// The daylight colors instead of the dark ones (View > Daylight colors)
+            bool daylight = false;
             /// Which mapping a controller's MIDI port uses (by the port's stable name); empty for none. A port not
             /// listed gets the mapping that matches it.
             std::map<std::string, std::string> controllers{};

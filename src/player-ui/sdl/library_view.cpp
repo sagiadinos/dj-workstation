@@ -3,6 +3,8 @@
 
 #include "library_view.hpp"
 
+#include "look.hpp"
+
 #include "track_columns.hpp"
 
 #include <algorithm>
@@ -44,12 +46,11 @@ namespace djw::player_ui::sdl
             constexpr int toggle_beats_window    = 24;
             constexpr int beats_vertical         = 25;
             constexpr int sound                  = 26;
+            constexpr int daylight               = 27;
         } // namespace menu_id
 
         constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
                                                               "column.year",   "column.bpm",   "column.time"};
-
-        constexpr Color status_color{160, 160, 160};
 
         constexpr float missing_button_width = 150.0F;
         constexpr float remove_button_width  = 220.0F;
@@ -623,7 +624,11 @@ namespace djw::player_ui::sdl
                            .label    = tr("menu.view.fullscreen"),
                            .enabled  = static_cast<bool>(fullscreen_toggle),
                            .checked  = fullscreen_shown && fullscreen_shown(),
-                           .shortcut = "Ctrl+F"}}});
+                           .shortcut = "Ctrl+F"},
+                          {.id      = menu_id::daylight,
+                           .label   = tr("menu.view.daylight"),
+                           .enabled = static_cast<bool>(daylight_toggle),
+                           .checked = daylight_shown && daylight_shown()}}});
         menus.push_back({tr("menu.layout"),
                          {{.id      = menu_id::arrange_automatically,
                            .label   = tr("menu.layout.arrange_automatically"),
@@ -692,6 +697,12 @@ namespace djw::player_ui::sdl
                 if (quit_requested)
                 {
                     quit_requested();
+                }
+                break;
+            case menu_id::daylight:
+                if (daylight_toggle)
+                {
+                    daylight_toggle();
                 }
                 break;
             case menu_id::sound:
@@ -835,7 +846,7 @@ namespace djw::player_ui::sdl
             }
         }
         canvas.textElided({status_area.x, status_area.y + ((status_area.height - canvas.textHeight()) / 2)},
-                          status_text, status_color, std::max(0.0F, buttons_left - gap - status_area.x));
+                          status_text, look::colors().status, std::max(0.0F, buttons_left - gap - status_area.x));
         missing_button.draw(canvas);
         clear_button.draw(canvas);
         remove_button.draw(canvas);

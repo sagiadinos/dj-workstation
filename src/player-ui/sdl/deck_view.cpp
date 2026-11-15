@@ -36,7 +36,6 @@ namespace djw::player_ui::sdl
         constexpr Color yellow{255, 225, 0};
         constexpr Color red{225, 40, 40};
         constexpr Color green{40, 215, 70};
-        constexpr Color label_color{200, 200, 200};
         constexpr Color cue_background{225, 40, 40};
         constexpr Color cue_text{250, 250, 250};
 
@@ -645,7 +644,7 @@ namespace djw::player_ui::sdl
         {
             canvas.textElided({area.x + std::max(0.0F, (area.width - canvas.textWidth(text)) / 2),
                                area.y + ((area.height - canvas.textHeight()) / 2)},
-                              text, label_color, area.width);
+                              text, look::colors().label, area.width);
         };
         label(volume_label_area, translator->tr("player.volume"));
         label(headphone_label_area, translator->tr("player.headphones"));

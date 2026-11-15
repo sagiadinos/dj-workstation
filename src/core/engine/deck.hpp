@@ -42,7 +42,7 @@ namespace djw::core::engine
             /// pause_fade_frames: length of the fade-out on pause, 0 stops at once. time_stretch: the keylock library.
             /// Allocates (the keylock buffers): create it outside the audio thread.
             Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate = 48'000,
-                 api::TimeStretch time_stretch = api::TimeStretch::SoundTouch);
+                 api::TimeStretch time_stretch = api::TimeStretch::Signalsmith);
 
             /// Length of the piece a scrub plays over and over, in seconds
             static constexpr double scrub_loop_seconds = api::scrub_loop_seconds;
