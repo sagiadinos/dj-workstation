@@ -103,6 +103,16 @@ namespace djw::player_ui::sdl
             case EditKey::Right:
             case EditKey::ShiftLeft:
             case EditKey::ShiftRight:
+            case EditKey::ShiftUp:
+            case EditKey::ShiftDown:
+            case EditKey::CtrlLeft:
+            case EditKey::CtrlRight:
+            case EditKey::CtrlUp:
+            case EditKey::CtrlDown:
+            case EditKey::CtrlShiftLeft:
+            case EditKey::CtrlShiftRight:
+            case EditKey::CtrlShiftUp:
+            case EditKey::CtrlShiftDown:
                 break;
         }
         return false;
