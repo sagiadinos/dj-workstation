@@ -122,6 +122,9 @@ namespace djw::player_ui::sdl
             /// The crossfader side the deck is on, as of the last update
             [[nodiscard]] core::api::CrossfaderSide crossfaderSide() const noexcept { return state.crossfader_side; }
 
+            /// The deck's state as of the last update
+            [[nodiscard]] const core::api::DeckSnapshot &deckState() const noexcept { return state; }
+
             /// The deck was playing at the last update
             [[nodiscard]] bool playing() const noexcept { return state.play_state == core::api::PlayState::Playing; }
 

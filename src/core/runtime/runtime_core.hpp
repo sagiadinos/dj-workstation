@@ -10,6 +10,7 @@
 #include "decode/track_loader.hpp"
 #include "engine/engine.hpp"
 
+#include <map>
 #include <memory>
 
 namespace djw::core::runtime
@@ -40,6 +41,7 @@ namespace djw::core::runtime
             std::expected<void, std::string>             start() override;
             api::CommandQueue                           &commandQueue() noexcept override { return frontend_queue; }
             api::DeckSnapshotBuffer                     *deckSnapshot(api::DeckId deck) noexcept override;
+            [[nodiscard]] std::shared_ptr<const api::TrackPeaks> trackPeaks(api::DeckId deck) const override;
             api::MixerSnapshotBuffer   &mixerSnapshot() noexcept override { return engine.mixerSnapshot(); }
             [[nodiscard]] std::uint32_t sampleRate() const noexcept override { return device->sampleRate(); }
             [[nodiscard]] std::uint32_t bufferFrames() const noexcept override { return buffer_frames; }
@@ -63,6 +65,8 @@ namespace djw::core::runtime
             api::CommandQueue      &frontend_queue;
             EngineCallback          callback;
             bool                    started = false;
+            /// The fine waveform of the track each deck has, as loadTrack made it
+            std::map<api::DeckId, std::shared_ptr<const api::TrackPeaks>> deck_peaks;
             // Declared last: destroyed first
             std::unique_ptr<audio_io::AudioDevice> device;
     };

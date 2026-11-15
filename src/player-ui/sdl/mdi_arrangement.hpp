@@ -19,6 +19,9 @@ namespace djw::player_ui::sdl
             bool        mixer    = false;
             bool        playlist = false;
             bool        library  = false;
+            bool        beats    = false;
+            /// The beat waveforms in vertical lanes
+            bool beats_vertical = false;
     };
 
     /// The sizes the panes are made for, title bar included
@@ -28,6 +31,8 @@ namespace djw::player_ui::sdl
             float player_height  = 0.0F;
             float mixer_width    = 0.0F;
             float playlist_width = 0.0F;
+            /// The beat waveforms across their time: the height of horizontal lanes, the width of vertical ones
+            float beats_depth = 0.0F;
     };
 
     /// Where each pane goes; a pane that is not shown has no area
@@ -37,6 +42,7 @@ namespace djw::player_ui::sdl
             std::optional<Rect> mixer;
             std::optional<Rect> playlist;
             std::optional<Rect> library;
+            std::optional<Rect> beats;
     };
 
     /// Space around and between the panes
@@ -46,7 +52,9 @@ namespace djw::player_ui::sdl
 
     /**
      * The panes laid out in the window, none overlapping: the players in a row at the top with the crossfader between
-     * player 1 and player 2, centered; the library below over the whole width with the playlist to its right. The row
+     * player 1 and player 2, centered; the library below over the whole width with the playlist to its right. The beat
+     * waveforms go between the row and the library when they are horizontal, at the right below the row when they
+     * are vertical, at most half of that room either way. The row
      * keeps the proportions of the players and shrinks as a whole when it does not fit, never grows beyond the sizes
      * it is made for.
      */

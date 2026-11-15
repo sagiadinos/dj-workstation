@@ -381,3 +381,34 @@ TEST_CASE("RuntimeCore: a cue point right at the end of the track is not used, o
     REQUIRE(before_end.has_value());
     CHECK(before_end->cue_seconds == 1.5);
 }
+
+TEST_CASE("RuntimeCore: the fine waveform of a deck's track, none before a track and after the deck is gone")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const api::DeckId         deck = fixture.core->addDeck();
+    CHECK(fixture.core->trackPeaks(deck) == nullptr);
+    CHECK(fixture.core->trackPeaks(api::DeckId{99}) == nullptr);
+
+    REQUIRE(fixture.core->loadTrack(deck, gapFile(folder)).has_value());
+    const auto peaks = fixture.core->trackPeaks(deck);
+    REQUIRE(peaks != nullptr);
+    CHECK(peaks->size() == 96'000 / api::TrackPeaks::frames_per_peak);
+    // Decoded in the background: half a second of silence, then the tone at 0.4
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{10};
+    while (peaks->at(peaks->size() - 1) == 0 && std::chrono::steady_clock::now() < deadline)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+    CHECK(peaks->at(0) == 0);
+    CHECK(peaks->at(92) == 0);
+    CHECK(peaks->at(200) == doctest::Approx(102).epsilon(0.02));
+    CHECK(peaks->at(peaks->size() - 1) == doctest::Approx(102).epsilon(0.02));
+
+    // Another track replaces it
+    REQUIRE(fixture.core->loadTrack(deck, wav_file).has_value());
+    CHECK(fixture.core->trackPeaks(deck) != peaks);
+
+    REQUIRE(fixture.core->removeDeck(deck).has_value());
+    CHECK(fixture.core->trackPeaks(deck) == nullptr);
+}

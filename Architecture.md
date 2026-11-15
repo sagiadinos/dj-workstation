@@ -34,6 +34,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - Memory per track: about 23 MB per minute at 48 kHz (a 5-minute track about 115 MB).
 - The size held in memory has a configurable limit, as in VirtualDJ. Tracks above it are streamed from disk through a ring buffer (`decode::StreamingSource`); every seek there (also a jump on the waveform, turning keylock on or off, the scrub loop) has a gap of some 50 ms while the stream refills, and reverse playback is limited to what is buffered. The default limit is 10 minutes of track length (about 230 MB), so DJ tracks including most extended versions are held in memory; longer ones (mixes) are streamed. If the memory cannot be had the track is streamed as well.
 - Implemented in `decode::MemoryTrack` and `decode::StreamingSource`; `decode::makeTrack` chooses between them.
+- While a track in memory is decoded, the decoder thread also fills its fine waveform (`api::TrackPeaks`: the peak of every 256 frames, 0 to 255) for the beat waveforms; the frontend gets it with `Core::trackPeaks`. A streamed track has none.
 
 ### Dependencies
 - Only use libraries listed in FEATURES.md section 6.

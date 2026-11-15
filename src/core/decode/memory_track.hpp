@@ -48,8 +48,9 @@ namespace djw::core::decode
             [[nodiscard]] std::uint64_t lengthFrames() const noexcept override { return length; }
             [[nodiscard]] bool          atEnd() const noexcept override { return read_position >= length; }
 
-            [[nodiscard]] float decodedFraction() const noexcept override;
-            [[nodiscard]] bool  randomAccess() const noexcept override { return true; }
+            [[nodiscard]] float                                  decodedFraction() const noexcept override;
+            [[nodiscard]] bool                                   randomAccess() const noexcept override { return true; }
+            [[nodiscard]] std::shared_ptr<const api::TrackPeaks> peaks() const override { return fine_peaks; }
 
             /// The audio at frame is decoded and can be read
             [[nodiscard]] bool isDecoded(std::uint64_t frame) const noexcept;
@@ -77,11 +78,13 @@ namespace djw::core::decode
             void        decodeChunk(std::size_t chunk);
             void        run();
 
-            std::unique_ptr<Decoder>       decoder;
-            std::uint64_t                  length;
-            std::size_t                    chunk_frames;
-            std::vector<float>             samples;
-            std::vector<std::atomic<bool>> ready;
+            std::unique_ptr<Decoder> decoder;
+            std::uint64_t            length;
+            std::size_t              chunk_frames;
+            std::vector<float>       samples;
+            /// Filled by the worker as the chunks are decoded
+            std::shared_ptr<api::TrackPeaks> fine_peaks;
+            std::vector<std::atomic<bool>>   ready;
             /// Set by the audio thread when it needs a chunk that is not decoded yet
             std::atomic<std::size_t> wanted_chunk{no_chunk};
             std::atomic<std::size_t> ready_chunks{0};

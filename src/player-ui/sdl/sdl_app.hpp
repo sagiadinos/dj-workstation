@@ -7,6 +7,7 @@
 #include "api/core.hpp"
 #include "api/library.hpp"
 #include "api/controllers.hpp"
+#include "beat_view.hpp"
 #include "deck_view.hpp"
 #include "devices_dialog.hpp"
 #include "confirm_dialog.hpp"
@@ -41,8 +42,9 @@ namespace djw::player_ui::sdl
 
     /**
      * The SDL3 player: a window for each deck (the player), and, if there is a library, the library window, which is
-     * the main window. The playlist and the crossfader window open from the View menu (the playlist also from the
-     * Playlist menu) and are closed again with their own close button. Owns SDL and SDL_ttf and runs the event loop.
+     * the main window. The playlist, the crossfader window and the beat waveforms open from the View menu (the
+     * playlist also from the Playlist menu) and are closed again with their own close button. Owns SDL and SDL_ttf and
+     * runs the event loop.
      *
      * Players: there is no upper limit. View > New player or Ctrl+N adds a deck with its own window; closing a player
      * window removes that deck. A track chosen in the library (Enter or a double tap) or the playlist goes to the
@@ -75,7 +77,8 @@ namespace djw::player_ui::sdl
             enum class Tool : std::uint8_t
             {
                 Playlist,
-                Mixer
+                Mixer,
+                Beats
             };
 
             /// library may be nullptr: then there is no library window. The texts start in language.
@@ -191,6 +194,10 @@ namespace djw::player_ui::sdl
             /// Whether the deck at index plays, as of the last frame; for tests
             [[nodiscard]] bool deckPlaying(std::size_t index) const { return decks.at(index)->view->playing(); }
             [[nodiscard]] const DeckView &deckView(std::size_t index) const { return *decks.at(index)->view; }
+            /// The beat waveforms; for tests
+            [[nodiscard]] const BeatView &beatView() const noexcept { return *beat_view; }
+            /// View > Vertical beat waveforms: the lanes side by side or one above the other; saved with the layout
+            void setBeatsVertical(bool on);
 
             [[nodiscard]] bool toolWindowOpen(Tool tool) const noexcept
             {
@@ -315,6 +322,8 @@ namespace djw::player_ui::sdl
             /// Once the library's revision changed: shows analyses that finished since
             void                                 refreshAnalyses();
             [[nodiscard]] std::vector<MixerDeck> mixerDecks() const;
+            /// The players on the crossfader sides, for the beat waveforms
+            [[nodiscard]] BeatSides beatSides() const;
 
             void setLanguage(Language language);
             void runPlaylistCommand(LibraryView::PlaylistCommand command);
@@ -348,12 +357,13 @@ namespace djw::player_ui::sdl
             SdlWindow    *dialog_window   = nullptr; ///< the window the dialog lies over
             std::unique_ptr<PlaylistView>           playlist_view;
             std::unique_ptr<MixerView>              mixer_view;
+            std::unique_ptr<BeatView>               beat_view;
             std::vector<std::unique_ptr<SdlWindow>> windows;
             /// Window titles are set again when the language changes
             SdlWindow *library_window = nullptr;
             /// MDI mode: the one window with all parts; nullptr in the other mode
             SdlWindow                *host_window = nullptr;
-            std::array<ToolWindow, 2> tools;
+            std::array<ToolWindow, 3> tools;
             WindowMode                mode      = WindowMode::Separate;
             WindowMode                next_mode = WindowMode::Separate;
             /// The layout read at the start: what is not shown now (the other mode) is saved as it was

@@ -53,6 +53,7 @@ namespace djw::core::runtime
         {
             return std::unexpected{unknownDeck(deck)};
         }
+        deck_peaks.erase(deck);
         return {};
     }
 
@@ -93,6 +94,7 @@ namespace djw::core::runtime
         }
         (*track)->setStartFrame(start);
         loaded.cue_seconds = static_cast<double>(start) / rate;
+        deck_peaks[deck]   = (*track)->peaks();
         engine.setTrack(deck, std::move(*track));
         return loaded;
     }
@@ -111,6 +113,12 @@ namespace djw::core::runtime
     api::DeckSnapshotBuffer *RuntimeCore::deckSnapshot(api::DeckId deck) noexcept
     {
         return engine.deckSnapshot(deck);
+    }
+
+    std::shared_ptr<const api::TrackPeaks> RuntimeCore::trackPeaks(api::DeckId deck) const
+    {
+        const auto found = deck_peaks.find(deck);
+        return found != deck_peaks.end() ? found->second : nullptr;
     }
 
     void RuntimeCore::EngineCallback::process(std::span<float> output) noexcept // [audio-thread]

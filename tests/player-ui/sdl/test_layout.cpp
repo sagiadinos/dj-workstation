@@ -238,6 +238,7 @@ TEST_CASE("Layout: the places of the one window set by hand come back as saved")
                                                                    .players  = {Placement{0, 0, 380, 540}, std::nullopt},
                                                                    .mixer    = Placement{400, 0, 440, 280},
                                                                    .playlist = std::nullopt,
+                                                                   .beats    = std::nullopt,
                                                                    .library  = Placement{0, 560, 1000, 400}}};
     const std::string text = formatLayout(layout);
     CHECK(text.find("mdi player A 0 0 380 540\n") != std::string::npos);
@@ -414,6 +415,7 @@ TEST_CASE("Layout: the playlist's place in the one window comes back; a player w
                                        .players  = {Placement{0, 0, 380, 540}}, // only the first player
                                        .mixer    = std::nullopt,
                                        .playlist = Placement{1200, 560, 600, 400},
+                                       .beats    = std::nullopt,
                                        .library  = Placement{0, 560, 1000, 400}};
     const std::string text = formatLayout(layout);
     CHECK(text.find("mdi player A 0 0 380 540\n") != std::string::npos);
@@ -441,4 +443,92 @@ TEST_CASE("Layout: the default places, to the point: 12 apart, centered, the lib
     // Narrower than the group: from the left edge, not before it
     const Layout narrow = defaultLayout({0, 0, 1000, 1080}, sizes);
     CHECK(narrow.players[0].place.x == 0);
+}
+
+TEST_CASE("Layout: the beat waveforms keep whether they are open, where and how they stand, in both modes")
+{
+    Layout layout         = fiveWithMixer();
+    layout.beats          = {.open = true, .place = {100, 700, 900, 220}};
+    layout.beats_vertical = true;
+    std::string text      = formatLayout(layout);
+    CHECK(text.find("\nbeats open vertical 100 700 900 220\n") != std::string::npos);
+    auto again = parseLayout(text);
+    REQUIRE(again.has_value());
+    CHECK(*again == layout);
+
+    layout.beats_vertical = false;
+    layout.beats.open     = false;
+    text                  = formatLayout(layout);
+    CHECK(text.find("\nbeats closed 100 700 900 220\n") != std::string::npos);
+    CHECK(*parseLayout(text) == layout);
+
+    // The one window: open or closed, with a place once the parts were placed by hand
+    layout.mode            = WindowMode::Mdi;
+    layout.mdi             = defaultMdiLayout();
+    layout.mdi->maximized  = true; // what a layout without a window size reads as
+    layout.mdi->beats_open = true;
+    text                   = formatLayout(layout);
+    CHECK(text.find("\nmdi beats open\n") != std::string::npos);
+    CHECK(*parseLayout(text) == layout);
+    layout.mdi->places = MdiPlaces{.area     = Placement{0, 0, 1920, 1080},
+                                   .players  = {std::nullopt, std::nullopt},
+                                   .mixer    = std::nullopt,
+                                   .playlist = std::nullopt,
+                                   .beats    = Placement{0, 600, 1920, 230},
+                                   .library  = Placement{0, 840, 1000, 200}};
+    text               = formatLayout(layout);
+    CHECK(text.find("\nmdi beats open 0 600 1920 230\n") != std::string::npos);
+    CHECK(*parseLayout(text) == layout);
+}
+
+TEST_CASE("Layout: a layout from before the beat waveforms has them closed and horizontal")
+{
+    Layout layout         = fiveWithMixer();
+    layout.mdi            = defaultMdiLayout();
+    layout.mdi->maximized = true;
+    std::string text      = formatLayout(layout);
+    for (const std::string_view line :
+         {std::string_view{"beats closed 0 0 760 200\n"}, std::string_view{"mdi beats closed\n"}})
+    {
+        const auto at = text.find(line);
+        REQUIRE(at != std::string::npos);
+        text.erase(at, line.size());
+    }
+    const auto read = parseLayout(text);
+    REQUIRE(read.has_value());
+    CHECK(*read == layout);
+    CHECK_FALSE(read->beats.open);
+    CHECK_FALSE(read->beats_vertical);
+    CHECK(read->beats.place == Placement{0, 0, 760, 200});
+    CHECK_FALSE(read->mdi->beats_open);
+}
+
+TEST_CASE("Layout: a damaged beats line, or one twice, is no layout")
+{
+    Layout layout          = fiveWithMixer();
+    layout.mdi             = defaultMdiLayout();
+    const std::string good = formatLayout(layout);
+    REQUIRE(parseLayout(good).has_value());
+    CHECK_FALSE(parseLayout(good + "beats open 0 0 760 200\n").has_value()); // twice
+    CHECK_FALSE(parseLayout(good + "mdi beats open\n").has_value());         // twice
+    std::string text = good;
+    text.replace(text.find("beats closed"), 12, "beats shut");
+    CHECK_FALSE(parseLayout(text).has_value()); // neither open nor closed
+    text = good;
+    text.replace(text.find("beats closed"), 12, "beats closed sideways");
+    CHECK_FALSE(parseLayout(text).has_value()); // no such word
+    text = good;
+    text.replace(text.find("760 200"), 7, "760 20");
+    CHECK_FALSE(parseLayout(text).has_value()); // too small
+    text = good;
+    text.replace(text.find("760 200\n"), 8, "760\n");
+    CHECK_FALSE(parseLayout(text).has_value()); // a number missing
+}
+
+TEST_CASE("Layout: by default the beat waveforms are closed, over the library")
+{
+    const Layout layout = defaultLayout({0, 0, 1920, 1080}, {380, 514, 440, 250, 720, 640});
+    CHECK_FALSE(layout.beats.open);
+    CHECK_FALSE(layout.beats_vertical);
+    CHECK(layout.beats.place == Placement{layout.library.x, layout.library.y, 760, 200});
 }

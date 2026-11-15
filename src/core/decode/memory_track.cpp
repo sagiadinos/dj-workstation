@@ -31,7 +31,7 @@ namespace djw::core::decode
 
     MemoryTrack::MemoryTrack(std::unique_ptr<Decoder> decoder, Layout layout, std::vector<float> samples)
         : decoder{std::move(decoder)}, length{layout.length_frames}, chunk_frames{layout.chunk_frames},
-          samples{std::move(samples)}, ready(chunkCount())
+          samples{std::move(samples)}, fine_peaks{std::make_shared<api::TrackPeaks>(length)}, ready(chunkCount())
     {
         if (chunkCount() > 0)
         {
@@ -175,6 +175,7 @@ namespace djw::core::decode
             decode_failed.store(true, std::memory_order_release);
         }
         std::fill(target + filled * stereo, target + frames * stereo, 0.0F);
+        fine_peaks->add(std::uint64_t{chunk} * chunk_frames, std::span<const float>{target, frames * stereo});
 
         ready[chunk].store(true, std::memory_order_release);
         ready_chunks.fetch_add(1, std::memory_order_release);

@@ -66,14 +66,16 @@ namespace djw::player_ui::sdl
             std::vector<std::optional<Placement>> players;
             std::optional<Placement>              mixer;
             std::optional<Placement>              playlist;
+            std::optional<Placement>              beats;
             Placement                             library;
 
             bool operator==(const MdiPlaces &) const = default;
     };
 
     /**
-     * What one window (the MDI mode) shows: the players with their crossfader sides and whether the crossfader and
-     * the playlist are open; the library is always there. Without places the parts are arranged automatically.
+     * What one window (the MDI mode) shows: the players with their crossfader sides and whether the crossfader, the
+     * playlist and the beat waveforms are open; the library is always there. Without places the parts are arranged
+     * automatically.
      */
     struct MdiLayout
     {
@@ -82,6 +84,7 @@ namespace djw::player_ui::sdl
             std::vector<PlayerOptions> player_options;
             bool                       mixer_open    = true;
             bool                       playlist_open = false;
+            bool                       beats_open    = false;
             /// The one window covers the display; otherwise it is a window with a title bar
             bool fullscreen = true;
             /// Not in fullscreen (and after it): maximized, else a window of window_width x window_height (0 x 0:
@@ -109,8 +112,9 @@ namespace djw::player_ui::sdl
 
     /**
      * The windows of the program as the user left them: how many players there are, where each one is and on which
-     * crossfader side, the crossfader window and the playlist window (open or not, where), and the library window.
-     * Saved by the View menu and read at the next start.
+     * crossfader side, the crossfader window, the playlist window and the beat waveforms (open or not, where), and the
+     * library window. Saved by the View menu and read at the next start. The beat waveforms came later: a layout
+     * without them has them closed.
      *
      * Each mode keeps its own layout: the fields above mdi are the separate windows, mdi is the one window. mode is
      * the mode the next start uses.
@@ -121,7 +125,10 @@ namespace djw::player_ui::sdl
             Placement                    library;
             ToolPlacement                mixer;
             ToolPlacement                playlist;
-            WindowMode                   mode = WindowMode::Separate;
+            ToolPlacement                beats{.open = false, .place = {0, 0, 760, 200}};
+            /// The beat waveforms in vertical lanes, in both modes
+            bool       beats_vertical = false;
+            WindowMode mode           = WindowMode::Separate;
             /// std::nullopt: the MDI mode was not saved yet, it starts with defaultMdiLayout()
             std::optional<MdiLayout> mdi;
 

@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Niko Sagiadinos
+
+#include "beat_view.hpp"
+
+#include "look.hpp"
+#include "player_number.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <string>
+
+namespace djw::player_ui::sdl
+{
+    namespace
+    {
+        constexpr float gap       = 6.0F;
+        constexpr float frame     = 3.0F;
+        constexpr float bar_pitch = 2.0F;
+        constexpr float bar_width = 1.5F;
+        /// The pitch is never so far down that a player stands still; a guard against dividing by 0
+        constexpr double slowest = 0.01;
+
+        constexpr Color coming_color{40, 140, 245};
+        constexpr Color played_color{30, 80, 135};
+        constexpr Color playhead_color{255, 255, 255};
+        constexpr Color cue_color{235, 55, 55};
+    } // namespace
+
+    BeatView::BeatView(const Translator &translator, Sides sides, double peaks_per_second)
+        : translator{&translator}, sides{std::move(sides)}, peaks_per_second{peaks_per_second}
+    {
+    }
+
+    void BeatView::layout(const Rect &area)
+    {
+        this->area = area;
+        layoutLanes();
+    }
+
+    void BeatView::setVertical(bool on) noexcept
+    {
+        is_vertical = on;
+        layoutLanes();
+    }
+
+    void BeatView::layoutLanes()
+    {
+        const Rect inner = area.inset(gap);
+        if (is_vertical)
+        {
+            const float half = std::max(0.0F, (inner.width - gap) / 2);
+            lane_a           = {inner.x, inner.y, half, inner.height};
+            lane_b           = {inner.x + half + gap, inner.y, half, inner.height};
+            return;
+        }
+        const float half = std::max(0.0F, (inner.height - gap) / 2);
+        lane_a           = {inner.x, inner.y, inner.width, half};
+        lane_b           = {inner.x, inner.y + half + gap, inner.width, half};
+    }
+
+    void BeatView::update()
+    {
+        sides_shown = sides ? sides() : BeatSides{};
+    }
+
+    void BeatView::draw(Canvas &canvas) const
+    {
+        drawLane(canvas, lane_a, 'A', sides_shown.a);
+        drawLane(canvas, lane_b, 'B', sides_shown.b);
+    }
+
+    void BeatView::drawLane(Canvas &canvas, const Rect &lane, char side, const std::optional<BeatDeck> &deck) const
+    {
+        if (lane.width <= 2 * frame || lane.height <= 2 * frame)
+        {
+            return;
+        }
+        look::sunken(canvas, lane);
+        const Rect  inner  = lane.inset(frame);
+        const float length = is_vertical ? inner.height : inner.width; // along the time
+        const float depth  = is_vertical ? inner.width : inner.height; // across it
+        const float middle = length / 2;
+        // A piece of the lane: from along to along + extent in time, from across to across + thickness across it
+        const auto piece = [this, &inner](float along, float extent, float across, float thickness)
+        {
+            return is_vertical ? Rect{inner.x + across, inner.y + along, thickness, extent}
+                               : Rect{inner.x + along, inner.y + across, extent, thickness};
+        };
+
+        if (deck && deck->state.track_loaded && deck->peaks)
+        {
+            const core::api::TrackPeaks &peaks = *deck->peaks;
+            const double                 speed = std::max(slowest, 1.0 + (deck->state.pitch_percent / 100.0));
+            const double                 seconds_per_point = shown_seconds / static_cast<double>(length);
+            const double                 position          = deck->state.position_seconds;
+            const auto                   bars              = static_cast<std::size_t>(length / bar_pitch);
+            // The value at a point along the lane; neighbouring bars share their border, so no value is drawn twice
+            const auto value_at = [&](float along)
+            {
+                const double seconds = position + (static_cast<double>(along - middle) * seconds_per_point * speed);
+                return std::floor(seconds * peaks_per_second);
+            };
+            for (std::size_t bar = 0; bar < bars; ++bar)
+            {
+                // The values this bar stands for, and the loudest of them
+                const float  along = static_cast<float>(bar) * bar_pitch;
+                const double first = value_at(along);
+                const double end   = value_at(along + bar_pitch);
+                if (end <= 0.0 || first >= static_cast<double>(peaks.size()))
+                {
+                    continue; // before the start of the track or after its end
+                }
+                const auto   from = static_cast<std::size_t>(std::max(0.0, first));
+                const auto   to   = std::max(from + 1, static_cast<std::size_t>(end));
+                std::uint8_t loud = 0;
+                for (std::size_t index = from; index < to; ++index)
+                {
+                    loud = std::max(loud, peaks.at(index));
+                }
+                if (loud == 0)
+                {
+                    continue;
+                }
+                const float size = std::max(1.0F, static_cast<float>(loud) / 255.0F * depth);
+                canvas.fillRect(piece(along, bar_width, (depth - size) / 2, size),
+                                along < middle ? played_color : coming_color);
+            }
+            const double cue_along = middle + ((deck->state.cue_seconds - position) / speed / seconds_per_point);
+            if (cue_along >= 0.0 && cue_along <= static_cast<double>(length))
+            {
+                canvas.fillRect(piece(static_cast<float>(cue_along) - 1.0F, 2.0F, 0.0F, depth), cue_color);
+            }
+        }
+        canvas.fillRect(piece(middle - 1.0F, 2.0F, 0.0F, depth), playhead_color);
+
+        std::string label{side};
+        label += "  ";
+        label += deck ? translator->tr("mixer.player", {{"number", playerNumber(deck->number)}})
+                      : translator->tr("mixer.none");
+        canvas.textElided({inner.x + frame, inner.y + frame}, label, look::text_dim, inner.width - (2 * frame));
+    }
+} // namespace djw::player_ui::sdl

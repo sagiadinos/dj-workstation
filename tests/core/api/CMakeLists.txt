@@ -7,6 +7,7 @@ add_executable(djw_core_api_tests
     test_spsc_queue.cpp
     test_triple_buffer.cpp
     test_commands.cpp
+    test_track_peaks.cpp
 )
 djw_set_options(djw_core_api_tests TEST)
 target_compile_definitions(djw_core_api_tests PRIVATE DJW_EXPECTED_VERSION="${DJW_VERSION}")

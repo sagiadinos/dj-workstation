@@ -16,7 +16,8 @@ using djw::tests::RecordingCanvas;
 
 namespace
 {
-    constexpr MdiSizes sizes{.player_width = 380, .player_height = 544, .mixer_width = 440, .playlist_width = 560};
+    constexpr MdiSizes sizes{
+        .player_width = 380, .player_height = 544, .mixer_width = 440, .playlist_width = 560, .beats_depth = 230};
 
     bool same(float first, float second)
     {
@@ -33,7 +34,7 @@ namespace
     std::vector<Rect> all(const MdiArrangement &placed)
     {
         std::vector<Rect> parts = placed.players;
-        for (const auto &part : {placed.mixer, placed.playlist, placed.library})
+        for (const auto &part : {placed.mixer, placed.playlist, placed.library, placed.beats})
         {
             if (part)
             {
@@ -183,12 +184,89 @@ TEST_CASE("MDI: without players the crossfader or the library alone, nothing at 
 TEST_CASE("MDI: a window smaller than everything still gives no part a negative size")
 {
     constexpr Rect window{0, 0, 20, 20};
-    const auto     placed = arrangeMdi(window, {.players = 3, .mixer = true, .playlist = true, .library = true}, sizes);
-    for (const Rect &part : all(placed))
+    for (const bool vertical : {false, true})
     {
-        CHECK(part.width >= 0.0F);
-        CHECK(part.height >= 0.0F);
+        const auto placed = arrangeMdi(
+            window,
+            {.players = 3, .mixer = true, .playlist = true, .library = true, .beats = true, .beats_vertical = vertical},
+            sizes);
+        CHECK(placed.beats.has_value());
+        for (const Rect &part : all(placed))
+        {
+            CHECK(part.width >= 0.0F);
+            CHECK(part.height >= 0.0F);
+        }
     }
+}
+
+TEST_CASE("MDI: horizontal beat waveforms are a strip across between the row and the lists")
+{
+    constexpr Rect window{0, 0, 1920, 1080};
+    const auto     placed =
+        arrangeMdi(window, {.players = 2, .mixer = true, .playlist = true, .library = true, .beats = true}, sizes);
+    REQUIRE(placed.beats.has_value());
+    CHECK(same(placed.beats->x, mdi_gap));
+    CHECK(same(placed.beats->y, placed.players[0].y + placed.players[0].height + mdi_gap));
+    CHECK(same(placed.beats->width, window.width - (2 * mdi_gap)));
+    CHECK(same(placed.beats->height, 230));
+    // The lists below it, side by side as without it
+    CHECK(same(placed.library->y, placed.beats->y + 230 + mdi_gap));
+    CHECK(same(placed.playlist->y, placed.library->y));
+    CHECK(same(placed.library->width + mdi_gap + placed.playlist->width, window.width - (2 * mdi_gap)));
+    CHECK(same(placed.library->y + placed.library->height, window.height - mdi_gap));
+    checkTidy(placed, window);
+
+    // Little room below the row: the strip takes at most half of it
+    constexpr Rect low{0, 0, 1920, 700};
+    const auto     squeezed = arrangeMdi(low, {.players = 2, .library = true, .beats = true}, sizes);
+    const float    room     = low.height - mdi_gap - squeezed.beats->y;
+    CHECK(same(squeezed.beats->height, (room - mdi_gap) / 2));
+    CHECK(same(squeezed.library->height, squeezed.beats->height));
+    checkTidy(squeezed, low);
+}
+
+TEST_CASE("MDI: vertical beat waveforms are a column at the right below the row, the lists left of it")
+{
+    constexpr Rect window{0, 0, 1920, 1080};
+    const auto     placed = arrangeMdi(
+        window, {.players = 2, .mixer = true, .library = true, .beats = true, .beats_vertical = true}, sizes);
+    REQUIRE(placed.beats.has_value());
+    CHECK(same(placed.beats->width, 230));
+    CHECK(same(placed.beats->x + placed.beats->width, window.width - mdi_gap));
+    CHECK(same(placed.beats->y, placed.library->y));
+    CHECK(same(placed.beats->height, placed.library->height));
+    CHECK(same(placed.library->x, mdi_gap));
+    CHECK(same(placed.library->width, window.width - (3 * mdi_gap) - 230));
+    checkTidy(placed, window);
+
+    // Narrow: at most half of the width
+    constexpr Rect narrow{0, 0, 400, 1080};
+    const auto     slim = arrangeMdi(narrow, {.library = true, .beats = true, .beats_vertical = true}, sizes);
+    CHECK(same(slim.beats->width, (narrow.width - (3 * mdi_gap)) / 2));
+    CHECK(same(slim.library->width, slim.beats->width));
+    checkTidy(slim, narrow);
+}
+
+TEST_CASE("MDI: beat waveforms without lists take all the room below the row, either way")
+{
+    constexpr Rect window{0, 0, 1920, 1080};
+    for (const bool vertical : {false, true})
+    {
+        const auto placed =
+            arrangeMdi(window, {.players = 2, .mixer = true, .beats = true, .beats_vertical = vertical}, sizes);
+        REQUIRE(placed.beats.has_value());
+        CHECK_FALSE(placed.library.has_value());
+        CHECK_FALSE(placed.playlist.has_value());
+        CHECK(same(placed.beats->x, mdi_gap));
+        CHECK(same(placed.beats->width, window.width - (2 * mdi_gap)));
+        CHECK(same(placed.beats->y + placed.beats->height, window.height - mdi_gap));
+        // The row keeps to its share, as with the library below
+        CHECK(placed.players[0].height <= (window.height * mdi_row_share) + 0.01F);
+        checkTidy(placed, window);
+    }
+    const auto alone = arrangeMdi(window, {.beats = true}, sizes);
+    CHECK(same(alone.beats->y, mdi_gap));
+    CHECK(same(alone.beats->height, window.height - (2 * mdi_gap)));
 }
 
 TEST_CASE("PaneFrame: a title bar on top, the content below it, all inside a visible border")

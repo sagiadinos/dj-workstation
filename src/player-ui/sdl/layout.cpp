@@ -167,6 +167,7 @@ namespace djw::player_ui::sdl
                 MdiLayout layout;
                 bool      has_mixer    = false;
                 bool      has_playlist = false;
+                bool      has_beats    = false; ///< optional: layouts before the beat waveforms have none
                 /// The places given on the lines; they count only with the library's place
                 MdiPlaces places;
                 bool      has_place   = false;
@@ -273,6 +274,13 @@ namespace djw::player_ui::sdl
                 lines.has_playlist         = true;
                 return true;
             }
+            if (parts[0] == "beats" && !lines.has_beats)
+            {
+                lines.layout.beats_open = *open;
+                lines.places.beats      = place;
+                lines.has_beats         = true;
+                return true;
+            }
             return false;
         }
 
@@ -318,6 +326,9 @@ namespace djw::player_ui::sdl
             writePlacement(out, tool->place);
             out << '\n';
         }
+        out << "beats " << openWord(layout.beats.open) << (layout.beats_vertical ? " vertical" : "");
+        writePlacement(out, layout.beats.place);
+        out << '\n';
         if (layout.mdi)
         {
             const std::optional<MdiPlaces> &places = layout.mdi->places;
@@ -349,6 +360,9 @@ namespace djw::player_ui::sdl
             out << "mdi playlist " << openWord(layout.mdi->playlist_open);
             writeOptionalPlacement(out, places ? places->playlist : std::nullopt);
             out << '\n';
+            out << "mdi beats " << openWord(layout.mdi->beats_open);
+            writeOptionalPlacement(out, places ? places->beats : std::nullopt);
+            out << '\n';
             if (places)
             {
                 out << "mdi area " << places->area.width << ' ' << places->area.height << '\n';
@@ -374,6 +388,7 @@ namespace djw::player_ui::sdl
         bool       has_library  = false;
         bool       has_mixer    = false;
         bool       has_playlist = false;
+        bool       has_beats    = false;
         MdiLines   mdi;
         bool       has_mdi = false;
         while (std::getline(in, line))
@@ -437,6 +452,24 @@ namespace djw::player_ui::sdl
                 tool                                             = {.open = parts[1] == "open", .place = *place};
                 (parts[0] == "mixer" ? has_mixer : has_playlist) = true;
             }
+            else if (parts[0] == "beats" && !has_beats)
+            {
+                // beats open|closed [vertical] x y width height
+                const bool vertical = parts.size() == 7 && parts[2] == "vertical";
+                if (vertical)
+                {
+                    parts.erase(parts.begin() + 2);
+                }
+                const auto open  = parts.size() == 6 ? openOf(parts[1]) : std::nullopt;
+                const auto place = parts.size() == 6 ? placementOf(std::span{parts}.subspan(2)) : std::nullopt;
+                if (!open || !place)
+                {
+                    return std::nullopt;
+                }
+                layout.beats          = {.open = *open, .place = *place};
+                layout.beats_vertical = vertical;
+                has_beats             = true;
+            }
             else
             {
                 return std::nullopt;
@@ -493,6 +526,9 @@ namespace djw::player_ui::sdl
         // The playlist window: to the right of the library, closed
         layout.playlist = {.open  = false,
                            .place = fitInto({library.x + library.width + gap, library_top, 560, 640}, work_area)};
+        // The beat waveforms: over the library, closed
+        layout.beats.place =
+            fitInto({library.x, library_top, layout.beats.place.width, layout.beats.place.height}, work_area);
         return layout;
     }
 } // namespace djw::player_ui::sdl

@@ -41,6 +41,8 @@ namespace djw::player_ui::sdl
             constexpr int devices                = 21;
             constexpr int language               = 22;
             constexpr int quit                   = 23;
+            constexpr int toggle_beats_window    = 24;
+            constexpr int beats_vertical         = 25;
         } // namespace menu_id
 
         constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
@@ -602,6 +604,14 @@ namespace djw::player_ui::sdl
                            .label   = tr("menu.view.playlist_window"),
                            .enabled = has_playlists,
                            .checked = playlist_shown && playlist_shown()},
+                          {.id      = menu_id::toggle_beats_window,
+                           .label   = tr("menu.view.beats_window"),
+                           .enabled = static_cast<bool>(beats_toggle),
+                           .checked = beats_shown && beats_shown()},
+                          {.id      = menu_id::beats_vertical,
+                           .label   = tr("menu.view.beats_vertical"),
+                           .enabled = static_cast<bool>(beats_turn),
+                           .checked = beats_vertical && beats_vertical()},
                           {.id      = menu_id::one_window_mode,
                            .label   = tr("menu.view.one_window"),
                            .enabled = has_mode,
@@ -703,6 +713,18 @@ namespace djw::player_ui::sdl
                 if (mixer_toggle)
                 {
                     mixer_toggle();
+                }
+                break;
+            case menu_id::toggle_beats_window:
+                if (beats_toggle)
+                {
+                    beats_toggle();
+                }
+                break;
+            case menu_id::beats_vertical:
+                if (beats_turn)
+                {
+                    beats_turn();
                 }
                 break;
             case menu_id::new_deck_entry:

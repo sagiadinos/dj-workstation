@@ -4,8 +4,11 @@
 #ifndef DJW_CORE_ENGINE_AUDIO_SOURCE_HPP
 #define DJW_CORE_ENGINE_AUDIO_SOURCE_HPP
 
+#include "api/track_peaks.hpp"
+
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 
 namespace djw::core::engine
@@ -51,6 +54,9 @@ namespace djw::core::engine
             /// read anywhere, backwards too, a few frames at a time, as scratching does. False for a source that
             /// streams from a file.
             [[nodiscard]] virtual bool randomAccess() const noexcept { return false; } // [audio-thread]
+            /// The fine waveform of the track, filled while it is decoded; nullptr for a source that has none (a
+            /// streamed track). Asked for before the source is handed to the engine.
+            [[nodiscard]] virtual std::shared_ptr<const api::TrackPeaks> peaks() const { return nullptr; }
 
             /// Where a deck starts when it takes this source and where it puts its cue point (0: the beginning), e.g.
             /// the first sound. Set before the source is handed to the engine; the engine only reads it.

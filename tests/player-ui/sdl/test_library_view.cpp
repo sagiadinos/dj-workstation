@@ -699,6 +699,66 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
     CHECK(canvas.drew("Playlist window"));
 }
 
+TEST_CASE("LibraryView: View > Beat waveforms shows or hides them, View > Vertical turns them; both show their state")
+{
+    constexpr std::size_t view_menu = 3;
+    constexpr std::size_t beats     = 3;
+    constexpr std::size_t vertical  = 4;
+    Fixture               fixture;
+    chooseEntry(fixture, view_menu, beats);
+    CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
+    fixture.view.keyboard(EditKey::Escape);
+    chooseEntry(fixture, view_menu, vertical);
+    CHECK(fixture.view.menuBar().isOpen());
+    fixture.view.keyboard(EditKey::Escape);
+
+    int  toggles = 0;
+    int  turns   = 0;
+    bool shown   = false;
+    bool upright = false;
+    fixture.view.setBeatsWindow([&toggles] { ++toggles; }, [&shown] { return shown; });
+    fixture.view.setBeatsVertical([&turns] { ++turns; }, [&upright] { return upright; });
+    fixture.view.update();
+    chooseEntry(fixture, view_menu, beats);
+    CHECK(toggles == 1);
+    CHECK(turns == 0);
+    chooseEntry(fixture, view_menu, vertical);
+    CHECK(toggles == 1);
+    CHECK(turns == 1);
+
+    // A checked entry is drawn on a blue band
+    const auto checked = [&fixture](std::size_t item)
+    {
+        fixture.view.update();
+        if (!fixture.view.menuBar().isOpen())
+        {
+            const Rect title = fixture.view.menuBar().titleArea(view_menu);
+            fixture.tap({title.x + 10, title.y + 10});
+        }
+        RecordingCanvas canvas;
+        fixture.view.draw(canvas);
+        const Rect area = fixture.view.menuBar().itemArea(view_menu, item);
+        return std::ranges::any_of(canvas.rounded,
+                                   [&area](const RecordingCanvas::RoundedRect &band)
+                                   {
+                                       return band.rect.x == area.x && band.rect.y == area.y &&
+                                              band.rect.width == area.width && band.top.red == 62;
+                                   });
+    };
+    CHECK_FALSE(checked(beats));
+    CHECK_FALSE(checked(vertical));
+    shown = true;
+    CHECK(checked(beats));
+    CHECK_FALSE(checked(vertical));
+    upright = true;
+    CHECK(checked(vertical));
+
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Beat waveforms"));
+    CHECK(canvas.drew("Vertical beat waveforms"));
+}
+
 TEST_CASE("LibraryView: View > New player calls the app and shows its shortcut")
 {
     Fixture fixture;
@@ -895,7 +955,7 @@ TEST_CASE("LibraryView: View > One-window mode switches the mode of the next sta
 {
     Fixture               fixture;
     constexpr std::size_t view_menu  = 3;
-    constexpr std::size_t one_window = 3;
+    constexpr std::size_t one_window = 5;
 
     // Off without a place to keep the choice: the menu stays open
     chooseEntry(fixture, view_menu, one_window);
@@ -973,7 +1033,7 @@ TEST_CASE(
     CHECK(automatic_runs == 1);
 
     // Fullscreen, with its key, checked while on
-    constexpr std::size_t fullscreen_entry = 4;
+    constexpr std::size_t fullscreen_entry = 6;
     const Rect            title            = fixture.view.menuBar().titleArea(view_menu);
     chooseEntry(fixture, view_menu, fullscreen_entry);
     CHECK(fixture.view.menuBar().isOpen()); // off without an owner

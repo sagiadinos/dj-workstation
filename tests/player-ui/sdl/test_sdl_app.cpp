@@ -1038,6 +1038,7 @@ TEST_CASE("SdlApp: in the MDI mode a start with places set by hand puts the part
                                                .players  = {Placement{1200, 0, 600, 800}, Placement{0, 0, 600, 800}},
                                                .mixer    = std::nullopt,
                                                .playlist = std::nullopt,
+                                               .beats    = std::nullopt,
                                                .library  = Placement{0, 840, 1800, 600}}};
     std::ofstream{file} << formatLayout(layout);
 
@@ -1614,4 +1615,143 @@ TEST_CASE("SdlApp: in the MDI mode each player's options and the playlist part c
     CHECK(again->mdi->player_options == layout.mdi->player_options);
     CHECK(again->mdi->playlist_open);
     CHECK_FALSE(again->mdi->mixer_open);
+}
+
+TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the sides A and B with their tracks")
+{
+    const djw::tests::TempDir folder;
+    const auto                file   = folder.path() / "layout";
+    Layout                    layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
+    layout.mode                      = WindowMode::Mdi;
+    layout.mdi = MdiLayout{.players = {api::CrossfaderSide::None, api::CrossfaderSide::B, api::CrossfaderSide::A},
+                           .player_options = std::vector<PlayerOptions>(3),
+                           .mixer_open     = true,
+                           .playlist_open  = false,
+                           .beats_open     = true,
+                           .fullscreen     = true,
+                           .places         = std::nullopt};
+    std::ofstream{file} << formatLayout(layout);
+    // One second of a tone at half of full scale
+    djw::tests::StereoAudio audio{.sample_rate = 48'000, .samples = std::vector<float>(48'000 * 2, 0.0F)};
+    for (std::size_t frame = 0; frame < 48'000; ++frame)
+    {
+        audio.samples[frame * 2] = (frame % 100 < 50) ? 0.5F : -0.5F;
+    }
+    const auto track = folder.path() / "tone.wav";
+    REQUIRE(djw::tests::writeWav(track, audio).has_value());
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->toolWindowOpen(SdlApp::Tool::Beats));
+    REQUIRE(app->toolFrame(SdlApp::Tool::Beats) != nullptr);
+    app->load(api::LibraryTrack{.path = track}); // into player 1, which is on no side yet
+    for (int i = 0; i < 3; ++i)
+    {
+        REQUIRE(app->runFrame());
+        std::this_thread::sleep_for(std::chrono::milliseconds{20});
+    }
+    const BeatSides &shown = app->beatView().shown();
+    REQUIRE(shown.a.has_value());
+    REQUIRE(shown.b.has_value());
+    CHECK(shown.a->number == 3);
+    CHECK(shown.b->number == 2);
+    CHECK(shown.a->peaks == nullptr); // no track
+
+    // Player 1 on side A: its track and its fine waveform
+    REQUIRE(fixture.core->commandQueue().tryPush(api::MixerAssignCrossfader{app->deckId(0), api::CrossfaderSide::A}));
+    for (int i = 0; i < 3; ++i)
+    {
+        REQUIRE(app->runFrame());
+        std::this_thread::sleep_for(std::chrono::milliseconds{20});
+    }
+    REQUIRE(app->beatView().shown().a.has_value());
+    CHECK(app->beatView().shown().a->number == 1);
+    CHECK(app->beatView().shown().a->state.track_loaded);
+    REQUIRE(app->beatView().shown().a->peaks != nullptr);
+    CHECK(app->beatView().shown().a->peaks->at(10) == 128);
+
+    // Its part lies between the players and the library, across the window
+    const auto beats = app->paneArea(*app->toolFrame(SdlApp::Tool::Beats));
+    const auto list  = app->paneArea(*app->libraryFrame());
+    REQUIRE(beats.has_value());
+    REQUIRE(list.has_value());
+    CHECK(beats->y + beats->height < list->y);
+    CHECK(beats->width == doctest::Approx(list->width));
+
+    // Turned, it stands at the right of the library; saved that way
+    app->setBeatsVertical(true);
+    REQUIRE(app->runFrame());
+    const auto turned = app->paneArea(*app->toolFrame(SdlApp::Tool::Beats));
+    REQUIRE(turned.has_value());
+    CHECK(turned->x > list->x + 100);
+    CHECK(turned->height > turned->width);
+    REQUIRE(app->saveLayout());
+    const auto again = parseLayout(readFile(file));
+    REQUIRE(again.has_value());
+    CHECK(again->mdi->beats_open);
+    CHECK(again->beats_vertical);
+
+    app->requestToolWindow(SdlApp::Tool::Beats, false);
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Beats));
+}
+
+TEST_CASE("SdlApp: in separate windows the beat waveforms open from the View menu, turned when vertical")
+{
+    Fixture fixture;
+    auto    app = fixture.openApp();
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Beats)); // not at the start
+    app->setBeatsVertical(true);
+    app->requestToolWindow(SdlApp::Tool::Beats, true);
+    REQUIRE(app->runFrame());
+    REQUIRE(app->toolWindowOpen(SdlApp::Tool::Beats));
+    int width  = 0;
+    int height = 0;
+    SDL_GetWindowSize(SDL_GetWindowFromID(app->toolWindowId(SdlApp::Tool::Beats)), &width, &height);
+    CHECK(width == static_cast<int>(BeatView::design_height));
+    CHECK(height == static_cast<int>(BeatView::design_width));
+
+    Fixture::closeWindow(app->toolWindowId(SdlApp::Tool::Beats));
+    REQUIRE(app->runFrame());
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Beats));
+    CHECK(app->deckCount() == 1);
+}
+
+TEST_CASE("SdlApp: in separate windows the beat waveforms come back from the layout where they were")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    Layout                    saved;
+    saved.players        = {{{20, 30, 380, 514}, api::CrossfaderSide::A}};
+    saved.library        = {100, 100, 720, 640};
+    saved.mixer          = {.open = false, .place = {300, 300, 440, 250}};
+    saved.playlist       = {.open = false, .place = {200, 100, 560, 640}};
+    saved.beats          = {.open = true, .place = {250, 150, 300, 700}};
+    saved.beats_vertical = true;
+    std::ofstream{file} << formatLayout(saved);
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Beats));
+    CHECK(app->beatView().vertical());
+    REQUIRE(app->runFrame());
+
+    REQUIRE(app->saveLayout());
+    const auto again = parseLayout(readFile(file));
+    REQUIRE(again.has_value());
+    CHECK(again->beats.open);
+    CHECK(again->beats_vertical);
+    CHECK(again->beats.place.width == 300);
+    CHECK(again->beats.place.height == 700);
+
+    // Closed, it keeps its place
+    app->requestToolWindow(SdlApp::Tool::Beats, false);
+    REQUIRE(app->runFrame());
+    REQUIRE(app->saveLayout());
+    const auto closed = parseLayout(readFile(file));
+    REQUIRE(closed.has_value());
+    CHECK_FALSE(closed->beats.open);
+    CHECK(closed->beats.place.height == 700);
 }

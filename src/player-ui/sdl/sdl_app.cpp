@@ -73,6 +73,9 @@ namespace djw::player_ui::sdl
                                         static_cast<int>(MixerView::design_height)};
         constexpr WindowSize playlist_size{static_cast<int>(PlaylistView::design_width),
                                            static_cast<int>(PlaylistView::design_height)};
+        /// Horizontal; vertical lanes open turned
+        constexpr WindowSize beats_size{static_cast<int>(BeatView::design_width),
+                                        static_cast<int>(BeatView::design_height)};
 
         /// The part of the display the windows may use (without panels and docks); std::nullopt if unknown
         std::optional<Placement> usableBounds(SDL_DisplayID display)
@@ -198,6 +201,14 @@ namespace djw::player_ui::sdl
                                           .title_key = "window.mixer",
                                           .width     = mixer_size.width,
                                           .height    = mixer_size.height};
+        app->beat_view                 = std::make_unique<BeatView>(
+            app->translator, [owner] { return owner->beatSides(); },
+            static_cast<double>(core.sampleRate()) / static_cast<double>(core::api::TrackPeaks::frames_per_peak));
+        app->tools[index(Tool::Beats)] = {.view      = app->beat_view.get(),
+                                          .window    = nullptr,
+                                          .title_key = "window.beats",
+                                          .width     = beats_size.width,
+                                          .height    = beats_size.height};
 
         if (library != nullptr)
         {
@@ -218,6 +229,11 @@ namespace djw::player_ui::sdl
             app->library_view->setMixerWindow(
                 [owner] { owner->requestToolWindow(Tool::Mixer, !owner->toolWindowOpen(Tool::Mixer)); },
                 [owner] { return owner->toolWindowOpen(Tool::Mixer); });
+            app->library_view->setBeatsWindow(
+                [owner] { owner->requestToolWindow(Tool::Beats, !owner->toolWindowOpen(Tool::Beats)); },
+                [owner] { return owner->toolWindowOpen(Tool::Beats); });
+            app->library_view->setBeatsVertical([owner] { owner->setBeatsVertical(!owner->beat_view->vertical()); },
+                                                [owner] { return owner->beat_view->vertical(); });
             if (!app->layout_file.empty())
             {
                 app->library_view->setWindowMode([owner](WindowMode chosen) { return owner->chooseWindowMode(chosen); },
@@ -291,7 +307,9 @@ namespace djw::player_ui::sdl
                 }
                 app->tools[index(Tool::Mixer)].placement    = app->fitToDisplay(layout->mixer.place);
                 app->tools[index(Tool::Playlist)].placement = app->fitToDisplay(layout->playlist.place);
+                app->tools[index(Tool::Beats)].placement    = app->fitToDisplay(layout->beats.place);
             }
+            app->beat_view->setVertical(layout->beats_vertical);
             for (std::size_t player = 1; mdi && player < sides.size(); ++player)
             {
                 app->addDeck();
@@ -313,6 +331,10 @@ namespace djw::player_ui::sdl
             if (mdi ? mdi_start.playlist_open : layout->playlist.open)
             {
                 app->openTool(Tool::Playlist);
+            }
+            if (mdi ? mdi_start.beats_open : layout->beats.open)
+            {
+                app->openTool(Tool::Beats);
             }
         }
         return app;
@@ -422,15 +444,19 @@ namespace djw::player_ui::sdl
         }
         const ToolWindow    &mixer    = tools[index(Tool::Mixer)];
         const ToolWindow    &playlist = tools[index(Tool::Playlist)];
+        const ToolWindow    &beats    = tools[index(Tool::Beats)];
         const MdiArrangement placed   = arrangeMdi(workArea(),
-                                                   {.players  = decks.size(),
-                                                    .mixer    = mixer.in_host,
-                                                    .playlist = playlist.in_host,
-                                                    .library  = library_frame != nullptr},
+                                                   {.players        = decks.size(),
+                                                    .mixer          = mixer.in_host,
+                                                    .playlist       = playlist.in_host,
+                                                    .library        = library_frame != nullptr,
+                                                    .beats          = beats.in_host,
+                                                    .beats_vertical = beat_view->vertical()},
                                                    {.player_width   = DeckView::design_width,
                                                     .player_height  = DeckView::design_height + PaneFrame::title_height,
                                                     .mixer_width    = static_cast<float>(mixer_size.width),
-                                                    .playlist_width = static_cast<float>(playlist_size.width)});
+                                                    .playlist_width = static_cast<float>(playlist_size.width),
+                                                    .beats_depth    = BeatView::design_height + PaneFrame::title_height});
         ViewHost            &views    = host_window->views();
         for (std::size_t deck = 0; deck < decks.size(); ++deck)
         {
@@ -443,6 +469,10 @@ namespace djw::player_ui::sdl
         if (playlist.in_host)
         {
             views.place(*playlist.frame, placed.playlist);
+        }
+        if (beats.in_host)
+        {
+            views.place(*beats.frame, placed.beats);
         }
         if (library_frame)
         {
@@ -523,7 +553,7 @@ namespace djw::player_ui::sdl
                 float                     height;
         };
         std::vector<Part> parts;
-        parts.reserve(decks.size() + 3);
+        parts.reserve(decks.size() + 4);
         for (std::size_t deck = 0; deck < decks.size(); ++deck)
         {
             parts.push_back({decks[deck]->frame.get(), &places.players[deck], DeckView::design_width,
@@ -546,6 +576,13 @@ namespace djw::player_ui::sdl
         {
             parts.push_back({playlist.frame.get(), &places.playlist, static_cast<float>(playlist_size.width),
                              static_cast<float>(playlist_size.height)});
+        }
+        if (const ToolWindow &beats = tools[index(Tool::Beats)]; beats.in_host)
+        {
+            const auto  across = static_cast<float>(beats_size.width);
+            const float depth  = static_cast<float>(beats_size.height) + PaneFrame::title_height;
+            parts.push_back({beats.frame.get(), &places.beats, beat_view->vertical() ? depth : across,
+                             beat_view->vertical() ? across : depth});
         }
 
         // The parts with a place first, kept inside the window; one whose place is taken by a part before it loses
@@ -609,6 +646,7 @@ namespace djw::player_ui::sdl
             }
             places.mixer    = where(tools[index(Tool::Mixer)].frame.get());
             places.playlist = where(tools[index(Tool::Playlist)].frame.get());
+            places.beats    = where(tools[index(Tool::Beats)].frame.get());
             places.library  = where(library_frame.get()).value_or(Placement{});
             hand_places     = std::move(places);
         }
@@ -629,6 +667,10 @@ namespace djw::player_ui::sdl
         if (tools[index(Tool::Playlist)].frame.get() == &frame)
         {
             places.playlist = moved;
+        }
+        if (tools[index(Tool::Beats)].frame.get() == &frame)
+        {
+            places.beats = moved;
         }
         if (library_frame.get() == &frame)
         {
@@ -782,14 +824,16 @@ namespace djw::player_ui::sdl
     Layout SdlApp::currentLayout() const
     {
         // The mode not in use keeps what was read at the start
-        Layout layout = stored_layout.value_or(Layout{});
-        layout.mode   = next_mode;
+        Layout layout         = stored_layout.value_or(Layout{});
+        layout.mode           = next_mode;
+        layout.beats_vertical = beat_view->vertical();
         if (mode == WindowMode::Mdi)
         {
             MdiLayout             shown{.players        = {},
                                         .player_options = {},
                                         .mixer_open     = toolWindowOpen(Tool::Mixer),
                                         .playlist_open  = toolWindowOpen(Tool::Playlist),
+                                        .beats_open     = toolWindowOpen(Tool::Beats),
                                         .fullscreen     = host_fullscreen,
                                         .places         = hand_places};
             const HostWindowState state = hostWindowState();
@@ -825,6 +869,7 @@ namespace djw::player_ui::sdl
         };
         layout.mixer    = tool(Tool::Mixer, mixer_size.width, mixer_size.height);
         layout.playlist = tool(Tool::Playlist, playlist_size.width, playlist_size.height);
+        layout.beats    = tool(Tool::Beats, beats_size.width, beats_size.height);
         return layout;
     }
 
@@ -1102,6 +1147,32 @@ namespace djw::player_ui::sdl
         return result;
     }
 
+    BeatSides SdlApp::beatSides() const
+    {
+        // The first player on each side, as the players read their state this frame
+        BeatSides sides;
+        for (const auto &deck : decks)
+        {
+            const core::api::CrossfaderSide side = deck->view->crossfaderSide();
+            if (side == core::api::CrossfaderSide::None)
+            {
+                continue;
+            }
+            std::optional<BeatDeck> &slot = side == core::api::CrossfaderSide::A ? sides.a : sides.b;
+            if (!slot)
+            {
+                slot = BeatDeck{
+                    .number = deck->number, .state = deck->view->deckState(), .peaks = core->trackPeaks(deck->id)};
+            }
+        }
+        return sides;
+    }
+
+    void SdlApp::setBeatsVertical(bool on)
+    {
+        beat_view->setVertical(on);
+    }
+
     void SdlApp::setLanguage(Language language)
     {
         if (language == translator.language())
@@ -1136,8 +1207,12 @@ namespace djw::player_ui::sdl
             which.in_host = true;
             return;
         }
-        auto created = SdlWindow::create(
-            {.title = translator.tr(which.title_key), .width = which.width, .height = which.height}, *which.view, font);
+        // Vertical beat waveforms open turned
+        const bool turned  = tool == Tool::Beats && beat_view->vertical();
+        auto       created = SdlWindow::create({.title  = translator.tr(which.title_key),
+                                                .width  = turned ? which.height : which.width,
+                                                .height = turned ? which.width : which.height},
+                                               *which.view, font);
         if (!created)
         {
             logError("cannot open a window: " + created.error());
@@ -1363,7 +1438,7 @@ namespace djw::player_ui::sdl
         {
             closeDeck(deck);
         }
-        for (const Tool tool : {Tool::Playlist, Tool::Mixer})
+        for (const Tool tool : {Tool::Playlist, Tool::Mixer, Tool::Beats})
         {
             switch (std::exchange(tools[index(tool)].request, Request::None))
             {

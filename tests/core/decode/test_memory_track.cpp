@@ -279,3 +279,21 @@ TEST_CASE("MemoryTrack: a decoder that cannot seek leaves silence there and is r
     CHECK(std::ranges::all_of(output, [](float value) { return value == 0.0F; }));
     CHECK(track->failed());
 }
+
+TEST_CASE("MemoryTrack: the fine waveform covers the track and is filled as the chunks are decoded")
+{
+    // The ramp of the fake decoder is far above full scale from frame 1 on: every value ends at 255
+    constexpr std::size_t frames = 10'000;
+    auto                  track  = makeTrack({.total_frames = frames}, 1'000);
+    const auto            peaks  = track->peaks();
+    REQUIRE(peaks != nullptr);
+    CHECK(peaks->size() == (frames + 255) / 256);
+    CHECK(peaks->at(0) == 255); // the first chunk is decoded by create()
+
+    REQUIRE(waitForAll(*track));
+    for (std::size_t index = 0; index < peaks->size(); ++index)
+    {
+        CHECK(peaks->at(index) == 255);
+    }
+    CHECK(peaks->at(peaks->size()) == 0);
+}

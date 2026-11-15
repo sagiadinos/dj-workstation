@@ -44,7 +44,8 @@ namespace djw::player_ui::sdl
             row.push_back({.mixer = true});
         }
 
-        const bool  has_bottom = content.library || content.playlist;
+        const bool  has_lists  = content.library || content.playlist;
+        const bool  has_bottom = has_lists || content.beats;
         const float inner_x    = window.x + mdi_gap;
         const float inner_w    = std::max(0.0F, window.width - (2 * mdi_gap));
         float       bottom_top = window.y + mdi_gap;
@@ -84,17 +85,34 @@ namespace djw::player_ui::sdl
 
         if (has_bottom)
         {
-            const float height = std::max(0.0F, window.y + window.height - mdi_gap - bottom_top);
+            float height = std::max(0.0F, window.y + window.height - mdi_gap - bottom_top);
+            float width  = inner_w;
+            if (content.beats && !content.beats_vertical)
+            {
+                // A strip across, the lists below it
+                const float strip = has_lists ? std::min(sizes.beats_depth, (height - mdi_gap) / 2) : height;
+                result.beats      = Rect{inner_x, bottom_top, inner_w, std::max(0.0F, strip)};
+                bottom_top += strip + mdi_gap;
+                height = std::max(0.0F, height - strip - mdi_gap);
+            }
+            else if (content.beats)
+            {
+                // A column at the right, the lists left of it
+                const float column = has_lists ? std::min(sizes.beats_depth, (inner_w - mdi_gap) / 2) : inner_w;
+                result.beats       = Rect{inner_x + inner_w - column, bottom_top, std::max(0.0F, column), height};
+                width              = std::max(0.0F, inner_w - column - mdi_gap);
+            }
             if (content.library && content.playlist)
             {
-                const float list_width    = std::min(sizes.playlist_width, (inner_w - mdi_gap) * playlist_share);
-                const float library_width = std::max(0.0F, inner_w - mdi_gap - list_width);
+                const float list_width =
+                    std::min(sizes.playlist_width, std::max(0.0F, width - mdi_gap) * playlist_share);
+                const float library_width = std::max(0.0F, width - mdi_gap - list_width);
                 result.library            = Rect{inner_x, bottom_top, library_width, height};
                 result.playlist           = Rect{inner_x + library_width + mdi_gap, bottom_top, list_width, height};
             }
-            else
+            else if (has_lists)
             {
-                (content.library ? result.library : result.playlist) = Rect{inner_x, bottom_top, inner_w, height};
+                (content.library ? result.library : result.playlist) = Rect{inner_x, bottom_top, width, height};
             }
         }
         return result;

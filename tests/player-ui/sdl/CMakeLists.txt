@@ -28,6 +28,7 @@ add_executable(djw_player_sdl_tests
     test_mdi.cpp
     test_settings.cpp
     test_dialogs.cpp
+    test_beat_view.cpp
     test_sdl_text.cpp
     test_pictures.cpp
 )

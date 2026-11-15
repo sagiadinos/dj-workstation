@@ -7,6 +7,7 @@
 #include "api/commands.hpp"
 #include "api/deck_id.hpp"
 #include "api/snapshot.hpp"
+#include "api/track_peaks.hpp"
 
 #include <cstdint>
 #include <expected>
@@ -95,6 +96,10 @@ namespace djw::core::api
 
             /// Snapshot of a deck for the frontend (single reader), nullptr for an unknown deck
             virtual DeckSnapshotBuffer *deckSnapshot(DeckId deck) noexcept = 0;
+
+            /// The fine waveform of the track loaded into deck (see TrackPeaks), filled while the track is decoded;
+            /// nullptr without a track, for a streamed track and for an unknown deck
+            [[nodiscard]] virtual std::shared_ptr<const TrackPeaks> trackPeaks(DeckId deck) const = 0;
 
             /// Snapshot of the mixer master section for the frontend (single reader)
             virtual MixerSnapshotBuffer &mixerSnapshot() noexcept = 0;

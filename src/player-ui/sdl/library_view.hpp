@@ -146,6 +146,18 @@ namespace djw::player_ui::sdl
                 mixer_toggle = std::move(toggle);
                 mixer_shown  = std::move(shown);
             }
+            /// Enables View > Beat waveforms: toggle shows or hides them, shown tells whether they are open
+            void setBeatsWindow(Toggle toggle, Shown shown)
+            {
+                beats_toggle = std::move(toggle);
+                beats_shown  = std::move(shown);
+            }
+            /// Enables View > Vertical beat waveforms: toggle switches the lanes, vertical tells how they stand
+            void setBeatsVertical(Toggle toggle, Shown vertical)
+            {
+                beats_turn     = std::move(toggle);
+                beats_vertical = std::move(vertical);
+            }
             /// Enables the window mode entries of the View menu (separate windows, one window); the choice takes
             /// effect at the next start, which the status line says
             void setWindowMode(ModeChosen chosen, ModeShown shown)
@@ -254,6 +266,10 @@ namespace djw::player_ui::sdl
             NewDeck                  new_deck_requested;
             Toggle                   mixer_toggle;
             Shown                    mixer_shown;
+            Toggle                   beats_toggle;
+            Shown                    beats_shown;
+            Toggle                   beats_turn;
+            Shown                    beats_vertical;
             ModeChosen               mode_chosen;
             ModeShown                mode_shown;
             bool                     only_missing = false;
