@@ -15,7 +15,8 @@ namespace djw::core::decode
         const std::uint64_t length = decoder->lengthFrames();
         if (length > 0 && length <= config.memory_limit_frames)
         {
-            auto track = MemoryTrack::create(std::move(decoder), length);
+            auto track =
+                MemoryTrack::create(std::move(decoder), length, MemoryTrack::default_chunk_frames, config.sample_rate);
             if (track)
             {
                 return std::move(*track);

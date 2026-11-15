@@ -32,10 +32,11 @@ namespace djw::core::decode
             static constexpr std::size_t default_chunk_frames = 65'536;
 
             /// Allocates memory for length_frames and decodes the first chunk. If the memory cannot be allocated, the
-            /// decoder is handed back, so the caller can stream the track instead.
+            /// decoder is handed back, so the caller can stream the track instead. sample_rate is the decoder's, for
+            /// the bands of the fine waveform.
             static std::expected<std::unique_ptr<MemoryTrack>, std::unique_ptr<Decoder>>
             create(std::unique_ptr<Decoder> decoder, std::uint64_t length_frames,
-                   std::size_t chunk_frames = default_chunk_frames);
+                   std::size_t chunk_frames = default_chunk_frames, std::uint32_t sample_rate = 48'000);
 
             MemoryTrack(const MemoryTrack &)            = delete;
             MemoryTrack &operator=(const MemoryTrack &) = delete;
@@ -66,6 +67,7 @@ namespace djw::core::decode
             {
                     std::uint64_t length_frames;
                     std::size_t   chunk_frames;
+                    std::uint32_t sample_rate;
             };
 
             MemoryTrack(std::unique_ptr<Decoder> decoder, Layout layout, std::vector<float> samples);

@@ -7,6 +7,7 @@
 #include "player_number.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string>
 
@@ -21,10 +22,12 @@ namespace djw::player_ui::sdl
         /// The pitch is never so far down that a player stands still; a guard against dividing by 0
         constexpr double slowest = 0.01;
 
-        constexpr Color coming_color{40, 140, 245};
-        constexpr Color played_color{30, 80, 135};
-        constexpr Color playhead_color{255, 255, 255};
-        constexpr Color cue_color{235, 55, 55};
+        /// The bands, drawn over each other from the bass up: red bass, green mids, blue highs; the part played
+        /// darker
+        constexpr std::array<Color, 3> coming_colors{Color{235, 45, 40}, Color{60, 205, 70}, Color{70, 130, 255}};
+        constexpr std::array<Color, 3> played_colors{Color{120, 30, 28}, Color{35, 105, 40}, Color{40, 70, 135}};
+        constexpr Color                playhead_color{255, 255, 255};
+        constexpr Color                cue_color{255, 165, 0};
     } // namespace
 
     BeatView::BeatView(const Translator &translator, Sides sides, double peaks_per_second)
@@ -103,7 +106,7 @@ namespace djw::player_ui::sdl
             };
             for (std::size_t bar = 0; bar < bars; ++bar)
             {
-                // The values this bar stands for, and the loudest of them
+                // The values this bar stands for, and the loudest of each band
                 const float  along = static_cast<float>(bar) * bar_pitch;
                 const double first = value_at(along);
                 const double end   = value_at(along + bar_pitch);
@@ -111,20 +114,24 @@ namespace djw::player_ui::sdl
                 {
                     continue; // before the start of the track or after its end
                 }
-                const auto   from = static_cast<std::size_t>(std::max(0.0, first));
-                const auto   to   = std::max(from + 1, static_cast<std::size_t>(end));
-                std::uint8_t loud = 0;
+                const auto                  from = static_cast<std::size_t>(std::max(0.0, first));
+                const auto                  to   = std::max(from + 1, static_cast<std::size_t>(end));
+                std::array<std::uint8_t, 3> loud{};
                 for (std::size_t index = from; index < to; ++index)
                 {
-                    loud = std::max(loud, peaks.at(index));
+                    const core::api::TrackPeaks::Bands bands = peaks.at(index);
+                    loud = {std::max(loud[0], bands.low), std::max(loud[1], bands.mid), std::max(loud[2], bands.high)};
                 }
-                if (loud == 0)
+                const auto &colors = along < middle ? played_colors : coming_colors;
+                for (std::size_t band = 0; band < loud.size(); ++band)
                 {
-                    continue;
+                    if (loud[band] == 0)
+                    {
+                        continue;
+                    }
+                    const float size = std::max(1.0F, static_cast<float>(loud[band]) / 255.0F * depth);
+                    canvas.fillRect(piece(along, bar_width, (depth - size) / 2, size), colors[band]);
                 }
-                const float size = std::max(1.0F, static_cast<float>(loud) / 255.0F * depth);
-                canvas.fillRect(piece(along, bar_width, (depth - size) / 2, size),
-                                along < middle ? played_color : coming_color);
             }
             const double cue_along = middle + ((deck->state.cue_seconds - position) / speed / seconds_per_point);
             if (cue_along >= 0.0 && cue_along <= static_cast<double>(length))

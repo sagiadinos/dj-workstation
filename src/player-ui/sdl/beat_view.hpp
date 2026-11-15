@@ -38,8 +38,9 @@ namespace djw::player_ui::sdl
      * playhead in the middle, for beatmatching by eye. Each side has a lane; horizontal, the lanes lie one above the
      * other (A on top) and time runs to the right; vertical, they stand side by side (A on the left) and time runs
      * down. A lane shows shown_seconds of real time: a player pitched up runs through more of its track in that time,
-     * so two tracks at the same tempo show their beats the same distance apart. The part played is drawn darker,
-     * the cue point as a red line.
+     * so two tracks at the same tempo show their beats the same distance apart. The waveform has three colours, drawn
+     * over each other: the bass red, the mids green, the highs blue (see TrackPeaks), so the kicks stand out from the
+     * rest. The part played is drawn darker, the cue point as an orange line (red would vanish in the bass).
      *
      * Which players are on the sides is asked for once per frame; the view sends nothing.
      */

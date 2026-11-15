@@ -14,7 +14,8 @@ namespace djw::core::decode
     } // namespace
 
     std::expected<std::unique_ptr<MemoryTrack>, std::unique_ptr<Decoder>>
-    MemoryTrack::create(std::unique_ptr<Decoder> decoder, std::uint64_t length_frames, std::size_t chunk_frames)
+    MemoryTrack::create(std::unique_ptr<Decoder> decoder, std::uint64_t length_frames, std::size_t chunk_frames,
+                        std::uint32_t sample_rate)
     {
         std::vector<float> samples;
         try
@@ -25,13 +26,16 @@ namespace djw::core::decode
         {
             return std::unexpected{std::move(decoder)};
         }
-        const Layout layout{.length_frames = length_frames, .chunk_frames = std::max<std::size_t>(chunk_frames, 1)};
+        const Layout layout{.length_frames = length_frames,
+                            .chunk_frames  = std::max<std::size_t>(chunk_frames, 1),
+                            .sample_rate   = sample_rate};
         return std::unique_ptr<MemoryTrack>{new MemoryTrack{std::move(decoder), layout, std::move(samples)}};
     }
 
     MemoryTrack::MemoryTrack(std::unique_ptr<Decoder> decoder, Layout layout, std::vector<float> samples)
         : decoder{std::move(decoder)}, length{layout.length_frames}, chunk_frames{layout.chunk_frames},
-          samples{std::move(samples)}, fine_peaks{std::make_shared<api::TrackPeaks>(length)}, ready(chunkCount())
+          samples{std::move(samples)}, fine_peaks{std::make_shared<api::TrackPeaks>(length, layout.sample_rate)},
+          ready(chunkCount())
     {
         if (chunkCount() > 0)
         {

@@ -1669,7 +1669,7 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
     CHECK(app->beatView().shown().a->number == 1);
     CHECK(app->beatView().shown().a->state.track_loaded);
     REQUIRE(app->beatView().shown().a->peaks != nullptr);
-    CHECK(app->beatView().shown().a->peaks->at(10) == 128);
+    CHECK(app->beatView().shown().a->peaks->at(10).mid > 50); // a tone of about 500 Hz
 
     // Its part lies between the players and the library, across the window
     const auto beats = app->paneArea(*app->toolFrame(SdlApp::Tool::Beats));

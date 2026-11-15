@@ -394,16 +394,21 @@ TEST_CASE("RuntimeCore: the fine waveform of a deck's track, none before a track
     const auto peaks = fixture.core->trackPeaks(deck);
     REQUIRE(peaks != nullptr);
     CHECK(peaks->size() == 96'000 / api::TrackPeaks::frames_per_peak);
-    // Decoded in the background: half a second of silence, then the tone at 0.4
+    // Decoded in the background: half a second of silence, then the tone at 0.4, which is mids
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{10};
-    while (peaks->at(peaks->size() - 1) == 0 && std::chrono::steady_clock::now() < deadline)
+    while (peaks->at(peaks->size() - 1).mid == 0 && std::chrono::steady_clock::now() < deadline)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds{1});
     }
-    CHECK(peaks->at(0) == 0);
-    CHECK(peaks->at(92) == 0);
-    CHECK(peaks->at(200) == doctest::Approx(102).epsilon(0.02));
-    CHECK(peaks->at(peaks->size() - 1) == doctest::Approx(102).epsilon(0.02));
+    CHECK(peaks->at(0) == api::TrackPeaks::Bands{});
+    CHECK(peaks->at(92) == api::TrackPeaks::Bands{});
+    for (const std::size_t index : {std::size_t{200}, peaks->size() - 1})
+    {
+        CAPTURE(index);
+        CHECK(peaks->at(index).mid > 55);
+        CHECK(peaks->at(index).low < 5);
+        CHECK(peaks->at(index).high < 5);
+    }
 
     // Another track replaces it
     REQUIRE(fixture.core->loadTrack(deck, wav_file).has_value());

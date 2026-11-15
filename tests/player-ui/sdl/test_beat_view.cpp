@@ -36,14 +36,13 @@ namespace
                first.alpha == second.alpha;
     }
 
-    /// A track of 20 s with the given values (index, 0 to 255) loud, all others silent
-    std::shared_ptr<TrackPeaks> peaksWith(std::initializer_list<std::pair<std::size_t, std::uint8_t>> loud)
+    /// A track of 20 s with the given values (index, bands) loud, all others silent
+    std::shared_ptr<TrackPeaks> peaksWith(std::initializer_list<std::pair<std::size_t, TrackPeaks::Bands>> loud)
     {
         auto peaks = std::make_shared<TrackPeaks>(2'000 * TrackPeaks::frames_per_peak);
-        for (const auto &[index, value] : loud)
+        for (const auto &[index, bands] : loud)
         {
-            const std::vector<float> frames(TrackPeaks::frames_per_peak * 2, static_cast<float>(value) / 255.0F);
-            peaks->add(index * TrackPeaks::frames_per_peak, frames);
+            peaks->store(index, bands);
         }
         return peaks;
     }
@@ -165,14 +164,14 @@ TEST_CASE("BeatView: the waveform scrolls with the position, the part played dar
     Fixture fixture;
     // Just after 10 s (the bars' borders fall between values): 9.01 s is 1 s back (100 points left of the middle),
     // 11.01 s is 1 s ahead
-    fixture.sides.a = deckAt(1, 10.005, peaksWith({{901, 255}, {1101, 128}}));
+    fixture.sides.a = deckAt(1, 10.005, peaksWith({{901, {.low = 255}}, {1101, {.low = 128}}}));
     fixture.view.update();
     auto bars = fixture.bars();
     REQUIRE(bars.size() == 2);
     CHECK(sameRect(bars[0].first, Rect{9 + 200, 9, 1.5F, 94}));
     CHECK(sameRect(bars[1].first, Rect{9 + 400, 9 + ((94 - (94 * 128 / 255.0F)) / 2), 1.5F, 94 * 128 / 255.0F}));
-    CHECK(sameColor(bars[0].second, Color{30, 80, 135}));  // played
-    CHECK(sameColor(bars[1].second, Color{40, 140, 245})); // coming
+    CHECK(sameColor(bars[0].second, Color{120, 30, 28})); // played bass
+    CHECK(sameColor(bars[1].second, Color{235, 45, 40})); // coming bass
 
     // Half a second later both moved 50 points to the left
     fixture.sides.a->state.position_seconds = 10.505;
@@ -195,14 +194,14 @@ TEST_CASE("BeatView: the lane shows real time: a player pitched up runs through 
 {
     Fixture fixture;
     // +100 %: twice as fast, 2.01 s of the track ahead of the position are about 1 s ahead in real time
-    fixture.sides.a = deckAt(1, 10.005, peaksWith({{1201, 255}}), 100.0F);
+    fixture.sides.a = deckAt(1, 10.005, peaksWith({{1201, {.low = 255}}}), 100.0F);
     fixture.view.update();
     auto bars = fixture.bars();
     REQUIRE(bars.size() == 1);
     CHECK(bars[0].first.x == doctest::Approx(9 + 400));
 
     // +50 %: 1.51 s ahead in the track are about 1 s in real time
-    fixture.sides.a = deckAt(1, 10.005, peaksWith({{1151, 255}}), 50.0F);
+    fixture.sides.a = deckAt(1, 10.005, peaksWith({{1151, {.low = 255}}}), 50.0F);
     fixture.view.update();
     bars = fixture.bars();
     REQUIRE(bars.size() == 1);
@@ -212,13 +211,13 @@ TEST_CASE("BeatView: the lane shows real time: a player pitched up runs through 
 TEST_CASE("BeatView: nothing before the start of the track or after its end, nothing without a track")
 {
     Fixture fixture;
-    fixture.sides.a = deckAt(1, 0.505, peaksWith({{0, 255}, {1'999, 255}}));
+    fixture.sides.a = deckAt(1, 0.505, peaksWith({{0, {.low = 255}}, {1'999, {.low = 255}}}));
     fixture.view.update();
     auto bars = fixture.bars();
     REQUIRE(bars.size() == 1);
     CHECK(bars[0].first.x == doctest::Approx(9 + 250)); // the first value, half a second back
 
-    fixture.sides.a = deckAt(1, 19.505, peaksWith({{0, 255}, {1'999, 255}}));
+    fixture.sides.a = deckAt(1, 19.505, peaksWith({{0, {.low = 255}}, {1'999, {.low = 255}}}));
     fixture.view.update();
     bars = fixture.bars();
     REQUIRE(bars.size() == 1);
@@ -229,7 +228,7 @@ TEST_CASE("BeatView: nothing before the start of the track or after its end, not
     CHECK(fixture.bars().empty());
 }
 
-TEST_CASE("BeatView: the cue point is a red line where it is in time, none when it is out of sight")
+TEST_CASE("BeatView: the cue point is an orange line where it is in time, none when it is out of sight")
 {
     Fixture    fixture;
     const auto cueLines = [&fixture]
@@ -239,7 +238,7 @@ TEST_CASE("BeatView: the cue point is a red line where it is in time, none when 
         std::vector<Rect> lines;
         for (std::size_t at = 0; at < canvas.rects.size(); ++at)
         {
-            if (sameColor(canvas.rect_colors[at], Color{235, 55, 55}))
+            if (sameColor(canvas.rect_colors[at], Color{255, 165, 0}))
             {
                 lines.push_back(canvas.rects[at]);
             }
@@ -268,7 +267,7 @@ TEST_CASE("BeatView: the cue point is a red line where it is in time, none when 
 TEST_CASE("BeatView: vertical, time runs down and the bars lie across the lane")
 {
     Fixture fixture{tall, true};
-    fixture.sides.a = deckAt(1, 10.005, peaksWith({{901, 255}, {1101, 128}}), 0.0F, 8.005);
+    fixture.sides.a = deckAt(1, 10.005, peaksWith({{901, {.low = 255}}, {1101, {.low = 128}}}), 0.0F, 8.005);
     fixture.view.update();
     const auto bars = fixture.bars();
     REQUIRE(bars.size() == 2);
@@ -282,9 +281,38 @@ TEST_CASE("BeatView: vertical, time runs down and the bars lie across the lane")
     {
         playhead = playhead || (sameColor(fixture.canvas->rect_colors[at], Color{255, 255, 255}) &&
                                 sameRect(fixture.canvas->rects[at], Rect{9, 9 + 299, 94, 2}));
-        cue      = cue || (sameColor(fixture.canvas->rect_colors[at], Color{235, 55, 55}) &&
+        cue      = cue || (sameColor(fixture.canvas->rect_colors[at], Color{255, 165, 0}) &&
                            sameRect(fixture.canvas->rects[at], Rect{9, 9 + 99, 94, 2}));
     }
     CHECK(playhead);
     CHECK(cue);
+}
+
+TEST_CASE("BeatView: the three bands are drawn over each other from the bass up, each as loud as it is")
+{
+    Fixture fixture;
+    fixture.sides.a = deckAt(
+        1, 10.005, peaksWith({{901, {.low = 255, .mid = 102, .high = 51}}, {1101, {.low = 0, .mid = 204, .high = 0}}}));
+    fixture.view.update();
+    const auto bars = fixture.bars();
+    REQUIRE(bars.size() == 4);
+    // Played: bass red, mids green, highs blue, each centered across the lane
+    CHECK(sameRect(bars[0].first, Rect{9 + 200, 9, 1.5F, 94}));
+    CHECK(sameColor(bars[0].second, Color{120, 30, 28}));
+    CHECK(sameRect(bars[1].first, Rect{9 + 200, 9 + ((94 - 37.6F) / 2), 1.5F, 37.6F}));
+    CHECK(sameColor(bars[1].second, Color{35, 105, 40}));
+    CHECK(sameRect(bars[2].first, Rect{9 + 200, 9 + ((94 - 18.8F) / 2), 1.5F, 18.8F}));
+    CHECK(sameColor(bars[2].second, Color{40, 70, 135}));
+    // Coming: only the mids, a band that is silent is not drawn
+    CHECK(sameRect(bars[3].first, Rect{9 + 400, 9 + ((94 - 75.2F) / 2), 1.5F, 75.2F}));
+    CHECK(sameColor(bars[3].second, Color{60, 205, 70}));
+
+    // The loudest of each band over the values a bar stands for
+    fixture.sides.a = deckAt(
+        1, 10.005, peaksWith({{1100, {.low = 0, .mid = 0, .high = 51}}, {1101, {.low = 0, .mid = 0, .high = 255}}}));
+    fixture.view.update();
+    const auto merged = fixture.bars();
+    REQUIRE(merged.size() == 1);
+    CHECK(merged[0].first.height == doctest::Approx(94));
+    CHECK(sameColor(merged[0].second, Color{70, 130, 255}));
 }

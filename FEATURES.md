@@ -130,7 +130,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Keylock (master tempo) | done | Tempo change without pitch change via SoundTouch. |
 | Seek with audible scrub | done | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
 | Waveform overview | done | Whole track, click/touch to jump. |
-| Scrolling waveform | done | Beat waveforms: the players on crossfader sides A and B in a part of their own (View menu), 6 s of real time around a fixed playhead, the pitch taken into account; lanes horizontal or vertical. Zoom and beatgrid are planned. |
+| Scrolling waveform | done | Beat waveforms: the players on crossfader sides A and B in a part of their own (View menu), 6 s of real time around a fixed playhead, the pitch taken into account, in three colours (bass red, mids green, highs blue); lanes horizontal or vertical. Zoom and beatgrid are planned. |
 | BPM display | done | From the analysis, with the pitch taken into account. |
 | Beatgrid | planned | From analysis, manually adjustable. |
 | Sync | planned | Match tempo and phase to the master deck. |
