@@ -82,7 +82,7 @@ TEST_CASE("look::groove and look::knob stay inside their area, the fill follows 
     CHECK(allInside(knob, {5, 5, 40, 24}));
 }
 
-TEST_CASE("look::background covers the whole window, sunken and the folder icon stay inside")
+TEST_CASE("look::background covers the whole window, sunken and the headphones icon stay inside")
 {
     const Rect                  window{0, 0, 300, 200};
     djw::tests::RecordingCanvas canvas;
@@ -97,9 +97,25 @@ TEST_CASE("look::background covers the whole window, sunken and the folder icon 
     CHECK(allInside(panel, {10, 10, 80, 30}));
 
     djw::tests::RecordingCanvas icon;
-    look::folderIcon(icon, {4, 4, 24, 24}, look::colors().text);
+    look::headphonesIcon(icon, {4, 4, 24, 24}, look::colors().text);
     CHECK(allInside(icon, {4, 4, 24, 24}));
     CHECK_FALSE(icon.rounded.empty());
+}
+
+TEST_CASE("look::led: a round lamp inside its area, bright amber with a halo when lit, dark otherwise")
+{
+    djw::tests::RecordingCanvas off;
+    look::led(off, {0, 0, 40, 12}, false);
+    CHECK(allInside(off, {0, 0, 40, 12}));
+    REQUIRE(off.rounded.size() == 1);
+    CHECK(off.rounded[0].top.red < 100);
+
+    djw::tests::RecordingCanvas on;
+    look::led(on, {0, 0, 40, 12}, true);
+    CHECK(allInside(on, {0, 0, 40, 12}));
+    REQUIRE(on.rounded.size() == 2); // halo and lamp
+    CHECK(on.rounded[1].top.red == 255);
+    CHECK(on.rounded[1].top.green > 150);
 }
 
 TEST_CASE("look::meterPosition: dB from the floor to full scale, 0 below and for nothing, 1 above")

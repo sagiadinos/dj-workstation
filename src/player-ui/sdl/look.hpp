@@ -106,12 +106,14 @@ namespace djw::player_ui::sdl::look
      */
     void meter(Canvas &canvas, const Rect &area, float left, float right, bool vertical, bool clip);
 
-    /// An open folder, for the Load button
-    void folderIcon(Canvas &canvas, const Rect &area, Color color);
     /// A filter funnel with a small cross at its lower right: clear the filters
     void clearFilterIcon(Canvas &canvas, const Rect &area, Color color);
     /// Two lanes, one above the other (horizontal) or side by side (vertical): how the beat waveforms stand
     void lanesIcon(Canvas &canvas, const Rect &area, bool vertical, Color color);
+    /// Headphones: a headband over two ear cups
+    void headphonesIcon(Canvas &canvas, const Rect &area, Color color);
+    /// A round amber LED, glowing when lit and dark otherwise, as on a mixer
+    void led(Canvas &canvas, const Rect &area, bool lit);
     /// A check mark, for a menu entry that is on
     void checkMark(Canvas &canvas, const Rect &area, Color color);
 } // namespace djw::player_ui::sdl::look

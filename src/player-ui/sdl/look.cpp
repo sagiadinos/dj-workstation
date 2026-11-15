@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
 namespace djw::player_ui::sdl::look
 {
@@ -286,22 +287,6 @@ namespace djw::player_ui::sdl::look
         canvas.fillRect(place(along - lamp, 0.0F, lamp, across), clip ? Color{255, 40, 30} : Color{70, 18, 16});
     }
 
-    void folderIcon(Canvas &canvas, const Rect &area, Color color)
-    {
-        if (area.width <= 0.0F || area.height <= 0.0F)
-        {
-            return;
-        }
-        // A folder seen from the front: the tab and the back wall darker, the front flap in the color
-        const Color back = shade(color, -70);
-        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.10F), area.width * 0.42F, area.height * 0.30F}, 2.0F,
-                               back, back);
-        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.24F), area.width, area.height * 0.66F}, 3.0F, back,
-                               back);
-        canvas.fillRoundedRect({area.x, area.y + (area.height * 0.42F), area.width * 0.94F, area.height * 0.48F}, 3.0F,
-                               color, shade(color, -30));
-    }
-
     namespace
     {
         /// A straight line of the given thickness, as two triangles
@@ -358,6 +343,58 @@ namespace djw::player_ui::sdl::look
             const Rect lane = vertical ? Rect{area.x + (w * at), area.y, w * 0.32F, h}
                                        : Rect{area.x, area.y + (h * at), w, h * 0.32F};
             canvas.fillRoundedRect(lane, 2.0F, color, color);
+        }
+    }
+
+    void headphonesIcon(Canvas &canvas, const Rect &area, Color color)
+    {
+        if (area.width <= 0.0F || area.height <= 0.0F)
+        {
+            return;
+        }
+        // The headband: a half circle of short lines from one ear to the other
+        const float     w         = area.width;
+        const float     h         = area.height;
+        const float     thickness = std::max(2.0F, w * 0.10F);
+        const Point     center{area.x + (w * 0.5F), area.y + (h * 0.55F)};
+        const float     radius_x = w * 0.40F;
+        const float     radius_y = h * 0.45F;
+        constexpr int   steps    = 12;
+        constexpr float pi       = std::numbers::pi_v<float>;
+        for (int step = 0; step < steps; ++step)
+        {
+            const float from = pi + (pi * static_cast<float>(step) / steps);
+            const float to   = pi + (pi * static_cast<float>(step + 1) / steps);
+            line(canvas, {center.x + (radius_x * std::cos(from)), center.y + (radius_y * std::sin(from))},
+                 {center.x + (radius_x * std::cos(to)), center.y + (radius_y * std::sin(to))}, thickness, color);
+        }
+        // The ear cups at the ends of the band
+        const float cup_w = w * 0.24F;
+        const float cup_h = h * 0.42F;
+        const float cup_y = area.y + h - cup_h;
+        canvas.fillRoundedRect({area.x + (w * 0.04F), cup_y, cup_w, cup_h}, 2.0F, color, color);
+        canvas.fillRoundedRect({area.x + w - (w * 0.04F) - cup_w, cup_y, cup_w, cup_h}, 2.0F, color, color);
+    }
+
+    void led(Canvas &canvas, const Rect &area, bool lit)
+    {
+        if (area.width <= 0.0F || area.height <= 0.0F)
+        {
+            return;
+        }
+        // A circle in the middle of the area; lit, a faint halo fills the area around it
+        const float size = std::min(area.width, area.height);
+        const Rect  halo{area.x + ((area.width - size) / 2), area.y + ((area.height - size) / 2), size, size};
+        const Rect  lamp = halo.inset(size * 0.2F);
+        if (lit)
+        {
+            constexpr Color glow{255, 190, 0, 80};
+            canvas.fillRoundedRect(halo, size / 2, glow, glow);
+            canvas.fillRoundedRect(lamp, lamp.width / 2, Color{255, 225, 120}, Color{255, 170, 0});
+        }
+        else
+        {
+            canvas.fillRoundedRect(lamp, lamp.width / 2, Color{85, 60, 15}, Color{60, 40, 10});
         }
     }
 

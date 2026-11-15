@@ -57,18 +57,26 @@ namespace djw::player_ui::sdl
         }
         look::raised(canvas, area, fill, down && enabled);
 
-        // Icon and label as one group, in the middle
-        const float icon_size = icon == Icon::None ? 0.0F : std::min(area.height - 16.0F, 26.0F);
-        const float icon_gap  = icon == Icon::None || text.empty() ? 0.0F : 10.0F;
-        const float room      = area.width - (2 * padding) - icon_size - icon_gap;
-        const float width     = std::min(canvas.textWidth(text), std::max(0.0F, room));
-        const float group     = icon_size + icon_gap + width;
-        const float left      = area.x + ((area.width - group) / 2);
-        const Rect  icon_area{left, area.y + ((area.height - icon_size) / 2), icon_size, icon_size};
-        if (icon == Icon::Folder && icon_size > 0.0F)
+        // An LED takes the top third, icon and label share the rest
+        Rect content = area;
+        if (led)
         {
-            look::folderIcon(canvas, icon_area, ink);
+            const float led_height = area.height * 0.32F;
+            look::led(canvas, {area.x, area.y + (area.height * 0.06F), area.width, led_height}, *led);
+            content.y      = area.y + (area.height * 0.06F) + led_height;
+            content.height = area.y + area.height - content.y;
         }
+
+        // Icon and label as one group, in the middle
+        const float icon_size =
+            icon == Icon::None ? 0.0F
+                               : std::max(0.0F, std::min(led ? content.height * 0.75F : area.height - 16.0F, 26.0F));
+        const float icon_gap = icon == Icon::None || text.empty() ? 0.0F : 10.0F;
+        const float room     = area.width - (2 * padding) - icon_size - icon_gap;
+        const float width    = std::min(canvas.textWidth(text), std::max(0.0F, room));
+        const float group    = icon_size + icon_gap + width;
+        const float left     = area.x + ((area.width - group) / 2);
+        const Rect  icon_area{left, content.y + ((content.height - icon_size) / 2), icon_size, icon_size};
         if (icon == Icon::ClearFilter && icon_size > 0.0F)
         {
             look::clearFilterIcon(canvas, icon_area, ink);
@@ -77,7 +85,11 @@ namespace djw::player_ui::sdl
         {
             look::lanesIcon(canvas, icon_area, icon == Icon::LanesVertical, ink);
         }
-        canvas.textElided({left + icon_size + icon_gap, area.y + ((area.height - canvas.textHeight()) / 2)}, text, ink,
-                          std::max(0.0F, room));
+        if (icon == Icon::Headphones && icon_size > 0.0F)
+        {
+            look::headphonesIcon(canvas, icon_area, ink);
+        }
+        canvas.textElided({left + icon_size + icon_gap, content.y + ((content.height - canvas.textHeight()) / 2)}, text,
+                          ink, std::max(0.0F, room));
     }
 } // namespace djw::player_ui::sdl

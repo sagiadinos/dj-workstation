@@ -41,7 +41,7 @@ namespace djw::player_ui::sdl
      * the player stands touching it scrubs (a short audible loop where the finger is, running on until CUE sets the
      * cue point there or play starts the player there), then the state (loaded, cued,
      * paused, playing), CUE (red, acts while held like on a CDJ) and play/pause (green). At the bottom the channel
-     * fader, the headphone level fader with its HP (headphone cue) button, the artist and title display and the
+     * fader, the headphone level fader with its headphone cue button, the artist and title display and the
      * Cue-Load option: a track loaded into this player starts at its cue point (see cueLoad(); the owner does the
      * loading). When the user sets a cue point with CUE, the owner is told to store it.
      *
@@ -187,19 +187,19 @@ namespace djw::player_ui::sdl
             CueSet                  on_cue_set;
             std::uint32_t           seen_cue_sets = 0;
 
-            TextButton  load_button;
+            TextButton  load_button{"Load"};
             TextButton  bend_down_button{"-"};
             TextButton  bend_up_button{"+"};
-            TextButton  keylock_button;
-            TextButton  time_button;
-            TextButton  cue_button;
+            TextButton  keylock_button{"KEY"};
+            TextButton  time_button{"Time"};
+            TextButton  cue_button{"CUE"};
             TextButton  headphone_button;
             PlayButton  play_button;
             WaveformBar waveform_bar;
             Fader       volume_fader;
             Fader       headphone_fader;
             Fader       pitch_fader;
-            CheckBox    cue_load_box;
+            CheckBox    cue_load_box{"Cue-Load"};
 
             Rect display_area;
             Rect pitch_text_area;

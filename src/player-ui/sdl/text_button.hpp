@@ -47,12 +47,15 @@ namespace djw::player_ui::sdl
             enum class Icon : unsigned char
             {
                 None,
-                Folder,
                 ClearFilter,
                 LanesHorizontal,
-                LanesVertical
+                LanesVertical,
+                Headphones
             };
             void setIcon(Icon new_icon) noexcept { icon = new_icon; }
+            /// An LED at the top of the button, lit or not; std::nullopt: none
+            void                              setLed(std::optional<bool> lit) noexcept { led = lit; }
+            [[nodiscard]] std::optional<bool> ledLit() const noexcept { return led; }
 
             /// True once after a press
             [[nodiscard]] bool takePress() noexcept { return std::exchange(pressed, false); }
@@ -73,7 +76,8 @@ namespace djw::player_ui::sdl
             std::string          text;
             std::optional<Color> custom_background;
             std::optional<Color> custom_text;
-            Icon                 icon        = Icon::None;
+            Icon                 icon = Icon::None;
+            std::optional<bool>  led;
             bool                 highlighted = false;
             bool                 enabled     = true;
             bool                 down        = false;

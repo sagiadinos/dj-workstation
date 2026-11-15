@@ -23,15 +23,16 @@ namespace djw::player_ui::sdl
         constexpr float top_row_height = 44.0F;
         constexpr float display_height = 118.0F;
         /// The widest time the display shows, and how much of its field the time fills
-        constexpr std::string_view widest_clock     = "-88:88:88:88";
-        constexpr float            clock_fill       = 0.92F;
-        constexpr float            waveform_height  = 60.0F;
-        constexpr float            transport_height = 70.0F;
-        constexpr float            column_width     = 56.0F;
-        constexpr float            small_button     = 26.0F;
-        constexpr float            label_height     = 20.0F;
-        constexpr float            info_height      = 62.0F;
-        constexpr float            bend_width       = 48.0F;
+        constexpr std::string_view widest_clock            = "-88:88:88:88";
+        constexpr float            clock_fill              = 0.92F;
+        constexpr float            waveform_height         = 60.0F;
+        constexpr float            transport_height        = 70.0F;
+        constexpr float            column_width            = 56.0F;
+        constexpr float            small_button            = 26.0F;
+        constexpr float            label_height            = 20.0F;
+        constexpr float            info_height             = 62.0F;
+        constexpr float            bend_width              = 48.0F;
+        constexpr float            headphone_button_height = 40.0F;
 
         constexpr Color yellow{255, 225, 0};
         constexpr Color red{225, 40, 40};
@@ -80,7 +81,8 @@ namespace djw::player_ui::sdl
         play_button.setPlaying(state.play_state == core::api::PlayState::Playing);
         cue_button.setColors(cue_background, cue_text);
         load_button.setEnabled(false);
-        load_button.setIcon(TextButton::Icon::Folder);
+        headphone_button.setIcon(TextButton::Icon::Headphones);
+        headphone_button.setLed(false);
     }
 
     void DeckView::layout(const Rect &window)
@@ -134,7 +136,7 @@ namespace djw::player_ui::sdl
         const float faders_height = std::max(0.0F, bottom - y - label_height);
         const float head_x        = inner.x + column_width + gap;
         volume_fader.setBounds(stretch({inner.x, y, column_width, faders_height}));
-        const float hp_height = std::min(small_button + 4.0F, faders_height);
+        const float hp_height = std::min(headphone_button_height, faders_height); // LED over the icon
         headphone_button.setBounds(stretch({head_x, y, column_width, hp_height}));
         headphone_fader.setBounds(
             stretch({head_x, y + hp_height + 4.0F, column_width, std::max(0.0F, faders_height - hp_height - 4.0F)}));
@@ -228,12 +230,20 @@ namespace djw::player_ui::sdl
 
     void DeckView::applyTranslations()
     {
-        load_button.setLabel(translator->tr("player.load"));
-        time_button.setLabel(translator->tr("player.time"));
-        keylock_button.setLabel(translator->tr("player.keylock"));
-        cue_button.setLabel(translator->tr("player.cue"));
-        headphone_button.setLabel(translator->tr("player.headphones_button"));
-        cue_load_box.setLabel(translator->tr("player.cue_load"));
+        // The labels are the DJ's English words in every language; the help bubbles say what they do
+        load_button.setTip(translator->tr("player.tip.load"));
+        bend_down_button.setTip(translator->tr("player.tip.bend_down"));
+        bend_up_button.setTip(translator->tr("player.tip.bend_up"));
+        keylock_button.setTip(translator->tr("player.tip.keylock"));
+        time_button.setTip(translator->tr("player.tip.time"));
+        waveform_bar.setTip(translator->tr("player.tip.waveform"));
+        cue_button.setTip(translator->tr("player.tip.cue"));
+        play_button.setTip(translator->tr("player.tip.play"));
+        pitch_fader.setTip(translator->tr("player.tip.pitch"));
+        volume_fader.setTip(translator->tr("player.tip.volume"));
+        headphone_button.setTip(translator->tr("player.tip.headphone_cue"));
+        headphone_fader.setTip(translator->tr("player.tip.headphone_level"));
+        cue_load_box.setTip(translator->tr("player.tip.cue_load"));
     }
 
     void DeckView::handleButtons()
@@ -321,7 +331,7 @@ namespace djw::player_ui::sdl
         }
 
         keylock_button.setHighlighted(state.keylock);
-        headphone_button.setHighlighted(state.headphone_cue);
+        headphone_button.setLed(state.headphone_cue);
         time_button.setHighlighted(show_remaining);
     }
 
@@ -594,7 +604,7 @@ namespace djw::player_ui::sdl
         // The display: Time button, pitch and the large time, remaining with a minus
         look::sunken(canvas, display_area);
         time_button.draw(canvas);
-        const std::string pitch = translator->tr("player.pitch", {{"value", signedTenths(shown_pitch)}});
+        const std::string pitch = "Pitch: " + signedTenths(shown_pitch) + " %";
         canvas.textElided({pitch_text_area.x + std::max(0.0F, pitch_text_area.width - canvas.textWidth(pitch)),
                            pitch_text_area.y + ((pitch_text_area.height - canvas.textHeight()) / 2)},
                           pitch, yellow, pitch_text_area.width);
@@ -617,7 +627,7 @@ namespace djw::player_ui::sdl
 
         if (const auto tempo = shownBpm())
         {
-            const std::string text = translator->tr("player.bpm", {{"value", formatBpm(*tempo)}});
+            const std::string text = formatBpm(*tempo) + " BPM";
             canvas.textElided({bpm_area.x + std::max(0.0F, (bpm_area.width - canvas.textWidth(text)) / 2),
                                bpm_area.y + ((bpm_area.height - canvas.textHeight()) / 2)},
                               text, yellow, bpm_area.width);
@@ -646,8 +656,8 @@ namespace djw::player_ui::sdl
                                area.y + ((area.height - canvas.textHeight()) / 2)},
                               text, look::colors().label, area.width);
         };
-        label(volume_label_area, translator->tr("player.volume"));
-        label(headphone_label_area, translator->tr("player.headphones"));
+        label(volume_label_area, "Vol");
+        label(headphone_label_area, "Head");
 
         look::sunken(canvas, info_area);
         const float line = canvas.textHeight();

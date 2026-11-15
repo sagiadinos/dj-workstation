@@ -480,8 +480,12 @@ TEST_CASE("DeckView: the headphone button toggles the cue from the state shown, 
     REQUIRE(std::holds_alternative<api::MixerSetHeadphoneCue>(commands[0]));
     CHECK(std::get<api::MixerSetHeadphoneCue>(commands[0]).enabled);
 
+    // The headphones on the button, its LED lit while the cue is on
+    CHECK(fixture.view.headphoneButton().label().empty());
+    CHECK(fixture.view.headphoneButton().ledLit() == false);
     fixture.show({.deck = deck, .headphone_cue = true});
-    CHECK(fixture.view.headphoneButton().isHighlighted());
+    CHECK(fixture.view.headphoneButton().ledLit() == true);
+    CHECK_FALSE(fixture.view.headphoneButton().isHighlighted()); // the body stays gray
     fixture.tapCenter(fixture.view.headphoneButton().bounds());
     fixture.view.update();
     commands = fixture.drain();
@@ -553,22 +557,26 @@ TEST_CASE("DeckView: the cue set count the view starts with is not a new cue poi
     CHECK(reports == 0);
 }
 
-TEST_CASE("DeckView: the texts follow the language")
+TEST_CASE("DeckView: the controls keep the DJ's English words, state and help bubbles follow the language")
 {
     Fixture fixture;
     fixture.translator.setLanguage(Language::German);
     fixture.show({.deck = deck, .track_loaded = true});
-    CHECK(fixture.view.loadButton().label() == "Laden");
-    CHECK(fixture.view.timeButton().label() == "Zeit");
-    CHECK(fixture.view.stateText() == "geladen");
+    CHECK(fixture.view.loadButton().label() == "Load");
+    CHECK(fixture.view.timeButton().label() == "Time");
     CHECK(fixture.view.cueLoadBox().label() == "Cue-Load");
+    CHECK(fixture.view.stateText() == "geladen");
+    CHECK(fixture.view.loadButton().tip() == "Den in der Bibliothek gewählten Titel laden");
+    CHECK(fixture.view.headphoneButton().tip() == "Im Kopfhörer vorhören");
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
-    CHECK(canvas.drew("Kopf"));
+    CHECK(canvas.drew("Head"));
+    CHECK(canvas.drew("Vol"));
 
     fixture.translator.setLanguage(Language::Russian);
     fixture.view.update();
-    CHECK(fixture.view.loadButton().label() == "Загрузить");
+    CHECK(fixture.view.loadButton().label() == "Load");
+    CHECK(fixture.view.loadButton().tip() == "Загрузить трек, выбранный в библиотеке");
 }
 
 TEST_CASE("DeckView: the waveform of the track and its tempo are shown, the tempo follows the pitch")
