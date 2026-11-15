@@ -100,6 +100,21 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - Controllers (`core/control`, behind `api/controllers.hpp`): RtMidi delivers MIDI messages on its own threads; `Controller` turns them into `api::ControlEvent`s through a TOML mapping (`mappings/` next to the program, then `<pref>/mappings`), `ControllerHub` queues them under a lock, and the frontend takes them once per frame and carries them out like its own buttons and faders (`SdlApp::handleControl`). Ports are known by their name without the numbers ALSA adds, so an assignment survives a replug. A mapping may name its controller's sound card (`audio`): with the output on Automatic, `main` connects the controllers first and opens that card with four channels. `importMixxx` turns a Mixxx mapping's direct bindings into ours (its script cannot be taken over); Settings > Devices saves the result in the user's mapping folder and connects again. Lights: once per frame the frontend hands every player's state (`api::DeckLights`, CUE already blinking) to `setLights`; the hub sends a mapping's `[[light]]` messages to the MIDI output of the same name, only when one changes, and switches them off when it closes. Not yet: hotplug, scripts.
 - Keyboard: Tab and Shift+Tab go round the search field and the filters of the library; the cursor keys and Page Up/Down move the selection in the library and the playlist (also while a search field has the focus), Enter loads it. In a player P plays and pauses, C acts as CUE while held and L loads (not while it plays); the cursor keys left and right step back and ahead by one scrub loop (60 ms), with Shift by 10 seconds, like a touch on the waveform there (a playing deck jumps, a standing one scrubs). Keys go to the view a pointer last went down on; in the one window it has a dark blue line around it, just enough to see it.
 
+## Languages
+
+- `player-ui/sdl/i18n`: the texts of the user interface in English, German, French, Spanish, Greek and Russian, compiled into the program as one catalog per language (`catalog_<code>.cpp`): a list of key and message, e.g. `{"menu.file.quit", "Quit"}`. Keys are named after where the text appears.
+- Messages use a subset of ICU MessageFormat (`formatMessage`): `{name}` for an argument and `{n, plural, one {# track} other {# tracks}}` with the plural forms of the CLDR rules per language (`pluralCategory`; Russian has one, few and many). The full ICU library is not used.
+- `Translator::tr` looks a key up in the current language, then in English; a key found nowhere comes back as the key itself, so the mistake shows. Views ask for their texts on every frame, so a new language takes effect at once.
+- The language: Settings > Language, kept in the settings file; without one the first of the system's languages that djw has, else English.
+- Tests check every catalog against the English one: the same keys, once each, no others; every message formats with the arguments of the English one; plural messages have the forms their language needs. A new text therefore goes into all six catalogs in the same change.
+- A new language: an entry in `Language` and `languages`, its code and name, its plural rule, a catalog file and its case in `catalog()`.
+
+## Settings and layout files
+
+- Two text files in the user's data folder (`SDL_GetPrefPath`, e.g. `~/.local/share/djw/` on Linux), one entry per line, starting with a header with a version (`djw-settings 1`, `djw-layout 2`).
+- `settings` (`parseSettings`, `formatSettings`): buffer size, output device, stereo or master and headphones, the mapping per controller port, the language. Written by Settings > Devices and Settings > Language. Read once by `main` before the core is created, so the device settings take effect at the next start. What cannot be read (no file, an unknown line, e.g. from a later version, a buffer size not offered) keeps its default, so the program always starts.
+- `layout` (`parseLayout`, `formatLayout`): the window mode for the next start, then the separate windows (`player`, `library`, `mixer`, `playlist` lines) and the one window (`mdi` lines: players with their crossfader side and options such as Cue-Load and remaining time, fullscreen, window size, the hand-arranged places with the window size they were made for). Each mode keeps its own layout. Written by Layout > Save layout and by switching the window mode (then only the mode changes). A file that cannot be read as a whole (other version, damaged, sizes that make no sense) is ignored and the default layout used, so a broken file never opens odd windows; a version 1 file is read as the separate windows.
+
 ## Library
 
 - `core/library` behind `api/library.hpp` and `api/playlists.hpp`, opened with `api::openLibrary`. One SQLite file, `library.db` in the user's data folder (e.g. `~/.local/share/djw/library.db`).
@@ -113,6 +128,15 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
   - `playlists`, `playlist_entries`: saved playlists with dense positions; a change of the order rewrites a playlist's entries in one transaction.
 - Search (`buildSearch`): one SELECT over `tracks`. Plain words of the search text go to FTS5 as prefix terms, all must match; words with `*` or `?` and the column filters are GLOB patterns on the folded columns. The search only filters: the order is always the chosen column, empty values last, ties by artist and title. Results are never ranked by relevance, so the list keeps its order while typing.
 - Schema version in `PRAGMA user_version` (`TrackStore::schema_version`); an older file is migrated step by step on open, a newer one is refused.
+
+## Analysis
+
+- `core/analysis`: `analyzeFile` decodes the whole file and finds the tempo and the overview waveform in one pass. It takes seconds per track, so it runs on the library's analysis thread (see Library), never on the audio or the frontend's thread.
+- Tempo (`BpmAnalyzer`): QM-DSP, onset detection function and beat tracking. The result is folded into 70 to 180 BPM by halving or doubling, since beat trackers often find half or double what a DJ would count; no tempo if the track is too short or has no beat. The player shows it with the pitch taken into account.
+- Waveform (`WaveformBuilder`): the peak of every small block while decoding, folded into a fixed number of columns (0 to 255) at the end, so the length need not be known in advance. Stored in the `waveforms` table.
+- When it runs: a track loaded into a player that is not analyzed yet (at the front of the queue, the user waits for it), the library's context menu for one track (scan again, then analyze), and Analyze all tracks (at the back). An analyzed track is not analyzed again; a changed file loses its analysis, a tag edit keeps it.
+- Closing the library ends a running analysis early; nothing is stored then. A file that cannot be decoded is marked analyzed without tempo or waveform, so it is not tried again and again.
+- Not part of it: the first audible sound for Cue-Load, which `api::Core::loadTrack` looks for in the first 30 seconds of the loaded track.
 
 ## Code conventions
 
