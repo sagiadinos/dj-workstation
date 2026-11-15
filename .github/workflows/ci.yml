@@ -118,10 +118,12 @@ jobs:
           "$RUNNER_TEMP/lint/bin/pip" install --quiet -r .github/lint-requirements.txt
           echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
 
+      # Atomic counters: the decoder thread and the audio thread run code the tests run too (TrackPeaks::add, the
+      # stretchers); plain counters lose updates between threads and gcov then reports negative counts (GCC bug 68080)
       - name: Configure
         run: >
           cmake --preset linux-debug $SDL_CONFIGURE_FLAGS
-          -DCMAKE_CXX_FLAGS=--coverage
+          "-DCMAKE_CXX_FLAGS=--coverage -fprofile-update=atomic"
           -DCMAKE_EXE_LINKER_FLAGS=--coverage
 
       - name: Build
