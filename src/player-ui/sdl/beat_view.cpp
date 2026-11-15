@@ -21,6 +21,8 @@ namespace djw::player_ui::sdl
         constexpr float bar_width = 1.5F;
         /// The pitch is never so far down that a player stands still; a guard against dividing by 0
         constexpr double slowest = 0.01;
+        /// The button that turns the lanes
+        constexpr float button_size = 34.0F;
 
         /// The bands, drawn over each other from the bass up: red bass, green mids, blue highs; the part played
         /// darker
@@ -41,15 +43,23 @@ namespace djw::player_ui::sdl
         layoutLanes();
     }
 
-    void BeatView::setVertical(bool on) noexcept
+    void BeatView::setVertical(bool on)
     {
         is_vertical = on;
         layoutLanes();
     }
 
+    void BeatView::addTo(PointerRouter &router)
+    {
+        router.add(turn_button);
+    }
+
     void BeatView::layoutLanes()
     {
         const Rect inner = area.inset(gap);
+        // In the upper right corner, over the end of the first lane (its name is at the other end)
+        const float button = std::min({button_size, inner.width, inner.height});
+        turn_button.setBounds({inner.x + inner.width - button, inner.y, button, button});
         if (is_vertical)
         {
             const float half = std::max(0.0F, (inner.width - gap) / 2);
@@ -64,6 +74,13 @@ namespace djw::player_ui::sdl
 
     void BeatView::update()
     {
+        if (turn_button.takePress())
+        {
+            setVertical(!is_vertical);
+        }
+        // The picture shows how the lanes will stand after a press
+        turn_button.setIcon(is_vertical ? TextButton::Icon::LanesHorizontal : TextButton::Icon::LanesVertical);
+        turn_button.setTip(translator->tr(is_vertical ? "beats.turn_horizontal" : "beats.turn_vertical"));
         sides_shown = sides ? sides() : BeatSides{};
     }
 
@@ -71,6 +88,7 @@ namespace djw::player_ui::sdl
     {
         drawLane(canvas, lane_a, 'A', sides_shown.a);
         drawLane(canvas, lane_b, 'B', sides_shown.b);
+        turn_button.draw(canvas);
     }
 
     void BeatView::drawLane(Canvas &canvas, const Rect &lane, char side, const std::optional<BeatDeck> &deck) const
@@ -145,7 +163,11 @@ namespace djw::player_ui::sdl
         label += "  ";
         label += deck ? translator->tr("mixer.player", {{"number", playerNumber(deck->number)}})
                       : translator->tr("mixer.none");
+        // Not under the turn button where it lies over this lane
+        const Rect &button = turn_button.bounds();
+        const bool  under  = button.x < inner.x + inner.width && button.x + button.width > inner.x &&
+                             button.y < inner.y + inner.height && button.y + button.height > inner.y;
         canvas.textElided({inner.x + frame, inner.y + frame}, label, look::colors().text_dim,
-                          inner.width - (2 * frame));
+                          inner.width - (2 * frame) - (under ? button.width : 0.0F));
     }
 } // namespace djw::player_ui::sdl

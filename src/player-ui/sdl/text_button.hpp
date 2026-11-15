@@ -48,7 +48,9 @@ namespace djw::player_ui::sdl
             {
                 None,
                 Folder,
-                ClearFilter
+                ClearFilter,
+                LanesHorizontal,
+                LanesVertical
             };
             void setIcon(Icon new_icon) noexcept { icon = new_icon; }
 

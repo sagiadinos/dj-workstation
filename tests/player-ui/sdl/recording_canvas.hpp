@@ -48,9 +48,17 @@ namespace djw::tests
             {
                 rounded.push_back({rect, radius, top, bottom});
             }
-            void fillTriangle(player_ui::sdl::Point, player_ui::sdl::Point, player_ui::sdl::Point,
-                              player_ui::sdl::Color) override
+            struct DrawnTriangle
             {
+                    player_ui::sdl::Point first;
+                    player_ui::sdl::Point second;
+                    player_ui::sdl::Point third;
+                    player_ui::sdl::Color color;
+            };
+            void fillTriangle(player_ui::sdl::Point first, player_ui::sdl::Point second, player_ui::sdl::Point third,
+                              player_ui::sdl::Color color) override
+            {
+                triangles.push_back({first, second, third, color});
             }
 
             void text(player_ui::sdl::Point position, std::string_view text, player_ui::sdl::Color) override
@@ -121,6 +129,7 @@ namespace djw::tests
             float                               scale = 1.0F;
             std::vector<float>                  large_scales; ///< the text scale each large text was drawn with
             std::vector<RoundedRect>            rounded;
+            std::vector<DrawnTriangle>          triangles;
             std::vector<DrawnPicture>           pictures;
             std::optional<player_ui::sdl::Rect> clip;
             std::vector<std::optional<player_ui::sdl::Rect>> clip_changes;

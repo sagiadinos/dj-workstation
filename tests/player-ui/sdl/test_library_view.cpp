@@ -474,6 +474,24 @@ namespace
         fixture.tap({entry.x + 10, entry.y + 10});
         fixture.view.update();
     }
+
+    /// Whether the entry shows a check mark: the menu is opened if it is not, drawn, and a triangle (the mark is made
+    /// of them) looked for in the entry
+    bool checkMarked(Fixture &fixture, std::size_t menu, std::size_t item)
+    {
+        fixture.view.update();
+        if (fixture.view.menuBar().openMenu() != menu)
+        {
+            const Rect title = fixture.view.menuBar().titleArea(menu);
+            fixture.tap({title.x + 10, title.y + 10});
+        }
+        RecordingCanvas canvas;
+        fixture.view.draw(canvas);
+        const Rect entry = fixture.view.menuBar().itemArea(menu, item);
+        return std::ranges::any_of(canvas.triangles, [&entry](const RecordingCanvas::DrawnTriangle &triangle)
+                                   { return entry.contains(triangle.first) && entry.contains(triangle.third); });
+    }
+
 } // namespace
 
 TEST_CASE("LibraryView: the menu bar sits on top with File, Playlist, Settings, View and Layout")
@@ -716,70 +734,35 @@ TEST_CASE("LibraryView: View shows or hides the playlist window and tells whethe
     CHECK(canvas.drew("Playlist window"));
 }
 
-TEST_CASE("LibraryView: View > Beat waveforms shows or hides them, View > Vertical turns them; both show their state")
+TEST_CASE("LibraryView: View > Beat waveforms shows or hides them and has a check mark while they are open")
 {
     constexpr std::size_t view_menu = 3;
     constexpr std::size_t beats     = 3;
-    constexpr std::size_t vertical  = 4;
     Fixture               fixture;
     chooseEntry(fixture, view_menu, beats);
     CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
     fixture.view.keyboard(EditKey::Escape);
-    chooseEntry(fixture, view_menu, vertical);
-    CHECK(fixture.view.menuBar().isOpen());
-    fixture.view.keyboard(EditKey::Escape);
 
     int  toggles = 0;
-    int  turns   = 0;
     bool shown   = false;
-    bool upright = false;
     fixture.view.setBeatsWindow([&toggles] { ++toggles; }, [&shown] { return shown; });
-    fixture.view.setBeatsVertical([&turns] { ++turns; }, [&upright] { return upright; });
     fixture.view.update();
     chooseEntry(fixture, view_menu, beats);
     CHECK(toggles == 1);
-    CHECK(turns == 0);
-    chooseEntry(fixture, view_menu, vertical);
-    CHECK(toggles == 1);
-    CHECK(turns == 1);
 
-    // A checked entry is drawn on a blue band
-    const auto checked = [&fixture](std::size_t item)
-    {
-        fixture.view.update();
-        if (!fixture.view.menuBar().isOpen())
-        {
-            const Rect title = fixture.view.menuBar().titleArea(view_menu);
-            fixture.tap({title.x + 10, title.y + 10});
-        }
-        RecordingCanvas canvas;
-        fixture.view.draw(canvas);
-        const Rect area = fixture.view.menuBar().itemArea(view_menu, item);
-        return std::ranges::any_of(canvas.rounded,
-                                   [&area](const RecordingCanvas::RoundedRect &band)
-                                   {
-                                       return band.rect.x == area.x && band.rect.y == area.y &&
-                                              band.rect.width == area.width && band.top.red == 62;
-                                   });
-    };
-    CHECK_FALSE(checked(beats));
-    CHECK_FALSE(checked(vertical));
+    CHECK_FALSE(checkMarked(fixture, view_menu, beats));
     shown = true;
-    CHECK(checked(beats));
-    CHECK_FALSE(checked(vertical));
-    upright = true;
-    CHECK(checked(vertical));
-
+    CHECK(checkMarked(fixture, view_menu, beats));
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
     CHECK(canvas.drew("Beat waveforms"));
-    CHECK(canvas.drew("Vertical beat waveforms"));
+    CHECK_FALSE(canvas.drew("Vertical beat waveforms")); // the lanes turn with the button in the part
 }
 
 TEST_CASE("LibraryView: View > Daylight colors switches the colors and shows whether they are on")
 {
     constexpr std::size_t view_menu = 3;
-    constexpr std::size_t daylight  = 7;
+    constexpr std::size_t daylight  = 6;
     Fixture               fixture;
     chooseEntry(fixture, view_menu, daylight);
     CHECK(fixture.view.menuBar().isOpen()); // off until the app handles it
@@ -792,16 +775,12 @@ TEST_CASE("LibraryView: View > Daylight colors switches the colors and shows whe
     chooseEntry(fixture, view_menu, daylight);
     CHECK(toggles == 1);
 
+    CHECK_FALSE(checkMarked(fixture, view_menu, daylight));
     on = true;
-    fixture.view.update();
-    const Rect title = fixture.view.menuBar().titleArea(view_menu);
-    fixture.tap({title.x + 10, title.y + 10});
+    CHECK(checkMarked(fixture, view_menu, daylight));
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
     CHECK(canvas.drew("Daylight colors"));
-    const Rect entry = fixture.view.menuBar().itemArea(view_menu, daylight);
-    CHECK(std::ranges::any_of(canvas.rounded, [&entry](const RecordingCanvas::RoundedRect &band)
-                              { return band.rect.y == entry.y && band.rect.height == entry.height; })); // checked
 }
 
 TEST_CASE("LibraryView: View > New player calls the app and shows its shortcut")
@@ -1000,7 +979,7 @@ TEST_CASE("LibraryView: View > One-window mode switches the mode of the next sta
 {
     Fixture               fixture;
     constexpr std::size_t view_menu  = 3;
-    constexpr std::size_t one_window = 5;
+    constexpr std::size_t one_window = 4;
 
     // Off without a place to keep the choice: the menu stays open
     chooseEntry(fixture, view_menu, one_window);
@@ -1078,7 +1057,7 @@ TEST_CASE(
     CHECK(automatic_runs == 1);
 
     // Fullscreen, with its key, checked while on
-    constexpr std::size_t fullscreen_entry = 6;
+    constexpr std::size_t fullscreen_entry = 5;
     const Rect            title            = fixture.view.menuBar().titleArea(view_menu);
     chooseEntry(fixture, view_menu, fullscreen_entry);
     CHECK(fixture.view.menuBar().isOpen()); // off without an owner

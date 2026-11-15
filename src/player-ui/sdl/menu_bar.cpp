@@ -11,6 +11,9 @@ namespace djw::player_ui::sdl
     namespace
     {
         constexpr float padding = 14.0F;
+        /// The check mark of an entry that is on, in a column of its own at the start of every entry
+        constexpr float check_size   = 14.0F;
+        constexpr float check_column = check_size + 10.0F;
 
     } // namespace
 
@@ -166,12 +169,16 @@ namespace djw::player_ui::sdl
         {
             const MenuItem &entry = shown.items[item];
             const Rect      area  = itemArea(*open, item);
+            const Color     ink   = entry.enabled ? look::colors().text : look::colors().text_dim;
             if (entry.checked)
             {
-                canvas.fillRoundedRect(area, 0.0F, look::colors().highlight_top, look::colors().highlight_bottom);
+                // At the start of the entry: left in left-to-right layout, right in right-to-left
+                const float mark_x = rtl ? area.x + area.width - padding - check_size : area.x + padding;
+                look::checkMark(canvas, {mark_x, area.y + ((area.height - check_size) / 2), check_size, check_size},
+                                ink);
             }
             const float text_y    = area.y + ((area.height - canvas.textHeight()) / 2);
-            float       available = area.width - (2 * padding);
+            float       available = std::max(0.0F, area.width - (2 * padding) - check_column);
             if (!entry.shortcut.empty())
             {
                 // At the end of the entry: right in left-to-right layout, left in right-to-left
@@ -181,12 +188,9 @@ namespace djw::player_ui::sdl
                 available = std::max(0.0F, available - shortcut_width - padding);
             }
             const float width = std::min(canvas.textWidth(entry.label), available);
-            const float x     = rtl ? area.x + area.width - padding - width : area.x + padding;
-            canvas.textElided({x, text_y}, entry.label,
-                              !entry.enabled  ? look::colors().text_dim
-                              : entry.checked ? look::colors().highlight_text
-                                              : look::colors().text,
-                              available);
+            const float x =
+                rtl ? area.x + area.width - padding - check_column - width : area.x + padding + check_column;
+            canvas.textElided({x, text_y}, entry.label, ink, available);
         }
         canvas.fillRect({box.x, box.y + box.height, box.width, 1.0F}, look::colors().separator);
     }

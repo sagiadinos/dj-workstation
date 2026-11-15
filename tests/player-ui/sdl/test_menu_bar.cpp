@@ -8,6 +8,9 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <string_view>
+
 using namespace djw::player_ui::sdl;
 using djw::tests::RecordingCanvas;
 
@@ -202,4 +205,64 @@ TEST_CASE("MenuBar: the drop-down is one row per entry under the bar; right to l
     CHECK(dropdown.y == MenuBar::bar_height);
     CHECK(fixture.bar.dropdownArea(0).height == 2 * MenuBar::item_height);
     CHECK(dropdown.height == MenuBar::item_height);
+}
+
+TEST_CASE("MenuBar: an entry that is on has a check mark at its start, no colored band; the labels line up after it")
+{
+    for (const bool right_to_left : {false, true})
+    {
+        CAPTURE(right_to_left);
+        Fixture fixture{right_to_left};
+        fixture.bar.setMenus({{"Edit",
+                               {{.id = 3, .label = "Undo", .checked = true},
+                                {.id = 4, .label = "Redo"},
+                                {.id = 5, .label = "Off", .enabled = false, .checked = true}}}});
+        fixture.tapTitle(0);
+        RecordingCanvas canvas;
+        fixture.bar.draw(canvas);
+
+        const Rect undo     = fixture.bar.itemArea(0, 0);
+        const Rect redo     = fixture.bar.itemArea(0, 1);
+        const auto marks_in = [&canvas](const Rect &entry)
+        {
+            return std::ranges::count_if(canvas.triangles, [&entry](const RecordingCanvas::DrawnTriangle &triangle)
+                                         { return entry.contains(triangle.first) && entry.contains(triangle.third); });
+        };
+        CHECK(marks_in(undo) > 0);
+        CHECK(marks_in(redo) == 0);
+        CHECK(marks_in(fixture.bar.itemArea(0, 2)) > 0); // off, but on: the mark dimmed
+        // No band over the whole entry
+        CHECK_FALSE(std::ranges::any_of(
+            canvas.rounded, [&undo](const auto &drawn)
+            { return drawn.rect.y == undo.y && drawn.rect.width == undo.width && drawn.rect.height == undo.height; }));
+        // The mark at the start: in the first or (right to left) the last third of the entry
+        const auto mark = std::ranges::find_if(canvas.triangles, [&undo](const RecordingCanvas::DrawnTriangle &triangle)
+                                               { return undo.contains(triangle.first); });
+        REQUIRE(mark != canvas.triangles.end());
+        if (right_to_left)
+        {
+            CHECK(mark->first.x > undo.x + (undo.width * 2 / 3));
+        }
+        else
+        {
+            CHECK(mark->first.x < undo.x + (undo.width / 3));
+        }
+        // Both labels start (or end) at the same place, checked or not
+        const auto label = [&canvas](std::string_view text)
+        {
+            const auto found = std::ranges::find(canvas.texts, text, &RecordingCanvas::DrawnText::text);
+            REQUIRE(found != canvas.texts.end());
+            return *found;
+        };
+        if (right_to_left)
+        {
+            CHECK(label("Undo").position.x + (4 * RecordingCanvas::char_width) ==
+                  doctest::Approx(label("Redo").position.x + (4 * RecordingCanvas::char_width)));
+        }
+        else
+        {
+            CHECK(label("Undo").position.x == doctest::Approx(label("Redo").position.x));
+            CHECK(label("Undo").position.x > mark->first.x);
+        }
+    }
 }

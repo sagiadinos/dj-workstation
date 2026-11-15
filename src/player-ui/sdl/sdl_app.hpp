@@ -202,7 +202,8 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const DeckView &deckView(std::size_t index) const { return *decks.at(index)->view; }
             /// The beat waveforms; for tests
             [[nodiscard]] const BeatView &beatView() const noexcept { return *beat_view; }
-            /// View > Vertical beat waveforms: the lanes side by side or one above the other; saved with the layout
+            /// The beat waveforms' lanes side by side or one above the other (their own button does the same); saved
+            /// with the layout
             void setBeatsVertical(bool on);
             /// View > Daylight colors: switches the colors of every window at once and keeps the choice in the settings
             /// file, if there is one

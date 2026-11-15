@@ -235,8 +235,6 @@ namespace djw::player_ui::sdl
                 [owner] { return owner->toolWindowOpen(Tool::Beats); });
             app->library_view->setDaylight([owner] { owner->setDaylight(!look::daylight()); },
                                            [] { return look::daylight(); });
-            app->library_view->setBeatsVertical([owner] { owner->setBeatsVertical(!owner->beat_view->vertical()); },
-                                                [owner] { return owner->beat_view->vertical(); });
             if (!app->layout_file.empty())
             {
                 app->library_view->setWindowMode([owner](WindowMode chosen) { return owner->chooseWindowMode(chosen); },

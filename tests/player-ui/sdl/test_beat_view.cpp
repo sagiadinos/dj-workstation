@@ -3,10 +3,12 @@
 
 #include "beat_view.hpp"
 
+#include "pointer_router.hpp"
 #include "recording_canvas.hpp"
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -142,7 +144,13 @@ TEST_CASE("BeatView: each lane names its side and player, the playhead is in the
     fixture.view.draw(canvas);
     CHECK(canvas.drew("A  Player 01"));
     CHECK(canvas.drew("B  (none)"));
-    CHECK(canvas.rounded.size() == 4); // the two lanes, each with its frame
+    // The two lanes, each with its frame
+    const auto framed = [&canvas](const Rect &lane)
+    {
+        return std::ranges::count_if(canvas.rounded, [&lane](const auto &drawn) { return sameRect(drawn.rect, lane); });
+    };
+    CHECK(framed(fixture.view.laneA()) == 1);
+    CHECK(framed(fixture.view.laneB()) == 1);
 
     std::vector<Rect> playheads;
     for (std::size_t at = 0; at < canvas.rects.size(); ++at)
@@ -315,4 +323,57 @@ TEST_CASE("BeatView: the three bands are drawn over each other from the bass up,
     REQUIRE(merged.size() == 1);
     CHECK(merged[0].first.height == doctest::Approx(94));
     CHECK(sameColor(merged[0].second, Color{70, 130, 255}));
+}
+
+TEST_CASE("BeatView: a button in the upper right corner turns the lanes; its picture and help show how they will stand")
+{
+    Fixture       fixture;
+    PointerRouter router;
+    fixture.view.addTo(router);
+    // Over the right end of lane A, inside the view's margin
+    const Rect &button = fixture.view.turnButton().bounds();
+    CHECK(sameRect(button, Rect{6 + 606 - 34, 6, 34, 34}));
+    CHECK(fixture.view.turnButton().tip() == "Vertical lanes");
+
+    const Point middle{button.x + (button.width / 2), button.y + (button.height / 2)};
+    router.handle({{1, 1}, PointerPhase::Down, middle});
+    router.handle({{1, 1}, PointerPhase::Up, middle});
+    fixture.view.update();
+    CHECK(fixture.view.vertical());
+    CHECK(sameRect(fixture.view.laneA(), Rect{6, 6, 300, 206}));
+    CHECK(fixture.view.turnButton().tip() == "Horizontal lanes");
+    // Now over the top of lane B, still in the upper right corner
+    CHECK(sameRect(fixture.view.turnButton().bounds(), Rect{6 + 606 - 34, 6, 34, 34}));
+
+    // The picture: two bars side by side (vertical lanes ahead) or one above the other
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    const Rect &now  = fixture.view.turnButton().bounds();
+    const auto  bars = std::ranges::count_if(canvas.rounded,
+                                             [&now](const auto &drawn)
+                                             {
+                                                return drawn.rect.x > now.x && drawn.rect.y > now.y &&
+                                                       drawn.rect.x + drawn.rect.width < now.x + now.width &&
+                                                       drawn.rect.y + drawn.rect.height < now.y + now.height &&
+                                                       drawn.rect.width > drawn.rect.height;
+                                             });
+    CHECK(bars == 2); // horizontal lanes ahead: wide bars
+
+    // A small view: the button no bigger than it
+    fixture.view.layout({0, 0, 30, 30});
+    CHECK(fixture.view.turnButton().bounds().width <= 18.0F);
+}
+
+TEST_CASE("BeatView: the name of the lane under the button is cut so it does not run under it")
+{
+    Fixture fixture{Rect{0, 0, 218, 218}, true}; // vertical lanes of 100 points: lane B lies under the button
+    fixture.sides.a = deckAt(1, 10.0, nullptr);
+    fixture.sides.b = deckAt(12, 10.0, nullptr);
+    fixture.view.update();
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    // 100 - 6 for the frame, - 6 for the margin of the text: 88 points, room for 7 letters and "…"; lane B loses
+    // the button's 34: 54 points, 4 letters
+    CHECK(canvas.drew("A  Play…"));
+    CHECK(canvas.drew("B  P…"));
 }

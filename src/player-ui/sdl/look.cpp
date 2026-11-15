@@ -19,7 +19,7 @@ namespace djw::player_ui::sdl::look
                                .frame               = {70, 72, 78},
                                .outline             = {14, 14, 16},
                                .text                = {232, 232, 235},
-                               .text_dim            = {120, 122, 128},
+                               .text_dim            = {150, 152, 158},
                                .label               = {205, 205, 205},
                                .status              = {160, 160, 160},
                                .button_gray         = {68, 70, 75},
@@ -38,7 +38,7 @@ namespace djw::player_ui::sdl::look
                                .missing_text        = {205, 105, 105},
                                .highlight_top       = {62, 112, 172},
                                .highlight_bottom    = {36, 72, 118},
-                               .highlight_text      = {232, 232, 235},
+                               .highlight_text      = {255, 255, 255},
                                .menu_bar_top        = {58, 60, 66},
                                .menu_bar_bottom     = {30, 31, 35},
                                .menu_box_top        = {64, 66, 72},
@@ -342,5 +342,36 @@ namespace djw::player_ui::sdl::look
              thickness, color);
         line(canvas, {area.x + (w * 0.96F), area.y + (h * 0.56F)}, {area.x + (w * 0.58F), area.y + (h * 0.94F)},
              thickness, color);
+    }
+
+    void lanesIcon(Canvas &canvas, const Rect &area, bool vertical, Color color)
+    {
+        if (area.width <= 0.0F || area.height <= 0.0F)
+        {
+            return;
+        }
+        // Two bars with a gap between them, each a lane
+        const float w = area.width;
+        const float h = area.height;
+        for (const float at : {0.12F, 0.56F})
+        {
+            const Rect lane = vertical ? Rect{area.x + (w * at), area.y, w * 0.32F, h}
+                                       : Rect{area.x, area.y + (h * at), w, h * 0.32F};
+            canvas.fillRoundedRect(lane, 2.0F, color, color);
+        }
+    }
+
+    void checkMark(Canvas &canvas, const Rect &area, Color color)
+    {
+        if (area.width <= 0.0F || area.height <= 0.0F)
+        {
+            return;
+        }
+        const float w         = area.width;
+        const float h         = area.height;
+        const float thickness = std::max(2.0F, w * 0.14F);
+        const Point corner{area.x + (w * 0.40F), area.y + (h * 0.80F)};
+        line(canvas, {area.x + (w * 0.12F), area.y + (h * 0.52F)}, corner, thickness, color);
+        line(canvas, corner, {area.x + (w * 0.90F), area.y + (h * 0.18F)}, thickness, color);
     }
 } // namespace djw::player_ui::sdl::look

@@ -41,8 +41,10 @@ namespace djw::player_ui::sdl
      * stays open if its position still exists. While a menu is open the widget covers the whole window, so a touch
      * anywhere else only closes the menu and does not reach what lies below.
      *
+     * An entry that is on shows a check mark at its start; every entry leaves room for it, so the labels line up.
+     *
      * In right-to-left layout the titles start at the right edge and a drop-down is aligned to the right edge of its
-     * title.
+     * title; the check marks and labels start at the right.
      */
     class MenuBar final : public Widget
     {

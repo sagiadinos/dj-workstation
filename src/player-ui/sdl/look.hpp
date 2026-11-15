@@ -110,6 +110,10 @@ namespace djw::player_ui::sdl::look
     void folderIcon(Canvas &canvas, const Rect &area, Color color);
     /// A filter funnel with a small cross at its lower right: clear the filters
     void clearFilterIcon(Canvas &canvas, const Rect &area, Color color);
+    /// Two lanes, one above the other (horizontal) or side by side (vertical): how the beat waveforms stand
+    void lanesIcon(Canvas &canvas, const Rect &area, bool vertical, Color color);
+    /// A check mark, for a menu entry that is on
+    void checkMark(Canvas &canvas, const Rect &area, Color color);
 } // namespace djw::player_ui::sdl::look
 
 #endif // DJW_PLAYER_UI_SDL_LOOK_HPP

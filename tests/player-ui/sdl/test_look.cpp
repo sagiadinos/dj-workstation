@@ -206,16 +206,8 @@ TEST_CASE("look: in both palettes text stands out from what it is drawn on (WCAG
 {
     for (const look::Palette *palette : {&look::darkPalette(), &look::daylightPalette()})
     {
-        const bool day = palette == &look::daylightPalette();
-        CAPTURE(day);
+        CAPTURE(palette == &look::daylightPalette());
         const look::Palette &colors = *palette;
-        // The dark look as it was before the palette misses two of them: light text on the blue of a chosen entry
-        // (4.2:1) and the dim shortcuts in an open menu (2.3:1); daylight has to meet them
-        if (day)
-        {
-            CHECK(contrast(colors.highlight_text, colors.highlight_top) >= 4.5);
-            CHECK(contrast(colors.text_dim, colors.menu_box_top) >= 3.0);
-        }
         for (const auto &[ink, ground, least] : {
                  std::tuple{colors.text, colors.metal_top, 4.5},
                  std::tuple{colors.text, colors.metal_bottom, 4.5},
@@ -233,6 +225,9 @@ TEST_CASE("look: in both palettes text stands out from what it is drawn on (WCAG
                  std::tuple{colors.text, colors.header, 4.5},
                  std::tuple{colors.text, colors.pane_bar, 4.5},
                  std::tuple{colors.text, colors.bubble, 4.5},
+                 std::tuple{colors.highlight_text, colors.highlight_top, 4.5},
+                 std::tuple{colors.text_dim, colors.menu_box_top, 3.0},
+                 std::tuple{colors.text_dim, colors.metal_top, 3.0},
                  std::tuple{colors.missing_text, colors.row, 3.0},
                  std::tuple{colors.status, colors.metal_bottom, 3.0},
                  std::tuple{colors.disabled_text, colors.disabled_background, 2.0},

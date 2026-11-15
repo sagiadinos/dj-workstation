@@ -7,6 +7,7 @@
 #include "api/snapshot.hpp"
 #include "api/track_peaks.hpp"
 #include "i18n/translator.hpp"
+#include "text_button.hpp"
 #include "view.hpp"
 
 #include <functional>
@@ -42,6 +43,8 @@ namespace djw::player_ui::sdl
      * over each other: the bass red, the mids green, the highs blue (see TrackPeaks), so the kicks stand out from the
      * rest. The part played is drawn darker, the cue point as an orange line (red would vanish in the bass).
      *
+     * A small button in the upper right corner turns the lanes; its picture shows how they will stand.
+     *
      * Which players are on the sides is asked for once per frame; the view sends nothing.
      */
     class BeatView final : public View
@@ -59,18 +62,20 @@ namespace djw::player_ui::sdl
             BeatView(const Translator &translator, Sides sides, double peaks_per_second);
 
             void layout(const Rect &area) override;
-            void addTo(PointerRouter & /*router*/) override {}
+            void addTo(PointerRouter &router) override;
             void update() override;
             void draw(Canvas &canvas) const override;
 
             /// Vertical lanes (time runs down) instead of horizontal ones; kept with the layout
-            void               setVertical(bool on) noexcept;
+            void               setVertical(bool on);
             [[nodiscard]] bool vertical() const noexcept { return is_vertical; }
 
             /// The lane of side A and of side B; for tests
             [[nodiscard]] const Rect      &laneA() const noexcept { return lane_a; }
             [[nodiscard]] const Rect      &laneB() const noexcept { return lane_b; }
             [[nodiscard]] const BeatSides &shown() const noexcept { return sides_shown; }
+            /// The button that turns the lanes; for tests
+            [[nodiscard]] const TextButton &turnButton() const noexcept { return turn_button; }
 
         private:
             void layoutLanes();
@@ -84,6 +89,7 @@ namespace djw::player_ui::sdl
             Rect              lane_a;
             Rect              lane_b;
             bool              is_vertical = false;
+            TextButton        turn_button;
     };
 } // namespace djw::player_ui::sdl
 

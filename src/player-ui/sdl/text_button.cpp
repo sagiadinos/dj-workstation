@@ -73,6 +73,10 @@ namespace djw::player_ui::sdl
         {
             look::clearFilterIcon(canvas, icon_area, ink);
         }
+        if ((icon == Icon::LanesHorizontal || icon == Icon::LanesVertical) && icon_size > 0.0F)
+        {
+            look::lanesIcon(canvas, icon_area, icon == Icon::LanesVertical, ink);
+        }
         canvas.textElided({left + icon_size + icon_gap, area.y + ((area.height - canvas.textHeight()) / 2)}, text, ink,
                           std::max(0.0F, room));
     }

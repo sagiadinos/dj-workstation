@@ -152,12 +152,6 @@ namespace djw::player_ui::sdl
                 beats_toggle = std::move(toggle);
                 beats_shown  = std::move(shown);
             }
-            /// Enables View > Vertical beat waveforms: toggle switches the lanes, vertical tells how they stand
-            void setBeatsVertical(Toggle toggle, Shown vertical)
-            {
-                beats_turn     = std::move(toggle);
-                beats_vertical = std::move(vertical);
-            }
             /// Enables the window mode entries of the View menu (separate windows, one window); the choice takes
             /// effect at the next start, which the status line says
             void setWindowMode(ModeChosen chosen, ModeShown shown)
@@ -279,8 +273,6 @@ namespace djw::player_ui::sdl
             Shown                    mixer_shown;
             Toggle                   beats_toggle;
             Shown                    beats_shown;
-            Toggle                   beats_turn;
-            Shown                    beats_vertical;
             ModeChosen               mode_chosen;
             ModeShown                mode_shown;
             bool                     only_missing = false;
