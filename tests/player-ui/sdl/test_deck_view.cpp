@@ -600,9 +600,12 @@ TEST_CASE("DeckView: the waveform of the track and its tempo are shown, the temp
     fixture.view.update();
     CHECK(*fixture.view.shownBpm() == doctest::Approx(125.0 * 1.08).epsilon(0.01));
 
+    // Shown with two decimals: exactly +8 % from a controller
+    fixture.view.control({.action = api::ControlAction::DeckPitch, .deck = 0, .value = 0.9F});
+    fixture.view.update();
     djw::tests::RecordingCanvas canvas;
     fixture.view.draw(canvas);
-    CHECK(canvas.drew("135.0 BPM"));
+    CHECK(canvas.drew("135.00 BPM"));
 }
 
 TEST_CASE("DeckView: the whole layout grows with the window in both directions, text included")

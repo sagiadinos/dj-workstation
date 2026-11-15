@@ -15,7 +15,7 @@ features:
   title: Was es kann
   items:
     - title: Player
-      text: "Beliebig viele Player, jeder in einem eigenen Fenster, frei verschieb- und skalierbar für Touchscreens. Der Pitch-Fader arbeitet wie am Plattenspieler: nach unten ist schneller. Tastenkürzel mit der linken Alt-Taste (Option am Mac): Alt+P Play/Pause, Alt+C Cue, Alt+L Laden, Alt+←/→ springen, Alt+↑/↓ Pitch in Schritten von 0,02 % (Shift: 0,1 %). Tippen stoppt nie einen Player: Buchstaben landen in der Suche."
+      text: "Beliebig viele Player, jeder in einem eigenen Fenster, frei verschieb- und skalierbar für Touchscreens. Der Pitch-Fader arbeitet wie am Plattenspieler: nach unten ist schneller; die BPM zeigen zwei Nachkommastellen. Tastenkürzel mit der linken Alt-Taste (Option am Mac): Alt+P Play/Pause, Alt+C Cue, Alt+L Laden, Alt+←/→ springen, Alt+↑/↓ Pitch in Schritten von 0,02 % (Shift: 0,1 %). Tippen stoppt nie einen Player: Buchstaben landen in der Suche."
     - title: Mixer
       text: Crossfader mit zeitgesteuerter Überblendung, Vorhören über Kopfhörer und Keylock. Scrollende Beat-Waveforms in drei Farben zum Beatmatching nach Auge.
     - title: Bibliothek

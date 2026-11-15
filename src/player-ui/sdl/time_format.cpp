@@ -42,8 +42,9 @@ namespace djw::player_ui::sdl
 
     std::string formatBpm(double bpm)
     {
-        const long tenths = std::lround(std::max(0.0, bpm) * 10.0);
-        return std::to_string(tenths / 10) + '.' + std::to_string(tenths % 10);
+        const long hundredths = std::lround(std::max(0.0, bpm) * 100.0);
+        const long fraction   = hundredths % 100;
+        return std::to_string(hundredths / 100) + '.' + (fraction < 10 ? "0" : "") + std::to_string(fraction);
     }
 
     std::string formatDuration(double seconds)

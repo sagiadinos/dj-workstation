@@ -15,7 +15,7 @@ features:
   title: What it does
   items:
     - title: Players
-      text: "Any number of players, each in its own window, freely movable and resizable for touchscreens. The pitch fader works as on a turntable: down is faster. Keyboard shortcuts with the left Alt (Option on the Mac): Alt+P play/pause, Alt+C cue, Alt+L load, Alt+←/→ step, Alt+↑/↓ pitch in steps of 0.02 % (Shift: 0.1 %). Typing never stops a player: letters go into the search."
+      text: "Any number of players, each in its own window, freely movable and resizable for touchscreens. The pitch fader works as on a turntable: down is faster; the BPM shows two decimals. Keyboard shortcuts with the left Alt (Option on the Mac): Alt+P play/pause, Alt+C cue, Alt+L load, Alt+←/→ step, Alt+↑/↓ pitch in steps of 0.02 % (Shift: 0.1 %). Typing never stops a player: letters go into the search."
     - title: Mixer
       text: Crossfader with timed fades, headphone cue and keylock. Scrolling beat waveforms in three colours for beatmatching by eye.
     - title: Library

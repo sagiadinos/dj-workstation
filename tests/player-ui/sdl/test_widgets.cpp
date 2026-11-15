@@ -65,6 +65,15 @@ TEST_CASE("PlayButton: one press is reported exactly once")
     CHECK_FALSE(button.takePress());
 }
 
+TEST_CASE("formatBpm: two decimals, rounded")
+{
+    CHECK(formatBpm(128.0) == "128.00");
+    CHECK(formatBpm(128.034) == "128.03");
+    CHECK(formatBpm(127.996) == "128.00");
+    CHECK(formatBpm(99.05) == "99.05");
+    CHECK(formatBpm(-1.0) == "0.00");
+}
+
 TEST_CASE("formatDuration: minutes and seconds, rounded")
 {
     CHECK(formatDuration(0.0) == "0:00");

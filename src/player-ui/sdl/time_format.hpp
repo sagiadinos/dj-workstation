@@ -15,7 +15,7 @@ namespace djw::player_ui::sdl
     /// "00:03:59:00"; with remaining a "-" comes first. Negative values show as 0.
     std::string formatClock(double seconds, bool remaining);
 
-    /// A tempo with one decimal, e.g. "128.0"
+    /// A tempo with two decimals, e.g. "128.03": a pitch step of 0.02 % shows in it
     std::string formatBpm(double bpm);
 
     /// Track length as "m:ss", rounded to whole seconds, e.g. "4:05". Negative values show as 0.
