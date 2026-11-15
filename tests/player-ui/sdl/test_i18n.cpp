@@ -143,6 +143,21 @@ TEST_CASE("formatMessage: apostrophes are literal unless they quote braces")
     CHECK(format(Language::English, "it''s") == "it's");
     CHECK(format(Language::English, "'{'not an argument'}'") == "{not an argument}");
     CHECK(format(Language::English, "a '{x}' b {x}", {{"x", 1}}) == "a {x} b 1");
+    // Inside a quote '' is one apostrophe; a quote left open runs to the end
+    CHECK(format(Language::English, "'{a''b}' c") == "{a'b} c");
+    CHECK(format(Language::English, "'{open") == "{open");
+    CHECK(format(Language::English, "end'") == "end'");
+    CHECK(format(Language::English, "x '") == "x '");
+    // The same inside the branches of a plural
+    CHECK(format(Language::English, "{n, plural, other {it''s '{'#'}' l'x}}", {{"n", 2}}) == "it's {2} l'x");
+    CHECK(format(Language::English, "{n, plural, other {'{a''}' b}}", {{"n", 2}}) == "{a'} b");
+}
+
+TEST_CASE("formatMessage: blanks around names, the plural word and the branches do not count")
+{
+    CHECK(format(Language::English, "{ x }", {{"x", 5}}) == "5");
+    CHECK(format(Language::English, "{ n ,  plural ,  one {a}  other {b} }", {{"n", 1}}) == "a");
+    CHECK(format(Language::English, "{n,plural,one{a}other{b}}", {{"n", 2}}) == "b");
 }
 
 TEST_CASE("formatMessage: mistakes are errors that say what is wrong")

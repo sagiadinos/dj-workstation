@@ -142,6 +142,10 @@ namespace djw::tests
 
             void removeEntry(std::int64_t id, std::size_t index) override
             {
+                if (writes_pending)
+                {
+                    return;
+                }
                 auto &tracks = stored.at(id).tracks;
                 tracks.erase(tracks.begin() + static_cast<std::ptrdiff_t>(index));
                 changed();
@@ -149,6 +153,10 @@ namespace djw::tests
 
             void moveEntry(std::int64_t id, std::size_t from, std::size_t to) override
             {
+                if (writes_pending)
+                {
+                    return;
+                }
                 auto      &tracks = stored.at(id).tracks;
                 const auto moved  = tracks[from];
                 tracks.erase(tracks.begin() + static_cast<std::ptrdiff_t>(from));
@@ -193,12 +201,14 @@ namespace djw::tests
             std::vector<std::int64_t>                                         rescanned;
             int                                                               analyze_all_requests = 0;
             std::map<std::int64_t, std::vector<std::uint8_t>>                 waveforms;
-            bool                                                              fail     = false;
-            mutable int                                                       searches = 0;
-            mutable core::api::LibraryQuery                                   last_query;
-            std::vector<std::pair<std::int64_t, std::string>>                 renames;
-            std::vector<std::filesystem::path>                                imports;
-            std::vector<std::pair<std::int64_t, std::filesystem::path>>       exports;
+            bool                                                              fail = false;
+            /// Moves and removals of playlist entries are not written yet: nothing changes in the library
+            bool                                                        writes_pending = false;
+            mutable int                                                 searches       = 0;
+            mutable core::api::LibraryQuery                             last_query;
+            std::vector<std::pair<std::int64_t, std::string>>           renames;
+            std::vector<std::filesystem::path>                          imports;
+            std::vector<std::pair<std::int64_t, std::filesystem::path>> exports;
 
         private:
             struct Stored

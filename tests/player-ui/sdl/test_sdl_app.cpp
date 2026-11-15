@@ -1540,3 +1540,78 @@ TEST_CASE("SdlApp: about once a second it looks for controllers plugged in or ou
     REQUIRE(app->runFrame());
     CHECK(fake.port_checks == first + 1);
 }
+
+TEST_CASE("SdlApp: in separate windows each player's options and the playlist window come back from the layout")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "layout";
+    Layout                    saved;
+    saved.players  = {{{20, 30, 380, 514}, api::CrossfaderSide::A, {.show_remaining = true, .cue_load = false}},
+                      {{120, 30, 380, 514}, api::CrossfaderSide::B, {.show_remaining = false, .cue_load = true}}};
+    saved.library  = {100, 100, 720, 640};
+    saved.mixer    = {.open = false, .place = {300, 300, 440, 250}};
+    saved.playlist = {.open = true, .place = {200, 100, 560, 640}};
+    std::ofstream{file} << formatLayout(saved);
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->deckCount() == 2);
+    CHECK(app->deckView(0).showsRemaining());
+    CHECK_FALSE(app->deckView(0).cueLoad());
+    CHECK_FALSE(app->deckView(1).showsRemaining());
+    CHECK(app->deckView(1).cueLoad());
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Playlist));
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    REQUIRE(app->runFrame());
+
+    REQUIRE(app->saveLayout());
+    const auto again = parseLayout(readFile(file));
+    REQUIRE(again.has_value());
+    REQUIRE(again->players.size() == 2);
+    CHECK(again->players[0].options == saved.players[0].options);
+    CHECK(again->players[1].options == saved.players[1].options);
+    CHECK(again->playlist.open);
+    CHECK(again->playlist.place.x == 200);
+    CHECK_FALSE(again->mixer.open);
+    CHECK(again->mixer.place.x == 300);
+}
+
+TEST_CASE("SdlApp: in the MDI mode each player's options and the playlist part come back from the layout")
+{
+    const djw::tests::TempDir folder;
+    const auto                file   = folder.path() / "layout";
+    Layout                    layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
+    layout.mode                      = WindowMode::Mdi;
+    layout.mdi = MdiLayout{.players = {api::CrossfaderSide::A, api::CrossfaderSide::B, api::CrossfaderSide::None},
+                           .player_options = {PlayerOptions{.show_remaining = false, .cue_load = true},
+                                              PlayerOptions{.show_remaining = true, .cue_load = false},
+                                              PlayerOptions{.show_remaining = true, .cue_load = true}},
+                           .mixer_open     = false,
+                           .playlist_open  = true,
+                           .fullscreen     = true,
+                           .places         = std::nullopt};
+    std::ofstream{file} << formatLayout(layout);
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 3);
+    for (std::size_t player = 0; player < 3; ++player)
+    {
+        CAPTURE(player);
+        CHECK(app->deckView(player).showsRemaining() == layout.mdi->player_options[player].show_remaining);
+        CHECK(app->deckView(player).cueLoad() == layout.mdi->player_options[player].cue_load);
+    }
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Playlist));
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Mixer));
+
+    REQUIRE(app->saveLayout());
+    const auto again = parseLayout(readFile(file));
+    REQUIRE(again.has_value());
+    REQUIRE(again->mdi.has_value());
+    CHECK(again->mdi->player_options == layout.mdi->player_options);
+    CHECK(again->mdi->playlist_open);
+    CHECK_FALSE(again->mdi->mixer_open);
+}

@@ -1114,3 +1114,201 @@ TEST_CASE("DeckView: the lights: play while playing, headphones, CUE as on a CDJ
     fixture.view.keyboard(PlayerKey{PlayerKey::Key::Cue, true});
     CHECK(fixture.view.lights(false).cue);
 }
+
+TEST_CASE("DeckView: the left key steps back, keys on a playing deck add up, a track without length takes no keys")
+{
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 50.0, .duration_seconds = 100.0});
+    fixture.view.keyboard(EditKey::Left);
+    fixture.view.update();
+    auto commands = fixture.drain();
+    REQUIRE(find<api::DeckScrub>(commands) != nullptr);
+    CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(50.0 - DeckView::key_step_seconds));
+
+    fixture.show({.deck             = deck,
+                  .track_loaded     = true,
+                  .play_state       = api::PlayState::Playing,
+                  .position_seconds = 50.0,
+                  .duration_seconds = 100.0});
+    static_cast<void>(fixture.drain());
+    fixture.view.keyboard(EditKey::ShiftRight);
+    fixture.view.keyboard(EditKey::ShiftRight);
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckSeek>(commands) != nullptr);
+    CHECK(find<api::DeckSeek>(commands)->position_seconds == doctest::Approx(70.0));
+
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 0.0, .duration_seconds = 0.0});
+    static_cast<void>(fixture.drain());
+    fixture.view.keyboard(EditKey::Right);
+    fixture.view.update();
+    CHECK(fixture.drain().empty());
+}
+
+TEST_CASE("DeckView: bend down from a controller bends down; a fader level goes out once, not again unchanged")
+{
+    using Action = djw::core::api::ControlAction;
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 10.0, .duration_seconds = 100.0});
+    static_cast<void>(fixture.drain());
+    fixture.view.control(controlEvent(Action::DeckBendDown));
+    fixture.view.control(controlEvent(Action::DeckBendDown, false));
+    fixture.view.update();
+    auto commands = fixture.drain();
+    REQUIRE(commands.size() == 2);
+    CHECK(std::get<api::DeckPitchBend>(commands[0]).direction == -1);
+    CHECK(std::get<api::DeckPitchBend>(commands[1]).direction == 0);
+
+    fixture.view.control(controlEvent(Action::DeckHeadphoneLevel, true, 0.3F));
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::MixerSetHeadphoneLevel>(commands) != nullptr);
+    CHECK(find<api::MixerSetHeadphoneLevel>(commands)->value == doctest::Approx(0.3F));
+    fixture.view.control(controlEvent(Action::DeckHeadphoneLevel, true, 0.3F));
+    fixture.view.update();
+    CHECK(find<api::MixerSetHeadphoneLevel>(fixture.drain()) == nullptr);
+}
+
+TEST_CASE("DeckView: the jog wheel's bend ends exactly when the hold is over")
+{
+    using Action = djw::core::api::ControlAction;
+    api::CommandQueue                     queue;
+    api::DeckSnapshotBuffer               snapshot{api::DeckSnapshot{.deck             = deck,
+                                                                     .track_loaded     = true,
+                                                                     .play_state       = api::PlayState::Playing,
+                                                                     .position_seconds = 10.0,
+                                                                     .duration_seconds = 100.0}};
+    Translator                            translator;
+    std::chrono::steady_clock::time_point now{};
+    DeckView                              view{deck, queue, snapshot, translator, [&now] { return now; }};
+    view.update();
+    view.control(controlEvent(Action::DeckJog, true, 0.0F, 1));
+    view.update();
+    while (queue.tryPop())
+    {
+    }
+    now += DeckView::jog_bend_hold;
+    view.update();
+    bool ended = false;
+    while (const auto command = queue.tryPop())
+    {
+        if (const auto *bend = std::get_if<api::DeckPitchBend>(&*command))
+        {
+            ended = bend->direction == 0;
+        }
+    }
+    CHECK(ended);
+}
+
+namespace
+{
+    /// A view with a clock of its own, on a playing deck that can be scratched
+    struct ScratchFixture
+    {
+            ScratchFixture()
+            {
+                playing.scratchable = true;
+                snapshot.write(playing);
+                view.update();
+                static_cast<void>(scratches());
+            }
+
+            std::vector<api::DeckScratch> scratches()
+            {
+                std::vector<api::DeckScratch> found;
+                while (const auto command = queue.tryPop())
+                {
+                    if (const auto *scratch = std::get_if<api::DeckScratch>(&*command))
+                    {
+                        found.push_back(*scratch);
+                    }
+                }
+                return found;
+            }
+
+            void touch(bool on)
+            {
+                view.control({.action = djw::core::api::ControlAction::DeckScratchTouch, .deck = 0, .pressed = on});
+            }
+
+            void turn(float turns)
+            {
+                view.control(
+                    {.action = djw::core::api::ControlAction::DeckScratch, .deck = 0, .steps = 1, .turns = turns});
+            }
+
+            api::DeckSnapshot                     playing{.deck             = deck,
+                                                          .track_loaded     = true,
+                                                          .play_state       = api::PlayState::Playing,
+                                                          .position_seconds = 10.0,
+                                                          .duration_seconds = 100.0};
+            api::CommandQueue                     queue;
+            api::DeckSnapshotBuffer               snapshot{api::DeckSnapshot{.deck = deck}};
+            Translator                            translator;
+            std::chrono::steady_clock::time_point now{};
+            DeckView                              view{deck, queue, snapshot, translator, [this] { return now; }};
+    };
+} // namespace
+
+TEST_CASE("DeckView scratch: a new touch starts from the hand at rest, nothing of the scratch before is left")
+{
+    ScratchFixture fixture;
+    fixture.touch(true);
+    fixture.view.update();
+    for (int frame = 0; frame < 10; ++frame)
+    {
+        fixture.now += std::chrono::milliseconds{15};
+        fixture.turn(0.1F);
+        fixture.view.update();
+    }
+    // Turned once more and let go before the next frame
+    fixture.turn(0.5F);
+    fixture.touch(false);
+    fixture.view.update();
+    static_cast<void>(fixture.scratches());
+
+    // A second later the hand is back on the record and holds it
+    fixture.now += std::chrono::seconds{1};
+    fixture.touch(true);
+    fixture.view.update();
+    fixture.now += std::chrono::milliseconds{15};
+    fixture.view.update();
+    auto sent = fixture.scratches();
+    REQUIRE_FALSE(sent.empty());
+    CHECK(sent.back().active);
+    CHECK(sent.back().rate == 0.0F);
+
+    // It moves at the normal speed: in one frame half of the way there (smoothed over 30 ms)
+    fixture.now += std::chrono::milliseconds{15};
+    fixture.turn(15.0F / 1'800.0F);
+    fixture.view.update();
+    sent = fixture.scratches();
+    REQUIRE(sent.size() == 1);
+    CHECK(sent.front().rate == doctest::Approx(0.5F));
+}
+
+TEST_CASE("DeckView scratch: a release without a touch sends nothing; a track that cannot be scratched ends it")
+{
+    ScratchFixture fixture;
+    fixture.touch(false);
+    fixture.view.update();
+    CHECK(fixture.scratches().empty());
+
+    fixture.touch(true);
+    fixture.view.update();
+    REQUIRE_FALSE(fixture.scratches().empty());
+    fixture.playing.scratchable = false;
+    fixture.snapshot.write(fixture.playing);
+    fixture.now += std::chrono::milliseconds{15};
+    fixture.view.update();
+    auto sent = fixture.scratches();
+    REQUIRE(sent.size() == 1);
+    CHECK_FALSE(sent.front().active);
+
+    // Untouched now: the release sends nothing more, turning bends
+    fixture.now += std::chrono::milliseconds{15};
+    fixture.touch(false);
+    fixture.turn(0.1F);
+    fixture.view.update();
+    CHECK(fixture.scratches().empty());
+}

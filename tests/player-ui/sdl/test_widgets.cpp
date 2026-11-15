@@ -82,6 +82,8 @@ TEST_CASE("formatPosition: minutes, seconds and tenths, truncated")
     CHECK(formatPosition(60.0) == "1:00.0");
     CHECK(formatPosition(187.4) == "3:07.4");
     CHECK(formatPosition(-1.0) == "0:00.0");
+    CHECK(formatPosition(9.95) == "0:09.9");
+    CHECK(formatPosition(10.0) == "0:10.0");
 }
 
 TEST_CASE("TextButton: a press needs down and up on the button, once")

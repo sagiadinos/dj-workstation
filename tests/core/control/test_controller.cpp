@@ -187,3 +187,15 @@ TEST_CASE("Controller: a scratch control gives its steps also as turns of the wh
     REQUIRE(jog.size() == 1);
     CHECK(jog[0].turns == 0.0F);
 }
+
+TEST_CASE("Controller: a wheel of one step per turn turns once per step")
+{
+    Mapping mapping{.name = "Test", .match = {"Test"}, .audio = {}, .controls = {}, .file = {}};
+    Control scratch        = control(MidiKind::ControlChange, 2, 10, Action::DeckScratch, 0, Mode::Relative);
+    scratch.ticks_per_turn = 1;
+    mapping.controls       = {scratch};
+    Controller controller{mapping};
+    const auto events = controller.handle(cc(2, 10, 3));
+    REQUIRE(events.size() == 1);
+    CHECK(events[0].turns == 3.0F);
+}

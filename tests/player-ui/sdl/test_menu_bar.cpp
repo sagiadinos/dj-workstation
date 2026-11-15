@@ -191,3 +191,15 @@ TEST_CASE("MenuBar: an entry shows its shortcut at the end, at the start in righ
         CHECK((right_to_left ? shortcut_x < label_x : shortcut_x > label_x));
     }
 }
+
+TEST_CASE("MenuBar: the drop-down is one row per entry under the bar; right to left it stays inside the window too")
+{
+    Fixture fixture{true};
+    fixture.bar.place({0, 0, 150, MenuBar::bar_height}, {0, 0, 600, 400});
+    fixture.tapTitle(1);
+    const Rect dropdown = fixture.bar.dropdownArea(1);
+    CHECK(dropdown.x == 0.0F); // it would start before the window
+    CHECK(dropdown.y == MenuBar::bar_height);
+    CHECK(fixture.bar.dropdownArea(0).height == 2 * MenuBar::item_height);
+    CHECK(dropdown.height == MenuBar::item_height);
+}

@@ -129,6 +129,24 @@ TEST_CASE("Mapping: all mappings of the folders are read, a broken file is repor
     CHECK(errors[0].find("broken.toml") != std::string::npos);
 }
 
+TEST_CASE("Mapping: the mappings of a folder come in the order of their file names, whatever the folder says")
+{
+    const djw::tests::TempDir folder;
+    for (const char *name : {"m", "c", "x", "a", "q", "f", "z", "b"})
+    {
+        std::ofstream{folder.path() / (std::string{name} + ".toml")} << "[device]\nname = \"" << name
+                                                                     << "\"\nmatch = [\"" << name << "\"]\n";
+    }
+    std::vector<std::string> errors;
+    const auto               mappings = readMappings({folder.path()}, errors);
+    std::vector<std::string> names;
+    for (const auto &mapping : mappings)
+    {
+        names.push_back(mapping.name);
+    }
+    CHECK(names == std::vector<std::string>{"a", "b", "c", "f", "m", "q", "x", "z"});
+}
+
 TEST_CASE("Mapping: the mappings that come with the program can all be read; the Starlight is recognized")
 {
     std::vector<std::string> errors;
@@ -290,4 +308,6 @@ TEST_CASE("Mapping: deck.scratch is relative and needs the steps of one turn")
     CHECK_FALSE(parseMapping(head + "mode = \"relative\"\nticks_per_turn = 0\n").has_value());
     CHECK_FALSE(parseMapping(head + "mode = \"absolute\"\nticks_per_turn = 248\n").has_value());
     CHECK_FALSE(parseMapping(head + "mode = \"relative\"\nticks_per_turn = 100001\n").has_value());
+    CHECK(parseMapping(head + "mode = \"relative\"\nticks_per_turn = 1\n").has_value());
+    CHECK(parseMapping(head + "mode = \"relative\"\nticks_per_turn = 100000\n").has_value());
 }

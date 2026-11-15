@@ -1048,3 +1048,37 @@ TEST_CASE("LibraryView: the player keys do nothing in the library, the letter co
     CHECK(fixture.view.searchField().text() == "p");
     CHECK(fixture.loaded.empty());
 }
+
+TEST_CASE("LibraryView: each filter field filters its own column; the clear button also ends Missing and the filters")
+{
+    Fixture fixture;
+    fixture.library.library_status.missing_total = 3;
+    fixture.view.update();
+    for (std::size_t field = 0; field < 4; ++field)
+    {
+        const Rect &area = fixture.view.filterField(field).bounds();
+        fixture.tap({area.x + (area.width / 2), area.y + (area.height / 2)});
+        fixture.view.keyboard(std::string(1, static_cast<char>('a' + field)));
+    }
+    fixture.view.update();
+    const auto query = fixture.view.query();
+    CHECK(query.artist == "a");
+    CHECK(query.title == "b");
+    CHECK(query.genre == "c");
+    CHECK(query.year == "d");
+
+    // Missing alone shows the clear button too
+    tapButton(fixture, fixture.view.clearButton());
+    fixture.view.update();
+    CHECK(fixture.view.query().artist.empty());
+    CHECK(fixture.view.query().year.empty());
+    CHECK(fixture.view.clearButton().bounds().width == 0.0F);
+    tapButton(fixture, fixture.view.missingButton());
+    fixture.view.update();
+    REQUIRE(fixture.view.query().only_missing);
+    CHECK(fixture.view.clearButton().bounds().width > 0.0F);
+    tapButton(fixture, fixture.view.clearButton());
+    fixture.view.update();
+    CHECK_FALSE(fixture.view.query().only_missing);
+    CHECK_FALSE(fixture.view.missingButton().isHighlighted());
+}

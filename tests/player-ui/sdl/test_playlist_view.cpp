@@ -290,3 +290,24 @@ TEST_CASE("PlaylistView: scales evenly with its area like the player, at the top
     CHECK(previous.x == doctest::Approx(design_new.x + PlaylistView::design_width));
     CHECK(previous.y == doctest::Approx(design_new.y - design_new.height - 8.0F)); // top row, as before
 }
+
+TEST_CASE("PlaylistView: a move or a removal shows at once, before the library has written it")
+{
+    Fixture fixture;
+    fixture.library.addPlaylist("Set", {1, 2, 3});
+    ++fixture.library.library_status.revision;
+    fixture.view.update();
+    fixture.library.writes_pending = true;
+
+    fixture.tapRow(2);
+    fixture.press(Button::Up);
+    CHECK(fixture.titles() == std::vector<std::string>{"alpha", "gamma", "beta"});
+    CHECK(fixture.view.trackList().selected() == 1U);
+    fixture.press(Button::Down);
+    CHECK(fixture.titles() == std::vector<std::string>{"alpha", "beta", "gamma"});
+    CHECK(fixture.view.trackList().selected() == 2U);
+
+    fixture.tapRow(0);
+    fixture.press(Button::Remove);
+    CHECK(fixture.titles() == std::vector<std::string>{"beta", "gamma"});
+}

@@ -422,3 +422,43 @@ TEST_CASE("snapMove and snapResize: a near edge of another pane or of the window
     CHECK(resized.x + resized.width == doctest::Approx(1000));
     CHECK(resized.y + resized.height == doctest::Approx(547));
 }
+
+TEST_CASE("MDI by hand: rounded over the right or bottom edge, a moved pane takes the grid line before")
+{
+    // The last start that fits is 718 x 518; the grid line above it would leave the window, the one before not
+    const Rect window{0, 0, 1018, 818};
+    const Rect moved = snapMove({702, 502, 300, 300}, window, 40.0F);
+    CHECK(same(moved.x, 680));
+    CHECK(same(moved.y, 480));
+    CHECK(inside(moved, window));
+}
+
+TEST_CASE("MDI by hand: overlap either way round; keepInside also for width and the far edges")
+{
+    CHECK_FALSE(overlap({0, 100, 100, 100}, {0, 0, 100, 100}));
+    CHECK_FALSE(overlap({100, 0, 100, 100}, {0, 0, 100, 100}));
+
+    const Rect kept = keepInside({-50, 700, 2000, 300}, {0, 0, 1000, 800});
+    CHECK(same(kept.width, 1000));
+    CHECK(same(kept.x, 0));
+    CHECK(same(kept.y, 500));
+}
+
+TEST_CASE("MDI by hand: near the window's corner a resized pane is as big as there is room, not the smallest size")
+{
+    const Rect window{0, 0, 1000, 800};
+    const Rect corner = snapResize({950, 750, 10, 10}, window, 20.0F);
+    CHECK(same(corner.width, 50));
+    CHECK(same(corner.height, 50));
+}
+
+TEST_CASE("MDI by hand: a new pane fits into the last column and row of the grid at its full size")
+{
+    const Rect window{0, 0, 1000, 800};
+    const auto right = freePlace(300, 200, window, {{0, 0, 700, 800}});
+    REQUIRE(right.has_value());
+    CHECK(sameRect(*right, Rect{700, 0, 300, 200}));
+    const auto bottom = freePlace(300, 200, window, {{0, 0, 1000, 600}});
+    REQUIRE(bottom.has_value());
+    CHECK(sameRect(*bottom, Rect{0, 600, 300, 200}));
+}

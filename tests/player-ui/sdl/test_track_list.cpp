@@ -390,3 +390,45 @@ TEST_CASE("TrackList: a finger that came to rest before it lifts, or a slow drag
     fixture.list.pointerUp({50, 270});
     CHECK_FALSE(fixture.list.flinging()); // 30 points per second: too slow
 }
+
+TEST_CASE("TrackList: Up without a selection starts at the last row, scrolled into view")
+{
+    Fixture fixture;
+    CHECK(fixture.list.navigate(EditKey::Up));
+    CHECK(fixture.list.selected() == 19U);
+    CHECK(fixture.list.scrollOffset() == doctest::Approx(15 * row));
+}
+
+TEST_CASE("TrackList: a third tap starts a new double tap; new tracks forget the tap before them")
+{
+    Fixture fixture;
+    fixture.tap(fixture.rowY(1));
+    fixture.now += 100ms;
+    fixture.tap(fixture.rowY(1));
+    CHECK(fixture.list.takeActivated() == 1U);
+    fixture.now += 100ms;
+    fixture.tap(fixture.rowY(1));
+    CHECK_FALSE(fixture.list.takeActivated());
+
+    fixture.now += 1s;
+    fixture.tap(fixture.rowY(2));
+    fixture.list.setTracks(tracks(20));
+    fixture.now += 100ms;
+    fixture.tap(fixture.rowY(2));
+    CHECK_FALSE(fixture.list.takeActivated()); // the first tap was on the old list
+}
+
+TEST_CASE("TrackList: fewer tracks with the position kept: a selection past the end goes, the scroll stays inside")
+{
+    Fixture fixture;
+    fixture.list.scrollBy(-15 * row);
+    fixture.tap(fixture.rowY(4)); // row 19
+    REQUIRE(fixture.list.selected() == 19U);
+    fixture.list.setTracks(tracks(8), true);
+    CHECK_FALSE(fixture.list.selected());
+    CHECK(fixture.list.scrollOffset() == doctest::Approx(3 * row));
+
+    fixture.tap(fixture.rowY(4)); // row 7, the last
+    fixture.list.setTracks(tracks(8), true);
+    CHECK(fixture.list.selected() == 7U);
+}

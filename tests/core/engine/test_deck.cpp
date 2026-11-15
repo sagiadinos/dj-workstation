@@ -345,6 +345,12 @@ TEST_CASE("Deck pitch bend: changes the speed while held and adds to the pitch")
     deck.setPitchBend(0);
     CHECK(deck.speed() == doctest::Approx(1.10));
     CHECK(deck.pitchPercent() == 10.0F);
+
+    // Only the direction counts
+    deck.setPitchBend(5);
+    CHECK(deck.speed() == doctest::Approx(1.10 * 1.04));
+    deck.setPitchBend(-5);
+    CHECK(deck.speed() == doctest::Approx(1.10 * 0.96));
 }
 
 namespace
@@ -1068,9 +1074,9 @@ namespace
 {
     using djw::tests::ramp;
 
-    /// Frame n holds n / 65536 on both channels: the interpolation of a straight line is exact, so what a scratch
-    /// plays tells where it read
-    constexpr float ramp_step = 1.0F / 65'536.0F;
+    /// Frame n holds n on both channels: the interpolation of a straight line is exact, so what a scratch plays tells
+    /// where it read. Whole frames, as doctest::Approx is relative only for values well above 1
+    constexpr float ramp_step = 1.0F;
 
     /// Renders frames frames and returns the left channel
     std::vector<float> renderLeft(Deck &deck, std::size_t frames)
@@ -1194,4 +1200,132 @@ TEST_CASE("Deck scratch: a streamed track or a running scrub cannot be scratched
 
     Deck empty{DeckId{2}, 0};
     CHECK_FALSE(empty.scratchable());
+}
+
+TEST_CASE("Deck scratch: at a steady speed it plays every point between the frames, on both channels")
+{
+    BufferSource source{ramp(48'000, ramp_step), nullptr, true};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.seek(1'000);
+    deck.scratch(0.5F, true);
+    static_cast<void>(renderLeft(deck, 4'800)); // up to speed
+
+    std::vector<float> output(1'000 * 2);
+    deck.render(output);
+    for (std::size_t frame = 1; frame < 1'000; ++frame)
+    {
+        CHECK(output[(frame * 2) + 1] == output[frame * 2]);
+        CHECK(output[frame * 2] - output[(frame - 1) * 2] == doctest::Approx(0.5F * ramp_step).epsilon(0.002));
+    }
+    // The last frame played is the track before the last half step
+    CHECK(output[(999 * 2)] == doctest::Approx((deck.positionFrames() - 0.5) * ramp_step).epsilon(1e-5));
+}
+
+TEST_CASE("Deck scratch: what CUE was doing before the hand came ends with the scratch")
+{
+    BufferSource       source{ramp(48'000, ramp_step), nullptr, true};
+    std::vector<float> output(100 * 2);
+
+    SUBCASE("CUE held at the cue point: its release after the scratch does not go back")
+    {
+        Deck deck{DeckId{1}, 0};
+        deck.attach(&source);
+        deck.cue(true); // at the cue point: plays while held
+        deck.render(output);
+        deck.scratch(0.0F, true);
+        deck.scratch(0.0F, false);
+        CHECK(deck.isPlaying());
+        deck.cue(false);
+        CHECK(deck.isPlaying());
+        CHECK(deck.positionFrames() > 50.0);
+    }
+    SUBCASE("The fade back to the cue point: a later pause stays where it is")
+    {
+        Deck deck{DeckId{1}, 4};
+        deck.attach(&source);
+        deck.play();
+        deck.render(output);
+        deck.cue(true); // fades out, then back to the cue point
+        deck.scratch(0.0F, true);
+        deck.scratch(0.0F, false);
+        CHECK_FALSE(deck.isPlaying());
+        deck.play();
+        deck.render(output);
+        const double paused = deck.positionFrames();
+        deck.pause();
+        deck.render(output);
+        CHECK(deck.positionFrames() == doctest::Approx(paused + 4.0));
+    }
+}
+
+TEST_CASE("Deck CUE: the return to the cue point happens once; play during the fade cancels it")
+{
+    BufferSource       source{ramp(48'000, ramp_step)};
+    Deck               deck{DeckId{1}, 4};
+    std::vector<float> output(100 * 2);
+    deck.attach(&source);
+    deck.play();
+    deck.render(output);
+
+    SUBCASE("A pause after the return stays where it paused")
+    {
+        deck.cue(true);
+        deck.render(output);
+        REQUIRE(deck.positionFrames() == 0.0);
+    }
+    SUBCASE("Play during the fade plays on, a later pause stays")
+    {
+        deck.cue(true);
+        deck.play();
+        CHECK(deck.isPlaying());
+    }
+    deck.play();
+    deck.render(output);
+    const double paused = deck.positionFrames();
+    deck.pause();
+    deck.render(output);
+    CHECK(deck.positionFrames() == doctest::Approx(paused + 4.0));
+}
+
+TEST_CASE("Deck CUE: during the fade of a pause it returns to the cue point at the end of the fade")
+{
+    BufferSource       source{ramp(48'000, ramp_step)};
+    Deck               deck{DeckId{1}, 4};
+    std::vector<float> output(100 * 2);
+    deck.attach(&source);
+    deck.play();
+    deck.render(output);
+    deck.pause();
+    deck.render(std::span{output}.first(2)); // one frame of the fade
+    deck.cue(true);
+    deck.render(output);
+    CHECK(deck.positionFrames() == 0.0);
+    CHECK_FALSE(deck.isPlaying());
+}
+
+TEST_CASE("Deck: a pause fade of a single frame is still a fade")
+{
+    BufferSource       source{ramp(48'000, ramp_step)};
+    Deck               deck{DeckId{1}, 1};
+    std::vector<float> output(4 * 2);
+    deck.attach(&source);
+    deck.play();
+    deck.render(output);
+    deck.pause();
+    deck.render(output);
+    CHECK(deck.positionFrames() == 5.0); // the frame of the fade went by
+
+    deck.play();
+    deck.render(output);
+    deck.cue(true); // back to the cue point, after the fade
+    CHECK(deck.positionFrames() == 9.0);
+    deck.render(output);
+    CHECK(deck.positionFrames() == 0.0);
+}
+
+TEST_CASE("Deck: without a track it has no length")
+{
+    const Deck deck{DeckId{1}, 0};
+    CHECK(deck.lengthFrames() == 0);
 }

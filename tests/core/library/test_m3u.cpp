@@ -18,8 +18,9 @@ TEST_CASE("parseM3u: paths in order, comments and empty lines skipped, relative 
 
 TEST_CASE("parseM3u: Windows line ends, a byte order mark and surrounding blanks are accepted")
 {
-    const auto paths = parseM3u("\xEF\xBB\xBF#EXTM3U\r\n  /music/a.mp3  \r\n/music/b.mp3", "/lists");
-    CHECK(paths == std::vector<path>{"/music/a.mp3", "/music/b.mp3"});
+    const auto paths =
+        parseM3u("\xEF\xBB\xBF#EXTM3U\r\n  /music/a.mp3  \r\n/music/b.mp3\n\t/music/c.mp3\n /music/d.mp3", "/lists");
+    CHECK(paths == std::vector<path>{"/music/a.mp3", "/music/b.mp3", "/music/c.mp3", "/music/d.mp3"});
 }
 
 TEST_CASE("parseM3u: file URLs are decoded, UTF-8 paths stay as they are")

@@ -27,6 +27,7 @@ add_executable(djw_player_sdl_tests
     test_timed_state.cpp
     test_mdi.cpp
     test_settings.cpp
+    test_dialogs.cpp
     test_sdl_text.cpp
     test_pictures.cpp
 )

@@ -302,6 +302,10 @@ TEST_CASE("formatClock: hours, minutes, seconds and hundredths, remaining with a
 {
     CHECK(formatClock(0.0, false) == "00:00:00:00");
     CHECK(formatClock(239.0, true) == "-00:03:59:00");
+    CHECK(formatClock(36'610.1, false) == "10:10:10:10");
+    CHECK(formatClock(3'599.99, false) == "00:59:59:99");
+    CHECK(formatClock(3'600.0, false) == "01:00:00:00");
+    CHECK(formatClock(549.09, false) == "00:09:09:09");
     CHECK(formatClock(3'661.257, false) == "01:01:01:25");
     CHECK(formatClock(59.999, false) == "00:00:59:99"); // truncated, not rounded up
     CHECK(formatClock(-5.0, false) == "00:00:00:00");

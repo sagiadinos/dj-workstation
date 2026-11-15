@@ -680,3 +680,106 @@ TEST_CASE("ViewHost: the logo is not wider than its maximum, and left out where 
         CHECK_FALSE(host.logoArea().has_value());
     }
 }
+
+TEST_CASE("ViewHost arranging: every cursor key moves or resizes the selected view its own way, other keys not")
+{
+    ArrangeFixture fixture;
+    struct Case
+    {
+            EditKey key;
+            Rect    change; ///< added to x, y, width and height
+    };
+    // From the middle of the free room, so that every step fits
+    for (int step = 0; step < 5; ++step)
+    {
+        fixture.host.keyboard(EditKey::ShiftDown);
+    }
+    fixture.host.keyboard(EditKey::ShiftRight);
+    fixture.host.keyboard(EditKey::ShiftRight);
+    fixture.host.keyboard(EditKey::CtrlShiftLeft);
+    fixture.host.keyboard(EditKey::CtrlShiftLeft);
+    fixture.host.keyboard(EditKey::CtrlShiftUp);
+    fixture.host.keyboard(EditKey::CtrlShiftUp);
+    fixture.host.layout(window);
+    REQUIRE(shifted(fixture.first.laid_out, {20, 50, 280, 180}, {}));
+
+    for (const Case &each : {Case{EditKey::Left, {-1, 0, 0, 0}}, Case{EditKey::Right, {1, 0, 0, 0}},
+                             Case{EditKey::Up, {0, -1, 0, 0}}, Case{EditKey::Down, {0, 1, 0, 0}},
+                             Case{EditKey::ShiftLeft, {-10, 0, 0, 0}}, Case{EditKey::ShiftRight, {10, 0, 0, 0}},
+                             Case{EditKey::ShiftUp, {0, -10, 0, 0}}, Case{EditKey::ShiftDown, {0, 10, 0, 0}},
+                             Case{EditKey::CtrlLeft, {0, 0, -1, 0}}, Case{EditKey::CtrlRight, {0, 0, 1, 0}},
+                             Case{EditKey::CtrlUp, {0, 0, 0, -1}}, Case{EditKey::CtrlDown, {0, 0, 0, 1}},
+                             Case{EditKey::CtrlShiftLeft, {0, 0, -10, 0}}, Case{EditKey::CtrlShiftRight, {0, 0, 10, 0}},
+                             Case{EditKey::CtrlShiftUp, {0, 0, 0, -10}}, Case{EditKey::CtrlShiftDown, {0, 0, 0, 10}},
+                             Case{EditKey::Backspace, {0, 0, 0, 0}}, Case{EditKey::Enter, {0, 0, 0, 0}}})
+    {
+        CAPTURE(static_cast<int>(each.key));
+        const Rect before = fixture.first.laid_out;
+        fixture.host.keyboard(each.key);
+        fixture.host.layout(window);
+        const Rect after = fixture.first.laid_out;
+        CHECK(same(after.x, before.x + each.change.x));
+        CHECK(same(after.y, before.y + each.change.y));
+        CHECK(same(after.width, before.width + each.change.width));
+        CHECK(same(after.height, before.height + each.change.height));
+    }
+}
+
+TEST_CASE("ViewHost arranging: a view may touch the edges of the window and shrink to the smallest size exactly")
+{
+    ArrangeFixture fixture;
+    fixture.host.keyboard(EditKey::Right);
+    fixture.host.keyboard(EditKey::Down);
+    fixture.host.layout(window);
+    REQUIRE(shifted(fixture.first.laid_out, {1, 1, 300, 200}, {}));
+    fixture.host.keyboard(EditKey::Left);
+    fixture.host.keyboard(EditKey::Up);
+    fixture.host.layout(window);
+    CHECK(shifted(fixture.first.laid_out, {0, 0, 300, 200}, {}));
+
+    // Right up to the other view, down to the bottom of the window
+    for (int step = 0; step < 10; ++step)
+    {
+        fixture.host.keyboard(EditKey::CtrlShiftRight);
+    }
+    for (int step = 0; step < 40; ++step)
+    {
+        fixture.host.keyboard(EditKey::CtrlShiftDown);
+    }
+    fixture.host.layout(window);
+    CHECK(same(fixture.first.laid_out.width, 400));
+    CHECK(same(fixture.first.laid_out.height, 600));
+
+    for (int step = 0; step < 60; ++step)
+    {
+        fixture.host.keyboard(EditKey::CtrlShiftLeft);
+        fixture.host.keyboard(EditKey::CtrlShiftUp);
+    }
+    fixture.host.layout(window);
+    CHECK(same(fixture.first.laid_out.width, mdi_min_width));
+    CHECK(same(fixture.first.laid_out.height, mdi_min_height));
+}
+
+TEST_CASE("ViewHost arranging: Tab and Shift+Tab go round all the views")
+{
+    ViewHost host;
+    FakeView first{"first"};
+    FakeView second{"second"};
+    FakeView third{"third"};
+    host.add(first, Rect{0, 0, 200, 200});
+    host.add(second, Rect{250, 0, 200, 200});
+    host.add(third, Rect{500, 0, 200, 200});
+    host.layout(window);
+    host.startArranging({.moved = nullptr, .done = nullptr, .done_label = [] { return std::string{"Done"}; }});
+    host.layout(window);
+    REQUIRE(host.arrangeSelected() == &first);
+    host.keyboard(EditKey::BackTab);
+    CHECK(host.arrangeSelected() == &third);
+    host.keyboard(EditKey::BackTab);
+    CHECK(host.arrangeSelected() == &second);
+    host.keyboard(EditKey::Tab);
+    host.keyboard(EditKey::Tab);
+    CHECK(host.arrangeSelected() == &first);
+    host.keyboard(EditKey::Tab);
+    CHECK(host.arrangeSelected() == &second);
+}

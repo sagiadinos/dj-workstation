@@ -11,6 +11,7 @@
 #include <atomic>
 #include <memory>
 #include <thread>
+#include <utility>
 #include <vector>
 
 using namespace djw::core;
@@ -605,4 +606,14 @@ TEST_CASE("AllocationCounter: notices allocations, so the test above can fail")
     memory.reset();
     CHECK(counter.allocations() == 1);
     CHECK(counter.deallocations() == 1);
+}
+
+TEST_CASE("Engine: every new deck gets its own id, counting up")
+{
+    engine::Engine    engine{smallBlocks()};
+    const api::DeckId first  = engine.addDeck();
+    const api::DeckId second = engine.addDeck();
+    const api::DeckId third  = engine.addDeck();
+    CHECK(std::to_underlying(first) < std::to_underlying(second));
+    CHECK(std::to_underlying(second) < std::to_underlying(third));
 }
