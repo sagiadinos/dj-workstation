@@ -238,7 +238,7 @@ The mapping format is described in [mappings/README.md](mappings/README.md).
 | Safe quit | done | While a track plays, nothing closes that would stop it; File > Quit then asks first, Cancel being the default. |
 | On-screen keyboard | done | For search on touch-only devices (SDL3 text input). |
 | Daylight colors | done | Two fixed color sets, dark and daylight (light surfaces, dark text, strong contrast for sun or bright rooms), switched with View > Daylight colors at once and kept in the settings. The displays (time, waveforms) and what signals something (play, CUE, meters) look the same in both. No color files. |
-| Multilingual | done | German, English, French, Spanish, Greek and Russian, chosen in Settings > Language and kept in the settings file. |
+| Multilingual | done | German, English, French, Spanish, Greek and Russian, chosen in Settings > Language and kept in the settings file. The player's controls keep the DJ's English words (Load, CUE, KEY, Pitch, Cue-Load and so on) in every language; their help bubbles are translated. |
 | Always on top | planned | Desktop option from the original version. |
 
 Layout reference: the original version, see [djw.gif](https://dj-workstation.de/bilder/djw.gif). The new UI keeps its structure, adapted for touch:
