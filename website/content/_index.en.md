@@ -17,7 +17,7 @@ features:
     - title: Players
       text: Any number of players, each in its own window, freely movable and resizable for touchscreens.
     - title: Mixer
-      text: Crossfader with timed fades, headphone cue and keylock.
+      text: Crossfader with timed fades, headphone cue and keylock. Scrolling beat waveforms in three colours for beatmatching by eye.
     - title: Library
       text: Fast search, tag editor, playlists and BPM analysis.
     - title: Controllers

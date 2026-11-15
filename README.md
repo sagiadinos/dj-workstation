@@ -13,6 +13,7 @@ Lean, touch-first DJ software for touchscreens and MIDI controllers. Runs on Lin
 
 - Any number of players, each in its own window or all arranged in one window, for mouse and touchscreen
 - Mixer with crossfader, headphone cue, keylock and VU meters
+- Scrolling beat waveforms of the two players on the crossfader, in three colours, horizontal or vertical, for beatmatching by eye
 - Music library with fast search, column filters, tag editor, playlists and tempo analysis
 - MIDI controllers with simple TOML mappings, LED feedback and an import for Mixxx mappings
 - In English, German, French, Spanish, Greek and Russian

@@ -17,7 +17,7 @@ features:
     - title: "Lecteurs"
       text: "Autant de lecteurs que vous voulez, chacun dans sa propre fenêtre, librement déplaçable et redimensionnable pour les écrans tactiles."
     - title: "Table de mixage"
-      text: "Crossfader avec fondu temporisé, pré-écoute au casque et keylock."
+      text: "Crossfader avec fondu temporisé, pré-écoute au casque et keylock. Formes d’onde défilantes en trois couleurs pour caler les beats à l’œil."
     - title: "Bibliothèque"
       text: "Recherche rapide, éditeur de tags, playlists et analyse du BPM."
     - title: "Contrôleurs"

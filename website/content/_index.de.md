@@ -17,7 +17,7 @@ features:
     - title: Player
       text: Beliebig viele Player, jeder in einem eigenen Fenster, frei verschieb- und skalierbar für Touchscreens.
     - title: Mixer
-      text: Crossfader mit zeitgesteuerter Überblendung, Vorhören über Kopfhörer und Keylock.
+      text: Crossfader mit zeitgesteuerter Überblendung, Vorhören über Kopfhörer und Keylock. Scrollende Beat-Waveforms in drei Farben zum Beatmatching nach Auge.
     - title: Bibliothek
       text: Schnelle Suche, Tag-Editor, Playlists und BPM-Analyse.
     - title: Controller

@@ -17,7 +17,7 @@ features:
     - title: "Reproductores"
       text: "Tantos reproductores como quieras, cada uno en su propia ventana, que se puede mover y redimensionar libremente para pantallas táctiles."
     - title: "Mezclador"
-      text: "Crossfader con fundido temporizado, escucha previa por auriculares y keylock."
+      text: "Crossfader con fundido temporizado, escucha previa por auriculares y keylock. Formas de onda en movimiento en tres colores para cuadrar los beats a ojo."
     - title: "Biblioteca"
       text: "Búsqueda rápida, editor de etiquetas, listas de reproducción y análisis de BPM."
     - title: "Controladores"
