@@ -145,3 +145,29 @@ TEST_CASE("Controller: the low part of a 14-bit control at cc 0 is cc 32, it rep
     CHECK(low.front().value == doctest::Approx((8192.0F + 5.0F) / 16383.0F));
     CHECK(controller.handle(cc(3, 32, 9)).front().value == doctest::Approx((8192.0F + 9.0F) / 16383.0F));
 }
+
+TEST_CASE("Controller: only a control change from 32 to 63 is the low part of a 14-bit control")
+{
+    Mapping mapping{.name = "Test", .match = {"Test"}, .audio = {}, .controls = {}, .file = {}};
+    mapping.controls = {control(MidiKind::ControlChange, 2, 32, Action::DeckPitch, 0, Mode::Absolute14),
+                        control(MidiKind::ControlChange, 1, 0, Action::Crossfader, std::nullopt, Mode::Absolute)};
+    Controller controller{mapping};
+
+    // cc 64 is not the low part of cc 32, and no control of its own: nothing
+    CHECK(controller.handle(cc(2, 64, 100)).empty());
+    // A note 32 above a 14-bit control is no low part either
+    CHECK(controller.handle(noteOn(2, 64)).empty());
+    // cc 32 above a control that is not 14 bits is nothing: cc 0 on channel 1 is an ordinary fader
+    CHECK(controller.handle(cc(1, 32, 100)).empty());
+}
+
+TEST_CASE("Controller: a relative control counts 1 to 63 up and 64 to 127 down, 64 being 64 steps down")
+{
+    Controller controller{testMapping()};
+    const auto down = controller.handle(cc(1, 1, 64));
+    REQUIRE(down.size() == 1);
+    CHECK(down[0].steps == -64);
+    const auto up = controller.handle(cc(1, 1, 63));
+    REQUIRE(up.size() == 1);
+    CHECK(up[0].steps == 63);
+}

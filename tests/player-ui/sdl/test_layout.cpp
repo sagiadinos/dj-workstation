@@ -308,3 +308,137 @@ TEST_CASE("Layout: places of the one window without the library's, or damaged on
     CHECK_FALSE(parseLayout(good + "mdi library 0 0 500 500\nmdi library 0 0 500 500\n").has_value()); // twice
     CHECK_FALSE(parseLayout(good + "mdi mixer open 1 2\n").has_value());
 }
+
+namespace
+{
+    /// A separate-windows layout as text, with the player line given and the other lines as given or plain
+    std::string separateText(std::string_view player, std::string_view library = "library 0 600 720 640",
+                             std::string_view mixer    = "mixer open 900 30 440 250",
+                             std::string_view playlist = "playlist closed 1300 600 560 640")
+    {
+        std::string text = "djw-layout 2\nmode separate\n";
+        for (const std::string_view line : {player, library, mixer, playlist})
+        {
+            if (!line.empty())
+            {
+                text += std::string{line} + '\n';
+            }
+        }
+        return text;
+    }
+} // namespace
+
+TEST_CASE("Layout: sizes from 100 to 20000 and positions up to four times that; whole numbers only")
+{
+    CHECK(parseLayout(separateText("player A 0 0 100 100")).has_value());
+    CHECK(parseLayout(separateText("player A 0 0 20000 20000")).has_value());
+    CHECK(parseLayout(separateText("player A 80000 -80000 380 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 99 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 99")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 20001 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 20001")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 80001 0 380 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 -80001 380 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380x 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A x 0 380 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 y 380 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 w 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 h")).has_value());
+    // The numbers read as written
+    const auto read = parseLayout(separateText("player A -12 34 567 890"));
+    REQUIRE(read.has_value());
+    CHECK(read->players.front().place == Placement{-12, 34, 567, 890});
+}
+
+TEST_CASE("Layout: several blanks between the words and blanks at the end change nothing")
+{
+    const auto read = parseLayout(separateText("player  A   10 20 380 514  ", "library 0 600 720 640 "));
+    REQUIRE(read.has_value());
+    CHECK(read->players.front().place == Placement{10, 20, 380, 514});
+    CHECK(read->library == Placement{0, 600, 720, 640});
+}
+
+TEST_CASE("Layout: without a player, the library, the crossfader or the playlist line it is no layout; nor with a"
+          " line it does not know")
+{
+    CHECK(parseLayout(separateText("player A 0 0 380 514")).has_value());
+    CHECK_FALSE(parseLayout(separateText("")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514", "")).has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514", "library 0 600 720 640", "")).has_value());
+    CHECK_FALSE(
+        parseLayout(separateText("player A 0 0 380 514", "library 0 600 720 640", "mixer open 900 30 440 250", ""))
+            .has_value());
+    // Lines that only look like known ones
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514") + "shelf 0 0 700 600\n").has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514") + "shelf open 0 0 500 500\n").has_value());
+    // Player options only on player lines
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514", "library 0 600 720 640",
+                                         "mixer open 900 30 440 250 remaining"))
+                    .has_value());
+}
+
+TEST_CASE("Layout: the one window needs its crossfader line; the window line once, with two numbers")
+{
+    Layout layout          = fiveWithMixer();
+    layout.mode            = WindowMode::Mdi;
+    layout.mdi             = defaultMdiLayout();
+    const std::string good = formatLayout(layout);
+    REQUIRE(parseLayout(good).has_value());
+
+    std::string without_mixer = good;
+    const auto  mixer_line    = without_mixer.find("mdi mixer");
+    without_mixer.erase(mixer_line, without_mixer.find('\n', mixer_line) + 1 - mixer_line);
+    CHECK_FALSE(parseLayout(without_mixer).has_value());
+
+    CHECK(parseLayout(good + "mdi window maximized\n").has_value());
+    CHECK_FALSE(parseLayout(good + "mdi window maximized\nmdi window maximized\n").has_value());
+    CHECK_FALSE(parseLayout(good + "mdi window 800 600 7\n").has_value());
+
+    // The window size is written only when both are known
+    layout.mdi->maximized     = false;
+    layout.mdi->window_width  = 0;
+    layout.mdi->window_height = 600;
+    CHECK(formatLayout(layout).find("mdi window") == std::string::npos);
+    layout.mdi->window_width  = 800;
+    layout.mdi->window_height = 0;
+    CHECK(formatLayout(layout).find("mdi window") == std::string::npos);
+}
+
+TEST_CASE("Layout: the playlist's place in the one window comes back; a player without a place has none")
+{
+    Layout layout          = fiveWithMixer();
+    layout.mode            = WindowMode::Mdi;
+    layout.mdi             = defaultMdiLayout();
+    layout.mdi->fullscreen = true;
+    layout.mdi->places     = MdiPlaces{.area     = Placement{0, 0, 1920, 1080},
+                                       .players  = {Placement{0, 0, 380, 540}}, // only the first player
+                                       .mixer    = std::nullopt,
+                                       .playlist = Placement{1200, 560, 600, 400},
+                                       .library  = Placement{0, 560, 1000, 400}};
+    const std::string text = formatLayout(layout);
+    CHECK(text.find("mdi player A 0 0 380 540\n") != std::string::npos);
+    CHECK(text.find("mdi player B\n") != std::string::npos);
+    CHECK(text.find("mdi playlist closed 1200 560 600 400\n") != std::string::npos);
+    const auto again = parseLayout(text);
+    REQUIRE(again.has_value());
+    REQUIRE(again->mdi.has_value());
+    REQUIRE(again->mdi->places.has_value());
+    CHECK(again->mdi->places->playlist == Placement{1200, 560, 600, 400});
+}
+
+TEST_CASE("Layout: the default places, to the point: 12 apart, centered, the library 48 below the players")
+{
+    const DefaultSizes sizes{380, 514, 440, 250, 720, 640};
+    const Layout       wide = defaultLayout({0, 0, 1920, 1080}, sizes);
+    // 380 + 12 + 440 + 12 + 380 = 1224, centered in 1920
+    CHECK(wide.players[0].place == Placement{348, 0, 380, 514});
+    CHECK(wide.mixer.place == Placement{740, 0, 440, 250});
+    CHECK(wide.players[1].place == Placement{1192, 0, 380, 514});
+    // Below: 514 + 48, as high as the rest of the screen allows less 12, at most the size asked for
+    CHECK(wide.library == Placement{348, 562, 1224, 506});
+    CHECK(wide.playlist.place == Placement{1360, 440, 560, 640}); // moved in: right of the screen, up to fit
+
+    // Narrower than the group: from the left edge, not before it
+    const Layout narrow = defaultLayout({0, 0, 1000, 1080}, sizes);
+    CHECK(narrow.players[0].place.x == 0);
+}

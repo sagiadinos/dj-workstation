@@ -356,3 +356,33 @@ TEST_CASE("ControllerHub: a port no mapping matches is not opened")
     CHECK(hub.connections()[0].port == "Pad");
     CHECK(hub.mappingFor("Keyboard") == "");
 }
+
+TEST_CASE("ControllerHub: a Mixxx file not ending in .midi.xml is saved under its name without the extension")
+{
+    const djw::tests::TempDir folder;
+    const auto                mixxx = folder.path() / "Other Pad.xml";
+    std::ofstream{mixxx} << R"(<MixxxMIDIPreset><info><name>Other Pad</name></info><controller id="Pad"><controls>
+        <control><group>[Channel1]</group><key>play</key><status>0x90</status><midino>0x07</midino>
+        <options><normal/></options></control></controls></controller></MixxxMIDIPreset>)";
+    auto          state = std::make_shared<FakeMidiSystem::State>();
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {}, {folder.path() / "own"}};
+    REQUIRE(hub.importMixxx(mixxx).has_value());
+    CHECK(std::filesystem::exists(folder.path() / "own" / "Other Pad (Mixxx).toml"));
+}
+
+TEST_CASE("ControllerHub: the audio port is the one of a connected controller whose mapping names one")
+{
+    auto state        = std::make_shared<FakeMidiSystem::State>();
+    state->ports      = {"Plain MIDI 1", "Starlight MIDI 1"};
+    Mapping plain     = mappingFor("Plain", "plain");
+    Mapping starlight = mappingFor("Starlight", "starlight");
+    starlight.audio   = "DJControl Starlight";
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {plain, starlight}};
+    CHECK(hub.controllerAudio().empty()); // nothing connected yet
+    static_cast<void>(hub.connect());
+    CHECK(hub.controllerAudio() == "DJControl Starlight");
+
+    ControllerHub without{std::make_unique<FakeMidiSystem>(state), {plain}};
+    static_cast<void>(without.connect());
+    CHECK(without.controllerAudio().empty());
+}

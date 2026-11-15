@@ -489,3 +489,29 @@ TEST_CASE("Mixxx import: the TOML of a mapping has every match, the audio port a
     mapping.audio.clear();
     CHECK(formatMapping(mapping).find("audio") == std::string::npos);
 }
+
+TEST_CASE("Mixxx import: quotes and backslashes in a name are escaped in the TOML and read back")
+{
+    std::string xml = preset(control("[Channel1]", "play", "0x90", "1"));
+    xml.replace(xml.find("<name>Pad</name>"), std::string_view{"<name>Pad</name>"}.size(),
+                R"(<name>Say "Hi" \ Pad</name>)");
+    const auto result = importMixxx(xml);
+    REQUIRE(result.has_value());
+    CHECK(result->mapping.name == R"(Say "Hi" \ Pad (Mixxx))");
+    const auto again = parseMapping(formatMapping(result->mapping));
+    REQUIRE_MESSAGE(again.has_value(), (again ? "" : again.error()));
+    CHECK(again->name == result->mapping.name);
+}
+
+TEST_CASE("Mixxx import: a control is read on its own, it borrows nothing from the next one")
+{
+    // The first control has no MIDI number; read with the next one's, it would wrongly be taken
+    const auto result = importMixxx(preset(
+        "  "
+        "<control><group>[Channel1]</group><key>play</key><status>0x90</status><options><normal/></options></control>" +
+        control("[Channel2]", "play", "0x91", "1")));
+    REQUIRE(result.has_value());
+    CHECK(result->taken == 1);
+    REQUIRE(result->mapping.controls.size() == 1);
+    CHECK(result->mapping.controls[0].deck == 1U);
+}
