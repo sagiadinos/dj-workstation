@@ -226,32 +226,54 @@ TEST_CASE("MDI: horizontal beat waveforms are a strip across the top, the player
     checkTidy(squeezed, low);
 }
 
-TEST_CASE("MDI: vertical beat waveforms stand between player 1 and player 2, above the crossfader")
+TEST_CASE("MDI: vertical beat waveforms stand between player 1 and player 2 as high as them, the crossfader below")
 {
-    constexpr Rect     window{0, 0, 1920, 1080};
     constexpr MdiSizes with_mixer_height{.player_width   = 380,
                                          .player_height  = 544,
                                          .mixer_width    = 440,
                                          .mixer_height   = 310,
                                          .playlist_width = 560,
                                          .beats_depth    = 230};
-    const auto         placed =
-        arrangeMdi(window, {.players = 2, .mixer = true, .library = true, .beats = true, .beats_vertical = true},
-                   with_mixer_height);
+    // Room enough: the row grows by the crossfader
+    constexpr Rect tall{0, 0, 1920, 1600};
+    const auto     placed = arrangeMdi(
+        tall, {.players = 2, .mixer = true, .library = true, .beats = true, .beats_vertical = true}, with_mixer_height);
     REQUIRE(placed.beats.has_value());
     REQUIRE(placed.mixer.has_value());
-    // The column of the crossfader: as wide as it, as high as the players
+    CHECK(same(placed.players[0].height, 544));
     CHECK(same(placed.beats->x, placed.players[0].x + placed.players[0].width + mdi_gap));
-    CHECK(same(placed.mixer->x, placed.beats->x));
     CHECK(same(placed.beats->width, 440));
     CHECK(same(placed.players[1].x, placed.beats->x + 440 + mdi_gap));
     CHECK(same(placed.beats->y, placed.players[0].y));
+    CHECK(same(placed.beats->height, 544));
+    CHECK(same(placed.mixer->x, placed.beats->x));
+    CHECK(same(placed.mixer->y, placed.beats->y + 544 + mdi_gap));
     CHECK(same(placed.mixer->height, 310));
-    CHECK(same(placed.mixer->y + 310, placed.players[0].y + placed.players[0].height));
-    CHECK(same(placed.beats->height, 544 - 310 - mdi_gap));
-    // The library below the row over the whole width
-    CHECK(same(placed.library->width, window.width - (2 * mdi_gap)));
-    checkTidy(placed, window);
+    // The library below the crossfader over the whole width
+    CHECK(same(placed.library->y, placed.mixer->y + 310 + mdi_gap));
+    CHECK(same(placed.library->width, tall.width - (2 * mdi_gap)));
+    checkTidy(placed, tall);
+
+    // Less room: the whole row shrinks, the column still ends within its share of the height
+    constexpr Rect window{0, 0, 1920, 1080};
+    const auto     smaller =
+        arrangeMdi(window, {.players = 2, .mixer = true, .library = true, .beats = true, .beats_vertical = true},
+                   with_mixer_height);
+    CHECK(smaller.players[0].height < 544);
+    CHECK(same(smaller.beats->height, smaller.players[0].height));
+    CHECK(same(smaller.mixer->y + smaller.mixer->height + mdi_gap, smaller.library->y));
+    CHECK(smaller.mixer->y + smaller.mixer->height <= mdi_gap + (window.height * mdi_row_share) + 0.01F);
+    checkTidy(smaller, window);
+    // Without anything below: in full size if it fits, else shrunk into the window
+    const auto alone_row =
+        arrangeMdi(window, {.players = 2, .mixer = true, .beats = true, .beats_vertical = true}, with_mixer_height);
+    CHECK(same(alone_row.mixer->y + alone_row.mixer->height, mdi_gap + 544 + mdi_gap + 310));
+    checkTidy(alone_row, window);
+    constexpr Rect low{0, 0, 1920, 700};
+    const auto     squeezed =
+        arrangeMdi(low, {.players = 2, .mixer = true, .beats = true, .beats_vertical = true}, with_mixer_height);
+    CHECK(same(squeezed.mixer->y + squeezed.mixer->height, low.height - mdi_gap));
+    checkTidy(squeezed, low);
 
     // Without the crossfader the beat waveforms have the column alone, as wide as they are deep
     const auto alone =

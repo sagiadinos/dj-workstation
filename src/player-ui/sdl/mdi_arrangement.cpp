@@ -70,12 +70,17 @@ namespace djw::player_ui::sdl
             {
                 natural_width += pane.mixer ? middle_width : sizes.player_width;
             }
-            const float rest        = window.height - consumed;
-            const float room_height = has_lists ? rest * mdi_row_share : std::max(0.0F, rest - (2 * mdi_gap));
+            // Vertical beat waveforms above the crossfader get a player's height: the row grows by the crossfader
+            // and the gap above it, which does not shrink
+            const bool  stacked        = beats_column && content.mixer;
+            const float natural_height = stacked ? sizes.player_height + sizes.mixer_height : sizes.player_height;
+            const float stacked_gap    = stacked ? mdi_gap : 0.0F;
+            const float rest           = window.height - consumed;
+            const float room_height    = has_lists ? rest * mdi_row_share : std::max(0.0F, rest - (2 * mdi_gap));
             // Only the panes shrink, the gaps between them stay
             const float gaps   = mdi_gap * static_cast<float>(row.size() - 1);
             const float scale  = std::max(0.0F, std::min({1.0F, std::max(0.0F, inner_w - gaps) / (natural_width - gaps),
-                                                          room_height / sizes.player_height}));
+                                                          std::max(0.0F, room_height - stacked_gap) / natural_height}));
             const float width  = ((natural_width - gaps) * scale) + gaps;
             float       x      = inner_x + std::max(0.0F, (inner_w - width) / 2);
             const float height = sizes.player_height * scale;
@@ -97,15 +102,13 @@ namespace djw::player_ui::sdl
                 }
                 else
                 {
-                    // The crossfader at the bottom of the column in its own height, the beat waveforms above it
-                    const float mixer_height = std::min(height, sizes.mixer_height * scale);
-                    const float beats_height = std::max(0.0F, height - mixer_height - mdi_gap);
-                    result.beats             = Rect{x, top, pane_width, beats_height};
-                    result.mixer             = Rect{x, top + height - mixer_height, pane_width, mixer_height};
+                    // The beat waveforms as high as a player, the crossfader below them in its own height
+                    result.beats = Rect{x, top, pane_width, height};
+                    result.mixer = Rect{x, top + height + mdi_gap, pane_width, sizes.mixer_height * scale};
                 }
                 x += pane_width + mdi_gap;
             }
-            bottom_top = top + height + mdi_gap;
+            bottom_top = top + (natural_height * scale) + stacked_gap + mdi_gap;
         }
 
         if (has_lists)

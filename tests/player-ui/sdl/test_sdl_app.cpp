@@ -1703,6 +1703,8 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
     CHECK(turned->x + turned->width < second->x);
     CHECK(turned->y + turned->height < mixer->y);
     CHECK(turned->x == doctest::Approx(mixer->x));
+    CHECK(turned->height == doctest::Approx(first->height)); // as high as a player
+    CHECK(turned->height > turned->width);
     REQUIRE(app->saveLayout());
     const auto again = parseLayout(readFile(file));
     REQUIRE(again.has_value());
