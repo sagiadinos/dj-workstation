@@ -232,6 +232,28 @@ TEST_CASE("MenuBar: the drop-down is one row per entry under the bar; right to l
     CHECK(dropdown.height == MenuBar::item_height);
 }
 
+TEST_CASE("MenuBar: an entry set apart has a line at its top, the first entry none; the heights stay")
+{
+    MenuBar bar;
+    bar.setMenus(
+        {{"File", {{.id = 1, .label = "Open", .separated = true}, {.id = 2, .label = "Quit", .separated = true}}}});
+    bar.place({0, 0, 600, MenuBar::bar_height}, {0, 0, 600, 400});
+    PointerRouter router;
+    router.add(bar);
+    const Rect title = bar.titleArea(0);
+    router.handle({{1, 1}, PointerPhase::Down, {title.x + 10, title.y + 10}});
+    router.handle({{1, 1}, PointerPhase::Up, {title.x + 10, title.y + 10}});
+    REQUIRE(bar.isOpen());
+
+    RecordingCanvas canvas;
+    bar.draw(canvas);
+    const auto line_at = [&canvas](float y)
+    { return std::ranges::any_of(canvas.rects, [y](const Rect &rect) { return rect.y == y && rect.height == 1.0F; }); };
+    CHECK(line_at(bar.itemArea(0, 1).y));
+    CHECK_FALSE(line_at(bar.itemArea(0, 0).y));
+    CHECK(bar.itemArea(0, 1).height == MenuBar::item_height);
+}
+
 TEST_CASE("MenuBar: an entry that is on has a check mark at its start, no colored band; the labels line up after it")
 {
     for (const bool right_to_left : {false, true})

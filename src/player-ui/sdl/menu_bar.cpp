@@ -218,6 +218,11 @@ namespace djw::player_ui::sdl
             const MenuItem &entry = shown.items[item];
             const Rect      area  = itemArea(*open, item);
             const Color     ink   = entry.enabled ? look::colors().text : look::colors().text_dim;
+            if (entry.separated && item > 0)
+            {
+                canvas.fillRect({area.x + padding, area.y, std::max(0.0F, area.width - (2 * padding)), 1.0F},
+                                look::colors().separator);
+            }
             if (entry.checked)
             {
                 // At the start of the entry: left in left-to-right layout, right in right-to-left

@@ -25,6 +25,8 @@ namespace djw::player_ui::sdl
             bool checked = false;
             /// The keys that do the same, e.g. "Ctrl+N"; shown at the end of the entry
             std::string shortcut{};
+            /// A line above the entry sets it apart from the ones before, e.g. Quit; the entry keeps its height
+            bool separated = false;
     };
 
     struct Menu
