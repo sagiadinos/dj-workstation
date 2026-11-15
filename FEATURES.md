@@ -185,7 +185,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Clear search | done | One button empties the search field and all filters. |
 | Wildcard search | done | `*` and `?` in search fields. |
 | Sorting | done | By any column. |
-| Columns | done | Artist, title, genre, year, duration, BPM. |
+| Columns | done | Artist, title, genre, year, BPM (two decimals, a little wider), duration. |
 | Tag editor | done | Table-based, writes to file and database (TagLib): ID3v2, Vorbis comments, FLAC. |
 | Missing tags | done | Derive artist/title from the file name. |
 | Saved playlists | done | In the database, import/export M3U/M3U8. |
@@ -229,7 +229,7 @@ The mapping format is described in [mappings/README.md](mappings/README.md).
 | Custom widget layer | done | Fader, button, waveform, list with kinetic scrolling (it runs on after a drag and slows down), text field. Knob and jog wheel are planned. |
 | Player windows | done | Core idea of the original version: every player unit is its own OS window, any number can be opened and closed, freely movable and resizable, also across several monitors. On platforms with only one window (KMSDRM kiosk, Android, iOS, Web) the player units are arranged inside the main window. |
 | One-window mode | done | View > One-window mode (from the next start): players, crossfader, playlist and library as parts of one window, arranged automatically without overlap. The default without a saved layout. |
-| Menu bar | done | In the library, in both window modes: File, Playlist, Settings, View, Layout. |
+| Menu bar | done | In the library, in both window modes: File, Playlist, Settings, View, Layout. Titles as wide as their text (at least a finger wide), check marks for what is on, a line above File > Quit. |
 | Saved layouts | done | Layout > Save layout keeps the window mode, position and size of all windows and parts, and per player the time display and Cue-Load; the program opens as saved. |
 | Edit layout | done | Layout > Edit layout in the one window: drag a part to move it or at its corner to resize it; edges snap to neighbouring parts and the window, else to a 5-point grid. Cursor keys move the selected part by 1 point (Shift: 10), with Ctrl they resize it; Tab selects the next part. Layout > Arrange automatically goes back to the automatic arrangement. |
 | HiDPI | done | Resolution-independent scaling. Player, crossfader and playlist scale with their window or part. |
@@ -242,7 +242,7 @@ The mapping format is described in [mappings/README.md](mappings/README.md).
 | Always on top | planned | Desktop option from the original version. |
 
 Layout reference: the original version, see [djw.gif](https://dj-workstation.de/bilder/djw.gif). The new UI keeps its structure, adapted for touch:
-- Player window: load button, pitch bend -/+, vertical pitch fader, large time display with elapsed/remaining toggle, pitch in percent and pitch zero, position slider, state (loaded/cued/playing), large CUE and play/pause buttons, channel volume and headphone level faders with headphone cue button, artist and title, Cue-Load option (a loaded track starts at the cue point stored for it, else at its first audible sound, else at the beginning; the last cue point the user set is stored per track in the library database).
+- Player window: load button, pitch bend -/+, vertical pitch fader, large time display with elapsed/remaining toggle, pitch in percent and pitch zero, position slider, state (loaded/cued/playing), large CUE and play/pause buttons, channel volume and headphone level faders with headphone cue button (an amber LED that lights while on), artist and title, Cue-Load option (a loaded track starts at the cue point stored for it, else at its first audible sound, else at the beginning; the last cue point the user set is stored per track in the library database).
 - Crossfader window: deck selection for side A and B, zero, momentary A/B buttons, fade now, autoplay start before the end (s), fade time (s), autoplay and autofade switches.
 - Playlist window: numbered list, next track highlighted.
 - Library window: search fields directly above the columns (artist, title, genre, year), sortable list.

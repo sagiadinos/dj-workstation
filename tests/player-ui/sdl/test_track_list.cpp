@@ -225,7 +225,6 @@ TEST_CASE("TrackList: the BPM column shows the tempo with two decimals, nothing 
     auto    rows = tracks(2);
     rows[0].bpm  = 127.96;
     fixture.list.setTracks(rows);
-    fixture.list.setBounds({0, 100, 900, 5 * row}); // wide enough for six characters at the test font's 10 points
 
     djw::tests::RecordingCanvas canvas;
     fixture.list.draw(canvas);
