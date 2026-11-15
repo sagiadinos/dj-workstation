@@ -13,7 +13,7 @@ Lean, touch-first DJ software with controller and timecode vinyl support. Runs o
 - Any number of decks, each in its own player window, freely movable and resizable for touchscreen use
 - Mixer with crossfader, headphone cue, keylock
 - Music library with fast search, tag editor, playlists and automix
-- MIDI controllers with simple TOML mappings and optional Lua scripts
+- MIDI controllers with simple TOML mappings
 - DVS with Serato Control Vinyl
 - Designed to run smoothly on a Raspberry Pi
 
@@ -31,7 +31,27 @@ This repository is a complete rewrite with a modern, cross-platform architecture
 
 ## Building
 
-Not available yet. Build instructions will follow with the first milestone.
+Requirements: CMake 3.25 or newer, Ninja, a C++23 compiler (GCC 13, Clang 17, Apple Clang 15 or MSVC 19.38 at least). On Linux also the ALSA development files (`libasound2-dev` on Debian/Ubuntu) and those SDL3 needs for X11 or Wayland. All other libraries (SDL3, SQLite, TagLib, SoundTouch, RtMidi, ...) are taken from the system if installed, otherwise downloaded and built in pinned versions.
+
+```bash
+cmake --preset linux-debug          # or linux-release, windows-debug, macos-debug, ...
+cmake --build --preset linux-debug
+ctest --preset linux-debug          # the tests
+```
+
+`scripts/build-linux.sh` builds the Linux release binary in `build/linux-release/src/player-ui/sdl/djw`.
+
+Starting it:
+
+```
+djw [--version] [--headphones] [--add-folder <folder>]... [<audio file>]
+  --version             print the version and stop
+  --headphones          master on output channels 1/2, headphones on 3/4
+                        (needs a 4-channel audio device)
+  --add-folder <folder> add a music folder to the library and scan it
+```
+
+More on the build options and the tests in [Architecture.md](Architecture.md).
 
 ## License
 

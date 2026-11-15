@@ -76,7 +76,7 @@ djw/
       decode/           decoder interface and implementations
       analysis/         BPM, beatgrid, waveform, loudness (worker threads)
       library/          SQLite, scanner, tags, playlists
-      control/          MIDI/HID transport, mapping (TOML + Lua), feedback
+      control/          MIDI/HID transport, mapping (TOML), feedback
       automix/          autoplay, autofade, queue
       api/              command definitions, state snapshots
       audio_io/         audio devices (miniaudio) behind an interface
@@ -84,7 +84,7 @@ djw/
     player-ui/          frontends on top of the core
       sdl/              SDL3 player (custom widget layer)
     platform/           platform-specific code (Android, iOS, Web)
-  mappings/             controller mappings (TOML + Lua)
+  mappings/             controller mappings (TOML)
   i18n/                 language files
   tests/                unit and offline render tests
 ```
@@ -97,7 +97,7 @@ djw/
 | Decoder (per deck) | decode file, fill ring buffer | may block |
 | Library | folder scan, dead link check, reading and writing tags, playlist changes and M3U files, database writes | may block; own SQLite connection, the UI searches on its own |
 | Analysis (pool) | BPM, waveform, loudness | low priority |
-| Control | read MIDI/HID, mapping, Lua | never on the audio thread |
+| Control | read MIDI/HID, mapping | never on the audio thread |
 | UI | rendering, touch events | reads state snapshots only |
 | Library | SQLite, scanner | own thread |
 
@@ -112,131 +112,130 @@ djw/
 
 ## 4. Features
 
-Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
+Status: **done** = in the program, **planned** = not yet. Which planned feature comes next and what goes into which version is decided case by case; there is no fixed order.
 
 ### 4.1 Decks
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Variable number of decks | M | No fixed upper limit, add/remove at runtime. The practical limit is the CPU. The control thread builds a new deck list and publishes it via an atomic pointer swap, the old list is freed outside the audio thread. |
-| Loading | M | Via drag and drop from the file manager onto a player window, double tap in library, load button, controller. Smart load: into a free deck. |
-| Play/pause | M | |
-| Cue | M | Classic CDJ behavior: when stopped sets cue, while playing jumps back and stops, when held plays from cue. |
-| Stored cue point | M | Cue point per track in the database. "Cue load" option: track starts at the stored point when loaded. |
-| Time display | M | Toggle elapsed/remaining. |
-| Pitch | M | Fader with range ±12 %, display in percent. Formant correction comes later. |
-| Pitch bend | M | +/- buttons for temporary nudging. |
-| Pitch zero | M | Reset fader to 0 with a double tap on the pitch fader. |
-| Keylock (master tempo) | M | Tempo change without pitch change via SoundTouch. |
-| Seek with audible scrub | M | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
-| Waveform overview | M | Whole track, click/touch to jump. |
-| Scrolling waveform | 1 | Zoomable, with beatgrid. |
-| BPM display | M | From the analysis, with the pitch taken into account. |
-| Beatgrid | 1 | From analysis, manually adjustable. |
-| Sync | 1 | Match tempo and phase to the master deck. |
-| Hot cues | 1 | 4 to 8 per track, stored in the database. |
-| Loops | 1 | Auto loop (1/4 to 32 beats), loop in/out, halve/double. |
-| Jog wheel | 1 | Via controller (`deck.jog`): while the deck plays a turn bends the pitch for as long as it turns (beatmatching), while it stands it steps through the track. No scratching. |
-| Gain/autogain | 1 | Manual, optionally automatic from loudness analysis. |
-| Slip mode | L | |
-| Key detection | L | |
+| Variable number of decks | done | No fixed upper limit, add/remove at runtime. The practical limit is the CPU. The control thread builds a new deck list and publishes it via an atomic pointer swap, the old list is freed outside the audio thread. |
+| Loading | done | Via drag and drop from the file manager onto a player window, double tap in library, load button, controller. Smart load: into a free deck. |
+| Play/pause | done | |
+| Cue | done | Classic CDJ behavior: when stopped sets cue, while playing jumps back and stops, when held plays from cue. |
+| Stored cue point | done | Cue point per track in the database. "Cue load" option: track starts at the stored point when loaded. |
+| Time display | done | Toggle elapsed/remaining. |
+| Pitch | done | Fader with range ±12 %, display in percent. Formant correction comes later. |
+| Pitch bend | done | +/- buttons for temporary nudging. |
+| Pitch zero | done | Reset fader to 0 with a double tap on the pitch fader. |
+| Keylock (master tempo) | done | Tempo change without pitch change via SoundTouch. |
+| Seek with audible scrub | done | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
+| Waveform overview | done | Whole track, click/touch to jump. |
+| Scrolling waveform | planned | Zoomable, with beatgrid. |
+| BPM display | done | From the analysis, with the pitch taken into account. |
+| Beatgrid | planned | From analysis, manually adjustable. |
+| Sync | planned | Match tempo and phase to the master deck. |
+| Hot cues | planned | 4 to 8 per track, stored in the database. |
+| Loops | planned | Auto loop (1/4 to 32 beats), loop in/out, halve/double. |
+| Jog wheel | planned | Via controller. Turned at the edge (`deck.jog`, done): while the deck plays it bends the pitch for as long as it turns (beatmatching), while it stands it steps through the track. Touched on top it scratches: playback follows the hand at any speed, also backwards, through the varispeed path. What differs between controllers (ticks per turn, sensitivity) is set in the TOML mapping; no scripts. |
+| Gain/autogain | planned | Manual, optionally automatic from loudness analysis. |
+| Slip mode | planned | |
+| Key detection | planned | |
 
 ### 4.2 Mixer
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Channel volume | M | Per deck. |
-| VU meters | M | Per deck in the groove of the channel fader (level before the fader, the grip narrower and see-through over it), the master above the crossfader. LED segments from -40 dBFS, yellow from -12, red from -3, a clip lamp lit 2 s after a peak at full scale. |
-| Crossfader | M | Decks freely assignable to side A, B or none. |
-| Crossfader curve | 1 | Linear, constant power, cut. |
-| Crossfader zero | M | Fader to center position. |
-| Momentary A/B | M | From the original version: tap and hold jumps to one side and back on release. |
-| Headphone cue | M | Per deck, headphone volume. |
-| Master limiter | M | Prevents clipping. |
-| 3-band EQ with kill | 1 | |
-| Filter | 1 | One knob per deck: lowpass to the left, highpass to the right. |
-| Effects | L | At most echo and reverb, no effect racks. |
+| Channel volume | done | Per deck. |
+| VU meters | done | Per deck in the groove of the channel fader (level before the fader, the grip narrower and see-through over it), the master above the crossfader. LED segments from -40 dBFS, yellow from -12, red from -3, a clip lamp lit 2 s after a peak at full scale. |
+| Crossfader | done | Decks freely assignable to side A, B or none. |
+| Crossfader curve | planned | Linear, constant power, cut. |
+| Crossfader zero | done | Fader to center position. |
+| Momentary A/B | done | From the original version: tap and hold jumps to one side and back on release. |
+| Headphone cue | done | Per deck, headphone volume. |
+| Master limiter | done | Prevents clipping. |
+| 3-band EQ with kill | planned | |
+| Filter | planned | One knob per deck: lowpass to the left, highpass to the right. |
+| Effects | planned | At most echo and reverb, no effect racks. |
 
 ### 4.3 Audio routing
 
-| Mode | Prio | Description |
+| Mode | Status | Description |
 |---|---|---|
-| One device, stereo | M | Master only, no pre-listening. |
-| One device, 4 channels | M | Master on 1/2, headphones on 3/4 (e.g. Hercules DJControl Starlight). Output device and channels in Settings > Devices, from the next start. |
-| Master/headphones on two devices | 1 | With drift compensation via resampling. |
-| One output per deck | 1 | External mixer mode from the original version: every deck on its own channels, internal mixer bypassed. |
-| DVS inputs | 1 | One input channel pair per deck, see 4.6. |
-| Latency | M | Settings > Devices: buffer size from shortest to safe (128 to 1024 frames, 2.7 to 21 ms at 48 kHz), takes effect at the next start. The dialog is where driver and device are chosen later. |
-| Sample rate | L | The device's rate is used, tracks are converted when loaded; float32 internally. A choice only if a device needs it. |
-| Live switching | 1 | Change devices without restart (the original version required a restart). |
+| One device, stereo | done | Master only, no pre-listening. |
+| One device, 4 channels | done | Master on 1/2, headphones on 3/4 (e.g. Hercules DJControl Starlight). Output device and channels in Settings > Devices, from the next start. |
+| Master/headphones on two devices | planned | With drift compensation via resampling. |
+| One output per deck | planned | External mixer mode from the original version: every deck on its own channels, internal mixer bypassed. |
+| DVS inputs | planned | One input channel pair per deck, see 4.6. |
+| Latency | done | Settings > Devices: buffer size from shortest to safe (128 to 1024 frames, 2.7 to 21 ms at 48 kHz), takes effect at the next start. The dialog is where driver and device are chosen later. |
+| Sample rate | planned | The device's rate is used, tracks are converted when loaded; float32 internally. A choice only if a device needs it. |
+| Live switching | planned | Change devices without restart (the original version required a restart). |
 
 ### 4.4 Automix and playlist
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Playlist/queue | M | Create, reorder (up/down), delete entries. |
-| Fade now | M | Immediate transition with the configured fade time. |
-| Silence detection | 1 | Start/end from analysis instead of file boundaries. |
-| Beatmatched automix | L | Transition with sync on the beatgrid. |
+| Playlist/queue | done | Create, reorder (up/down), delete entries. |
+| Fade now | done | Immediate transition with the configured fade time. |
+| Autoplay/autofade | planned | From the original version, in the crossfader window: start the next track a set time before the end and fade over. |
+| Silence detection | planned | Start/end from analysis instead of file boundaries. |
+| Beatmatched automix | planned | Transition with sync on the beatgrid. |
 
 ### 4.5 Library
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Folder scan | M | Scan selected folders recursively, read tags. |
-| Incremental rescan | M | Only changed files (mtime, size). |
-| Dead link check | M | From the original version: find missing files and mark/remove them. |
-| File watching | L | inotify / FSEvents / ReadDirectoryChangesW. |
-| Formats | M | MP3, Ogg Vorbis, FLAC, WAV. |
-| Additional formats | 1 | AIFF, Opus. AAC/M4A optional via FFmpeg. |
-| Fast search | M | Search as you type across all fields (SQLite FTS5). |
-| Column filters | M | From the original version: separate search fields for artist, title, genre and year directly above the columns. |
-| Clear search | M | One button empties the search field and all filters. |
-| Wildcard search | M | `*` and `?` in search fields. |
-| Sorting | M | By any column. |
-| Columns | M | Artist, title, genre, year, duration, BPM. |
-| Tag editor | M | Table-based, writes to file and database (TagLib): ID3v2, Vorbis comments, FLAC. |
-| Missing tags | M | Derive artist/title from the file name. |
-| Saved playlists | M | In the database, import/export M3U/M3U8. |
-| Crates | 1 | Manual collections. |
-| Analysis on import | 1 | BPM, beatgrid, waveform, loudness in the background, results cached. |
-| Track list export | 1 | Replaces the old print dialog: export as PDF, CSV or HTML, sortable by artist, title, genre, year. |
-| Play history | 1 | Per session, exportable. |
+| Folder scan | done | Scan selected folders recursively, read tags. |
+| Incremental rescan | done | Only changed files (mtime, size). |
+| Dead link check | done | From the original version: find missing files and mark/remove them. |
+| File watching | planned | inotify / FSEvents / ReadDirectoryChangesW. |
+| Formats | done | MP3, Ogg Vorbis, FLAC, WAV. |
+| Additional formats | planned | AIFF, Opus. AAC/M4A optional via FFmpeg. |
+| Fast search | done | Search as you type across all fields (SQLite FTS5). |
+| Column filters | done | From the original version: separate search fields for artist, title, genre and year directly above the columns. |
+| Clear search | done | One button empties the search field and all filters. |
+| Wildcard search | done | `*` and `?` in search fields. |
+| Sorting | done | By any column. |
+| Columns | done | Artist, title, genre, year, duration, BPM. |
+| Tag editor | done | Table-based, writes to file and database (TagLib): ID3v2, Vorbis comments, FLAC. |
+| Missing tags | done | Derive artist/title from the file name. |
+| Saved playlists | done | In the database, import/export M3U/M3U8. |
+| Crates | planned | Manual collections. |
+| Analysis on import | planned | BPM, beatgrid, waveform, loudness in the background, results cached. |
+| Track list export | planned | Replaces the old print dialog: export as PDF, CSV or HTML, sortable by artist, title, genre, year. |
+| Play history | planned | Per session, exportable. |
 
 ### 4.6 DVS (timecode vinyl)
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Serato Control Vinyl | 1 | CV02: `serato_2a`, `serato_2b`, `serato_cd`. Decoder from xwax (GPL-2+). |
-| Additional timecodes | L | Traktor, MixVibes (also supported by the xwax decoder). |
-| Absolute mode | 1 | Needle position = track position. |
-| Relative mode | 1 | Speed and direction only, needle drops ignored. |
-| Internal mode | 1 | Deck keeps playing without vinyl (e.g. after a needle skip). |
-| Signal display | 1 | Scope and quality indicator per deck. |
-| Calibration | 1 | Input level, phono/line. |
-| Varispeed path | 1 | Playback at any speed including reverse and standstill. Keylock only outside of scratch movements. |
+| Serato Control Vinyl | planned | CV02: `serato_2a`, `serato_2b`, `serato_cd`. Decoder from xwax (GPL-2+). |
+| Additional timecodes | planned | Traktor, MixVibes (also supported by the xwax decoder). |
+| Absolute mode | planned | Needle position = track position. |
+| Relative mode | planned | Speed and direction only, needle drops ignored. |
+| Internal mode | planned | Deck keeps playing without vinyl (e.g. after a needle skip). |
+| Signal display | planned | Scope and quality indicator per deck. |
+| Calibration | planned | Input level, phono/line. |
+| Varispeed path | planned | Playback at any speed including reverse and standstill. Keylock only outside of scratch movements. |
 
 ### 4.7 Controllers
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| MIDI | M | RtMidi on desktop, AMidi on Android, Web MIDI in the browser. |
-| HID | L | hidapi, for controllers without MIDI. |
-| Hotplug | 1 | Connect and disconnect controllers while running. |
-| Declarative mapping | M | TOML: note/CC → action (play, cue, load, keylock, headphones, pitch bend, pitch, volume, headphone level, seek, crossfader, library browse), type (button, absolute, 14-bit, relative), deck index, shift layer, invert. In `mappings/` next to the program and in the user's folder; Settings > Devices assigns them to the MIDI ports. |
-| Script mapping | 1 | Lua for jog acceleration, scratching, device-specific behavior. Runs on the control thread. |
-| LED feedback | M | Player state → MIDI out, in the same mapping file (`[[light]]`): play while playing, headphone cue, CUE as on a CDJ (lit at the cue point and while held, blinking when paused elsewhere). The Mixxx import takes the play, cue and headphone outputs over. |
-| MIDI learn | 1 | In the UI, writes the mapping file. |
-| Mixxx import | M | Settings > Devices turns a Mixxx mapping (.midi.xml) into ours: its direct bindings to functions djw has; what its script does is left out and counted. Saved in the user's mapping folder. |
-| Reference controller | M | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. |
-| Keyboard shortcuts | M | From the original version, in the player that has the keyboard focus: P = play/pause, C = cue (acts while held), L = load. |
+| MIDI | done | RtMidi on desktop, AMidi on Android, Web MIDI in the browser. |
+| HID | planned | hidapi, for controllers without MIDI. |
+| Hotplug | planned | Connect and disconnect controllers while running. |
+| Declarative mapping | done | TOML: note/CC → action (play, cue, load, keylock, headphones, pitch bend, pitch, volume, headphone level, seek, crossfader, library browse), type (button, absolute, 14-bit, relative), deck index, shift layer, invert. In `mappings/` next to the program and in the user's folder; Settings > Devices assigns them to the MIDI ports. |
+| LED feedback | done | Player state → MIDI out, in the same mapping file (`[[light]]`): play while playing, headphone cue, CUE as on a CDJ (lit at the cue point and while held, blinking when paused elsewhere). The Mixxx import takes the play, cue and headphone outputs over. |
+| MIDI learn | planned | In the UI, writes the mapping file. |
+| Mixxx import | done | Settings > Devices turns a Mixxx mapping (.midi.xml) into ours: its direct bindings to functions djw has; what its script does is left out and counted. Saved in the user's mapping folder. |
+| Reference controller | done | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. |
+| Keyboard shortcuts | done | From the original version, in the player that has the keyboard focus: P = play/pause, C = cue (acts while held), L = load. |
 
 A mapping looks like this:
 ```toml
 [device]
 name = "Hercules DJControl Starlight"
 match = ["DJControl Starlight"]
-script = "hercules_starlight.lua"   # optional
 
 [[control]]
 midi = { type = "note", channel = 1, number = 0x07 }
@@ -248,23 +247,23 @@ feedback = { type = "note", channel = 1, number = 0x07, on = 0x7F, off = 0x00 }
 
 ### 4.8 User interface
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Multitouch | M | Several fingers at once, each finger captures a widget on touch down. |
-| Custom widget layer | M | Fader, button, waveform, list with kinetic scrolling (it runs on after a drag and slows down), text field. Knob and jog wheel come with M2. |
-| Player windows | M | Core idea of the original version: every player unit is its own OS window, any number can be opened and closed, freely movable and resizable, also across several monitors. On platforms with only one window (KMSDRM kiosk, Android, iOS, Web) the player units are arranged inside the main window. |
-| One-window mode | M | View > One-window mode (from the next start): players, crossfader, playlist and library as parts of one window, arranged automatically without overlap. The default without a saved layout. |
-| Menu bar | M | In the library, in both window modes: File, Playlist, Settings, View, Layout. |
-| Saved layouts | M | Layout > Save layout keeps the window mode, position and size of all windows and parts, and per player the time display and Cue-Load; the program opens as saved. |
-| Edit layout | M | Layout > Edit layout in the one window: drag a part to move it or at its corner to resize it; edges snap to neighbouring parts and the window, else to a 5-point grid. Cursor keys move the selected part by 1 point (Shift: 10), with Ctrl they resize it; Tab selects the next part. Layout > Arrange automatically goes back to the automatic arrangement. |
-| HiDPI | M | Resolution-independent scaling. Player, crossfader and playlist scale with their window or part. |
-| Fullscreen/kiosk | M | Borderless, for touch terminals (View > Fullscreen, Ctrl+F). Without a saved layout the program starts as a window. |
-| Help bubbles | M | A short help for a widget when the mouse rests on it; with touch everything works without it. |
-| Safe quit | M | While a track plays, nothing closes that would stop it; File > Quit then asks first, Cancel being the default. |
-| On-screen keyboard | M | For search on touch-only devices (SDL3 text input). |
-| Themes | 1 | Dark/light, colors defined in a file. |
-| Multilingual | M | German, English, French, Spanish, Greek and Russian, chosen in Settings > Language and kept in the settings file. |
-| Always on top | L | Desktop option from the original version. |
+| Multitouch | done | Several fingers at once, each finger captures a widget on touch down. |
+| Custom widget layer | done | Fader, button, waveform, list with kinetic scrolling (it runs on after a drag and slows down), text field. Knob and jog wheel are planned. |
+| Player windows | done | Core idea of the original version: every player unit is its own OS window, any number can be opened and closed, freely movable and resizable, also across several monitors. On platforms with only one window (KMSDRM kiosk, Android, iOS, Web) the player units are arranged inside the main window. |
+| One-window mode | done | View > One-window mode (from the next start): players, crossfader, playlist and library as parts of one window, arranged automatically without overlap. The default without a saved layout. |
+| Menu bar | done | In the library, in both window modes: File, Playlist, Settings, View, Layout. |
+| Saved layouts | done | Layout > Save layout keeps the window mode, position and size of all windows and parts, and per player the time display and Cue-Load; the program opens as saved. |
+| Edit layout | done | Layout > Edit layout in the one window: drag a part to move it or at its corner to resize it; edges snap to neighbouring parts and the window, else to a 5-point grid. Cursor keys move the selected part by 1 point (Shift: 10), with Ctrl they resize it; Tab selects the next part. Layout > Arrange automatically goes back to the automatic arrangement. |
+| HiDPI | done | Resolution-independent scaling. Player, crossfader and playlist scale with their window or part. |
+| Fullscreen/kiosk | done | Borderless, for touch terminals (View > Fullscreen, Ctrl+F). Without a saved layout the program starts as a window. |
+| Help bubbles | done | A short help for a widget when the mouse rests on it; with touch everything works without it. |
+| Safe quit | done | While a track plays, nothing closes that would stop it; File > Quit then asks first, Cancel being the default. |
+| On-screen keyboard | done | For search on touch-only devices (SDL3 text input). |
+| Themes | planned | Dark/light, colors defined in a file. |
+| Multilingual | done | German, English, French, Spanish, Greek and Russian, chosen in Settings > Language and kept in the settings file. |
+| Always on top | planned | Desktop option from the original version. |
 
 Layout reference: the original version, see [djw.gif](https://dj-workstation.de/bilder/djw.gif). The new UI keeps its structure, adapted for touch:
 - Player window: load button, pitch bend -/+, vertical pitch fader, large time display with elapsed/remaining toggle, pitch in percent and pitch zero, position slider, state (loaded/cued/playing), large CUE and play/pause buttons, channel volume and headphone level faders with headphone cue button, artist and title, Cue-Load option (a loaded track starts at the cue point stored for it, else at its first audible sound, else at the beginning; the last cue point the user set is stored per track in the library database).
@@ -274,15 +273,15 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 
 ### 4.9 Recording
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Record mix | L | Master to WAV or FLAC, with track list (cue sheet). |
+| Record mix | planned | Master to WAV or FLAC, with track list (cue sheet). |
 
 ### 4.10 Remote
 
-| Feature | Prio | Description |
+| Feature | Status | Description |
 |---|---|---|
-| Remote frontend | L | Command/state API over a local socket or OSC, e.g. a tablet as a second control surface. LAN only, no cloud. Source code notice required by AGPL §13. |
+| Remote frontend | planned | Command/state API over a local socket or OSC, e.g. a tablet as a second control surface. LAN only, no cloud. Source code notice required by AGPL §13. |
 
 ---
 
@@ -321,7 +320,6 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Logo (SVG) | nanosvg | zlib |
 | MIDI | RtMidi (+ custom backends for Android/Web) | MIT-style |
 | HID (optional) | hidapi | BSD |
-| Scripting | Lua 5.4 | MIT |
 | Config | toml++ | MIT |
 | DVS | xwax timecoder | GPL-2+ |
 | Tests | doctest or Catch2 | MIT / BSL |
@@ -335,18 +333,3 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 - Audio thread checks: debug builds detect allocations and locks in the audio callback.
 - GitHub Actions: builds for Linux x86_64, Linux arm64, Windows, macOS, Android, Web.
 - Sanitizers (ASan, UBSan, TSan) in CI for the core.
-
----
-
-## 8. Milestones
-
-| Milestone | Scope |
-|---|---|
-| M0 Skeleton | CMake, core/UI separation, miniaudio output, one deck plays a file, SDL3 window with fader and button (multitouch capture) |
-| M1 MVP | N decks, mixer with crossfader and headphone cue, keylock, library with scan and fast search, tag editor, playlist, desktop; MIDI controllers through TOML mappings with the Starlight as reference, LED feedback, Mixxx import |
-| M2 Controllers | Lua scripting, MIDI learn, hotplug, jog wheel (bend while playing, stepping while standing; no scratching) with on-screen knob and jog wheel |
-| M3 DVS | xwax timecoder, duplex audio, absolute/relative/internal modes, signal display |
-| M4 Analysis | Beatgrid, scrolling waveform, sync, hot cues, loops, EQ, filter |
-| M5 Mobile | Android, iOS |
-| M6 Web | WebAssembly build |
-| Later (not scheduled) | Autoplay/autofade with the crossfader window, Raspberry Pi build and its performance targets |

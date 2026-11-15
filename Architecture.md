@@ -8,9 +8,7 @@ djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a com
 
 **`FEATURES.md` is the specification.** Read it before starting any task. Do not implement features that are not listed there, and never implement anything from its non-goals list. If a task seems to require something outside the spec, ask first.
 
-## Current milestone
-
-**M2 Controllers** (see FEATURES.md, section 8). M0 Skeleton and M1 MVP are done; M2 is finished before release 1.0. Work milestone by milestone. Do not start features of a later milestone unless explicitly asked.
+**What comes next is decided by the user.** FEATURES.md marks every feature as done or planned; there are no milestones. Do not start a planned feature unless asked.
 
 ## Hard rules
 
@@ -186,13 +184,13 @@ cmake --build --preset linux-debug
 ctest --preset linux-debug
 ```
 
-Presets to provide (create them in M0): `linux-debug`, `linux-release`, `linux-arm64-release`, `windows-debug`, `windows-release`, `macos-debug`, `macos-release`. Sanitizer presets: `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan` (TSan), each with configure, build and test preset; the test presets set the sanitizer options (leak detection on, abort on the first error). Android, iOS and Web presets come with their milestones.
+Presets (`CMakePresets.json`): `linux-debug`, `linux-release`, `linux-arm64-release`, `windows-debug`, `windows-release`, `macos-debug`, `macos-release`. Sanitizer presets: `linux-asan` (ASan + LeakSanitizer + UBSan) and `linux-tsan` (TSan), each with configure, build and test preset; the test presets set the sanitizer options (leak detection on, abort on the first error). Android, iOS and Web presets come with those platforms. `scripts/build-linux.sh` builds the Linux release binary.
 
 Build options:
 - `DJW_PLAYER_SDL` (default ON): build the SDL3 player in `src/player-ui/sdl`
 - `DJW_BUILD_TESTS` (default ON in debug)
 - `DJW_WITH_FFMPEG` (default OFF)
-- `DJW_WITH_DVS` (default OFF until M3)
+- `DJW_WITH_DVS` (default OFF; DVS is planned)
 - `DJW_WARNINGS_AS_ERRORS` (default OFF, ON in CI)
 - `DJW_SANITIZE`: empty, `address` (ASan + LeakSanitizer + UBSan) or `thread` (TSan). Applies to the whole build including fetched dependencies.
 
@@ -220,7 +218,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - They check that the tests actually detect changed behavior, not just execute the code. `tools/mutate.py` (Python, no dependency) changes one spot of a source file at a time (comparison, arithmetic and logical operators, constants, negations, conditions, removed statements), rebuilds, runs the tests of that module and lists the mutants no test noticed. Each surviving mutant is either a missing test or code that does not matter.
 - Run it on a separate checkout (`git worktree`) with its own build folder, never on the working tree; `--shard i/n` splits the work over several checkouts. The usage is in the script's header.
 - Scope for now: `src/core/`. A mutant that cannot matter (e.g. a log text) is marked in the source with a `mutation: skip` comment on its line.
-- `tools/mutate.py` is not part of CI (too slow); run it before a milestone is closed.
+- `tools/mutate.py` is not part of CI (too slow); run it before a release.
 - In CI the compiler-based tool Mull runs once a month and by hand (`.github/workflows/mutation.yml`, config in `mull.yml`): the core is built with clang-19 and the Mull plugin, which builds all mutants into the test programs, so nothing is rebuilt per mutant. Only lines covered by a test are mutated; the runs of all test programs are combined, so a mutant counts as killed when any test kills it.
 - Not mutated: `src/core/audio_io/miniaudio_device.cpp`, a thin adapter on the audio hardware whose settings only show on a real device (excluded in `mull.yml`). Single lines are excluded with `// mull-ignore` or `// mull-ignore-next` (`// mull-off` ... `// mull-on` for a block), for one mutator with `: <mutator>` appended.
 - Phantoms: Mull reports some mutants as survived without switching them on, so the tests run unchanged and pass. This happens to removed calls whose arguments have a destructor (`cxx_remove_void_call` on a lambda passed as `std::function`, a struct with a path), to some assignments from such a call, and to mutants in inline functions defined in headers. A phantom is marked with `// mull-ignore-next: <mutator>` on the line before, or `// mull-ignore-next` for every mutator of the line, only after checking by hand that a test fails with the change.
@@ -235,7 +233,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
 - Long-running paths (deck load/unload, adding/removing decks, library scans) get tests that repeat the operation many times, so a leak per operation shows up even if it is small.
 
 ### General
-- Run tests before declaring a task done, including the sanitizer runs (ASan with LeakSanitizer, UBSan, TSan for threading code) before a milestone is closed.
+- Run tests before declaring a task done, including the sanitizer runs (ASan with LeakSanitizer, UBSan, TSan for threading code) before a release.
 - Debug builds must be able to run with ASan, UBSan and TSan.
 
 ## Static analysis and CI
