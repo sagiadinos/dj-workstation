@@ -19,7 +19,7 @@
 namespace djw::core::engine
 {
     /// Pitch fader range in percent
-    inline constexpr float max_pitch_percent = 12.0F;
+    inline constexpr float max_pitch_percent = api::max_pitch_percent;
     /// Speed change while a pitch bend button is held, in percent
     inline constexpr double pitch_bend_percent = 4.0;
 

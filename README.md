@@ -12,10 +12,10 @@ Lean, touch-first DJ software for touchscreens and MIDI controllers. Runs on Lin
 ## What it is
 
 - Any number of players, each in its own window or all arranged in one window, for mouse and touchscreen
-- Pitch fader ±12 % with pitch bend; pulled down is faster, as on a turntable
+- Pitch fader ±10 % in steps of 0.02 % with pitch bend; pulled down is faster, as on a turntable
 - Mixer with crossfader, headphone cue, keylock and VU meters
 - Scrolling beat waveforms of the two players on the crossfader, in three colours, horizontal or vertical, for beatmatching by eye
-- Keyboard shortcuts for the player in focus, all with the left Alt (Option on the Mac): Alt+P play/pause, Alt+C cue, Alt+L load, Alt+←/→ step back/ahead (Shift: 10 s), Alt+↑/↓ pitch ±0.1 %. Letters typed outside a text field go into the library search, so typing never stops a player
+- Keyboard shortcuts for the player in focus, all with the left Alt (Option on the Mac): Alt+P play/pause, Alt+C cue, Alt+L load, Alt+←/→ step back/ahead (Shift: 10 s), Alt+↑/↓ pitch ±0.02 % (Shift: ±0.1 %). Letters typed outside a text field go into the library search, so typing never stops a player
 - Music library with fast search, column filters, tag editor, playlists and tempo analysis
 - MIDI controllers with simple TOML mappings, LED feedback and an import for Mixxx mappings
 - In English, German, French, Spanish, Greek and Russian

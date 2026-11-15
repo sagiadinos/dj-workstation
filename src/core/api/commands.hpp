@@ -36,7 +36,12 @@ namespace djw::core::api
             bool   pressed;
     };
 
-    /// Pitch fader in percent, clamped to the pitch range (±12 %). Changes tempo and pitch together.
+    /// The pitch range in percent, either way: the engine clamps to it, a frontend's fader spans it
+    inline constexpr float max_pitch_percent = 10.0F;
+    /// The finest pitch step in percent, as on a CDJ: a frontend rounds to it
+    inline constexpr float pitch_step_percent = 0.02F;
+
+    /// Pitch fader in percent, clamped to the pitch range (max_pitch_percent). Changes tempo and pitch together.
     struct DeckSetPitch
     {
             DeckId deck;

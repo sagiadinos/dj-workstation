@@ -67,7 +67,7 @@ Actions:
 | `deck.keylock` | button | Keylock on/off. |
 | `deck.headphones` | button | Headphone cue on/off. |
 | `deck.bend_down`, `deck.bend_up` | button | Pitch bend while held. |
-| `deck.pitch` | absolute | Pitch fader, ±12 %: the highest value is the fastest. As on a turntable, pulled down should be faster; a fader that sends its highest value at the top needs `invert = true` (the Starlight's has it). |
+| `deck.pitch` | absolute | Pitch fader, ±10 % in steps of 0.02 %: the highest value is the fastest. As on a turntable, pulled down should be faster; a fader that sends its highest value at the top needs `invert = true` (the Starlight's has it). |
 | `deck.volume` | absolute | Channel fader. |
 | `deck.headphone_level` | absolute | How loud the player is on the headphones. |
 | `deck.seek` | relative | Steps back or ahead, like the cursor keys of a player (one scrub loop of 60 ms per step). |

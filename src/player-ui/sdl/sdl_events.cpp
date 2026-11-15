@@ -98,9 +98,10 @@ namespace djw::player_ui::sdl
                 case SDLK_RIGHT:
                     return down ? std::optional{PlayerKey{shift ? Key::FarAhead : Key::Ahead, true}} : std::nullopt;
                 case SDLK_UP:
-                    return down ? std::optional{PlayerKey{Key::PitchUp, true}} : std::nullopt;
+                    return down ? std::optional{PlayerKey{shift ? Key::FarPitchUp : Key::PitchUp, true}} : std::nullopt;
                 case SDLK_DOWN:
-                    return down ? std::optional{PlayerKey{Key::PitchDown, true}} : std::nullopt;
+                    return down ? std::optional{PlayerKey{shift ? Key::FarPitchDown : Key::PitchDown, true}}
+                                : std::nullopt;
                 default:
                     return std::nullopt;
             }

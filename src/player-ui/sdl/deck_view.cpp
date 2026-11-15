@@ -40,26 +40,34 @@ namespace djw::player_ui::sdl
         constexpr Color cue_text{250, 250, 250};
 
         /// Pitch range of the fader in percent; the engine clamps to the same
-        constexpr float pitch_range = 12.0F;
+        constexpr float pitch_range = core::api::max_pitch_percent;
         /// Within this distance of 0 the fader counts as 0, so the center can be found by touch
         constexpr float pitch_detent = 0.15F;
+
+        /// A pitch rounded to the finest step and kept in the range
+        float roundedPitch(float percent)
+        {
+            constexpr float steps = 1.0F / core::api::pitch_step_percent;
+            return std::clamp(std::round(percent * steps) / steps, -pitch_range, pitch_range);
+        }
         /// Position and cue point closer than this (seconds) are the same place
         constexpr double same_place = 0.02;
 
-        /// A pitch as the display shows it: a sign and one decimal, e.g. "+1.2"
-        std::string signedTenths(float percent)
+        /// A pitch as the display shows it: a sign and two decimals, e.g. "+1.24"
+        std::string signedHundredths(float percent)
         {
-            const long        tenths = std::lround(std::abs(percent) * 10.0F);
-            const std::string text   = std::to_string(tenths / 10) + '.' + std::to_string(tenths % 10);
-            return (percent < 0.0F && tenths != 0 ? "-" : "+") + text;
+            const long        hundredths = std::lround(std::abs(percent) * 100.0F);
+            const long        fraction   = hundredths % 100;
+            const std::string text =
+                std::to_string(hundredths / 100) + '.' + (fraction < 10 ? "0" : "") + std::to_string(fraction);
+            return (percent < 0.0F && hundredths != 0 ? "-" : "+") + text;
         }
     } // namespace
 
     float DeckView::pitchOf(float fader_value) noexcept
     {
         // As on a turntable: pulled down (towards the DJ) is faster
-        const float percent = (0.5F - std::clamp(fader_value, 0.0F, 1.0F)) * 2.0F * pitch_range;
-        const float rounded = std::round(percent * 10.0F) / 10.0F; // tenths of a percent
+        const float rounded = roundedPitch((0.5F - std::clamp(fader_value, 0.0F, 1.0F)) * 2.0F * pitch_range);
         return std::abs(rounded) < pitch_detent ? 0.0F : rounded;
     }
 
@@ -336,10 +344,13 @@ namespace djw::player_ui::sdl
 
     void DeckView::stepPitch(float by)
     {
-        const float from = keyed_pitch.value_or(pitchOf(pitch_fader.value()));
-        const float to   = std::clamp(std::round((from + by) * 10.0F) / 10.0F, -pitch_range, pitch_range);
-        keyed_pitch      = to;
-        pitch_fader.setValue(faderValueOf(to));
+        setExactPitch(exact_pitch.value_or(pitchOf(pitch_fader.value())) + by);
+    }
+
+    void DeckView::setExactPitch(float percent)
+    {
+        exact_pitch = roundedPitch(percent);
+        pitch_fader.setValue(faderValueOf(*exact_pitch));
     }
 
     void DeckView::choosePosition(double seconds)
@@ -389,8 +400,9 @@ namespace djw::player_ui::sdl
                 break;
             }
             case Action::DeckPitch:
-                // A controller's 1 is the fastest, as before the screen fader turned round; its mapping can invert it
-                pitch_fader.setValue(1.0F - event.value);
+                // A controller's 1 is the fastest (its mapping can invert it); its fine steps count, the detent that
+                // helps a finger find 0 on the screen would swallow them
+                setExactPitch((std::clamp(event.value, 0.0F, 1.0F) - 0.5F) * 2.0F * pitch_range);
                 break;
             case Action::DeckVolume:
                 volume_fader.setValue(event.value);
@@ -470,8 +482,16 @@ namespace djw::player_ui::sdl
                 pending.emplace_back(core::api::DeckCue{deck, player_key->down});
                 return;
             case PlayerKey::Key::PitchUp:
+                stepPitch(key_pitch_step);
+                return;
             case PlayerKey::Key::PitchDown:
-                stepPitch(player_key->key == PlayerKey::Key::PitchUp ? key_pitch_step : -key_pitch_step);
+                stepPitch(-key_pitch_step);
+                return;
+            case PlayerKey::Key::FarPitchUp:
+                stepPitch(shift_pitch_step);
+                return;
+            case PlayerKey::Key::FarPitchDown:
+                stepPitch(-shift_pitch_step);
                 return;
             case PlayerKey::Key::Back:
                 step = -key_step_seconds;
@@ -530,13 +550,13 @@ namespace djw::player_ui::sdl
         {
             sent_headphone_level = level;
         }
-        // A pitch set with the keys holds while the fader stays where the keys put it (the fader's detent at 0 would
-        // turn a tenth into 0); a touch or a controller on the fader takes over
-        if (keyed_pitch && pitch_fader.value() != faderValueOf(*keyed_pitch))
+        // A pitch set with the keys or a controller holds while the fader stays where it was put (the fader's detent
+        // at 0 would turn a small pitch into 0); a touch on the fader takes over
+        if (exact_pitch && pitch_fader.value() != faderValueOf(*exact_pitch))
         {
-            keyed_pitch.reset();
+            exact_pitch.reset();
         }
-        const float pitch = keyed_pitch.value_or(pitchOf(pitch_fader.value()));
+        const float pitch = exact_pitch.value_or(pitchOf(pitch_fader.value()));
         shown_pitch       = pitch;
         if (pitch != sent_pitch && queue->tryPush(core::api::DeckSetPitch{deck, pitch}))
         {
@@ -617,7 +637,7 @@ namespace djw::player_ui::sdl
         // The display: Time button, pitch and the large time, remaining with a minus
         look::sunken(canvas, display_area);
         time_button.draw(canvas);
-        const std::string pitch = "Pitch: " + signedTenths(shown_pitch) + " %";
+        const std::string pitch = "Pitch: " + signedHundredths(shown_pitch) + " %";
         canvas.textElided({pitch_text_area.x + std::max(0.0F, pitch_text_area.width - canvas.textWidth(pitch)),
                            pitch_text_area.y + ((pitch_text_area.height - canvas.textHeight()) / 2)},
                           pitch, yellow, pitch_text_area.width);

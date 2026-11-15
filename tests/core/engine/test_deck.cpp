@@ -312,25 +312,25 @@ TEST_CASE("Deck CUE: a new track has its cue point at the start")
     CHECK(fixture.deck.cueFrame() == 0);
 }
 
-TEST_CASE("Deck pitch: +12 % plays 12 % faster, the position counts track frames")
+TEST_CASE("Deck pitch: +10 % plays 10 % faster, the position counts track frames")
 {
     CueFixture fixture;
-    fixture.deck.setPitch(12.0F);
+    fixture.deck.setPitch(10.0F);
     fixture.deck.play();
 
     fixture.play(1'000);
 
-    CHECK(fixture.deck.positionFrames() == doctest::Approx(1'120.0));
-    CHECK(fixture.output[2] == doctest::Approx(1.12));
+    CHECK(fixture.deck.positionFrames() == doctest::Approx(1'100.0));
+    CHECK(fixture.output[2] == doctest::Approx(1.1));
 }
 
-TEST_CASE("Deck pitch: the range is ±12 %")
+TEST_CASE("Deck pitch: the range is ±10 %")
 {
     Deck deck{DeckId{1}, 0};
     deck.setPitch(30.0F);
-    CHECK(deck.pitchPercent() == 12.0F);
+    CHECK(deck.pitchPercent() == 10.0F);
     deck.setPitch(-30.0F);
-    CHECK(deck.pitchPercent() == -12.0F);
+    CHECK(deck.pitchPercent() == -10.0F);
 }
 
 TEST_CASE("Deck pitch bend: changes the speed while held and adds to the pitch")

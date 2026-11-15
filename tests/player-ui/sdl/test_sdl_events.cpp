@@ -168,6 +168,10 @@ TEST_CASE("toKeyboardInput: the player keys only with the left Alt; P and L once
     CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_RIGHT, SDL_KMOD_LALT | SDL_KMOD_RSHIFT) ==
           KeyboardInput{PlayerKey{Key::FarAhead, true}});
     CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_UP) == KeyboardInput{PlayerKey{Key::PitchUp, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_UP, SDL_KMOD_LALT | SDL_KMOD_LSHIFT) ==
+          KeyboardInput{PlayerKey{Key::FarPitchUp, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_DOWN, SDL_KMOD_LALT | SDL_KMOD_RSHIFT) ==
+          KeyboardInput{PlayerKey{Key::FarPitchDown, true}});
     CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_DOWN, SDL_KMOD_LALT, true) == KeyboardInput{PlayerKey{Key::PitchDown, true}});
     CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_RIGHT, SDL_KMOD_LALT, true) == KeyboardInput{PlayerKey{Key::Ahead, true}});
 

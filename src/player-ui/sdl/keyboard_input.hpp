@@ -44,7 +44,8 @@ namespace djw::player_ui::sdl
 
     /// The keys of a player, all with the left Alt (Option on the Mac) held, so typing never reaches a player: P
     /// play/pause, C cue (also when let go, since CUE acts while held), L load, the cursor keys left and right a step
-    /// back and ahead (with Shift a long one), up and down the pitch by a tenth of a percent.
+    /// back and ahead (with Shift a long one), up and down the pitch by the finest step (0.02 %; with Shift a tenth of
+    /// a percent).
     struct PlayerKey
     {
             enum class Key : std::uint8_t
@@ -57,7 +58,9 @@ namespace djw::player_ui::sdl
                 FarBack,
                 FarAhead,
                 PitchUp,
-                PitchDown
+                PitchDown,
+                FarPitchUp,
+                FarPitchDown
             };
             Key  key  = Key::Play;
             bool down = true;

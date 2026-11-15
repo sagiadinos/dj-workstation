@@ -83,7 +83,8 @@ namespace djw::player_ui::sdl
             void update() override;
             /// The player keys (see PlayerKey): play/pause, CUE (while held) and Load as the buttons; back and ahead by
             /// key_step_seconds or shift_step_seconds, as a touch on the waveform there would (a playing deck jumps, a
-            /// standing one scrubs); the pitch up or down by key_pitch_step. Other keys do nothing here.
+            /// standing one scrubs); the pitch up or down by key_pitch_step, with Shift by shift_pitch_step. Other keys
+            /// do nothing here.
             void keyboard(const KeyboardInput &input) override;
             /// The player's lights on a controller: play while it plays, headphone cue, and CUE as on a CDJ: lit at the
             /// cue point, blinking (with blink_on) when paused elsewhere, dark while playing or without a track
@@ -95,8 +96,9 @@ namespace djw::player_ui::sdl
             /// One scrub loop
             static constexpr double key_step_seconds   = core::api::scrub_loop_seconds;
             static constexpr double shift_step_seconds = 10.0;
-            /// A tenth of a percent
-            static constexpr float key_pitch_step = 0.1F;
+            /// The finest step, with Shift a tenth of a percent
+            static constexpr float key_pitch_step   = core::api::pitch_step_percent;
+            static constexpr float shift_pitch_step = 0.1F;
 
             void draw(Canvas &canvas) const override;
 
@@ -130,8 +132,8 @@ namespace djw::player_ui::sdl
             /// The deck was playing at the last update
             [[nodiscard]] bool playing() const noexcept { return state.play_state == core::api::PlayState::Playing; }
 
-            /// The pitch the fader stands for, in percent (+ is faster); the bottom of the fader is the fastest, as on
-            /// a turntable
+            /// The pitch the fader stands for, in percent (+ is faster), rounded to the finest step with a detent at
+            /// 0; the bottom of the fader is the fastest, as on a turntable
             [[nodiscard]] static float pitchOf(float fader_value) noexcept;
             [[nodiscard]] static float faderValueOf(float pitch_percent) noexcept;
 
@@ -223,10 +225,12 @@ namespace djw::player_ui::sdl
             float                 sent_pitch = 0.0F;
             /// The pitch shown: what the fader says
             float shown_pitch = 0.0F;
-            /// The pitch the keys set, while the fader stays where they put it
-            std::optional<float> keyed_pitch;
-            /// The pitch keys: from the pitch now, in tenths, within the fader's range
+            /// The pitch the keys or a controller set, while the fader stays where they put it
+            std::optional<float> exact_pitch;
+            /// The pitch keys: from the pitch now, by a step, within the fader's range
             void stepPitch(float by);
+            /// Sets the pitch to percent, rounded to the finest step, with no detent at 0
+            void setExactPitch(float percent);
             /// Commands that go out in this order
             std::deque<core::api::Command> pending;
             bool                           play_key = false; ///< Alt+P was pressed, handled like the play button

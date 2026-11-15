@@ -122,7 +122,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Cue | done | Classic CDJ behavior: when stopped sets cue, while playing jumps back and stops, when held plays from cue. |
 | Stored cue point | done | Cue point per track in the database. "Cue load" option: track starts at the stored point when loaded. |
 | Time display | done | Toggle elapsed/remaining. |
-| Pitch | done | Fader with range ±12 %, down is faster as on a turntable, display in percent. Formant correction comes later. |
+| Pitch | done | Fader with range ±10 % in steps of 0.02 % (as a CDJ), down is faster as on a turntable, display in percent with two decimals; a controller's fine steps count fully. Formant correction comes later. |
 | Pitch bend | done | +/- buttons for temporary nudging. |
 | Pitch zero | done | Reset fader to 0 with a double tap on the pitch fader. |
 | Keylock (master tempo) | done | Tempo change without pitch change. Settings > Sound sets the keylock quality (next start): High (Signalsmith Stretch, the default) or Standard (SoundTouch, less computing power), behind one interface (`engine::TimeStretcher`, made by `makeTimeStretcher`). |
@@ -217,7 +217,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | LED feedback | done | Player state → MIDI out, in the same mapping file (`[[light]]`): play while playing, headphone cue, CUE as on a CDJ (lit at the cue point and while held, blinking when paused elsewhere). The Mixxx import takes the play, cue and headphone outputs over. |
 | Mixxx import | done | Settings > Devices turns a Mixxx mapping (.midi.xml) into ours: its direct bindings to functions djw has; what its script does is left out and counted. Saved in the user's mapping folder. |
 | Reference controller | done | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. Its pitch faders are inverted in the mapping, so pulled down is faster, as on the screen and a turntable. |
-| Keyboard shortcuts | done | In the player that has the keyboard focus, always with the left Alt (Option on the Mac), so typing never reaches a player: Alt+P = play/pause, Alt+C = cue (acts while held), Alt+L = load, Alt+←/→ = a step back/ahead (with Shift 10 s), Alt+↑/↓ = pitch ±0.1 %. A letter typed while no text field has the focus goes into the library's search. |
+| Keyboard shortcuts | done | In the player that has the keyboard focus, always with the left Alt (Option on the Mac), so typing never reaches a player: Alt+P = play/pause, Alt+C = cue (acts while held), Alt+L = load, Alt+←/→ = a step back/ahead (with Shift 10 s), Alt+↑/↓ = pitch ±0.02 % (with Shift ±0.1 %). A letter typed while no text field has the focus goes into the library's search. |
 
 The mapping format is described in [mappings/README.md](mappings/README.md).
 

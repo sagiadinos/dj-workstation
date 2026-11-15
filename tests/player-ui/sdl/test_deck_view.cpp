@@ -205,18 +205,19 @@ TEST_CASE("DeckView: the faders start at the values of the snapshot and send not
     view.update();
     CHECK(view.fader().value() == doctest::Approx(0.4F));
     CHECK(view.headphoneFader().value() == doctest::Approx(0.7F));
-    CHECK(view.pitchFader().value() == doctest::Approx(0.25F)); // faster: below the center
+    CHECK(view.pitchFader().value() == doctest::Approx(0.2F)); // faster: below the center
     CHECK_FALSE(queue.tryPop().has_value());
 }
 
-TEST_CASE("DeckView: pitchOf maps the fader to tenths of a percent, down is faster, with a detent at the center")
+TEST_CASE("DeckView: pitchOf maps the fader to steps of 0.02 %, down is faster, ±10 %, with a detent at the center")
 {
     CHECK(DeckView::pitchOf(0.5F) == 0.0F);
-    CHECK(DeckView::pitchOf(0.0F) == doctest::Approx(12.0F)); // the bottom
-    CHECK(DeckView::pitchOf(1.0F) == doctest::Approx(-12.0F));
+    CHECK(DeckView::pitchOf(0.0F) == doctest::Approx(10.0F)); // the bottom
+    CHECK(DeckView::pitchOf(1.0F) == doctest::Approx(-10.0F));
     CHECK(DeckView::pitchOf(0.5F + 0.002F) == 0.0F); // within the detent
-    CHECK(DeckView::pitchOf(0.25F) == doctest::Approx(6.0F));
-    CHECK(DeckView::pitchOf(-1.0F) == doctest::Approx(12.0F)); // clamped
+    CHECK(DeckView::pitchOf(0.25F) == doctest::Approx(5.0F));
+    CHECK(DeckView::pitchOf(0.5F - 0.0631F) == doctest::Approx(1.26F)); // 1.262 to the step of 0.02
+    CHECK(DeckView::pitchOf(-1.0F) == doctest::Approx(10.0F));          // clamped
     CHECK(DeckView::faderValueOf(DeckView::pitchOf(0.7F)) == doctest::Approx(0.7F).epsilon(0.01));
     CHECK(DeckView::faderValueOf(0.0F) == 0.5F);
 }
@@ -233,7 +234,7 @@ TEST_CASE("DeckView: the pitch fader sends the pitch once per change, Zero puts 
     auto commands = fixture.drain();
     REQUIRE(commands.size() == 1);
     REQUIRE(std::holds_alternative<api::DeckSetPitch>(commands[0]));
-    CHECK(std::get<api::DeckSetPitch>(commands[0]).percent < -10.0F); // the top is the slowest
+    CHECK(std::get<api::DeckSetPitch>(commands[0]).percent < -9.0F); // the top is the slowest
 
     // A double tap on the pitch fader sets the pitch to 0
     fixture.tapCenter(fixture.view.pitchFader().bounds());
@@ -770,7 +771,8 @@ TEST_CASE("DeckView: on a playing deck the step keys jump; without a track, plai
     CHECK(fixture.drain().empty());
 }
 
-TEST_CASE("DeckView: Alt with up and down steps the pitch by a tenth, also near 0; the fader takes over again")
+TEST_CASE(
+    "DeckView: Alt with up and down steps the pitch by 0.02 %, with Shift by 0.1 %, also near 0; the fader takes over")
 {
     Fixture fixture;
     fixture.show({.deck = deck, .track_loaded = true, .duration_seconds = 100.0});
@@ -778,25 +780,34 @@ TEST_CASE("DeckView: Alt with up and down steps the pitch by a tenth, also near 
     fixture.view.update();
     auto commands = fixture.drain();
     REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
-    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(0.1F)); // not swallowed by the detent
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(0.02F)); // not swallowed by the detent
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Pitch: +0.02 %")); // two decimals
 
-    fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchDown, true});
-    fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchDown, true});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarPitchDown, true});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarPitchDown, true});
     fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchDown, true});
     fixture.view.update();
     commands = fixture.drain();
     REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
-    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(-0.2F));
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(-0.2F)); // 0.02 - 0.1 - 0.1 - 0.02
+
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarPitchUp, true});
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(-0.1F));
 
     // Not past the fader's range
     for (int step = 0; step < 200; ++step)
     {
-        fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchUp, true});
+        fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarPitchUp, true});
     }
     fixture.view.update();
     commands = fixture.drain();
     REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
-    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(12.0F));
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(10.0F));
 
     // A controller's fader sets the pitch again
     fixture.view.control({.action = api::ControlAction::DeckPitch, .deck = 0, .value = 0.5F});
@@ -950,7 +961,14 @@ TEST_CASE("DeckView: a controller's faders set the player's faders, the jog whee
     auto commands = fixture.drain();
     CHECK(find<api::MixerSetChannelVolume>(commands) != nullptr);
     REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
-    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(12.0F)); // a controller's 1: +12 %
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(10.0F)); // a controller's 1: +10 %
+
+    // A controller's fine steps count, also near 0 where the screen fader has its detent
+    fixture.view.control(controlEvent(Action::DeckPitch, true, 0.5F + 0.002F));
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(0.04F));
 
     fixture.view.control(controlEvent(Action::DeckSeek, true, 0.0F, 3));
     fixture.view.update();
