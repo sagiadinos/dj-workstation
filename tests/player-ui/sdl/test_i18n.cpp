@@ -159,11 +159,11 @@ TEST_CASE("Translator: looks up the language, falls back to English, then to the
 {
     Translator translator;
     CHECK(translator.language() == Language::English);
-    CHECK(translator.tr("menu.database") == "Database");
+    CHECK(translator.tr("menu.file") == "File");
     CHECK(translator.tr("tracks.count", {{"count", 1}}) == "1 track");
 
     translator.setLanguage(Language::German);
-    CHECK(translator.tr("menu.database") == "Datenbank");
+    CHECK(translator.tr("menu.file") == "Datei");
     CHECK(translator.tr("menu.view") == "Ansicht");
 
     translator.setLanguage(Language::Russian);

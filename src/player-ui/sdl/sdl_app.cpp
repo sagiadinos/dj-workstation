@@ -209,6 +209,7 @@ namespace djw::player_ui::sdl
                 });
             app->library_view->setOnNewDeck([owner] { ++owner->new_decks_requested; });
             app->library_view->setLanguageDialog([owner] { owner->openLanguageDialog(); });
+            app->library_view->setOnQuit([owner] { owner->requestQuit(); });
             app->library_view->setPlaylistCommands([owner](LibraryView::PlaylistCommand command)
                                                    { owner->runPlaylistCommand(command); },
                                                    [owner] { return owner->toolWindowOpen(Tool::Playlist); });
@@ -1214,7 +1215,7 @@ namespace djw::player_ui::sdl
     void SdlApp::openDevicesDialog()
     {
         SdlWindow *over = host_window != nullptr ? host_window : library_window;
-        if (devices_dialog || language_dialog || over == nullptr || settings_file.empty())
+        if (devices_dialog || language_dialog || quit_dialog || over == nullptr || settings_file.empty())
         {
             return;
         }
@@ -1242,7 +1243,7 @@ namespace djw::player_ui::sdl
     void SdlApp::openLanguageDialog()
     {
         SdlWindow *over = host_window != nullptr ? host_window : library_window;
-        if (devices_dialog || language_dialog || over == nullptr)
+        if (devices_dialog || language_dialog || quit_dialog || over == nullptr)
         {
             return;
         }
@@ -1250,6 +1251,26 @@ namespace djw::player_ui::sdl
         dialog_window   = over;
         over->views().add(*language_dialog, std::nullopt, true); // over everything, modal
         over->views().setFocus(*language_dialog);
+    }
+
+    void SdlApp::requestQuit()
+    {
+        // The one way out while a track plays; Alt+F4, Cmd+Q and the window's close button do nothing then
+        if (!anyPlaying())
+        {
+            quit_confirmed = true;
+            return;
+        }
+        SdlWindow *over = host_window != nullptr ? host_window : library_window;
+        if (devices_dialog || language_dialog || quit_dialog || over == nullptr)
+        {
+            return;
+        }
+        quit_dialog =
+            std::make_unique<ConfirmDialog>(translator, "menu.file.quit", "dialog.quit.playing", "menu.file.quit");
+        dialog_window = over;
+        over->views().add(*quit_dialog, std::nullopt, true); // over everything, modal
+        over->views().setFocus(*quit_dialog);
     }
 
     void SdlApp::importMixxxMapping(const std::filesystem::path &file)
@@ -1283,6 +1304,16 @@ namespace djw::player_ui::sdl
 
     void SdlApp::applyWindowRequests()
     {
+        if (quit_dialog)
+        {
+            if (const auto outcome = quit_dialog->takeOutcome())
+            {
+                quit_confirmed = *outcome == ConfirmDialog::Outcome::Confirmed;
+                dialog_window->views().remove(*quit_dialog);
+                quit_dialog.reset();
+                dialog_window = nullptr;
+            }
+        }
         if (language_dialog)
         {
             if (const auto outcome = language_dialog->takeOutcome())
@@ -1419,7 +1450,7 @@ namespace djw::player_ui::sdl
     {
         bool running = true;
         processEvents(running);
-        if (!running || (decks.empty() && !library_view))
+        if (!running || quit_confirmed || (decks.empty() && !library_view))
         {
             return false; // a quit, or the last deck window was closed and there is no library to work in
         }

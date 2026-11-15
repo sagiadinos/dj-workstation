@@ -159,6 +159,8 @@ namespace djw::player_ui::sdl
             void setDevicesDialog(Toggle open) { devices_dialog = std::move(open); }
             /// Enables Settings > Language: open shows the dialog
             void setLanguageDialog(Toggle open) { language_dialog = std::move(open); }
+            /// Enables File > Quit: quit asks the owner to end the program
+            void setOnQuit(Toggle quit) { quit_requested = std::move(quit); }
             /// Enables View > Fullscreen (the MDI mode): toggle switches, shown tells whether the window is fullscreen
             void setFullscreen(Toggle toggle, Shown shown)
             {
@@ -234,6 +236,7 @@ namespace djw::player_ui::sdl
             Toggle                   fullscreen_toggle;
             Toggle                   devices_dialog;
             Toggle                   language_dialog;
+            Toggle                   quit_requested;
             Shown                    fullscreen_shown;
             std::int64_t             context_track = 0; // the track the context menu is about
             TextField                search_field;

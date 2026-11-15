@@ -1172,6 +1172,49 @@ TEST_CASE("SdlApp: while a player plays it does not close, nor does the main win
     CHECK_FALSE(app->runFrame());
 }
 
+TEST_CASE("SdlApp: File > Quit ends the program at once, while a track plays only after the question")
+{
+    Fixture                   fixture;
+    const djw::tests::TempDir folder;
+    const auto                file = makeWav(folder, "one.wav");
+    djw::tests::FakeLibrary   library;
+    {
+        auto app = fixture.openApp(&library);
+        REQUIRE(app->runFrame());
+        app->requestQuit();
+        CHECK(app->quitDialog() == nullptr); // nothing plays: no question
+        CHECK_FALSE(app->runFrame());
+    }
+
+    auto app = fixture.openApp(&library);
+    REQUIRE(app->runFrame());
+    app->load(trackOf(file));
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(0)}));
+    REQUIRE(waitForPlaying(*app, 0, true));
+
+    // Enter cancels: Cancel is the default
+    app->requestQuit();
+    REQUIRE(app->quitDialog() != nullptr);
+    REQUIRE(app->runFrame());
+    SDL_Event enter{};
+    enter.type         = SDL_EVENT_KEY_DOWN;
+    enter.key.key      = SDLK_RETURN;
+    enter.key.windowID = app->libraryWindowId();
+    SDL_PushEvent(&enter);
+    REQUIRE(app->runFrame());
+    CHECK(app->quitDialog() == nullptr);
+    CHECK(app->runFrame()); // still running
+
+    // The Quit button ends it, although the track plays
+    app->requestQuit();
+    REQUIRE(app->runFrame());
+    const Rect button = app->quitDialog()->confirmButton().bounds();
+    click(app->libraryWindowId(), {button.x + (button.width / 2), button.y + (button.height / 2)});
+    REQUIRE(app->runFrame());
+    CHECK(app->quitDialog() == nullptr);
+    CHECK_FALSE(app->runFrame());
+}
+
 TEST_CASE("SdlApp: in the MDI mode the close button of a playing player and closing the window do nothing")
 {
     const djw::tests::TempDir folder;

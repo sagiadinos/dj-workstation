@@ -80,6 +80,7 @@ add_library(djw_player_sdl_ui STATIC
         layout.cpp
         settings.cpp
         devices_dialog.cpp
+        confirm_dialog.cpp
         language_dialog.cpp
         look.cpp
         waveform_bar.cpp

@@ -9,6 +9,7 @@
 #include "api/controllers.hpp"
 #include "deck_view.hpp"
 #include "devices_dialog.hpp"
+#include "confirm_dialog.hpp"
 #include "language_dialog.hpp"
 #include "i18n/translator.hpp"
 #include "layout.hpp"
@@ -165,6 +166,10 @@ namespace djw::player_ui::sdl
             void openLanguageDialog();
             /// The dialog of Settings > Language while it is open, nullptr otherwise; for tests
             [[nodiscard]] LanguageDialog *languageDialog() noexcept { return language_dialog.get(); }
+            /// File > Quit: ends the program after this frame; while a track plays only after a question
+            void requestQuit();
+            /// The question of File > Quit while it is open, nullptr otherwise; for tests
+            [[nodiscard]] ConfirmDialog *quitDialog() noexcept { return quit_dialog.get(); }
             /// The dialog of Settings > Devices while it is open, nullptr otherwise; for tests
             [[nodiscard]] DevicesDialog *devicesDialog() noexcept { return devices_dialog.get(); }
             /// The library view; for tests (there must be a library)
@@ -334,10 +339,12 @@ namespace djw::player_ui::sdl
             std::vector<std::unique_ptr<DeckWindow>> decks;
             int                                      deck_counter = 0;
             std::unique_ptr<LibraryView>             library_view;
-            std::unique_ptr<PaneFrame>               library_frame;           ///< MDI mode only
-            std::unique_ptr<DevicesDialog>           devices_dialog;          ///< while Settings > Devices is open
-            std::unique_ptr<LanguageDialog>          language_dialog;         ///< while Settings > Language is open
-            SdlWindow                               *dialog_window = nullptr; ///< the window the dialog lies over
+            std::unique_ptr<PaneFrame>               library_frame;            ///< MDI mode only
+            std::unique_ptr<DevicesDialog>           devices_dialog;           ///< while Settings > Devices is open
+            std::unique_ptr<LanguageDialog>          language_dialog;          ///< while Settings > Language is open
+            std::unique_ptr<ConfirmDialog>           quit_dialog;              ///< File > Quit while a track plays
+            bool                                     quit_confirmed = false;   ///< the program ends
+            SdlWindow                               *dialog_window  = nullptr; ///< the window the dialog lies over
             std::unique_ptr<PlaylistView>            playlist_view;
             std::unique_ptr<MixerView>               mixer_view;
             std::vector<std::unique_ptr<SdlWindow>>  windows;

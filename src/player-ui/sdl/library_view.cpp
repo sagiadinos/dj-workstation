@@ -40,6 +40,7 @@ namespace djw::player_ui::sdl
             constexpr int fullscreen             = 20;
             constexpr int devices                = 21;
             constexpr int language               = 22;
+            constexpr int quit                   = 23;
         } // namespace menu_id
 
         constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
@@ -568,10 +569,13 @@ namespace djw::player_ui::sdl
         const bool has_mode      = mode_chosen && mode_shown;
 
         std::vector<Menu> menus;
-        menus.push_back({tr("menu.database"),
-                         {{.id = menu_id::add_folder, .label = tr("menu.database.add_folder")},
-                          {.id = menu_id::rescan, .label = tr("menu.database.rescan")},
-                          {.id = menu_id::analyze_all, .label = tr("menu.database.analyze_all")}}});
+        // Quit shows no key: Alt+F4 and Cmd+Q do nothing while a track plays, the entry asks instead
+        menus.push_back(
+            {tr("menu.file"),
+             {{.id = menu_id::add_folder, .label = tr("menu.database.add_folder")},
+              {.id = menu_id::rescan, .label = tr("menu.database.rescan")},
+              {.id = menu_id::analyze_all, .label = tr("menu.database.analyze_all")},
+              {.id = menu_id::quit, .label = tr("menu.file.quit"), .enabled = static_cast<bool>(quit_requested)}}});
         menus.push_back(
             {tr("menu.playlist"),
              {{.id = menu_id::playlist_new, .label = tr("menu.playlist.new"), .enabled = has_playlists},
@@ -669,6 +673,12 @@ namespace djw::player_ui::sdl
                 if (devices_dialog)
                 {
                     devices_dialog();
+                }
+                break;
+            case menu_id::quit:
+                if (quit_requested)
+                {
+                    quit_requested();
                 }
                 break;
             case menu_id::language:

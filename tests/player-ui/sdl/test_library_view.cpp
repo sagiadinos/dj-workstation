@@ -476,19 +476,37 @@ namespace
     }
 } // namespace
 
-TEST_CASE("LibraryView: the menu bar sits on top with Database, Playlist, Settings, View and Layout")
+TEST_CASE("LibraryView: the menu bar sits on top with File, Playlist, Settings, View and Layout")
 {
     Fixture fixture;
     CHECK(fixture.view.menuBar().bounds().y == 0.0F);
     CHECK(fixture.view.searchField().bounds().y >= MenuBar::bar_height);
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
-    CHECK(canvas.drew("Database"));
+    CHECK(canvas.drew("File"));
     CHECK(canvas.drew("Playlist"));
     CHECK(canvas.drew("Settings"));
     CHECK_FALSE(canvas.drew("Language")); // under Settings
     CHECK(canvas.drew("View"));
     CHECK(canvas.drew("Layout"));
+}
+
+TEST_CASE("LibraryView: File > Quit is off without an owner, with one it asks the owner, with no key shown")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 0, 3);
+    CHECK(fixture.view.menuBar().isOpen()); // off
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Quit"));
+    CHECK_FALSE(canvas.drew("Alt+F4"));
+    fixture.view.keyboard(EditKey::Escape);
+
+    int quits = 0;
+    fixture.view.setOnQuit([&quits] { ++quits; });
+    fixture.view.update();
+    chooseEntry(fixture, 0, 3);
+    CHECK(quits == 1);
 }
 
 TEST_CASE("LibraryView: Add music folder asks for a folder and adds it to the library")
@@ -624,7 +642,7 @@ TEST_CASE("LibraryView: all texts follow the language at once")
     fixture.view.update();
     RecordingCanvas german;
     fixture.view.draw(german);
-    CHECK(german.drew("Datenbank"));
+    CHECK(german.drew("Datei"));
     CHECK(german.drew("Interpret"));
     CHECK(german.drew("Suche"));
 }
