@@ -45,11 +45,54 @@ namespace djw::player_ui::sdl
         refreshBounds();
     }
 
+    std::vector<float> MenuBar::titleWidths() const
+    {
+        std::vector<float> widths;
+        widths.reserve(menus.size());
+        float total = 0.0F;
+        for (std::size_t menu = 0; menu < menus.size(); ++menu)
+        {
+            const float text = menu < measured.size() ? measured[menu] : 0.0F;
+            widths.push_back(std::max(min_title_width, text + (2 * padding)));
+            total += widths.back();
+        }
+        if (total <= bar.width || widths.empty())
+        {
+            return widths;
+        }
+        // Too wide together: the widest titles are cut to one width, so the short ones stay whole
+        std::vector<float> sorted = widths;
+        std::ranges::sort(sorted);
+        float       room = std::max(0.0F, bar.width);
+        float       cap  = 0.0F;
+        std::size_t left = sorted.size();
+        for (const float width : sorted)
+        {
+            cap = room / static_cast<float>(left);
+            if (width > cap)
+            {
+                break;
+            }
+            room -= width;
+            --left;
+        }
+        std::ranges::for_each(widths, [cap](float &width) { width = std::min(width, cap); });
+        return widths;
+    }
+
     Rect MenuBar::titleArea(std::size_t menu) const
     {
-        const float count = static_cast<float>(std::max<std::size_t>(menus.size(), 1));
-        const float width = std::min(title_width, bar.width / count);
-        const float step  = static_cast<float>(menu) * width;
+        const std::vector<float> widths = titleWidths();
+        if (menu >= widths.size())
+        {
+            return {};
+        }
+        float step = 0.0F;
+        for (std::size_t before = 0; before < menu; ++before)
+        {
+            step += widths[before];
+        }
+        const float width = widths[menu];
         const float x     = rtl ? bar.x + bar.width - step - width : bar.x + step;
         return {x, bar.y, width, bar.height};
     }
@@ -144,6 +187,11 @@ namespace djw::player_ui::sdl
         canvas.fillRoundedRect(bar, 0.0F, look::colors().menu_bar_top, look::colors().menu_bar_bottom);
         canvas.fillRect({bar.x, bar.y + bar.height - 1.0F, bar.width, 1.0F}, look::colors().separator);
         const float text_y = (bar.height - canvas.textHeight()) / 2;
+        measured.clear();
+        for (const Menu &menu : menus)
+        {
+            measured.push_back(canvas.textWidth(menu.title));
+        }
         for (std::size_t menu = 0; menu < menus.size(); ++menu)
         {
             const Rect title = titleArea(menu);

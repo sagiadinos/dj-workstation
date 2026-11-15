@@ -41,6 +41,10 @@ namespace djw::player_ui::sdl
      * stays open if its position still exists. While a menu is open the widget covers the whole window, so a touch
      * anywhere else only closes the menu and does not reach what lies below.
      *
+     * A title is as wide as its text plus a margin, at least min_title_width so a finger finds it; the widths are
+     * measured when the bar is drawn, until then every title has the least width. Titles that would not fit the bar
+     * together are cut, the widest first, so the short ones stay whole.
+     *
      * An entry that is on shows a check mark at its start; every entry leaves room for it, so the labels line up.
      *
      * In right-to-left layout the titles start at the right edge and a drop-down is aligned to the right edge of its
@@ -49,10 +53,10 @@ namespace djw::player_ui::sdl
     class MenuBar final : public Widget
     {
         public:
-            static constexpr float bar_height     = 40.0F;
-            static constexpr float title_width    = 150.0F;
-            static constexpr float item_height    = 44.0F;
-            static constexpr float dropdown_width = 340.0F;
+            static constexpr float bar_height      = 40.0F;
+            static constexpr float min_title_width = 64.0F;
+            static constexpr float item_height     = 44.0F;
+            static constexpr float dropdown_width  = 340.0F;
 
             void setMenus(std::vector<Menu> new_menus);
             void setRightToLeft(bool right_to_left) noexcept { rtl = right_to_left; }
@@ -96,8 +100,12 @@ namespace djw::player_ui::sdl
 
             [[nodiscard]] Target hit(Point position) const;
             void                 refreshBounds();
+            /// The width of every title, measured texts with their margin, fitted into the bar
+            [[nodiscard]] std::vector<float> titleWidths() const;
 
-            std::vector<Menu>          menus;
+            std::vector<Menu> menus;
+            /// The text width of each title as last drawn; the canvas is only known while drawing
+            mutable std::vector<float> measured;
             Rect                       bar;
             Rect                       window;
             bool                       rtl = false;

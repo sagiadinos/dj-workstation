@@ -56,7 +56,32 @@ TEST_CASE("MenuBar: closed it covers only the bar")
     CHECK_FALSE(fixture.bar.isOpen());
     CHECK(fixture.bar.bounds().height == MenuBar::bar_height);
     CHECK(fixture.bar.titleArea(0).x == 0.0F);
-    CHECK(fixture.bar.titleArea(1).x == MenuBar::title_width);
+    CHECK(fixture.bar.titleArea(1).x == MenuBar::min_title_width); // not measured yet
+}
+
+TEST_CASE("MenuBar: a title is as wide as its text with a margin, at least the least width; too wide together the "
+          "widest are cut")
+{
+    MenuBar bar;
+    bar.setMenus({{"Fi", {}}, {"A rather long title", {}}, {"View", {}}});
+    bar.place({0, 0, 600, MenuBar::bar_height}, {0, 0, 600, 400});
+    RecordingCanvas canvas;
+    bar.draw(canvas);
+    const float long_text = canvas.textWidth("A rather long title");
+    CHECK(bar.titleArea(0).width == MenuBar::min_title_width);
+    CHECK(bar.titleArea(1).x == MenuBar::min_title_width);
+    CHECK(bar.titleArea(1).width > long_text);
+    CHECK(bar.titleArea(1).width < long_text + 40.0F);
+    CHECK(bar.titleArea(2).x == bar.titleArea(1).x + bar.titleArea(1).width);
+
+    const float view = bar.titleArea(2).width;
+    bar.place({0, 0, 250, MenuBar::bar_height}, {0, 0, 250, 400});
+    const Rect last = bar.titleArea(2);
+    CHECK(last.x + last.width == doctest::Approx(250.0F));
+    CHECK(bar.titleArea(0).width == MenuBar::min_title_width); // the short ones stay whole
+    CHECK(last.width == view);
+    CHECK(bar.titleArea(1).width == doctest::Approx(250.0F - MenuBar::min_title_width - view));
+    CHECK(bar.titleArea(5).width == 0.0F);
 }
 
 TEST_CASE("MenuBar: tapping a title opens its menu over the whole window, tapping it again closes it")
