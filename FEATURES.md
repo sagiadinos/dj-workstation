@@ -127,7 +127,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Pitch | done | Fader with range ±12 %, display in percent. Formant correction comes later. |
 | Pitch bend | done | +/- buttons for temporary nudging. |
 | Pitch zero | done | Reset fader to 0 with a double tap on the pitch fader. |
-| Keylock (master tempo) | done | Tempo change without pitch change via SoundTouch. |
+| Keylock (master tempo) | done | Tempo change without pitch change. The library is chosen in Settings > Devices (next start): SoundTouch or Signalsmith Stretch, behind one interface (`engine::TimeStretcher`, made by `makeTimeStretcher`). |
 | Seek with audible scrub | done | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
 | Waveform overview | done | Whole track, click/touch to jump. |
 | Scrolling waveform | done | Beat waveforms: the players on crossfader sides A and B in a part of their own (View menu), 6 s of real time around a fixed playhead, the pitch taken into account, in three colours (bass red, mids green, highs blue); lanes horizontal or vertical. Zoom and beatgrid are planned. |
@@ -296,8 +296,7 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Ogg Vorbis | stb_vorbis | Public domain / MIT |
 | Opus | libopusfile | BSD |
 | AAC/M4A (optional) | FFmpeg | LGPL |
-| Keylock/timestretch | SoundTouch | LGPL-2.1 |
-| High-quality timestretch (optional) | Rubber Band | GPL-2+ |
+| Keylock/timestretch | SoundTouch, Signalsmith Stretch (to choose from) | LGPL-2.1 / MIT |
 | BPM/beat detection | SoundTouch BPMDetect, optional aubio | LGPL / GPL-3+ |
 | Database | SQLite (FTS5) | Public domain |
 | Tags | TagLib | LGPL-2.1 / MPL-1.1 |

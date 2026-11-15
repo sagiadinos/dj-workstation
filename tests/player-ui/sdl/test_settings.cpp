@@ -262,11 +262,11 @@ TEST_CASE("DevicesDialog: rows from the top, labels left, lists right, OK and Ca
     dialog.layout({0, 0, 1000, 900});
     dialog.update();
 
-    // Title, three audio rows, two rows of hints, the controllers' heading, four ports, import, message, buttons
+    // Title, four audio rows, two rows of hints, the controllers' heading, four ports, import, message, buttons
     constexpr float padding = 20.0F;
     constexpr float row     = 44.0F;
     constexpr float gap     = 6.0F;
-    constexpr float rows    = 14.0F;
+    constexpr float rows    = 15.0F;
     const Rect      panel   = dialog.panel();
     CHECK(panel.height == doctest::Approx((2 * padding) + (rows * row) + ((rows - 1) * gap)));
     CHECK(dialog.panelHeight() == doctest::Approx(panel.height));
@@ -283,8 +283,10 @@ TEST_CASE("DevicesDialog: rows from the top, labels left, lists right, OK and Ca
     CHECK(dialog.outputList().bounds().y == doctest::Approx(top + row + gap));
     CHECK(dialog.channelList().bounds().y == doctest::Approx(top + (2 * (row + gap))));
     CHECK(dialog.latencyList().bounds().y == doctest::Approx(top + (3 * (row + gap))));
+    CHECK(dialog.keylockList().bounds().y == doctest::Approx(top + (4 * (row + gap))));
+    CHECK(dialog.keylockList().bounds().x == doctest::Approx(inner_x + label));
     // After the two rows of hints and the heading: the ports, then the import button
-    const float ports_top = top + (4 * (row + gap)) + (2 * row) + gap + row + gap;
+    const float ports_top = top + (5 * (row + gap)) + (2 * row) + gap + row + gap;
     CHECK(dialog.mappingList(0).bounds().y == doctest::Approx(ports_top));
     CHECK(dialog.mappingList(3).bounds().y == doctest::Approx(ports_top + (3 * (row + gap))));
     CHECK(dialog.mappingList(3).bounds().x == doctest::Approx(inner_x + label));
@@ -363,4 +365,61 @@ TEST_CASE("DevicesDialog: Automatic adds no empty output; Escape closes an open 
     // A sample rate of 0 counts as 1, so the milliseconds stay finite
     DevicesDialog no_rate{translator, Settings{}, 0};
     CHECK(no_rate.latencyText(0) == "Shortest (128000.0 ms)");
+}
+
+TEST_CASE("Settings: the keylock library comes back as saved; none or an unknown one means SoundTouch")
+{
+    using djw::core::api::TimeStretch;
+    CHECK(parseSettings(formatSettings(Settings{})).time_stretch == TimeStretch::SoundTouch);
+    CHECK(formatSettings(Settings{}).find("keylock soundtouch\n") != std::string::npos);
+    Settings settings;
+    settings.time_stretch  = TimeStretch::Signalsmith;
+    const std::string text = formatSettings(settings);
+    CHECK(text.find("keylock signalsmith\n") != std::string::npos);
+    CHECK(parseSettings(text) == settings);
+    CHECK(parseSettings("djw-settings 1\nkeylock rubberband\n").time_stretch == TimeStretch::SoundTouch);
+    CHECK(parseSettings("djw-settings 1\nkeylock \n").time_stretch == TimeStretch::SoundTouch);
+}
+
+TEST_CASE("DevicesDialog: the keylock library is chosen from the ones built in, by their own names")
+{
+    using djw::core::api::TimeStretch;
+    Translator          translator;
+    const DeviceChoices choices{.outputs       = {},
+                                .ports         = {},
+                                .mappings      = {},
+                                .port_defaults = {},
+                                .message       = {},
+                                .stretchers    = {TimeStretch::SoundTouch, TimeStretch::Signalsmith}};
+    DevicesDialog       dialog{translator, Settings{.time_stretch = TimeStretch::Signalsmith}, 48'000, choices};
+    PointerRouter       router;
+    dialog.layout({0, 0, 1000, 900});
+    dialog.addTo(router);
+    dialog.update();
+    CHECK(dialog.keylockList().selectedIndex() == 1U);
+    RecordingCanvas canvas;
+    dialog.draw(canvas);
+    CHECK(canvas.drew("Keylock"));
+    CHECK(canvas.drew("Signalsmith Stretch"));
+
+    const auto tap = [&](Point position)
+    {
+        router.handle({{1, 1}, PointerPhase::Down, position});
+        router.handle({{1, 1}, PointerPhase::Up, position});
+        dialog.update();
+    };
+    tap(DialogFixture::middle(dialog.keylockList().bounds()));
+    REQUIRE(dialog.keylockList().isOpen());
+    tap(DialogFixture::middle(dialog.keylockList().itemArea(0)));
+    CHECK(dialog.chosen().time_stretch == TimeStretch::SoundTouch);
+    RecordingCanvas after;
+    dialog.draw(after);
+    CHECK(after.drew("SoundTouch"));
+
+    // A library not built in (a setting from another build): nothing chosen in the list, the setting kept
+    DevicesDialog only_soundtouch{translator, Settings{.time_stretch = TimeStretch::Signalsmith}, 48'000};
+    only_soundtouch.layout({0, 0, 1000, 900});
+    only_soundtouch.update();
+    CHECK_FALSE(only_soundtouch.keylockList().selectedIndex().has_value());
+    CHECK(only_soundtouch.chosen().time_stretch == TimeStretch::Signalsmith);
 }

@@ -32,6 +32,8 @@ namespace djw::core::engine
             std::size_t max_block_frames = 1'024;
             /// Channels of the output, at least 2: master on 1/2, headphones on 3/4 when there are 4 or more
             std::size_t output_channels = 2;
+            /// The keylock library of every deck
+            api::TimeStretch time_stretch = api::TimeStretch::SoundTouch;
     };
 
     /**
@@ -89,7 +91,7 @@ namespace djw::core::engine
         private:
             struct DeckSlot
             {
-                    DeckSlot(api::DeckId id, std::uint32_t sample_rate);
+                    DeckSlot(api::DeckId id, const EngineConfig &config);
 
                     Deck                    deck;
                     MixerChannel            channel;

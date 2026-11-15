@@ -199,8 +199,10 @@ int main(int argc, char *argv[])
         output     = controllers->controllerAudio();
         headphones = true;
     }
-    auto core = api::createCore(
-        {.buffer_frames = settings.buffer_frames, .headphone_output = headphones, .output_device = output});
+    auto core = api::createCore({.buffer_frames    = settings.buffer_frames,
+                                 .headphone_output = headphones,
+                                 .output_device    = output,
+                                 .time_stretch     = settings.time_stretch});
     if (!core)
     {
         std::cerr << "djw: " << core.error() << '\n';

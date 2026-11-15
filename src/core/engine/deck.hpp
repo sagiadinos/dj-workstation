@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -38,9 +39,10 @@ namespace djw::core::engine
     class Deck
     {
         public:
-            /// pause_fade_frames: length of the fade-out on pause, 0 stops at once. Allocates (the keylock buffers):
-            /// create it outside the audio thread.
-            Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate = 48'000);
+            /// pause_fade_frames: length of the fade-out on pause, 0 stops at once. time_stretch: the keylock library.
+            /// Allocates (the keylock buffers): create it outside the audio thread.
+            Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate = 48'000,
+                 api::TimeStretch time_stretch = api::TimeStretch::SoundTouch);
 
             /// Length of the piece a scrub plays over and over, in seconds
             static constexpr double scrub_loop_seconds = api::scrub_loop_seconds;
@@ -143,22 +145,22 @@ namespace djw::core::engine
             /// Multiplies output with the pause fade from fade_remaining on
             void applyFadeOut(std::span<float> output) const noexcept; // [audio-thread]
 
-            api::DeckId   deck_id;
-            AudioSource  *source = nullptr;
-            Resampler     resampler;
-            TimeStretcher stretcher;
-            bool          keylock_on = false;
-            std::size_t   pause_fade_frames;
-            std::size_t   fade_remaining = 0;
-            State         state          = State::Stopped;
-            std::uint64_t cue_frame      = 0;
-            std::uint32_t cue_sets       = 0;
-            bool          cue_preview    = false; ///< playing only while CUE is held
-            bool          return_to_cue  = false; ///< jump to the cue point when the fade has ended
-            float         pitch_percent  = 0.0F;
-            int           bend_direction = 0;
-            std::size_t   scrub_loop_frames;
-            std::size_t   scrub_ramp_frames;
+            api::DeckId                    deck_id;
+            AudioSource                   *source = nullptr;
+            Resampler                      resampler;
+            std::unique_ptr<TimeStretcher> stretcher;
+            bool                           keylock_on = false;
+            std::size_t                    pause_fade_frames;
+            std::size_t                    fade_remaining = 0;
+            State                          state          = State::Stopped;
+            std::uint64_t                  cue_frame      = 0;
+            std::uint32_t                  cue_sets       = 0;
+            bool                           cue_preview    = false; ///< playing only while CUE is held
+            bool                           return_to_cue  = false; ///< jump to the cue point when the fade has ended
+            float                          pitch_percent  = 0.0F;
+            int                            bend_direction = 0;
+            std::size_t                    scrub_loop_frames;
+            std::size_t                    scrub_ramp_frames;
             std::uint64_t scrub_target     = 0;     ///< where the loop lies, and where the deck goes on afterwards
             std::size_t   scrub_offset     = 0;     ///< frames of the loop played so far
             bool          scrub_moved      = false; ///< the loop must start over at scrub_target

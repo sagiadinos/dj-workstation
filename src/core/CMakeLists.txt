@@ -7,6 +7,11 @@
 include(DjwMiniaudio)
 include(DjwSqlite)
 include(DjwSoundTouch)
+# The other keylock libraries to choose from; SoundTouch is always there
+option(DJW_WITH_SIGNALSMITH_STRETCH "Build the Signalsmith Stretch time stretcher in" ON)
+if(DJW_WITH_SIGNALSMITH_STRETCH)
+    include(DjwSignalsmithStretch)
+endif()
 include(DjwQmDsp)
 include(DjwRtMidi)
 include(DjwToml)

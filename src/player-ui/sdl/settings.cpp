@@ -17,6 +17,19 @@ namespace djw::player_ui::sdl
         constexpr std::string_view channels_label   = "output-channels ";
         constexpr std::string_view controller_label = "controller ";
         constexpr std::string_view language_label   = "language ";
+        constexpr std::string_view keylock_label    = "keylock ";
+
+        std::string_view keylockWord(core::api::TimeStretch library)
+        {
+            switch (library)
+            {
+                case core::api::TimeStretch::Signalsmith:
+                    return "signalsmith";
+                case core::api::TimeStretch::SoundTouch:
+                    break;
+            }
+            return "soundtouch";
+        }
         /// Between a port and its mapping on a controller line: names may hold spaces, never a tab
         constexpr char separator = '\t';
 
@@ -36,6 +49,7 @@ namespace djw::player_ui::sdl
             out << device_label << settings.output_device << '\n';
         }
         out << channels_label << (settings.headphone_output ? 4 : 2) << '\n';
+        out << keylock_label << keylockWord(settings.time_stretch) << '\n';
         if (settings.language)
         {
             out << language_label << languageCode(*settings.language) << '\n';
@@ -69,6 +83,18 @@ namespace djw::player_ui::sdl
             if (line.starts_with(channels_label))
             {
                 settings.headphone_output = line.substr(channels_label.size()) == "4";
+                continue;
+            }
+            if (line.starts_with(keylock_label))
+            {
+                const std::string_view word = std::string_view{line}.substr(keylock_label.size());
+                for (const auto library : {core::api::TimeStretch::SoundTouch, core::api::TimeStretch::Signalsmith})
+                {
+                    if (word == keylockWord(library))
+                    {
+                        settings.time_stretch = library;
+                    }
+                }
                 continue;
             }
             if (line.starts_with(language_label))

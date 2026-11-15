@@ -9,8 +9,8 @@
 
 namespace djw::core::engine
 {
-    Deck::Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate)
-        : deck_id{id}, stretcher{sample_rate}, pause_fade_frames{pause_fade_frames},
+    Deck::Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate, api::TimeStretch time_stretch)
+        : deck_id{id}, stretcher{makeTimeStretcher(time_stretch, sample_rate)}, pause_fade_frames{pause_fade_frames},
           scrub_loop_frames{static_cast<std::size_t>(scrub_loop_seconds * sample_rate)},
           scrub_ramp_frames{std::max<std::size_t>(1, static_cast<std::size_t>(scrub_ramp_seconds * sample_rate))},
           scratch_follow{1.0 - std::exp(-1.0 / (scratch_follow_seconds * sample_rate))},
@@ -34,7 +34,7 @@ namespace djw::core::engine
         cue_preview    = false;
         return_to_cue  = false;
         resampler.reset(0);
-        stretcher.reset(0);
+        stretcher->reset(0);
         if (source != nullptr)
         {
             // The track says where to start: the first sound or the cue point stored for it; this is the cue point
@@ -58,24 +58,24 @@ namespace djw::core::engine
         {
             return scratch_position;
         }
-        return keylock_on ? stretcher.position() : resampler.position();
+        return keylock_on ? stretcher->position() : resampler.position();
     }
 
     void Deck::restartAt(std::uint64_t frame) noexcept
     {
         source->seek(frame);
         resampler.reset(frame);
-        stretcher.reset(frame);
+        stretcher->reset(frame);
     }
 
     std::size_t Deck::produce(std::span<float> output) noexcept
     {
-        return keylock_on ? stretcher.process(*source, speed(), output) : resampler.process(*source, speed(), output);
+        return keylock_on ? stretcher->process(*source, speed(), output) : resampler.process(*source, speed(), output);
     }
 
     bool Deck::drained() const noexcept
     {
-        return keylock_on ? stretcher.drained() : resampler.drained();
+        return keylock_on ? stretcher->drained() : resampler.drained();
     }
 
     std::uint64_t Deck::lengthFrames() const noexcept

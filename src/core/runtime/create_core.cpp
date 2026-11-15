@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Niko Sagiadinos
 
 #include "api/core.hpp"
+#include "engine/time_stretcher.hpp"
 #include "audio_io/miniaudio_device.hpp"
 #include "runtime/runtime_core.hpp"
 
@@ -21,6 +22,11 @@ namespace djw::core::api
             return std::unexpected{device.error()};
         }
         return std::make_unique<runtime::RuntimeCore>(config, std::move(*device));
+    }
+
+    std::vector<TimeStretch> timeStretchers()
+    {
+        return engine::builtTimeStretchers();
     }
 
     std::vector<std::string> outputDevices()

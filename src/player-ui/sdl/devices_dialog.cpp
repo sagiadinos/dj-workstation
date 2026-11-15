@@ -22,6 +22,19 @@ namespace djw::player_ui::sdl
         constexpr float button_w    = 140.0F;
         constexpr float label_share = 0.3F; ///< of the inner width, the labels in front of the lists
 
+        /// The names of the keylock libraries: their own names, not translated
+        std::string_view keylockName(core::api::TimeStretch library)
+        {
+            switch (library)
+            {
+                case core::api::TimeStretch::Signalsmith:
+                    return "Signalsmith Stretch";
+                case core::api::TimeStretch::SoundTouch:
+                    break;
+            }
+            return "SoundTouch";
+        }
+
         constexpr std::array<std::string_view, latency_choices.size()> latency_keys{
             "dialog.devices.latency_shortest", "dialog.devices.latency_short", "dialog.devices.latency_normal",
             "dialog.devices.latency_safe"};
@@ -61,10 +74,10 @@ namespace djw::player_ui::sdl
 
     float DevicesDialog::panelHeight() const noexcept
     {
-        // Title, output, channels, latency, two lines of hint, the controllers' heading and lines, the import button,
-        // the message, the buttons
+        // Title, output, channels, latency, keylock, two lines of hint, the controllers' heading and lines, the import
+        // button, the message, the buttons
         const auto  ports = static_cast<float>(std::max<std::size_t>(choices.ports.size(), 1));
-        const float rows  = 4.0F + 2.0F + 1.0F + ports + 1.0F + 1.0F + 1.0F;
+        const float rows  = 5.0F + 2.0F + 1.0F + ports + 1.0F + 1.0F + 1.0F;
         return (2 * padding) + (rows * row_height) + ((rows - 1) * row_gap);
     }
 
@@ -97,7 +110,7 @@ namespace djw::player_ui::sdl
         title_area = {inner.x, next(), inner.width, row_height};
         // Audio: a label, the list after it
         for (auto [label_area, list] : {std::pair{&output_label, &output}, std::pair{&channels_label, &channels},
-                                        std::pair{&latency_label, &latency}})
+                                        std::pair{&latency_label, &latency}, std::pair{&keylock_label, &keylock}})
         {
             const float at = next();
             *label_area    = {inner.x, at, label, row_height};
@@ -130,6 +143,7 @@ namespace djw::player_ui::sdl
         {
             router.add(*list);
         }
+        router.add(keylock);
         router.add(latency);
         router.add(channels);
         router.add(output);
@@ -148,6 +162,10 @@ namespace djw::player_ui::sdl
         if (const auto picked = latency.takeChosen())
         {
             settings.buffer_frames = latency_choices.at(*picked);
+        }
+        if (const auto picked = keylock.takeChosen(); picked && *picked < choices.stretchers.size())
+        {
+            settings.time_stretch = choices.stretchers.at(*picked);
         }
         for (std::size_t port = 0; port < mapping_lists.size(); ++port)
         {
@@ -190,6 +208,18 @@ namespace djw::player_ui::sdl
                                 ? std::optional{static_cast<std::size_t>(shown_latency - latency_choices.begin())}
                                 : std::nullopt);
 
+        std::vector<std::string> stretchers;
+        stretchers.reserve(choices.stretchers.size());
+        for (const core::api::TimeStretch library : choices.stretchers)
+        {
+            stretchers.emplace_back(keylockName(library));
+        }
+        keylock.setItems(std::move(stretchers));
+        const auto shown_keylock = std::ranges::find(choices.stretchers, settings.time_stretch);
+        keylock.setSelected(shown_keylock != choices.stretchers.end()
+                                ? std::optional{static_cast<std::size_t>(shown_keylock - choices.stretchers.begin())}
+                                : std::nullopt);
+
         for (std::size_t port = 0; port < mapping_lists.size(); ++port)
         {
             std::vector<std::string> names{translator->tr("dialog.devices.no_mapping")};
@@ -226,7 +256,7 @@ namespace djw::player_ui::sdl
         if (*key == EditKey::Escape)
         {
             bool closed = false;
-            for (DropDown *list : {&output, &channels, &latency})
+            for (DropDown *list : {&output, &channels, &latency, &keylock})
             {
                 closed = closed || list->isOpen();
                 list->close();
@@ -258,6 +288,7 @@ namespace djw::player_ui::sdl
         text(output_label, translator->tr("dialog.devices.output"), look::text);
         text(channels_label, translator->tr("dialog.devices.channels"), look::text);
         text(latency_label, translator->tr("dialog.devices.latency"), look::text);
+        text(keylock_label, translator->tr("dialog.devices.keylock"), look::text);
         text(hint_area, translator->tr("dialog.devices.latency_hint"), look::text_dim);
         text({hint_area.x, hint_area.y + row_height, hint_area.width, row_height},
              translator->tr("dialog.devices.next_start"), look::text_dim);
@@ -280,6 +311,7 @@ namespace djw::player_ui::sdl
         {
             list->draw(canvas);
         }
+        keylock.draw(canvas);
         latency.draw(canvas);
         channels.draw(canvas);
         output.draw(canvas);

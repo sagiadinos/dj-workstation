@@ -13,8 +13,10 @@
 
 #include <cmath>
 #include <numbers>
+#include <string>
 #include <vector>
 
+using djw::core::api::TimeStretch;
 using djw::core::engine::TimeStretcher;
 using djw::tests::AllocationCounter;
 using djw::tests::BufferSource;
@@ -23,6 +25,23 @@ using djw::tests::SineSource;
 namespace
 {
     constexpr std::uint32_t sample_rate = 48'000;
+
+    const char *nameOf(TimeStretch library)
+    {
+        switch (library)
+        {
+            case TimeStretch::SoundTouch:
+                return "SoundTouch";
+            case TimeStretch::Signalsmith:
+                return "Signalsmith Stretch";
+        }
+        return "?";
+    }
+
+    std::unique_ptr<TimeStretcher> make(TimeStretch library)
+    {
+        return djw::core::engine::makeTimeStretcher(library, sample_rate);
+    }
 
     double frequencyOf(const std::vector<float> &stereo)
     {
@@ -35,10 +54,11 @@ namespace
     }
 
     /// Renders frames of a 440 Hz sine through the stretcher in blocks and returns the part after the start-up
-    std::vector<float> stretchedSine(double tempo, std::size_t frames)
+    std::vector<float> stretchedSine(TimeStretch library, double tempo, std::size_t frames)
     {
         SineSource         source{440.0, sample_rate, 0.5F};
-        TimeStretcher      stretcher{sample_rate};
+        auto               owned     = make(library);
+        TimeStretcher     &stretcher = *owned;
         std::vector<float> all;
         std::vector<float> block(480 * 2);
         while (all.size() < frames * 2)
@@ -64,152 +84,223 @@ namespace
     }
 } // namespace
 
-TEST_CASE("TimeStretcher: at tempo 1.0 the sine keeps its pitch and level")
+TEST_CASE("TimeStretcher (each library): at tempo 1.0 the sine keeps its pitch and level")
 {
-    const auto output = stretchedSine(1.0, 48'000);
-    CHECK(frequencyOf(output) == doctest::Approx(440.0).epsilon(0.01));
-    CHECK(rms(output) == doctest::Approx(0.5 / std::numbers::sqrt2).epsilon(0.05));
-}
-
-TEST_CASE("TimeStretcher: a faster tempo keeps the pitch")
-{
-    for (const double tempo : {1.08, 1.16, 1.25})
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
     {
-        CAPTURE(tempo);
-        const auto output = stretchedSine(tempo, 48'000);
-        CHECK(frequencyOf(output) == doctest::Approx(440.0).epsilon(0.02));
-        CHECK(rms(output) == doctest::Approx(0.5 / std::numbers::sqrt2).epsilon(0.1));
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        const auto output = stretchedSine(library, 1.0, 48'000);
+        CHECK(frequencyOf(output) == doctest::Approx(440.0).epsilon(0.01));
+        CHECK(rms(output) == doctest::Approx(0.5 / std::numbers::sqrt2).epsilon(0.05));
     }
 }
 
-TEST_CASE("TimeStretcher: a slower tempo keeps the pitch")
+TEST_CASE("TimeStretcher (each library): a faster tempo keeps the pitch")
 {
-    for (const double tempo : {0.8, 0.9, 0.95})
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
     {
-        CAPTURE(tempo);
-        const auto output = stretchedSine(tempo, 48'000);
-        CHECK(frequencyOf(output) == doctest::Approx(440.0).epsilon(0.02));
-        CHECK(rms(output) == doctest::Approx(0.5 / std::numbers::sqrt2).epsilon(0.1));
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        for (const double tempo : {1.08, 1.16, 1.25})
+        {
+            CAPTURE(tempo);
+            const auto output = stretchedSine(library, tempo, 48'000);
+            CHECK(frequencyOf(output) == doctest::Approx(440.0).epsilon(0.02));
+            CHECK(rms(output) == doctest::Approx(0.5 / std::numbers::sqrt2).epsilon(0.1));
+        }
     }
 }
 
-TEST_CASE("TimeStretcher: the position moves at the tempo")
+TEST_CASE("TimeStretcher (each library): a slower tempo keeps the pitch")
 {
-    SineSource         source{440.0, sample_rate, 0.5F};
-    TimeStretcher      stretcher{sample_rate};
-    std::vector<float> block(480 * 2);
-    stretcher.reset(10'000);
-    CHECK(stretcher.position() == 10'000);
-
-    for (int i = 0; i < 100; ++i) // 1 s of output
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
     {
-        REQUIRE(stretcher.process(source, 1.25, block) == 480);
-    }
-    // 1 s at tempo 1.25 is 1.25 s of the track, less what SoundTouch holds back (a few 10 ms)
-    const double moved = stretcher.position() - 10'000;
-    CHECK(moved > 1.25 * sample_rate - 3'000);
-    CHECK(moved < 1.25 * sample_rate + 500);
-}
-
-TEST_CASE("TimeStretcher: reset moves the position and forgets what was held")
-{
-    SineSource         source{440.0, sample_rate, 0.5F};
-    TimeStretcher      stretcher{sample_rate};
-    std::vector<float> block(480 * 2);
-    for (int i = 0; i < 20; ++i)
-    {
-        static_cast<void>(stretcher.process(source, 1.1, block));
-    }
-    stretcher.reset(123'456);
-    CHECK(stretcher.position() == 123'456);
-    CHECK_FALSE(stretcher.drained());
-
-    // After the reset only the new source is heard: here silence, nothing of the sine held before
-    djw::tests::BufferSource silence{std::vector<float>(48'000 * 2, 0.0F)};
-    for (int i = 0; i < 20; ++i)
-    {
-        static_cast<void>(stretcher.process(silence, 1.1, block));
-        REQUIRE(std::ranges::all_of(block, [](float sample) { return sample == 0.0F; }));
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        for (const double tempo : {0.8, 0.9, 0.95})
+        {
+            CAPTURE(tempo);
+            const auto output = stretchedSine(library, tempo, 48'000);
+            CHECK(frequencyOf(output) == doctest::Approx(440.0).epsilon(0.02));
+            CHECK(rms(output) == doctest::Approx(0.5 / std::numbers::sqrt2).epsilon(0.1));
+        }
     }
 }
 
-TEST_CASE("TimeStretcher: plays a track to its end and then is drained, about length / tempo long")
+TEST_CASE("TimeStretcher (each library): the position moves at the tempo")
 {
-    constexpr std::size_t length = 48'000;
-    BufferSource          source{sineBuffer(length)};
-    TimeStretcher         stretcher{sample_rate};
-    std::vector<float>    block(480 * 2);
-
-    std::size_t total = 0;
-    for (int i = 0; i < 1'000 && !stretcher.drained(); ++i)
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
     {
-        total += stretcher.process(source, 1.25, block);
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        SineSource         source{440.0, sample_rate, 0.5F};
+        auto               owned     = make(library);
+        TimeStretcher     &stretcher = *owned;
+        std::vector<float> block(480 * 2);
+        stretcher.reset(10'000);
+        CHECK(stretcher.position() == 10'000);
+
+        for (int i = 0; i < 100; ++i) // 1 s of output
+        {
+            REQUIRE(stretcher.process(source, 1.25, block) == 480);
+        }
+        // 1 s at tempo 1.25 is 1.25 s of the track, less what SoundTouch holds back (a few 10 ms)
+        const double moved = stretcher.position() - 10'000;
+        CHECK(moved > 1.25 * sample_rate - 3'000);
+        CHECK(moved < 1.25 * sample_rate + 500);
     }
-    CHECK(stretcher.drained());
-    const double expected = length / 1.25;
-    CHECK(static_cast<double>(total) > expected - 3'000);
-    CHECK(static_cast<double>(total) < expected + 3'000);
 }
 
-TEST_CASE("TimeStretcher: the position counts what is still held back at the tempo, so it ends at the length")
+TEST_CASE("TimeStretcher (each library): reset moves the position and forgets what was held")
 {
-    constexpr std::size_t length = 96'000;
-    constexpr double      tempo  = 1.25;
-    BufferSource          source{sineBuffer(length)};
-    TimeStretcher         stretcher{sample_rate};
-    std::vector<float>    block(480 * 2);
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
+    {
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        SineSource         source{440.0, sample_rate, 0.5F};
+        auto               owned     = make(library);
+        TimeStretcher     &stretcher = *owned;
+        std::vector<float> block(480 * 2);
+        for (int i = 0; i < 20; ++i)
+        {
+            static_cast<void>(stretcher.process(source, 1.1, block));
+        }
+        stretcher.reset(123'456);
+        CHECK(stretcher.position() == 123'456);
+        CHECK_FALSE(stretcher.drained());
 
-    // Half way: the position plus what is still to be played (at the tempo) is the length
-    std::size_t played = 0;
-    while (played < 30'000)
-    {
-        played += stretcher.process(source, tempo, block);
+        // After the reset only the new source is heard: here silence, nothing of the sine held before
+        djw::tests::BufferSource silence{std::vector<float>(48'000 * 2, 0.0F)};
+        for (int i = 0; i < 20; ++i)
+        {
+            static_cast<void>(stretcher.process(silence, 1.1, block));
+            REQUIRE(std::ranges::all_of(block, [](float sample) { return sample == 0.0F; }));
+        }
     }
-    const double half_way = stretcher.position();
-    std::size_t  rest     = 0;
-    for (int i = 0; i < 1'000 && !stretcher.drained(); ++i)
-    {
-        rest += stretcher.process(source, tempo, block);
-    }
-    REQUIRE(stretcher.drained());
-    CHECK(half_way + (static_cast<double>(rest) * tempo) == doctest::Approx(length).epsilon(0.005));
-    CHECK(stretcher.position() == doctest::Approx(length).epsilon(0.001));
 }
 
-TEST_CASE("TimeStretcher: a source that has nothing yet gives fewer frames, not an error")
+TEST_CASE("TimeStretcher (each library): plays a track to its end and then is drained, about length / tempo long")
 {
-    class EmptySource final : public djw::core::engine::AudioSource
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
     {
-        public:
-            std::size_t   read(std::span<float>) noexcept override { return 0; }
-            void          seek(std::uint64_t) noexcept override {}
-            std::uint64_t lengthFrames() const noexcept override { return 1'000'000; }
-            bool          atEnd() const noexcept override { return false; }
-    };
-    EmptySource        source;
-    TimeStretcher      stretcher{sample_rate};
-    std::vector<float> block(480 * 2);
-    CHECK(stretcher.process(source, 1.0, block) == 0);
-    CHECK_FALSE(stretcher.drained());
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        constexpr std::size_t length = 48'000;
+        BufferSource          source{sineBuffer(length)};
+        auto                  owned     = make(library);
+        TimeStretcher        &stretcher = *owned;
+        std::vector<float>    block(480 * 2);
+
+        std::size_t total = 0;
+        for (int i = 0; i < 1'000 && !stretcher.drained(); ++i)
+        {
+            total += stretcher.process(source, 1.25, block);
+        }
+        CHECK(stretcher.drained());
+        const double expected = length / 1.25;
+        CHECK(static_cast<double>(total) > expected - 3'000);
+        CHECK(static_cast<double>(total) < expected + 3'000);
+    }
 }
 
-TEST_CASE("TimeStretcher: process does not allocate or free memory, also while the tempo changes")
+TEST_CASE(
+    "TimeStretcher (each library): the position counts what is still held back at the tempo, so it ends at the length")
 {
-    SineSource         source{440.0, sample_rate, 0.5F};
-    TimeStretcher      stretcher{sample_rate};
-    std::vector<float> block(1'024 * 2);
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
+    {
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        constexpr std::size_t length = 96'000;
+        constexpr double      tempo  = 1.25;
+        BufferSource          source{sineBuffer(length)};
+        auto                  owned     = make(library);
+        TimeStretcher        &stretcher = *owned;
+        std::vector<float>    block(480 * 2);
 
-    const AllocationCounter counter;
-    for (int i = 0; i < 400; ++i)
-    {
-        const double tempo = 0.82 + (0.4 * (i % 50) / 50.0); // the pitch range and the bend buttons
-        static_cast<void>(stretcher.process(source, tempo, block));
+        // Half way: the position plus what is still to be played (at the tempo) is the length
+        std::size_t played = 0;
+        while (played < 30'000)
+        {
+            played += stretcher.process(source, tempo, block);
+        }
+        const double half_way = stretcher.position();
+        std::size_t  rest     = 0;
+        for (int i = 0; i < 1'000 && !stretcher.drained(); ++i)
+        {
+            rest += stretcher.process(source, tempo, block);
+        }
+        REQUIRE(stretcher.drained());
+        CHECK(half_way + (static_cast<double>(rest) * tempo) == doctest::Approx(length).epsilon(0.005));
+        CHECK(stretcher.position() == doctest::Approx(length).epsilon(0.001));
     }
-    stretcher.reset(0);
-    for (int i = 0; i < 50; ++i)
+}
+
+TEST_CASE("TimeStretcher (each library): a source that has nothing yet gives fewer frames, not an error")
+{
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
     {
-        static_cast<void>(stretcher.process(source, 1.0, block));
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        class EmptySource final : public djw::core::engine::AudioSource
+        {
+            public:
+                std::size_t   read(std::span<float>) noexcept override { return 0; }
+                void          seek(std::uint64_t) noexcept override {}
+                std::uint64_t lengthFrames() const noexcept override { return 1'000'000; }
+                bool          atEnd() const noexcept override { return false; }
+        };
+        EmptySource        source;
+        auto               owned     = make(library);
+        TimeStretcher     &stretcher = *owned;
+        std::vector<float> block(480 * 2);
+        CHECK(stretcher.process(source, 1.0, block) == 0);
+        CHECK_FALSE(stretcher.drained());
     }
-    CHECK(counter.allocations() == 0);
-    CHECK(counter.deallocations() == 0);
+}
+
+TEST_CASE("TimeStretcher (each library): process does not allocate or free memory, also while the tempo changes")
+{
+    for (const TimeStretch library : djw::core::engine::builtTimeStretchers())
+    {
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        SineSource         source{440.0, sample_rate, 0.5F};
+        auto               owned     = make(library);
+        TimeStretcher     &stretcher = *owned;
+        std::vector<float> block(1'024 * 2);
+
+        const AllocationCounter counter;
+        for (int i = 0; i < 400; ++i)
+        {
+            const double tempo = 0.82 + (0.4 * (i % 50) / 50.0); // the pitch range and the bend buttons
+            static_cast<void>(stretcher.process(source, tempo, block));
+        }
+        stretcher.reset(0);
+        for (int i = 0; i < 50; ++i)
+        {
+            static_cast<void>(stretcher.process(source, 1.0, block));
+        }
+        CHECK(counter.allocations() == 0);
+        CHECK(counter.deallocations() == 0);
+    }
+}
+
+TEST_CASE("TimeStretcher: the factory knows the libraries built in, SoundTouch first; it falls back to SoundTouch")
+{
+    const auto built = djw::core::engine::builtTimeStretchers();
+    REQUIRE_FALSE(built.empty());
+    CHECK(built.front() == TimeStretch::SoundTouch);
+#ifdef DJW_WITH_SIGNALSMITH_STRETCH
+    CHECK(std::ranges::contains(built, TimeStretch::Signalsmith));
+#else
+    CHECK_FALSE(std::ranges::contains(built, TimeStretch::Signalsmith));
+#endif
+    // Every library gives a stretcher, also one not built in
+    for (const TimeStretch library : {TimeStretch::SoundTouch, TimeStretch::Signalsmith})
+    {
+        const std::string name = nameOf(library);
+        CAPTURE(name);
+        CHECK(make(library) != nullptr);
+    }
 }

@@ -23,6 +23,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.view.one_window", "Mode fenêtre unique"},
             {"dialog.devices.title", "Périphériques"},
             {"dialog.devices.latency", "Latence"},
+            {"dialog.devices.keylock", "Keylock"},
             {"dialog.devices.latency_entry", "{name} ({value} ms)"},
             {"dialog.devices.latency_shortest", "Très courte"},
             {"dialog.devices.latency_short", "Courte"},

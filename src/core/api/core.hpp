@@ -7,6 +7,7 @@
 #include "api/commands.hpp"
 #include "api/deck_id.hpp"
 #include "api/snapshot.hpp"
+#include "api/time_stretch.hpp"
 #include "api/track_peaks.hpp"
 
 #include <cstdint>
@@ -37,6 +38,8 @@ namespace djw::core::api
             /// The audio output: the first whose name contains this (ignoring case); empty, or none matching: the
             /// system's default output
             std::string output_device{};
+            /// The keylock library; one not built in falls back to SoundTouch
+            TimeStretch time_stretch = TimeStretch::SoundTouch;
     };
 
     /// How loadTrack starts the deck
@@ -111,6 +114,9 @@ namespace djw::core::api
             /// The name of the audio output in use; empty if it has none
             [[nodiscard]] virtual std::string outputName() const = 0;
     };
+
+    /// The keylock libraries built into the program, SoundTouch first (it is always there)
+    [[nodiscard]] std::vector<TimeStretch> timeStretchers();
 
     /// The names of the system's audio outputs, for choosing one (CoreConfig::output_device); empty without audio
     [[nodiscard]] std::vector<std::string> outputDevices();

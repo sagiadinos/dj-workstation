@@ -25,9 +25,10 @@ namespace djw::core::engine
         }
     } // namespace
 
-    Engine::DeckSlot::DeckSlot(api::DeckId id, std::uint32_t sample_rate)
-        : deck{id, static_cast<std::size_t>(pause_fade_seconds * sample_rate), sample_rate}, channel{sample_rate},
-          snapshot{api::DeckSnapshot{.deck = id}}
+    Engine::DeckSlot::DeckSlot(api::DeckId id, const EngineConfig &config)
+        : deck{id, static_cast<std::size_t>(pause_fade_seconds * config.sample_rate), config.sample_rate,
+               config.time_stretch},
+          channel{config.sample_rate}, snapshot{api::DeckSnapshot{.deck = id}}
     {
     }
 
@@ -59,7 +60,7 @@ namespace djw::core::engine
     {
         const api::DeckId id{next_deck_id++};
         // mull-ignore-next: cxx_remove_void_call
-        slots.push_back(std::make_unique<DeckSlot>(id, config.sample_rate));
+        slots.push_back(std::make_unique<DeckSlot>(id, config));
         publishDeckList();
         return id;
     }

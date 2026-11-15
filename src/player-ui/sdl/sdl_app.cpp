@@ -1301,7 +1301,12 @@ namespace djw::player_ui::sdl
         const std::ifstream file{settings_file};
         std::ostringstream  text;
         text << file.rdbuf();
-        DeviceChoices choices{.outputs = core::api::outputDevices(), .ports = {}, .mappings = {}, .port_defaults = {}};
+        DeviceChoices choices{.outputs       = core::api::outputDevices(),
+                              .ports         = {},
+                              .mappings      = {},
+                              .port_defaults = {},
+                              .message       = {},
+                              .stretchers    = core::api::timeStretchers()};
         if (controllers)
         {
             choices.ports    = controllers->ports();
