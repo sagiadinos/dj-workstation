@@ -1426,6 +1426,11 @@ namespace
                 connected.push_back(assigned);
                 return {};
             }
+            std::vector<std::string> checkPorts() override
+            {
+                ++port_checks;
+                return {};
+            }
             std::vector<djw::core::api::ControlEvent> poll() override { return std::exchange(events, {}); }
             std::vector<std::string>                  ports() const override { return {"Pad MIDI 1"}; }
             std::vector<std::string>                  mappingNames() const override { return {"Pad mapping"}; }
@@ -1449,6 +1454,7 @@ namespace
 
             std::vector<djw::core::api::ControlEvent> events;
             std::vector<Assignments>                  connected;
+            int                                       port_checks = 0;
     };
 } // namespace
 
@@ -1511,4 +1517,26 @@ TEST_CASE("SdlApp: a Mixxx mapping imported connects the controllers again and t
     app->importMixxxMapping(folder.path() / "notes.txt");
     CHECK(fake.connected.size() == 1); // nothing new to connect
     REQUIRE(app->devicesDialog() != nullptr);
+}
+
+TEST_CASE("SdlApp: about once a second it looks for controllers plugged in or out")
+{
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app   = fixture.openApp(&library);
+    auto                    owned = std::make_unique<FakeControllers>();
+    FakeControllers        &fake  = *owned;
+    app->setControllers(std::move(owned));
+    REQUIRE(app->runFrame());
+    const int first = fake.port_checks;
+    CHECK(first <= 1);
+    // Many frames within a second: no more looks
+    for (int frame = 0; frame < 5; ++frame)
+    {
+        REQUIRE(app->runFrame());
+    }
+    CHECK(fake.port_checks == first);
+    std::this_thread::sleep_for(std::chrono::milliseconds{1'100});
+    REQUIRE(app->runFrame());
+    CHECK(fake.port_checks == first + 1);
 }

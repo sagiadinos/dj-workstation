@@ -386,3 +386,57 @@ TEST_CASE("ControllerHub: the audio port is the one of a connected controller wh
     static_cast<void>(without.connect());
     CHECK(without.controllerAudio().empty());
 }
+
+TEST_CASE("ControllerHub: hotplug opens ports that come and closes ports that go, a replug counts as new")
+{
+    auto state   = std::make_shared<FakeMidiSystem::State>();
+    state->ports = {"Starlight MIDI 1 20:0"};
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state),
+                      {mappingFor("Starlight", "starlight"), mappingFor("Pad", "pad")}};
+    CHECK(hub.connect().empty());
+    REQUIRE(hub.connections().size() == 1);
+    CHECK(hub.checkPorts().empty()); // nothing changed
+    CHECK(hub.connections().size() == 1);
+
+    // A second controller is plugged in
+    state->ports.emplace_back("Pad MIDI 1 24:0");
+    CHECK(hub.checkPorts().empty());
+    REQUIRE(hub.connections().size() == 2);
+    CHECK(hub.connections()[1].port == "Pad MIDI 1");
+    CHECK(state->open.contains("Pad MIDI 1 24:0"));
+
+    // The first one is pulled out: closed, the other one goes on
+    state->ports = {"Pad MIDI 1 24:0"};
+    CHECK(hub.checkPorts().empty());
+    REQUIRE(hub.connections().size() == 1);
+    CHECK(hub.connections()[0].port == "Pad MIDI 1");
+    CHECK_FALSE(state->open.contains("Starlight MIDI 1 20:0"));
+
+    // Plugged in again, ALSA gives it new numbers: open again, and its events come through
+    state->ports.emplace_back("Starlight MIDI 1 28:0");
+    CHECK(hub.checkPorts().empty());
+    REQUIRE(hub.connections().size() == 2);
+    state->open.at("Starlight MIDI 1 28:0")(play);
+    CHECK(hub.poll().size() == 1);
+
+    // Pulled out and in between two checks: the new numbers show it, the dead port is replaced
+    state->ports = {"Pad MIDI 1 24:0", "Starlight MIDI 1 32:0"};
+    CHECK(hub.checkPorts().empty());
+    REQUIRE(hub.connections().size() == 2);
+    CHECK_FALSE(state->open.contains("Starlight MIDI 1 28:0"));
+    CHECK(state->open.contains("Starlight MIDI 1 32:0"));
+}
+
+TEST_CASE("ControllerHub: a port that comes later gets the assignment of the last connect; an error comes once")
+{
+    auto          state = std::make_shared<FakeMidiSystem::State>();
+    ControllerHub hub{std::make_unique<FakeMidiSystem>(state), {mappingFor("Pad", "pad")}};
+    CHECK(hub.connect({{"Pad MIDI 1", ""}}).empty()); // switched off for this port
+    state->ports      = {"Pad MIDI 1 24:0", "Pad MIDI 2 25:0", "Midi Through Port-0"};
+    state->failing    = {"Pad MIDI 2 25:0"};
+    const auto errors = hub.checkPorts();
+    REQUIRE(errors.size() == 1);
+    CHECK(errors[0] == "cannot open Pad MIDI 2 25:0");
+    CHECK(hub.connections().empty()); // the first switched off, the second failed, Midi Through no controller
+    CHECK(hub.checkPorts().empty());  // not tried again each second
+}

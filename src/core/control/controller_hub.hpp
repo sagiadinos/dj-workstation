@@ -50,6 +50,7 @@ namespace djw::core::control
              * exist) are returned; the other ports still work.
              */
             std::vector<std::string> connect(const Assignments &assigned = {}) override;
+            std::vector<std::string> checkPorts() override;
 
             /// The events since the last call, in the order they came
             [[nodiscard]] std::vector<ControlEvent> poll() override;
@@ -72,8 +73,10 @@ namespace djw::core::control
             /// One open port with its controller; it lives where the MIDI thread's callback finds it
             struct Open
             {
-                    std::string               port;
-                    Controller                controller;
+                    std::string port; ///< the stable name
+                    Controller  controller;
+                    /// The full name with ALSA's numbers, which change when the device is plugged in again
+                    std::string               full_name{};
                     std::unique_ptr<MidiPort> input; ///< closed first, then the controller goes
                     /// The controller's output for its lights; nullptr if it has none or no lights are mapped
                     std::unique_ptr<MidiOutput> output{};
@@ -83,13 +86,19 @@ namespace djw::core::control
 
             void received(Open &open, const MidiMessage &message);
             void closeAll();
+            /// Opens a port with the mapping assigned to it or matching it, if there is one
+            void openPort(const std::string &port, std::vector<std::string> &errors);
 
             std::unique_ptr<MidiSystem>        midi;
             std::vector<Mapping>               all;
             std::vector<std::filesystem::path> folders;
             std::vector<std::unique_ptr<Open>> open_ports;
-            mutable std::mutex                 lock;
-            std::vector<ControlEvent>          queued;
+            /// What the last connect() was given, for the ports that come later
+            Assignments assigned_now;
+            /// The ports there were at the last connect() or check, by their full names
+            std::vector<std::string>  known_ports;
+            mutable std::mutex        lock;
+            std::vector<ControlEvent> queued;
     };
 } // namespace djw::core::control
 

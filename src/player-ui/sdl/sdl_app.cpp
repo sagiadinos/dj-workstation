@@ -56,6 +56,8 @@ namespace djw::player_ui::sdl
 
         /// Half the period of a blinking CUE light, in milliseconds
         constexpr std::uint64_t cue_blink_half_period = 250;
+        /// How often a controller plugged in or out while the program runs is looked for, in milliseconds
+        constexpr std::uint64_t hotplug_period = 1000;
 
         constexpr int player_width  = static_cast<int>(DeckView::design_width);
         constexpr int player_height = static_cast<int>(DeckView::design_height);
@@ -1461,6 +1463,15 @@ namespace djw::player_ui::sdl
         }
         if (controllers)
         {
+            // Hotplug: controllers plugged in or out (or a loose cable) are taken up without a restart
+            if (const std::uint64_t now = SDL_GetTicks(); now - last_port_check >= hotplug_period)
+            {
+                last_port_check = now;
+                for (const std::string &error : controllers->checkPorts())
+                {
+                    logError(error);
+                }
+            }
             for (const core::api::ControlEvent &event : controllers->poll())
             {
                 handleControl(event);

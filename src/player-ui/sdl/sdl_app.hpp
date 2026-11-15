@@ -339,15 +339,16 @@ namespace djw::player_ui::sdl
             std::vector<std::unique_ptr<DeckWindow>> decks;
             int                                      deck_counter = 0;
             std::unique_ptr<LibraryView>             library_view;
-            std::unique_ptr<PaneFrame>               library_frame;            ///< MDI mode only
-            std::unique_ptr<DevicesDialog>           devices_dialog;           ///< while Settings > Devices is open
-            std::unique_ptr<LanguageDialog>          language_dialog;          ///< while Settings > Language is open
-            std::unique_ptr<ConfirmDialog>           quit_dialog;              ///< File > Quit while a track plays
-            bool                                     quit_confirmed = false;   ///< the program ends
-            SdlWindow                               *dialog_window  = nullptr; ///< the window the dialog lies over
-            std::unique_ptr<PlaylistView>            playlist_view;
-            std::unique_ptr<MixerView>               mixer_view;
-            std::vector<std::unique_ptr<SdlWindow>>  windows;
+            std::unique_ptr<PaneFrame>               library_frame;          ///< MDI mode only
+            std::unique_ptr<DevicesDialog>           devices_dialog;         ///< while Settings > Devices is open
+            std::unique_ptr<LanguageDialog>          language_dialog;        ///< while Settings > Language is open
+            std::unique_ptr<ConfirmDialog>           quit_dialog;            ///< File > Quit while a track plays
+            bool                                     quit_confirmed = false; ///< the program ends
+            std::uint64_t last_port_check = 0;       ///< SDL ticks of the last look for controllers plugged in or out
+            SdlWindow    *dialog_window   = nullptr; ///< the window the dialog lies over
+            std::unique_ptr<PlaylistView>           playlist_view;
+            std::unique_ptr<MixerView>              mixer_view;
+            std::vector<std::unique_ptr<SdlWindow>> windows;
             /// Window titles are set again when the language changes
             SdlWindow *library_window = nullptr;
             /// MDI mode: the one window with all parts; nullptr in the other mode

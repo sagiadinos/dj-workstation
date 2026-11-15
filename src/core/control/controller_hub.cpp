@@ -210,68 +210,103 @@ namespace djw::core::control
     std::vector<std::string> ControllerHub::connect(const Assignments &assigned)
     {
         closeAll();
+        assigned_now = assigned;
+        known_ports  = midi->ports();
         std::vector<std::string> errors;
-        for (const std::string &port : midi->ports())
+        for (const std::string &port : known_ports)
         {
-            if (isSystemPort(port))
+            if (!isSystemPort(port))
             {
-                continue;
+                openPort(port, errors);
             }
-            const Mapping    *mapping = nullptr;
-            const std::string stable  = stablePortName(port);
-            if (const auto chosen = assigned.find(stable); chosen != assigned.end())
+        }
+        return errors;
+    }
+
+    std::vector<std::string> ControllerHub::checkPorts()
+    {
+        const std::vector<std::string> now = midi->ports();
+        // Gone: the input first, so no callback reaches it any more; its lights cannot be switched off
+        for (auto open = open_ports.begin(); open != open_ports.end();)
+        {
+            if (std::ranges::find(now, (*open)->full_name) == now.end())
             {
-                if (chosen->second.empty())
-                {
-                    continue; // switched off for this port
-                }
-                mapping = mappingNamed(chosen->second);
-                if (mapping == nullptr)
-                {
-                    // mull-ignore-next: cxx_remove_void_call
-                    errors.push_back("no mapping \"" + chosen->second + "\" for MIDI port " + port);
-                    continue;
-                }
+                (*open)->input.reset();
+                open = open_ports.erase(open);
             }
             else
             {
-                mapping = mappingMatching(port);
+                ++open;
             }
+        }
+        std::vector<std::string> errors;
+        for (const std::string &port : now)
+        {
+            if (!isSystemPort(port) && std::ranges::find(known_ports, port) == known_ports.end())
+            {
+                openPort(port, errors);
+            }
+        }
+        known_ports = now;
+        return errors;
+    }
+
+    void ControllerHub::openPort(const std::string &port, std::vector<std::string> &errors)
+    {
+        const Mapping    *mapping = nullptr;
+        const std::string stable  = stablePortName(port);
+        if (const auto chosen = assigned_now.find(stable); chosen != assigned_now.end())
+        {
+            if (chosen->second.empty())
+            {
+                return; // switched off for this port
+            }
+            mapping = mappingNamed(chosen->second);
             if (mapping == nullptr)
             {
-                continue;
+                // mull-ignore-next: cxx_remove_void_call
+                errors.push_back("no mapping \"" + chosen->second + "\" for MIDI port " + port);
+                return;
             }
-            auto  added = std::make_unique<Open>(Open{.port = stable, .controller = Controller{*mapping}, .input = {}});
-            Open &where = *added;
-            auto  input = midi->open(port, [this, &where](const MidiMessage &message) { received(where, message); });
-            if (!input)
+        }
+        else
+        {
+            mapping = mappingMatching(port);
+        }
+        if (mapping == nullptr)
+        {
+            return;
+        }
+        auto added = std::make_unique<Open>(
+            Open{.port = stable, .controller = Controller{*mapping}, .full_name = port, .input = {}});
+        Open &where = *added;
+        auto  input = midi->open(port, [this, &where](const MidiMessage &message) { received(where, message); });
+        if (!input)
+        {
+            errors.push_back(input.error());
+            return;
+        }
+        where.input = std::move(*input);
+        // The output of the same name, for the lights
+        if (!mapping->lights.empty())
+        {
+            for (const std::string &output : midi->outputPorts())
             {
-                errors.push_back(input.error());
-                continue;
-            }
-            where.input = std::move(*input);
-            // The output of the same name, for the lights
-            if (!mapping->lights.empty())
-            {
-                for (const std::string &output : midi->outputPorts())
+                if (stablePortName(output) == stable)
                 {
-                    if (stablePortName(output) == stable)
+                    if (auto opened = midi->openOutput(output))
                     {
-                        if (auto opened = midi->openOutput(output))
-                        {
-                            where.output = std::move(*opened);
-                        }
-                        else
-                        {
-                            errors.push_back(opened.error());
-                        }
-                        break;
+                        where.output = std::move(*opened);
                     }
+                    else
+                    {
+                        errors.push_back(opened.error());
+                    }
+                    break;
                 }
             }
-            open_ports.push_back(std::move(added));
         }
-        return errors;
+        open_ports.push_back(std::move(added));
     }
 
     void ControllerHub::received(Open &open, const MidiMessage &message)

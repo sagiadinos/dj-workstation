@@ -97,6 +97,10 @@ namespace djw::core::api
 
             /// Opens every port with a mapping (the one assigned, else the first that matches); the errors
             virtual std::vector<std::string> connect(const Assignments &assigned = {}) = 0;
+            /// Hotplug: opens the ports that came since the last connect() or check, as connect() would with the same
+            /// assignments, and closes the ones that went; a port plugged in again counts as new. The errors of
+            /// the new ports. Cheap enough to call about once a second.
+            virtual std::vector<std::string> checkPorts() = 0;
             /// The events since the last call, in the order they came
             [[nodiscard]] virtual std::vector<ControlEvent> poll() = 0;
             /// The MIDI input ports there are now, by their stable names (without the numbers ALSA adds)
