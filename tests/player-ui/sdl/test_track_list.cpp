@@ -272,6 +272,32 @@ TEST_CASE("TrackList: the cursor keys move the selection a row, the page keys a 
     CHECK(fresh.selected() == 2U);
 }
 
+TEST_CASE("TrackList: Shift and Ctrl with Up and Down move the selection a row like the plain keys")
+{
+    Fixture fixture; // 20 rows
+    fixture.list.moveSelection(1);
+    REQUIRE(fixture.list.selected() == 0U);
+
+    for (const auto key : {EditKey::ShiftDown, EditKey::CtrlDown, EditKey::CtrlShiftDown})
+    {
+        CHECK(fixture.list.navigate(key));
+    }
+    CHECK(fixture.list.selected() == 3U);
+
+    for (const auto key : {EditKey::ShiftUp, EditKey::CtrlUp, EditKey::CtrlShiftUp})
+    {
+        CHECK(fixture.list.navigate(key));
+    }
+    CHECK(fixture.list.selected() == 0U);
+
+    // Left and right with modifiers are not for the list
+    for (const auto key : {EditKey::CtrlLeft, EditKey::CtrlRight, EditKey::CtrlShiftLeft, EditKey::CtrlShiftRight})
+    {
+        CHECK_FALSE(fixture.list.navigate(key));
+    }
+    CHECK(fixture.list.selected() == 0U);
+}
+
 namespace
 {
     /// A quick drag upwards (the list scrolls towards its end): 60 points in 30 ms, then let go

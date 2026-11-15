@@ -80,12 +80,19 @@ namespace djw::player_ui::sdl
     bool TrackList::navigate(EditKey key) noexcept
     {
         const auto page = static_cast<std::ptrdiff_t>(pageRows());
+        // Shift and Ctrl change nothing here: the list moves a row as with the plain key
         switch (key)
         {
             case EditKey::Up:
+            case EditKey::ShiftUp:
+            case EditKey::CtrlUp:
+            case EditKey::CtrlShiftUp:
                 moveSelection(-1);
                 return true;
             case EditKey::Down:
+            case EditKey::ShiftDown:
+            case EditKey::CtrlDown:
+            case EditKey::CtrlShiftDown:
                 moveSelection(1);
                 return true;
             case EditKey::PageUp:
@@ -103,16 +110,10 @@ namespace djw::player_ui::sdl
             case EditKey::Right:
             case EditKey::ShiftLeft:
             case EditKey::ShiftRight:
-            case EditKey::ShiftUp:
-            case EditKey::ShiftDown:
             case EditKey::CtrlLeft:
             case EditKey::CtrlRight:
-            case EditKey::CtrlUp:
-            case EditKey::CtrlDown:
             case EditKey::CtrlShiftLeft:
             case EditKey::CtrlShiftRight:
-            case EditKey::CtrlShiftUp:
-            case EditKey::CtrlShiftDown:
                 break;
         }
         return false;
