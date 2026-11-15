@@ -1528,18 +1528,25 @@ TEST_CASE("SdlApp: about once a second it looks for controllers plugged in or ou
     auto                    owned = std::make_unique<FakeControllers>();
     FakeControllers        &fake  = *owned;
     app->setControllers(std::move(owned));
-    REQUIRE(app->runFrame());
-    const int first = fake.port_checks;
-    CHECK(first <= 1);
-    // Many frames within a second: no more looks
-    for (int frame = 0; frame < 5; ++frame)
+    // Frames until it looks for the first time; within the first second after SDL started it may not yet
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{3};
+    while (fake.port_checks == 0 && std::chrono::steady_clock::now() < deadline)
     {
         REQUIRE(app->runFrame());
+        std::this_thread::sleep_for(std::chrono::milliseconds{20});
     }
-    CHECK(fake.port_checks == first);
+    REQUIRE(fake.port_checks == 1);
+    // More frames within the second after that look: no more looks. Counted by time, not frames: under the thread
+    // sanitizer a frame is slow.
+    const auto looked = std::chrono::steady_clock::now();
+    do
+    {
+        REQUIRE(app->runFrame());
+    } while (std::chrono::steady_clock::now() - looked < std::chrono::milliseconds{300});
+    CHECK(fake.port_checks == 1);
     std::this_thread::sleep_for(std::chrono::milliseconds{1'100});
     REQUIRE(app->runFrame());
-    CHECK(fake.port_checks == first + 1);
+    CHECK(fake.port_checks == 2);
 }
 
 TEST_CASE("SdlApp: in separate windows each player's options and the playlist window come back from the layout")
@@ -1671,21 +1678,31 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
     REQUIRE(app->beatView().shown().a->peaks != nullptr);
     CHECK(app->beatView().shown().a->peaks->at(10).mid > 50); // a tone of about 500 Hz
 
-    // Its part lies between the players and the library, across the window
-    const auto beats = app->paneArea(*app->toolFrame(SdlApp::Tool::Beats));
-    const auto list  = app->paneArea(*app->libraryFrame());
+    // Its part lies above the players, across the window
+    const auto beats  = app->paneArea(*app->toolFrame(SdlApp::Tool::Beats));
+    const auto list   = app->paneArea(*app->libraryFrame());
+    const auto player = app->paneArea(*app->deckFrame(0));
     REQUIRE(beats.has_value());
     REQUIRE(list.has_value());
-    CHECK(beats->y + beats->height < list->y);
+    REQUIRE(player.has_value());
+    CHECK(beats->y + beats->height < player->y);
     CHECK(beats->width == doctest::Approx(list->width));
 
-    // Turned, it stands at the right of the library; saved that way
+    // Turned, it stands between player 1 and player 2 above the crossfader; saved that way
     app->setBeatsVertical(true);
     REQUIRE(app->runFrame());
     const auto turned = app->paneArea(*app->toolFrame(SdlApp::Tool::Beats));
+    const auto mixer  = app->paneArea(*app->toolFrame(SdlApp::Tool::Mixer));
+    const auto first  = app->paneArea(*app->deckFrame(0)); // the row moved up
+    const auto second = app->paneArea(*app->deckFrame(1));
     REQUIRE(turned.has_value());
-    CHECK(turned->x > list->x + 100);
-    CHECK(turned->height > turned->width);
+    REQUIRE(mixer.has_value());
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    CHECK(turned->x > first->x + first->width);
+    CHECK(turned->x + turned->width < second->x);
+    CHECK(turned->y + turned->height < mixer->y);
+    CHECK(turned->x == doctest::Approx(mixer->x));
     REQUIRE(app->saveLayout());
     const auto again = parseLayout(readFile(file));
     REQUIRE(again.has_value());

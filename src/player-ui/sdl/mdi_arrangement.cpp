@@ -29,79 +29,89 @@ namespace djw::player_ui::sdl
         MdiArrangement result;
         result.players.resize(content.players);
 
-        // The top row: player 1, the crossfader, the other players
+        // The top row: player 1, the middle column (the crossfader, vertical beat waveforms above it), the other
+        // players
+        const bool           beats_across = content.beats && !content.beats_vertical;
+        const bool           beats_column = content.beats && content.beats_vertical;
+        const bool           has_middle   = content.mixer || beats_column;
+        const float          middle_width = content.mixer ? sizes.mixer_width : sizes.beats_depth;
         std::vector<RowPane> row;
         for (std::size_t player = 0; player < content.players; ++player)
         {
             row.push_back({.mixer = false, .player = player});
-            if (player == 0 && content.mixer)
+            if (player == 0 && has_middle)
             {
                 row.push_back({.mixer = true});
             }
         }
-        if (content.players == 0 && content.mixer)
+        if (content.players == 0 && has_middle)
         {
             row.push_back({.mixer = true});
         }
 
-        const bool  has_lists  = content.library || content.playlist;
-        const bool  has_bottom = has_lists || content.beats;
-        const float inner_x    = window.x + mdi_gap;
-        const float inner_w    = std::max(0.0F, window.width - (2 * mdi_gap));
-        float       bottom_top = window.y + mdi_gap;
+        const bool  has_lists = content.library || content.playlist;
+        const float inner_x   = window.x + mdi_gap;
+        const float inner_w   = std::max(0.0F, window.width - (2 * mdi_gap));
+        float       top       = window.y + mdi_gap;
+        float       consumed  = 0.0F; // of the height, by the beat waveforms on top
+        if (beats_across)
+        {
+            // A strip across the top, at most a third of the window
+            const float strip = std::max(0.0F, std::min(sizes.beats_depth, (window.height - (2 * mdi_gap)) / 3));
+            result.beats      = Rect{inner_x, top, inner_w, strip};
+            consumed          = strip + mdi_gap;
+            top += consumed;
+        }
+        float bottom_top = top;
         if (!row.empty())
         {
             float natural_width = mdi_gap * static_cast<float>(row.size() - 1);
             for (const RowPane &pane : row)
             {
-                natural_width += pane.mixer ? sizes.mixer_width : sizes.player_width;
+                natural_width += pane.mixer ? middle_width : sizes.player_width;
             }
-            const float room_height =
-                has_bottom ? window.height * mdi_row_share : std::max(0.0F, window.height - (2 * mdi_gap));
+            const float rest        = window.height - consumed;
+            const float room_height = has_lists ? rest * mdi_row_share : std::max(0.0F, rest - (2 * mdi_gap));
             // Only the panes shrink, the gaps between them stay
-            const float gaps  = mdi_gap * static_cast<float>(row.size() - 1);
-            const float scale = std::min(
-                {1.0F, std::max(0.0F, inner_w - gaps) / (natural_width - gaps), room_height / sizes.player_height});
+            const float gaps   = mdi_gap * static_cast<float>(row.size() - 1);
+            const float scale  = std::max(0.0F, std::min({1.0F, std::max(0.0F, inner_w - gaps) / (natural_width - gaps),
+                                                          room_height / sizes.player_height}));
             const float width  = ((natural_width - gaps) * scale) + gaps;
             float       x      = inner_x + std::max(0.0F, (inner_w - width) / 2);
-            const float y      = window.y + mdi_gap;
             const float height = sizes.player_height * scale;
             for (const RowPane &pane : row)
             {
-                const float pane_width = (pane.mixer ? sizes.mixer_width : sizes.player_width) * scale;
-                const Rect  area{x, y, pane_width, height};
-                if (pane.mixer)
-                {
-                    result.mixer = area;
-                }
-                else
+                const float pane_width = (pane.mixer ? middle_width : sizes.player_width) * scale;
+                const Rect  area{x, top, pane_width, height};
+                if (!pane.mixer)
                 {
                     result.players[pane.player] = area;
                 }
+                else if (!beats_column)
+                {
+                    result.mixer = area;
+                }
+                else if (!content.mixer)
+                {
+                    result.beats = area;
+                }
+                else
+                {
+                    // The crossfader at the bottom of the column in its own height, the beat waveforms above it
+                    const float mixer_height = std::min(height, sizes.mixer_height * scale);
+                    const float beats_height = std::max(0.0F, height - mixer_height - mdi_gap);
+                    result.beats             = Rect{x, top, pane_width, beats_height};
+                    result.mixer             = Rect{x, top + height - mixer_height, pane_width, mixer_height};
+                }
                 x += pane_width + mdi_gap;
             }
-            bottom_top = y + height + mdi_gap;
+            bottom_top = top + height + mdi_gap;
         }
 
-        if (has_bottom)
+        if (has_lists)
         {
-            float height = std::max(0.0F, window.y + window.height - mdi_gap - bottom_top);
-            float width  = inner_w;
-            if (content.beats && !content.beats_vertical)
-            {
-                // A strip across, the lists below it
-                const float strip = has_lists ? std::min(sizes.beats_depth, (height - mdi_gap) / 2) : height;
-                result.beats      = Rect{inner_x, bottom_top, inner_w, std::max(0.0F, strip)};
-                bottom_top += strip + mdi_gap;
-                height = std::max(0.0F, height - strip - mdi_gap);
-            }
-            else if (content.beats)
-            {
-                // A column at the right, the lists left of it
-                const float column = has_lists ? std::min(sizes.beats_depth, (inner_w - mdi_gap) / 2) : inner_w;
-                result.beats       = Rect{inner_x + inner_w - column, bottom_top, std::max(0.0F, column), height};
-                width              = std::max(0.0F, inner_w - column - mdi_gap);
-            }
+            const float height = std::max(0.0F, window.y + window.height - mdi_gap - bottom_top);
+            const float width  = inner_w;
             if (content.library && content.playlist)
             {
                 const float list_width =
@@ -110,7 +120,7 @@ namespace djw::player_ui::sdl
                 result.library            = Rect{inner_x, bottom_top, library_width, height};
                 result.playlist           = Rect{inner_x + library_width + mdi_gap, bottom_top, list_width, height};
             }
-            else if (has_lists)
+            else
             {
                 (content.library ? result.library : result.playlist) = Rect{inner_x, bottom_top, width, height};
             }

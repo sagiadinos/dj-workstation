@@ -445,19 +445,21 @@ namespace djw::player_ui::sdl
         const ToolWindow    &mixer    = tools[index(Tool::Mixer)];
         const ToolWindow    &playlist = tools[index(Tool::Playlist)];
         const ToolWindow    &beats    = tools[index(Tool::Beats)];
-        const MdiArrangement placed   = arrangeMdi(workArea(),
-                                                   {.players        = decks.size(),
-                                                    .mixer          = mixer.in_host,
-                                                    .playlist       = playlist.in_host,
-                                                    .library        = library_frame != nullptr,
-                                                    .beats          = beats.in_host,
-                                                    .beats_vertical = beat_view->vertical()},
-                                                   {.player_width   = DeckView::design_width,
-                                                    .player_height  = DeckView::design_height + PaneFrame::title_height,
-                                                    .mixer_width    = static_cast<float>(mixer_size.width),
-                                                    .playlist_width = static_cast<float>(playlist_size.width),
-                                                    .beats_depth    = BeatView::design_height + PaneFrame::title_height});
-        ViewHost            &views    = host_window->views();
+        const MdiArrangement placed =
+            arrangeMdi(workArea(),
+                       {.players        = decks.size(),
+                        .mixer          = mixer.in_host,
+                        .playlist       = playlist.in_host,
+                        .library        = library_frame != nullptr,
+                        .beats          = beats.in_host,
+                        .beats_vertical = beat_view->vertical()},
+                       {.player_width   = DeckView::design_width,
+                        .player_height  = DeckView::design_height + PaneFrame::title_height,
+                        .mixer_width    = static_cast<float>(mixer_size.width),
+                        .mixer_height   = static_cast<float>(mixer_size.height) + PaneFrame::title_height,
+                        .playlist_width = static_cast<float>(playlist_size.width),
+                        .beats_depth    = BeatView::design_height + PaneFrame::title_height});
+        ViewHost &views = host_window->views();
         for (std::size_t deck = 0; deck < decks.size(); ++deck)
         {
             views.place(*decks[deck]->frame, placed.players[deck]);
