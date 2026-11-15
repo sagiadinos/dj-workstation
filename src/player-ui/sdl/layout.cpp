@@ -14,9 +14,8 @@ namespace djw::player_ui::sdl
 {
     namespace
     {
-        constexpr std::string_view header    = "djw-layout 2";
-        constexpr std::string_view header_v1 = "djw-layout 1"; // before the MDI mode: no mode, no mdi lines
-        constexpr int              gap       = 12;
+        constexpr std::string_view header = "djw-layout 2";
+        constexpr int              gap    = 12;
         // What the window frame and title bar take, so the library window below the players is not cut off
         constexpr int frame_allowance = 48;
         constexpr int min_size        = 100;
@@ -167,7 +166,7 @@ namespace djw::player_ui::sdl
                 MdiLayout layout;
                 bool      has_mixer    = false;
                 bool      has_playlist = false;
-                bool      has_beats    = false; ///< optional: layouts before the beat waveforms have none
+                bool      has_beats    = false;
                 /// The places given on the lines; they count only with the library's place
                 MdiPlaces places;
                 bool      has_place   = false;
@@ -379,18 +378,17 @@ namespace djw::player_ui::sdl
         Layout             layout;
         std::istringstream in{std::string{text}};
         std::string        line;
-        if (!std::getline(in, line) || (line != header && line != header_v1))
+        if (!std::getline(in, line) || line != header)
         {
             return std::nullopt;
         }
-        const bool version_1    = line == header_v1;
-        bool       has_mode     = false;
-        bool       has_library  = false;
-        bool       has_mixer    = false;
-        bool       has_playlist = false;
-        bool       has_beats    = false;
-        MdiLines   mdi;
-        bool       has_mdi = false;
+        bool     has_mode     = false;
+        bool     has_library  = false;
+        bool     has_mixer    = false;
+        bool     has_playlist = false;
+        bool     has_beats    = false;
+        MdiLines mdi;
+        bool     has_mdi = false;
         while (std::getline(in, line))
         {
             auto parts = words(line);
@@ -406,13 +404,12 @@ namespace djw::player_ui::sdl
                 return std::nullopt;
             }
             mdi.player_options = options;
-            if (!version_1 && parts[0] == "mode" && parts.size() == 2 && !has_mode &&
-                (parts[1] == "separate" || parts[1] == "mdi"))
+            if (parts[0] == "mode" && parts.size() == 2 && !has_mode && (parts[1] == "separate" || parts[1] == "mdi"))
             {
                 layout.mode = parts[1] == "mdi" ? WindowMode::Mdi : WindowMode::Separate;
                 has_mode    = true;
             }
-            else if (!version_1 && parts[0] == "mdi")
+            else if (parts[0] == "mdi")
             {
                 if (!parseMdiLine(std::span{parts}.subspan(1), mdi))
                 {
@@ -477,8 +474,8 @@ namespace djw::player_ui::sdl
         }
         // A layout with no player, or without one of the windows, is damaged; so is an mdi part without its tools,
         // or with places of parts but not the library's, or places without the window size they are for
-        if (layout.players.empty() || !has_library || !has_mixer || !has_playlist || (!version_1 && !has_mode) ||
-            (has_mdi && (!mdi.has_mixer || !mdi.has_playlist || (mdi.has_place && !mdi.has_library) ||
+        if (layout.players.empty() || !has_library || !has_mixer || !has_playlist || !has_beats || !has_mode ||
+            (has_mdi && (!mdi.has_mixer || !mdi.has_playlist || !mdi.has_beats || (mdi.has_place && !mdi.has_library) ||
                          (mdi.has_library != mdi.has_area))))
         {
             return std::nullopt;

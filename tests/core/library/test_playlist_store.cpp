@@ -5,7 +5,6 @@
 #include "library/playlist_store.hpp"
 #include "library/track_store.hpp"
 
-#include "library_downgrade.hpp"
 #include "sql_fault.hpp"
 #include "temp_dir.hpp"
 
@@ -110,22 +109,6 @@ TEST_CASE("PlaylistStore: tracks removed from the library leave their playlists"
 
     CHECK(fixture.titles(list) == std::vector<std::string>{"kept"});
     CHECK(fixture.playlists->list().value().front().track_count == 1);
-}
-
-TEST_CASE("PlaylistStore: a version 3 database gets the playlist tables")
-{
-    Fixture fixture;
-    fixture.addTrack("a");
-    djw::tests::downgradeLibrary(fixture.data.path() / "library.db", 3);
-
-    auto reopened = TrackStore::open(fixture.data.path() / "library.db");
-    REQUIRE_MESSAGE(reopened.has_value(), reopened.error());
-    auto playlists = PlaylistStore::open(reopened->connection());
-    REQUIRE_MESSAGE(playlists.has_value(), playlists.error());
-
-    CHECK(playlists->list().value().empty());
-    CHECK(playlists->create("New").has_value());
-    CHECK(reopened->trackCount().value() == 1);
 }
 
 TEST_CASE("PlaylistStore: entries that cannot be written leave the old ones")

@@ -142,8 +142,8 @@ namespace djw::player_ui::sdl
     [[nodiscard]] std::string formatLayout(const Layout &layout);
 
     /// The layout from text written by formatLayout; std::nullopt for anything else (other version, damaged,
-    /// sizes that make no sense), so a broken file falls back to the default layout instead of opening odd windows.
-    /// A layout of version 1 (before the MDI mode) is read as the separate windows.
+    /// sizes that make no sense, a line missing), so a broken file falls back to the default layout instead of
+    /// opening odd windows.
     [[nodiscard]] std::optional<Layout> parseLayout(std::string_view text);
 
     /// The sizes the default layout is made of

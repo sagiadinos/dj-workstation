@@ -3,7 +3,6 @@
 
 #include "library/track_store.hpp"
 
-#include "library_downgrade.hpp"
 #include "sql_fault.hpp"
 #include "temp_dir.hpp"
 
@@ -178,7 +177,7 @@ TEST_CASE("TrackStore: non-ASCII paths are stored as they are")
     CHECK(found->front().path == fixture.folder.path() / "Ärger über Öl – ½.mp3");
 }
 
-TEST_CASE("TrackStore: a database from a newer schema version is refused")
+TEST_CASE("TrackStore: a database of another schema version is refused: it is to be deleted")
 {
     Fixture fixture;
     {
@@ -190,7 +189,8 @@ TEST_CASE("TrackStore: a database from a newer schema version is refused")
     const auto opened = TrackStore::open(fixture.database());
 
     REQUIRE_FALSE(opened.has_value());
-    CHECK(opened.error().find("schema version 99") != std::string::npos);
+    CHECK(opened.error().find("schema 99") != std::string::npos);
+    CHECK(opened.error().find("delete it") != std::string::npos);
 }
 
 TEST_CASE("TrackStore: a database file that cannot be opened is an error")
@@ -262,36 +262,6 @@ TEST_CASE("TrackStore: sorts by any column in both directions, empty values last
     CHECK(titles(C::Duration, true) == std::vector<std::string>{"y", "z", "x", ""});
 }
 
-TEST_CASE("TrackStore: a version 1 database is migrated, its tracks get their keys")
-{
-    Fixture fixture;
-    fixture.add("Some File.mp3", {.artist = "Die Ärzte", .title = "Westerland", .genre = "Punk"});
-    djw::tests::downgradeLibrary(fixture.database(), 1);
-
-    auto migrated = TrackStore::open(fixture.database());
-    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
-    fixture.store = std::move(*migrated);
-
-    CHECK(fixture.titles({.artist = "arzte"}) == std::vector<std::string>{"Westerland"});
-    CHECK(fixture.titles("so?e") == std::vector<std::string>{"Westerland"});
-    CHECK(fixture.titles({.genre = "punk"}) == std::vector<std::string>{"Westerland"});
-}
-
-TEST_CASE("TrackStore: a version 2 database gets the missing flag, all tracks start as present")
-{
-    Fixture fixture;
-    fixture.add("a.mp3", {.title = "Kept"});
-    djw::tests::downgradeLibrary(fixture.database(), 2);
-
-    auto migrated = TrackStore::open(fixture.database());
-    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
-    fixture.store = std::move(*migrated);
-
-    CHECK(fixture.titles("kept") == std::vector<std::string>{"Kept"});
-    CHECK(fixture.store.missingCount().value() == 0);
-    CHECK(fixture.titles({.only_missing = true}).empty());
-}
-
 TEST_CASE("TrackStore: a track has no cue point at first, a stored one comes back, null removes it")
 {
     Fixture fixture;
@@ -327,23 +297,6 @@ TEST_CASE("TrackStore: the cue point survives a rescan of the file")
     CHECK(found.front().title == "a, retagged");
     REQUIRE(found.front().cue_seconds.has_value());
     CHECK(*found.front().cue_seconds == doctest::Approx(31.5));
-}
-
-TEST_CASE("TrackStore: a version 4 database gets the cue column, its tracks have no cue point")
-{
-    Fixture fixture;
-    fixture.add("a.mp3", {.title = "Kept"});
-    djw::tests::downgradeLibrary(fixture.database(), 4);
-
-    auto migrated = TrackStore::open(fixture.database());
-    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
-    fixture.store = std::move(*migrated);
-
-    const auto found = fixture.store.search({}).value();
-    REQUIRE(found.size() == 1);
-    CHECK_FALSE(found.front().cue_seconds.has_value());
-    REQUIRE(fixture.store.setCue(found.front().id, 5.0).has_value());
-    CHECK(fixture.store.search({}).value().front().cue_seconds == 5.0);
 }
 
 TEST_CASE("TrackStore: a track is not analyzed at first, the analysis comes back with tempo and waveform")
@@ -399,66 +352,6 @@ TEST_CASE("TrackStore: a changed file loses its analysis, a tag edit keeps it")
     CHECK_FALSE(found.front().analyzed);
     CHECK_FALSE(found.front().bpm.has_value());
     CHECK(fixture.store.waveform(id).value().empty());
-}
-
-TEST_CASE("TrackStore: a version 7 database keeps tempo and waveform until its tracks are analyzed again")
-{
-    Fixture fixture;
-    fixture.add("a.mp3", {.title = "Kept"});
-    const auto id = fixture.store.search({}).value().front().id;
-    REQUIRE(fixture.store.setAnalysis(id, 126.1, std::vector<std::uint8_t>{1, 2, 3}).has_value());
-    djw::tests::downgradeLibrary(fixture.database(), 7);
-
-    auto migrated = TrackStore::open(fixture.database());
-    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
-    fixture.store = std::move(*migrated);
-
-    const auto tracks = fixture.store.search({}).value();
-    REQUIRE(tracks.size() == 1);
-    CHECK_FALSE(tracks.front().analyzed);
-    CHECK(tracks.front().bpm == 126.1); // shown until the new analysis
-    CHECK(fixture.store.waveform(id).value().size() == 3);
-    CHECK(fixture.store.unanalyzed().value().size() == 1);
-}
-
-TEST_CASE("TrackStore: a version 6 database loses its peak waveforms, its tracks are analyzed again")
-{
-    Fixture fixture;
-    fixture.add("a.mp3", {.title = "Kept"});
-    const auto id = fixture.store.search({}).value().front().id;
-    REQUIRE(fixture.store.setAnalysis(id, 120.0, std::vector<std::uint8_t>{1, 2, 3}).has_value());
-    REQUIRE(fixture.store.setCue(id, 4.0).has_value());
-    djw::tests::downgradeLibrary(fixture.database(), 6);
-
-    auto migrated = TrackStore::open(fixture.database());
-    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
-    fixture.store = std::move(*migrated);
-
-    const auto tracks = fixture.store.search({}).value();
-    REQUIRE(tracks.size() == 1);
-    CHECK(tracks.front().title == "Kept");
-    CHECK(tracks.front().cue_seconds == 4.0);
-    CHECK_FALSE(tracks.front().analyzed);
-    CHECK(fixture.store.waveform(id).value().empty());
-    CHECK(fixture.store.unanalyzed().value().size() == 1);
-}
-
-TEST_CASE("TrackStore: a version 5 database gets the analysis columns, its tracks are not analyzed")
-{
-    Fixture fixture;
-    fixture.add("a.mp3", {.title = "Kept"});
-    djw::tests::downgradeLibrary(fixture.database(), 5);
-
-    auto migrated = TrackStore::open(fixture.database());
-    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
-    fixture.store = std::move(*migrated);
-
-    const auto tracks = fixture.store.search({}).value();
-    REQUIRE(tracks.size() == 1);
-    CHECK(tracks.front().title == "Kept");
-    CHECK_FALSE(tracks.front().analyzed);
-    CHECK_FALSE(tracks.front().bpm.has_value());
-    CHECK(fixture.store.unanalyzed().value().size() == 1);
 }
 
 TEST_CASE("TrackStore: sorting by tempo puts tracks without one last in both directions, a track comes back by its id")
@@ -519,10 +412,6 @@ TEST_CASE("TrackStore: a new database whose schema cannot be made is an error, a
     {
         part = "CREATE TABLE folders";
     }
-    SUBCASE("migration")
-    {
-        part = "ADD COLUMN bpm";
-    }
     SUBCASE("statements")
     {
         part = "INSERT OR IGNORE INTO folders";
@@ -558,68 +447,6 @@ TEST_CASE("TrackStore: a schema version that cannot be read is an error")
     CHECK(TrackStore::open(fixture.database()).has_value());
 }
 
-TEST_CASE("TrackStore: a migration that fails leaves the old version and its tracks, the next open migrates")
-{
-    Fixture fixture;
-    fixture.add("Some File.mp3", {.artist = "Die Ärzte", .title = "Westerland"});
-    djw::tests::downgradeLibrary(fixture.database(), 1);
-
-    const char *part = "";
-    int         skip = 0;
-    SUBCASE("keys")
-    {
-        part = "ADD COLUMN artist_key";
-    }
-    SUBCASE("reading the tracks")
-    {
-        part = "SELECT id, artist, title, album, genre, file_name FROM tracks";
-    }
-    SUBCASE("stepping the tracks")
-    {
-        part = "SELECT id, artist, title, album, genre, file_name FROM tracks";
-        skip = 1;
-    }
-    SUBCASE("preparing the keys")
-    {
-        part = "UPDATE tracks SET artist_key";
-    }
-    SUBCASE("storing the keys")
-    {
-        part = "UPDATE tracks SET artist_key";
-        skip = 1;
-    }
-    SUBCASE("version 2")
-    {
-        part = "PRAGMA user_version = 2";
-    }
-    SUBCASE("missing flag")
-    {
-        part = "ADD COLUMN missing";
-    }
-    SUBCASE("playlists")
-    {
-        part = "CREATE TABLE playlists";
-    }
-    SUBCASE("cue points")
-    {
-        part = "ADD COLUMN cue";
-    }
-    SUBCASE("analysis")
-    {
-        part = "ADD COLUMN bpm";
-    }
-    {
-        const djw::tests::SqlFault fault{part, skip};
-        checkOpenFails(fixture.database(), fault);
-    }
-    CHECK(versionOf(fixture.database()) == 1);
-
-    auto migrated = TrackStore::open(fixture.database());
-    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
-    fixture.store = std::move(*migrated);
-    CHECK(fixture.titles({.artist = "arzte"}) == std::vector<std::string>{"Westerland"});
-}
-
 TEST_CASE("TrackStore: an error that cannot be rolled back reports both errors")
 {
     Fixture fixture;
@@ -631,7 +458,7 @@ TEST_CASE("TrackStore: an error that cannot be rolled back reports both errors")
     const djw::tests::SqlFault fault{"ROLLBACK"};
     const auto                 opened = TrackStore::open(fixture.database());
     REQUIRE_FALSE(opened.has_value());
-    CHECK(opened.error().find("schema version 99") != std::string::npos);
+    CHECK(opened.error().find("schema 99") != std::string::npos);
     CHECK(opened.error().find("injected fault") != std::string::npos);
     CHECK(fault.struck() == 1);
 }
@@ -666,7 +493,7 @@ TEST_CASE("TrackStore: failing reads are reported as errors")
     }
     SUBCASE("waveform")
     {
-        part = "SELECT peaks FROM waveforms";
+        part = "SELECT loudness FROM waveforms";
         read = [&] { return !fixture.store.waveform(id).has_value(); };
     }
     SUBCASE("analyzed")

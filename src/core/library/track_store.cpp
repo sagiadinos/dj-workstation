@@ -36,9 +36,33 @@ namespace djw::core::library
                 -- artist, title, album, genre and file name, one per line, for wildcard words of the search text
                 any_key    TEXT NOT NULL,
                 -- 1 when the file was not found at the last check (dead link)
-                missing    INTEGER NOT NULL DEFAULT 0
+                missing    INTEGER NOT NULL DEFAULT 0,
+                -- the cue point the user set last, in seconds; NULL: none
+                cue        REAL,
+                -- the tempo the analysis found; NULL: none
+                bpm        REAL,
+                -- 1 once the analysis ran (with or without a tempo)
+                analyzed   INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX tracks_by_artist_title ON tracks (artist_key, title_key);
+
+            -- The overview waveform, apart from tracks so reading tracks never loads it
+            CREATE TABLE waveforms (
+                track_id INTEGER PRIMARY KEY REFERENCES tracks (id) ON DELETE CASCADE,
+                loudness BLOB    NOT NULL
+            );
+
+            CREATE TABLE playlists (
+                id   INTEGER PRIMARY KEY,
+                name TEXT    NOT NULL UNIQUE
+            );
+            CREATE TABLE playlist_entries (
+                playlist_id INTEGER NOT NULL REFERENCES playlists (id) ON DELETE CASCADE,
+                position    INTEGER NOT NULL,
+                track_id    INTEGER NOT NULL REFERENCES tracks (id) ON DELETE CASCADE,
+                PRIMARY KEY (playlist_id, position)
+            );
+            CREATE INDEX playlist_entries_by_track ON playlist_entries (track_id);
 
             -- Full text index over the tracks table; remove_diacritics: "Beyonce" finds "Beyoncé". It only filters,
             -- results are sorted by column, never by relevance, so it keeps no column sizes (columnsize = 0)
@@ -62,66 +86,8 @@ namespace djw::core::library
             END;
         )sql";
 
-        // Version 1 had no key columns; they are added and filled from the tags
-        constexpr std::string_view migration_to_2 = R"sql(
-            ALTER TABLE tracks ADD COLUMN artist_key TEXT NOT NULL DEFAULT '';
-            ALTER TABLE tracks ADD COLUMN title_key  TEXT NOT NULL DEFAULT '';
-            ALTER TABLE tracks ADD COLUMN genre_key  TEXT NOT NULL DEFAULT '';
-            ALTER TABLE tracks ADD COLUMN any_key    TEXT NOT NULL DEFAULT '';
-            DROP INDEX tracks_by_artist_title;
-            CREATE INDEX tracks_by_artist_title ON tracks (artist_key, title_key);
-        )sql";
-
-        // Version 2 had no missing flag
-        constexpr std::string_view migration_to_3 =
-            "ALTER TABLE tracks ADD COLUMN missing INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 3;";
-
         constexpr std::string_view track_columns = "t.id, t.path, t.artist, t.title, t.album, t.genre, t.year, "
                                                    "t.duration, t.missing, t.cue, t.bpm, t.analyzed";
-
-        // Version 3 had no playlists
-        constexpr std::string_view migration_to_4 = R"sql(
-            CREATE TABLE playlists (
-                id   INTEGER PRIMARY KEY,
-                name TEXT    NOT NULL UNIQUE
-            );
-            CREATE TABLE playlist_entries (
-                playlist_id INTEGER NOT NULL REFERENCES playlists (id) ON DELETE CASCADE,
-                position    INTEGER NOT NULL,
-                track_id    INTEGER NOT NULL REFERENCES tracks (id) ON DELETE CASCADE,
-                PRIMARY KEY (playlist_id, position)
-            );
-            CREATE INDEX playlist_entries_by_track ON playlist_entries (track_id);
-            PRAGMA user_version = 4;
-        )sql";
-
-        // Version 4 had no cue points; NULL is none
-        constexpr std::string_view migration_to_5 = "ALTER TABLE tracks ADD COLUMN cue REAL; PRAGMA user_version = 5;";
-
-        // Version 5 had no analysis: tempo (NULL: none), whether it ran, and the overview waveform in its own table
-        // so that reading tracks never loads it
-        constexpr std::string_view migration_to_6 = R"sql(
-            ALTER TABLE tracks ADD COLUMN bpm REAL;
-            ALTER TABLE tracks ADD COLUMN analyzed INTEGER NOT NULL DEFAULT 0;
-            CREATE TABLE waveforms (
-                track_id INTEGER PRIMARY KEY REFERENCES tracks (id) ON DELETE CASCADE,
-                peaks    BLOB    NOT NULL
-            );
-            PRAGMA user_version = 6;
-        )sql";
-
-        // Version 6 stored the peaks of the overview waveform, version 7 its loudness: the old waveforms go and the
-        // tracks count as not analyzed, so loading or Analyze all finds tempo and waveform again
-        constexpr std::string_view migration_to_7 =
-            "DELETE FROM waveforms; UPDATE tracks SET analyzed = 0; PRAGMA user_version = 7;";
-
-        // Version 7 found the tempo from the median beat interval, which the tracker gives in whole steps of about
-        // 11 ms only (at 128 BPM 126.1 or 129.2); version 8 fits a line through the beats: the tracks are analyzed
-        // again, their tempo and waveform shown until then
-        constexpr std::string_view migration_to_8 = "UPDATE tracks SET analyzed = 0; PRAGMA user_version = 8;";
-
-        constexpr std::string_view update_keys =
-            "UPDATE tracks SET artist_key = ?, title_key = ?, genre_key = ?, any_key = ? WHERE id = ?";
 
         struct TrackKeys
         {
@@ -227,21 +193,14 @@ namespace djw::core::library
         }
         else if (*version == 0)
         {
-            // A new database is created at version 3 and takes the same migration path as an existing one from there
-            result = database.execute(std::string{schema} + "PRAGMA user_version = 3;");
-            if (result)
-            {
-                result = migrate(database, 3);
-            }
-        }
-        else if (*version < schema_version)
-        {
-            result = migrate(database, *version);
+            result = database.execute(std::string{schema} + "PRAGMA user_version = " + std::to_string(schema_version));
         }
         else if (*version != schema_version)
         {
-            result = std::unexpected{"the library database has schema version " + std::to_string(*version) +
-                                     ", this version of djw reads version " + std::to_string(schema_version)};
+            // No migrations before 1.0: a database of another version is deleted and the folders added again
+            result = std::unexpected{"the library database was made by another version of djw (schema " +
+                                     std::to_string(*version) + ", this one reads " + std::to_string(schema_version) +
+                                     "); delete it and add the music folders again"};
         }
         if (!result)
         {
@@ -252,95 +211,6 @@ namespace djw::core::library
             return result;
         }
         return database.execute("COMMIT");
-    }
-
-    std::expected<void, std::string> TrackStore::migrate(SqliteDatabase &database, std::int64_t from_version)
-    {
-        if (from_version < 2)
-        {
-            if (auto migrated = migrateToVersion2(database); !migrated)
-            {
-                return migrated;
-            }
-        }
-        if (from_version < 3)
-        {
-            if (auto migrated = database.execute(migration_to_3); !migrated)
-            {
-                return migrated;
-            }
-        }
-        if (from_version < 4)
-        {
-            if (auto migrated = database.execute(migration_to_4); !migrated)
-            {
-                return migrated;
-            }
-        }
-        if (from_version < 5)
-        {
-            if (auto migrated = database.execute(migration_to_5); !migrated)
-            {
-                return migrated;
-            }
-        }
-        if (from_version < 6)
-        {
-            if (auto migrated = database.execute(migration_to_6); !migrated)
-            {
-                return migrated;
-            }
-        }
-        if (from_version < 7)
-        {
-            if (auto migrated = database.execute(migration_to_7); !migrated)
-            {
-                return migrated;
-            }
-        }
-        return database.execute(migration_to_8);
-    }
-
-    std::expected<void, std::string> TrackStore::migrateToVersion2(SqliteDatabase &database)
-    {
-        if (auto altered = database.execute(migration_to_2); !altered)
-        {
-            return altered;
-        }
-        auto tracks = database.prepare("SELECT id, artist, title, album, genre, file_name FROM tracks");
-        auto update = database.prepare(update_keys);
-        if (!tracks || !update)
-        {
-            return std::unexpected{!tracks ? tracks.error() : update.error()};
-        }
-        while (true)
-        {
-            const auto row = tracks->step();
-            if (!row)
-            {
-                return std::unexpected{row.error()};
-            }
-            if (!*row)
-            {
-                break;
-            }
-            const TrackKeys keys = keysOf({.artist = tracks->text(1),
-                                           .title  = tracks->text(2),
-                                           .album  = tracks->text(3),
-                                           .genre  = tracks->text(4)},
-                                          tracks->text(5));
-            if (auto updated = update->bind(1, keys.artist)
-                                   .bind(2, keys.title)
-                                   .bind(3, keys.genre)
-                                   .bind(4, keys.any)
-                                   .bind(5, tracks->integer(0))
-                                   .run();
-                !updated)
-            {
-                return updated;
-            }
-        }
-        return database.execute("PRAGMA user_version = 2");
     }
 
     std::expected<TrackStore::Statements, std::string> TrackStore::prepareStatements(SqliteDatabase &database)
@@ -369,10 +239,10 @@ namespace djw::core::library
         auto id_of_path     = database.prepare("SELECT id FROM tracks WHERE path = ?");
         auto set_cue        = database.prepare("UPDATE tracks SET cue = ? WHERE id = ?");
         auto set_analysis   = database.prepare("UPDATE tracks SET bpm = ?, analyzed = 1 WHERE id = ?");
-        auto set_waveform   = database.prepare("INSERT OR REPLACE INTO waveforms (track_id, peaks) VALUES (?, ?)");
+        auto set_waveform   = database.prepare("INSERT OR REPLACE INTO waveforms (track_id, loudness) VALUES (?, ?)");
         auto drop_waveform =
             database.prepare("DELETE FROM waveforms WHERE track_id IN (SELECT id FROM tracks WHERE path = ?)");
-        auto waveform    = database.prepare("SELECT peaks FROM waveforms WHERE track_id = ?");
+        auto waveform    = database.prepare("SELECT loudness FROM waveforms WHERE track_id = ?");
         auto is_analyzed = database.prepare("SELECT analyzed FROM tracks WHERE id = ?");
         auto unanalyzed  = database.prepare("SELECT id, path, missing FROM tracks WHERE analyzed = 0 AND missing = 0");
 

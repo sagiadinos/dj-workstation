@@ -129,10 +129,10 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
   - `folders`: the folders the library covers.
   - `tracks`: one row per file with tags, file stamp, the missing flag, cue point, tempo and whether it was analyzed. Besides the tags it keeps them folded (`foldText`: lower case, without accents for Latin script) in `*_key` columns, for the filters, wildcard words and sorting.
   - `tracks_search`: the full text index (FTS5) over artist, title, album, genre and file name. It keeps no copy of the text (`content = 'tracks'`), triggers keep it in step with `tracks`. SQLite adds its own tables for it (`tracks_search_data`, `_idx`, `_config`); the code never uses them directly. It keeps no column sizes (`columnsize = 0`), since those only serve ranking by relevance.
-  - `waveforms`: the overview waveform per track, apart from `tracks` so reading tracks never loads it. Its column is still called `peaks`; since version 7 it holds the loudness, and the migration to 7 dropped the old peak waveforms and set the tracks to not analyzed, so they are analyzed again. The migration to 8 sets them to not analyzed once more, for the exact tempo; tempo and waveform stay shown until then.
+  - `waveforms`: the overview waveform per track (its loudness), apart from `tracks` so reading tracks never loads it.
   - `playlists`, `playlist_entries`: saved playlists with dense positions; a change of the order rewrites a playlist's entries in one transaction.
 - Search (`buildSearch`): one SELECT over `tracks`. Plain words of the search text go to FTS5 as prefix terms, all must match; words with `*` or `?` and the column filters are GLOB patterns on the folded columns. The search only filters: the order is always the chosen column, empty values last, ties by artist and title. Results are never ranked by relevance, so the list keeps its order while typing.
-- Schema version in `PRAGMA user_version` (`TrackStore::schema_version`); an older file is migrated step by step on open, a newer one is refused.
+- Schema version in `PRAGMA user_version` (`TrackStore::schema_version`). Until 1.0 there are no migrations: the schema is created in its final form, a database of any other version is refused with the advice to delete it. The same holds for the settings and layout files: a file of another version or with a line missing falls back to the defaults.
 
 ## Analysis
 

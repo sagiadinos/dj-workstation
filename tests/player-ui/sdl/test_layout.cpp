@@ -68,10 +68,10 @@ TEST_CASE("Layout: damaged or foreign text is no layout")
     CHECK_FALSE(parseLayout("something else\n").has_value());
     CHECK_FALSE(parseLayout("djw-layout 3\n" + good.substr(good.find('\n') + 1)).has_value());
     CHECK_FALSE(parseLayout(good + "unknown 1 2 3 4\n").has_value());
-    CHECK_FALSE(parseLayout(good + "player A 0 0 50 50\n").has_value());         // too small to be a window
-    CHECK_FALSE(parseLayout(good + "player X 0 0 380 514\n").has_value());       // no such side
-    CHECK_FALSE(parseLayout(good + "player A 0 0 380 abc\n").has_value());       // not a number
-    CHECK_FALSE(parseLayout("djw-layout 1\nlibrary 0 0 700 600\n").has_value()); // no player, no mixer
+    CHECK_FALSE(parseLayout(good + "player A 0 0 50 50\n").has_value());   // too small to be a window
+    CHECK_FALSE(parseLayout(good + "player X 0 0 380 514\n").has_value()); // no such side
+    CHECK_FALSE(parseLayout(good + "player A 0 0 380 abc\n").has_value()); // not a number
+    CHECK_FALSE(parseLayout("djw-layout 1\n" + good.substr(good.find('\n') + 1)).has_value()); // other version
     // A missing line makes it incomplete
     std::string no_mixer = good.substr(0, good.find("mixer"));
     CHECK_FALSE(parseLayout(no_mixer).has_value());
@@ -172,20 +172,6 @@ TEST_CASE("Layout: each player keeps its Time and Cue-Load options; a line from 
     std::string twice = text;
     twice.insert(twice.find("remaining") + std::string_view{"remaining"}.size(), " remaining");
     CHECK_FALSE(parseLayout(twice).has_value());
-}
-
-TEST_CASE("Layout: a layout from before the window modes is read as separate windows")
-{
-    const std::string current = formatLayout(fiveWithMixer());
-    // Version 1: no mode line
-    std::string old  = "djw-layout 1\n" + current.substr(current.find("player"));
-    const auto  read = parseLayout(old);
-    REQUIRE(read.has_value());
-    CHECK(read->mode == WindowMode::Separate);
-    CHECK(read->players.size() == 5);
-    // Version 1 knows neither a mode nor the one window
-    CHECK_FALSE(parseLayout(old + "mode mdi\n").has_value());
-    CHECK_FALSE(parseLayout(old + "mdi mixer open\n").has_value());
 }
 
 TEST_CASE("Layout: a damaged mode or one-window part is no layout")
@@ -315,10 +301,11 @@ namespace
     /// A separate-windows layout as text, with the player line given and the other lines as given or plain
     std::string separateText(std::string_view player, std::string_view library = "library 0 600 720 640",
                              std::string_view mixer    = "mixer open 900 30 440 250",
-                             std::string_view playlist = "playlist closed 1300 600 560 640")
+                             std::string_view playlist = "playlist closed 1300 600 560 640",
+                             std::string_view beats    = "beats closed 0 0 760 200")
     {
         std::string text = "djw-layout 2\nmode separate\n";
-        for (const std::string_view line : {player, library, mixer, playlist})
+        for (const std::string_view line : {player, library, mixer, playlist, beats})
         {
             if (!line.empty())
             {
@@ -359,8 +346,8 @@ TEST_CASE("Layout: several blanks between the words and blanks at the end change
     CHECK(read->library == Placement{0, 600, 720, 640});
 }
 
-TEST_CASE("Layout: without a player, the library, the crossfader or the playlist line it is no layout; nor with a"
-          " line it does not know")
+TEST_CASE("Layout: without a player, the library, the crossfader, the playlist or the beats line it is no layout; nor"
+          " with a line it does not know")
 {
     CHECK(parseLayout(separateText("player A 0 0 380 514")).has_value());
     CHECK_FALSE(parseLayout(separateText("")).has_value());
@@ -369,6 +356,9 @@ TEST_CASE("Layout: without a player, the library, the crossfader or the playlist
     CHECK_FALSE(
         parseLayout(separateText("player A 0 0 380 514", "library 0 600 720 640", "mixer open 900 30 440 250", ""))
             .has_value());
+    CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514", "library 0 600 720 640", "mixer open 900 30 440 250",
+                                         "playlist closed 1300 600 560 640", ""))
+                    .has_value());
     // Lines that only look like known ones
     CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514") + "shelf 0 0 700 600\n").has_value());
     CHECK_FALSE(parseLayout(separateText("player A 0 0 380 514") + "shelf open 0 0 500 500\n").has_value());
@@ -481,26 +471,20 @@ TEST_CASE("Layout: the beat waveforms keep whether they are open, where and how 
     CHECK(*parseLayout(text) == layout);
 }
 
-TEST_CASE("Layout: a layout from before the beat waveforms has them closed and horizontal")
+TEST_CASE("Layout: a layout without its beats lines is no layout")
 {
-    Layout layout         = fiveWithMixer();
-    layout.mdi            = defaultMdiLayout();
-    layout.mdi->maximized = true;
-    std::string text      = formatLayout(layout);
+    Layout layout          = fiveWithMixer();
+    layout.mdi             = defaultMdiLayout();
+    const std::string text = formatLayout(layout);
     for (const std::string_view line :
          {std::string_view{"beats closed 0 0 760 200\n"}, std::string_view{"mdi beats closed\n"}})
     {
-        const auto at = text.find(line);
+        std::string without = text;
+        const auto  at      = without.find(line);
         REQUIRE(at != std::string::npos);
-        text.erase(at, line.size());
+        without.erase(at, line.size());
+        CHECK_FALSE(parseLayout(without).has_value());
     }
-    const auto read = parseLayout(text);
-    REQUIRE(read.has_value());
-    CHECK(*read == layout);
-    CHECK_FALSE(read->beats.open);
-    CHECK_FALSE(read->beats_vertical);
-    CHECK(read->beats.place == Placement{0, 0, 760, 200});
-    CHECK_FALSE(read->mdi->beats_open);
 }
 
 TEST_CASE("Layout: a damaged beats line, or one twice, is no layout")

@@ -54,7 +54,7 @@ namespace djw::core::library
     {
         public:
             /// Database schema version, stored as PRAGMA user_version
-            static constexpr std::int64_t schema_version = 8;
+            static constexpr std::int64_t schema_version = 1;
 
             static std::expected<TrackStore, std::string> open(const std::filesystem::path &database_file);
 
@@ -131,8 +131,6 @@ namespace djw::core::library
             }
 
             static std::expected<void, std::string>       createSchema(SqliteDatabase &database);
-            static std::expected<void, std::string>       migrate(SqliteDatabase &database, std::int64_t from_version);
-            static std::expected<void, std::string>       migrateToVersion2(SqliteDatabase &database);
             static std::expected<Statements, std::string> prepareStatements(SqliteDatabase &database);
 
             std::unique_ptr<SqliteDatabase> database;
