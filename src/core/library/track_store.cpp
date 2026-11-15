@@ -40,10 +40,11 @@ namespace djw::core::library
             );
             CREATE INDEX tracks_by_artist_title ON tracks (artist_key, title_key);
 
-            -- Full text index over the tracks table; remove_diacritics: "Beyonce" finds "Beyoncé"
+            -- Full text index over the tracks table; remove_diacritics: "Beyonce" finds "Beyoncé". It only filters,
+            -- results are sorted by column, never by relevance, so it keeps no column sizes (columnsize = 0)
             CREATE VIRTUAL TABLE tracks_search USING fts5 (
                 artist, title, album, genre, file_name,
-                content = 'tracks', content_rowid = 'id', tokenize = 'unicode61 remove_diacritics 2'
+                content = 'tracks', content_rowid = 'id', tokenize = 'unicode61 remove_diacritics 2', columnsize = 0
             );
             CREATE TRIGGER tracks_insert AFTER INSERT ON tracks BEGIN
                 INSERT INTO tracks_search (rowid, artist, title, album, genre, file_name)
