@@ -6,6 +6,9 @@
 
 Lean, touch-first DJ software for touchscreens and MIDI controllers. Runs on Linux, Raspberry Pi, Windows and macOS. No cloud, no accounts, no telemetry.
 
+> **Status: in development, not for production.**
+
+
 ## What it is
 
 - Any number of players, each in its own window or all arranged in one window, for mouse and touchscreen
