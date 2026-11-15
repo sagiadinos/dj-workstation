@@ -69,7 +69,8 @@ namespace djw::player_ui::sdl
         constexpr WindowSize library_size{720, 640};
         constexpr WindowSize mixer_size{static_cast<int>(MixerView::design_width),
                                         static_cast<int>(MixerView::design_height)};
-        constexpr WindowSize playlist_size{560, 640};
+        constexpr WindowSize playlist_size{static_cast<int>(PlaylistView::design_width),
+                                           static_cast<int>(PlaylistView::design_height)};
 
         /// The part of the display the windows may use (without panels and docks); std::nullopt if unknown
         std::optional<Placement> usableBounds(SDL_DisplayID display)

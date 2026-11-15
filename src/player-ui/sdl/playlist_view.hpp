@@ -34,6 +34,9 @@ namespace djw::player_ui::sdl
      *
      * All changes go to the library, which writes them on its thread; the view reads the playlists again when the
      * library's revision changes; the selection keeps its row, so it follows an entry moved with Up and Down.
+     *
+     * The layout is made for design_width x design_height and scales evenly with the area, text and rows included;
+     * it sits at the top of the area, centered across.
      */
     class PlaylistView final : public View
     {
@@ -41,6 +44,8 @@ namespace djw::player_ui::sdl
             using Load = std::function<void(const core::api::LibraryTrack &track)>;
 
             static constexpr std::chrono::milliseconds confirm_time{3'000};
+            static constexpr float                     design_width  = 560.0F;
+            static constexpr float                     design_height = 640.0F;
 
             PlaylistView(core::api::Library &library, FileDialogs &dialogs, const Translator &translator, Load load,
                          Clock clock = steadyClock());
@@ -67,6 +72,8 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TrackList                   &trackList() const noexcept { return list; }
             [[nodiscard]] const TextField                   &nameField() const noexcept { return name_field; }
             [[nodiscard]] const std::string                 &statusText() const noexcept { return status_text; }
+            /// How much the layout and its text are scaled from the design size
+            [[nodiscard]] float scale() const noexcept { return text_scale; }
 
             enum class Button : std::uint8_t
             {
@@ -111,6 +118,7 @@ namespace djw::player_ui::sdl
             TextField                            name_field;
             TrackList                            list;
             Rect                                 status_area;
+            float                                text_scale = 1.0F;
             std::vector<core::api::Playlist>     all;
             std::optional<std::int64_t>          shown;
             std::optional<std::string>           select_by_name; // after a create or import, once it is there

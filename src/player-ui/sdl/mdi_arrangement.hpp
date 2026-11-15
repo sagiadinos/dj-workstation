@@ -53,7 +53,9 @@ namespace djw::player_ui::sdl
     [[nodiscard]] MdiArrangement arrangeMdi(const Rect &window, const MdiContent &content, const MdiSizes &sizes);
 
     /// The grid the panes snap to when they are moved or resized by hand, in points from the window's corner
-    inline constexpr float mdi_grid = 10.0F;
+    inline constexpr float mdi_grid = 5.0F;
+    /// Within this distance an edge snaps to an edge of another pane or of the window, before the grid
+    inline constexpr float mdi_snap_distance = 12.0F;
     /// The smallest a pane can be made by hand
     inline constexpr float mdi_min_width  = 120.0F;
     inline constexpr float mdi_min_height = 100.0F;
@@ -64,12 +66,16 @@ namespace djw::player_ui::sdl
     /// The area kept inside the window: moved in, and shrunk if it is bigger than the window
     [[nodiscard]] Rect keepInside(Rect area, const Rect &window) noexcept;
 
-    /// A pane moved by hand: its corner on the grid, inside the window, the size unchanged
-    [[nodiscard]] Rect snapMove(const Rect &moved, const Rect &window, float grid = mdi_grid) noexcept;
+    /// A pane moved by hand, inside the window, the size unchanged: an edge near an edge of the window or of one of
+    /// the others (touching it or in line with it) goes there, otherwise the corner goes on the grid
+    [[nodiscard]] Rect snapMove(const Rect &moved, const Rect &window, float grid = mdi_grid,
+                                const std::vector<Rect> &others = {});
 
-    /// A pane resized by hand at its lower right corner: that corner on the grid, at least the smallest size,
-    /// inside the window; the upper left corner stays
-    [[nodiscard]] Rect snapResize(const Rect &resized, const Rect &window, float grid = mdi_grid) noexcept;
+    /// A pane resized by hand at its lower right corner, the upper left corner staying: the right and the bottom
+    /// edge go to a near edge of the window or of one of the others, otherwise on the grid; at least the smallest
+    /// size, inside the window
+    [[nodiscard]] Rect snapResize(const Rect &resized, const Rect &window, float grid = mdi_grid,
+                                  const std::vector<Rect> &others = {});
 
     /**
      * A place in the window for a pane of the size wanted that overlaps none of the taken areas: the first on the grid
@@ -79,10 +85,13 @@ namespace djw::player_ui::sdl
     [[nodiscard]] std::optional<Rect> freePlace(float width, float height, const Rect &window,
                                                 const std::vector<Rect> &taken, float grid = mdi_grid);
 
+    /// The grid of largestFree (where the logo goes), coarser than the one for arranging by hand
+    inline constexpr float free_grid = 10.0F;
+
     /// The biggest rectangle on the grid inside the window that overlaps none of the taken areas (touching their
     /// edges is fine); std::nullopt if no grid cell is free
     [[nodiscard]] std::optional<Rect> largestFree(const Rect &window, const std::vector<Rect> &taken,
-                                                  float grid = mdi_grid);
+                                                  float grid = free_grid);
 } // namespace djw::player_ui::sdl
 
 #endif // DJW_PLAYER_UI_SDL_MDI_ARRANGEMENT_HPP

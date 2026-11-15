@@ -29,7 +29,7 @@ namespace djw::player_ui::sdl
     class TrackList final : public Widget
     {
         public:
-            static constexpr float                     row_height = 44.0F; // a comfortable touch target
+            static constexpr float                     row_height = 44.0F; // a comfortable touch target, at scale 1
             static constexpr float                     tap_slop   = 8.0F;  // movement that still counts as tap
             static constexpr std::chrono::milliseconds double_tap_time{400};
             static constexpr std::chrono::milliseconds long_press_time{500};
@@ -38,6 +38,11 @@ namespace djw::player_ui::sdl
             static constexpr double fling_time_constant = 0.325;
             static constexpr double fling_min_speed     = 60.0;
             static constexpr double fling_stop_speed    = 15.0;
+
+            /// Rows and padding grow with the scale, for a view that scales with its area (the text scale is the
+            /// canvas's); 1 is the design size
+            void                setScale(float factor) noexcept { scale = factor; }
+            [[nodiscard]] float rowHeight() const noexcept { return row_height * scale; }
             /// The moves within this time before the finger lifts give the speed
             static constexpr std::chrono::milliseconds fling_sample_time{100};
 
@@ -138,6 +143,7 @@ namespace djw::player_ui::sdl
                     double                                speed = 0.0;
             };
             std::optional<Fling> fling;
+            float                scale = 1.0F;
     };
 } // namespace djw::player_ui::sdl
 

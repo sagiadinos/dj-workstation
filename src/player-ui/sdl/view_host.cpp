@@ -291,15 +291,25 @@ namespace djw::player_ui::sdl
                     const float dy    = at.y - drag->from.y;
                     const Rect &start = drag->start;
                     const Rect  area  = arrangeArea();
-                    drag->target      = drag->resize
-                                            ? snapResize({start.x, start.y, start.width + dx, start.height + dy}, area)
-                                            : snapMove({start.x + dx, start.y + dy, start.width, start.height}, area);
-                    drag->fits        = std::ranges::none_of(panes,
-                                                             [this](const Pane &other)
-                                                             {
+                    // The other arranged parts, whose edges it snaps to
+                    std::vector<Rect> others;
+                    for (const Pane &other : panes)
+                    {
+                        if (other.view != drag->view && other.area && !other.on_top)
+                        {
+                            others.push_back(other.placed);
+                        }
+                    }
+                    drag->target = drag->resize ? snapResize({start.x, start.y, start.width + dx, start.height + dy},
+                                                             area, mdi_grid, others)
+                                                : snapMove({start.x + dx, start.y + dy, start.width, start.height},
+                                                           area, mdi_grid, others);
+                    drag->fits   = std::ranges::none_of(panes,
+                                                        [this](const Pane &other)
+                                                        {
                                                           return other.view != drag->view && other.area &&
                                                                  !other.on_top && overlap(drag->target, other.placed);
-                                                             });
+                                                        });
                 }
                 return;
             case PointerPhase::Up:
@@ -351,17 +361,18 @@ namespace djw::player_ui::sdl
         // The views dimmed, so it is clear they do not react, with the grid over them
         canvas.fillRect(window, {0, 0, 0, 110});
         constexpr Color grid_color{255, 255, 255, 22};
-        const auto      columns = static_cast<int>(window.width / mdi_grid);
-        const auto      rows    = static_cast<int>(window.height / mdi_grid);
+        // Every fourth line of the grid: the full grid would cover the window
+        constexpr float shown   = mdi_grid * 4;
+        const auto      columns = static_cast<int>(window.width / shown);
+        const auto      rows    = static_cast<int>(window.height / shown);
         for (int column = 0; column <= columns; ++column)
         {
-            canvas.fillRect({window.x + (static_cast<float>(column) * mdi_grid), window.y, 1.0F, window.height},
+            canvas.fillRect({window.x + (static_cast<float>(column) * shown), window.y, 1.0F, window.height},
                             grid_color);
         }
         for (int row = 0; row <= rows; ++row)
         {
-            canvas.fillRect({window.x, window.y + (static_cast<float>(row) * mdi_grid), window.width, 1.0F},
-                            grid_color);
+            canvas.fillRect({window.x, window.y + (static_cast<float>(row) * shown), window.width, 1.0F}, grid_color);
         }
         const auto frame = [&canvas](const Rect &area, Color color, float line)
         {

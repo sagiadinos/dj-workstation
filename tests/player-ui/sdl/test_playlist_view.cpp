@@ -269,3 +269,24 @@ TEST_CASE("PlaylistView: the cursor keys move the selection, Enter loads it; not
     REQUIRE(fixture.loaded.size() == 1);
     CHECK(fixture.loaded[0].title == "alpha");
 }
+
+TEST_CASE("PlaylistView: scales evenly with its area like the player, at the top and centered across")
+{
+    Fixture    fixture;
+    const Rect design_new  = fixture.view.button(Button::New).bounds();
+    const auto design_rows = fixture.view.trackList().rowHeight();
+    CHECK(fixture.view.scale() == doctest::Approx(1.0));
+
+    // Twice the size: everything twice as big
+    fixture.view.layout({0, 0, 2 * PlaylistView::design_width, 2 * PlaylistView::design_height});
+    CHECK(fixture.view.scale() == doctest::Approx(2.0));
+    CHECK(fixture.view.button(Button::New).bounds().height == doctest::Approx(2 * design_new.height));
+    CHECK(fixture.view.trackList().rowHeight() == doctest::Approx(2 * design_rows));
+
+    // Wider than the design: the height decides, the layout is centered across
+    fixture.view.layout({0, 0, 3 * PlaylistView::design_width, PlaylistView::design_height});
+    CHECK(fixture.view.scale() == doctest::Approx(1.0));
+    const Rect previous = fixture.view.button(Button::Previous).bounds();
+    CHECK(previous.x == doctest::Approx(design_new.x + PlaylistView::design_width));
+    CHECK(previous.y == doctest::Approx(design_new.y - design_new.height - 8.0F)); // top row, as before
+}

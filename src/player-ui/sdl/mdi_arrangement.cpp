@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 #include <cstddef>
 #include <vector>
 
@@ -128,11 +129,64 @@ namespace djw::player_ui::sdl
         }
     } // namespace
 
-    Rect snapMove(const Rect &moved, const Rect &window, float grid) noexcept
+    namespace
     {
-        Rect snapped = keepInside(moved, window);
-        snapped.x    = onGrid(snapped.x, window.x, grid);
-        snapped.y    = onGrid(snapped.y, window.y, grid);
+        /// Of the candidates, the one nearest to value within mdi_snap_distance; std::nullopt if none is that near
+        std::optional<float> nearest(float value, std::initializer_list<float> fixed, const std::vector<float> &more)
+        {
+            std::optional<float> best;
+            const auto           consider = [&](float candidate)
+            {
+                const float distance = std::abs(candidate - value);
+                if (distance <= mdi_snap_distance && (!best || distance < std::abs(*best - value)))
+                {
+                    best = candidate;
+                }
+            };
+            for (const float candidate : fixed)
+            {
+                consider(candidate);
+            }
+            for (const float candidate : more)
+            {
+                consider(candidate);
+            }
+            return best;
+        }
+
+        /// Where the start of a pane of length size may go so that one of its edges meets an edge of another: its
+        /// start at their start or end, or its end at their start or end
+        std::vector<float> meetingStarts(const std::vector<Rect> &others, float size, bool across)
+        {
+            std::vector<float> starts;
+            for (const Rect &other : others)
+            {
+                const float start = across ? other.x : other.y;
+                const float end   = start + (across ? other.width : other.height);
+                starts.insert(starts.end(), {start, end, start - size, end - size});
+            }
+            return starts;
+        }
+
+        /// Where the end of a pane may go to meet an edge of another
+        std::vector<float> meetingEnds(const std::vector<Rect> &others, bool across)
+        {
+            std::vector<float> ends;
+            for (const Rect &other : others)
+            {
+                const float start = across ? other.x : other.y;
+                ends.insert(ends.end(), {start, start + (across ? other.width : other.height)});
+            }
+            return ends;
+        }
+    } // namespace
+
+    Rect snapMove(const Rect &moved, const Rect &window, float grid, const std::vector<Rect> &others)
+    {
+        const Rect inside  = keepInside(moved, window);
+        Rect       snapped = inside;
+        snapped.x          = onGrid(snapped.x, window.x, grid);
+        snapped.y          = onGrid(snapped.y, window.y, grid);
         // Rounding may have pushed it over the right or bottom edge: then the grid line before
         if (snapped.x + snapped.width > window.x + window.width)
         {
@@ -142,14 +196,31 @@ namespace djw::player_ui::sdl
         {
             snapped.y = std::max(window.y, gridBefore(window.y + window.height - snapped.height, window.y, grid));
         }
-        return snapped;
+        // An edge near the window's or another pane's edge goes there instead
+        if (const auto x = nearest(inside.x, {window.x, window.x + window.width - inside.width},
+                                   meetingStarts(others, inside.width, true)))
+        {
+            snapped.x = *x;
+        }
+        if (const auto y = nearest(inside.y, {window.y, window.y + window.height - inside.height},
+                                   meetingStarts(others, inside.height, false)))
+        {
+            snapped.y = *y;
+        }
+        return keepInside(snapped, window);
     }
 
-    Rect snapResize(const Rect &resized, const Rect &window, float grid) noexcept
+    Rect snapResize(const Rect &resized, const Rect &window, float grid, const std::vector<Rect> &others)
     {
         Rect        snapped = resized;
-        const float right   = std::min(onGrid(resized.x + resized.width, window.x, grid), window.x + window.width);
-        const float bottom  = std::min(onGrid(resized.y + resized.height, window.y, grid), window.y + window.height);
+        const float edge_x  = resized.x + resized.width;
+        const float edge_y  = resized.y + resized.height;
+        const float right   = std::min(nearest(edge_x, {window.x + window.width}, meetingEnds(others, true))
+                                           .value_or(onGrid(edge_x, window.x, grid)),
+                                       window.x + window.width);
+        const float bottom  = std::min(nearest(edge_y, {window.y + window.height}, meetingEnds(others, false))
+                                           .value_or(onGrid(edge_y, window.y, grid)),
+                                       window.y + window.height);
         snapped.width       = std::max(right - resized.x, std::min(mdi_min_width, window.x + window.width - resized.x));
         snapped.height = std::max(bottom - resized.y, std::min(mdi_min_height, window.y + window.height - resized.y));
         return snapped;

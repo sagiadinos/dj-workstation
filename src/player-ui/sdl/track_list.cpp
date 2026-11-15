@@ -59,8 +59,8 @@ namespace djw::player_ui::sdl
         const auto row  = static_cast<std::size_t>(std::clamp(from + by, std::ptrdiff_t{0}, last));
         selection       = row;
         // Into view: at the top edge going up, at the bottom edge going down
-        const float top    = static_cast<float>(row) * row_height;
-        const float bottom = top + row_height;
+        const float top    = static_cast<float>(row) * rowHeight();
+        const float bottom = top + rowHeight();
         if (top < offset)
         {
             offset = top;
@@ -74,7 +74,7 @@ namespace djw::player_ui::sdl
 
     std::size_t TrackList::pageRows() const noexcept
     {
-        return std::max<std::size_t>(1, static_cast<std::size_t>(bounds().height / row_height));
+        return std::max<std::size_t>(1, static_cast<std::size_t>(bounds().height / rowHeight()));
     }
 
     bool TrackList::navigate(EditKey key) noexcept
@@ -116,7 +116,7 @@ namespace djw::player_ui::sdl
 
     float TrackList::maxOffset() const noexcept
     {
-        return std::max(0.0F, (static_cast<float>(rows.size()) * row_height) - bounds().height);
+        return std::max(0.0F, (static_cast<float>(rows.size()) * rowHeight()) - bounds().height);
     }
 
     std::optional<std::size_t> TrackList::rowAt(Point position) const noexcept
@@ -125,7 +125,7 @@ namespace djw::player_ui::sdl
         {
             return std::nullopt;
         }
-        const auto row = static_cast<std::size_t>((position.y - bounds().y + offset) / row_height);
+        const auto row = static_cast<std::size_t>((position.y - bounds().y + offset) / rowHeight());
         return row < rows.size() ? std::optional{row} : std::nullopt;
     }
 
@@ -171,12 +171,12 @@ namespace djw::player_ui::sdl
 
     std::optional<Rect> TrackList::cellArea(const Cell &cell) const
     {
-        const float y = bounds().y + (static_cast<float>(cell.row) * row_height) - offset;
-        if (cell.row >= rows.size() || y < bounds().y || y + row_height > bounds().y + bounds().height)
+        const float y = bounds().y + (static_cast<float>(cell.row) * rowHeight()) - offset;
+        if (cell.row >= rows.size() || y < bounds().y || y + rowHeight() > bounds().y + bounds().height)
         {
             return std::nullopt;
         }
-        return columnArea({bounds().x, y, bounds().width, row_height}, cell.column);
+        return columnArea({bounds().x, y, bounds().width, rowHeight()}, cell.column);
     }
 
     void TrackList::pointerDown(Point position)
@@ -287,11 +287,11 @@ namespace djw::player_ui::sdl
         const Rect &area = bounds();
         canvas.setClip(area);
 
-        const auto  first   = static_cast<std::size_t>(offset / row_height);
-        const float text_dy = (row_height - canvas.textHeight()) / 2;
+        const auto  first   = static_cast<std::size_t>(offset / rowHeight());
+        const float text_dy = (rowHeight() - canvas.textHeight()) / 2;
         for (std::size_t index = first; index < rows.size(); ++index)
         {
-            const float y = area.y + (static_cast<float>(index) * row_height) - offset;
+            const float y = area.y + (static_cast<float>(index) * rowHeight()) - offset;
             if (y >= area.y + area.height)
             {
                 break;
@@ -301,20 +301,21 @@ namespace djw::player_ui::sdl
                                                         : alternate_row_color;
             if (selection == index)
             {
-                canvas.fillRoundedRect({area.x, y, area.width, row_height}, 0.0F, {62, 112, 172}, {36, 72, 118});
+                canvas.fillRoundedRect({area.x, y, area.width, rowHeight()}, 0.0F, {62, 112, 172}, {36, 72, 118});
             }
             else
             {
-                canvas.fillRect({area.x, y, area.width, row_height}, background);
+                canvas.fillRect({area.x, y, area.width, rowHeight()}, background);
             }
 
             const auto &track  = rows[index];
             const float text_y = y + text_dy;
-            const auto  cells  = columnAreas({area.x, y, area.width, row_height});
+            const auto  cells  = columnAreas({area.x, y, area.width, rowHeight()});
             const auto  cell   = [&](core::api::LibraryColumn column, const std::string &text, Color color)
             {
                 const Rect &cell_area = cells[columnIndex(column)];
-                canvas.textElided({cell_area.x + padding, text_y}, text, color, cell_area.width - (2 * padding));
+                canvas.textElided({cell_area.x + (padding * scale), text_y}, text, color,
+                                  cell_area.width - (2 * padding * scale));
             };
             const Color primary   = track.missing ? missing_text_color : text_color;
             const Color secondary = track.missing ? missing_text_color : secondary_text_color;

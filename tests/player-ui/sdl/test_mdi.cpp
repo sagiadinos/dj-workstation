@@ -395,3 +395,30 @@ TEST_CASE("largestFree: a view off the grid blocks every cell it covers, an edge
     REQUIRE(moved.has_value());
     CHECK(sameRect(*moved, Rect{400, 30, 400, 600}));
 }
+
+TEST_CASE("snapMove and snapResize: a near edge of another pane or of the window wins over the grid")
+{
+    constexpr Rect          window{0, 0, 1000, 800};
+    const std::vector<Rect> others{{0, 0, 383, 547}};
+
+    // Moved close to the right of the other pane: they touch, the tops in line
+    const Rect touching = snapMove({390, 8, 300, 200}, window, mdi_grid, others);
+    CHECK(touching.x == doctest::Approx(383));
+    CHECK(touching.y == doctest::Approx(0));
+    // Below it, the left edges in line, the top touching its bottom
+    const Rect below = snapMove({7, 553, 300, 200}, window, mdi_grid, others);
+    CHECK(below.x == doctest::Approx(0));
+    CHECK(below.y == doctest::Approx(547));
+    // Far from every edge: the grid
+    const Rect free = snapMove({601, 301, 100, 100}, window, mdi_grid, others);
+    CHECK(free.x == doctest::Approx(600));
+    CHECK(free.y == doctest::Approx(300));
+    // Near the window's right edge: flush with it
+    const Rect right = snapMove({893, 400, 100, 100}, window, mdi_grid, others);
+    CHECK(right.x == doctest::Approx(900));
+
+    // Resized: the right edge to the window's, the bottom in line with the other pane's
+    const Rect resized = snapResize({400, 0, 592, 541}, window, mdi_grid, others);
+    CHECK(resized.x + resized.width == doctest::Approx(1000));
+    CHECK(resized.y + resized.height == doctest::Approx(547));
+}

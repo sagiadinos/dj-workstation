@@ -18,15 +18,15 @@ namespace djw::player_ui::sdl
         constexpr Color status_color{160, 160, 160};
 
         /// Lays out buttons side by side over area, equally wide
-        void placeInRow(std::initializer_list<TextButton *> row, const Rect &area)
+        void placeInRow(std::initializer_list<TextButton *> row, const Rect &area, float space)
         {
             const auto  count = static_cast<float>(row.size());
-            const float width = std::max(0.0F, (area.width - (gap * (count - 1))) / count);
+            const float width = std::max(0.0F, (area.width - (space * (count - 1))) / count);
             float       x     = area.x;
             for (TextButton *button : row)
             {
                 button->setBounds({x, area.y, width, area.height});
-                x += width + gap;
+                x += width + space;
             }
         }
     } // namespace
@@ -40,27 +40,35 @@ namespace djw::player_ui::sdl
 
     void PlaylistView::layout(const Rect &area)
     {
-        const Rect inner = area.inset(margin);
-        float      y     = inner.y;
+        // The design size scaled evenly to fit the area: at the top, centered across, text and rows with it
+        const float scale = std::max(0.0F, std::min(area.width / design_width, area.height / design_height));
+        text_scale        = std::clamp(scale, 0.5F, 6.0F);
+        const Rect  fitted{area.x + ((area.width - (design_width * scale)) / 2), area.y, design_width * scale,
+                           design_height * scale};
+        const Rect  inner = fitted.inset(margin * scale);
+        const float row   = row_height * scale;
+        const float space = gap * scale;
+        const float step  = step_width * scale;
+        float       y     = inner.y;
 
-        control(Button::Previous).setBounds({inner.x, y, step_width, row_height});
-        control(Button::Next).setBounds({inner.x + inner.width - step_width, y, step_width, row_height});
-        name_field.setBounds(
-            {inner.x + step_width + gap, y, std::max(0.0F, inner.width - (2 * (step_width + gap))), row_height});
-        y += row_height + gap;
+        control(Button::Previous).setBounds({inner.x, y, step, row});
+        control(Button::Next).setBounds({inner.x + inner.width - step, y, step, row});
+        name_field.setBounds({inner.x + step + space, y, std::max(0.0F, inner.width - (2 * (step + space))), row});
+        y += row + space;
 
         placeInRow(
             {&control(Button::New), &control(Button::Delete), &control(Button::Import), &control(Button::Export)},
-            {inner.x, y, inner.width, row_height});
-        y += row_height + gap;
+            {inner.x, y, inner.width, row}, space);
+        y += row + space;
 
         const float bottom = inner.y + inner.height;
-        status_area        = {inner.x, bottom - 28.0F, inner.width, 28.0F};
-        const float tools  = status_area.y - gap - row_height;
+        status_area        = {inner.x, bottom - (28.0F * scale), inner.width, 28.0F * scale};
+        const float tools  = status_area.y - space - row;
         placeInRow({&control(Button::Up), &control(Button::Down), &control(Button::Remove)},
-                   {inner.x, tools, inner.width, row_height});
+                   {inner.x, tools, inner.width, row}, space);
 
-        list.setBounds({inner.x, y, inner.width, std::max(0.0F, tools - gap - y)});
+        list.setScale(text_scale);
+        list.setBounds({inner.x, y, inner.width, std::max(0.0F, tools - space - y)});
         list.scrollBy(0.0F);
     }
 
@@ -407,6 +415,7 @@ namespace djw::player_ui::sdl
 
     void PlaylistView::draw(Canvas &canvas) const
     {
+        canvas.setTextScale(text_scale);
         for (const TextButton &each : buttons)
         {
             each.draw(canvas);
