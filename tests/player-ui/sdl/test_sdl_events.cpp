@@ -3,6 +3,7 @@
 
 #include "sdl_events.hpp"
 
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_touch.h>
@@ -144,9 +145,9 @@ TEST_CASE("toKeyboardInput: typed text and the editing keys, nothing else")
     CHECK(toKeyboardInput(ctrl) == KeyboardInput{EditKey::CtrlShiftLeft});
 }
 
-TEST_CASE("toKeyboardInput: P, C and L are player keys, C also when let go; not with Ctrl, not repeated")
+TEST_CASE("toKeyboardInput: the player keys only with the left Alt; P and L once, C also let go, the rest repeats")
 {
-    const auto key = [](SDL_EventType type, SDL_Keycode code, SDL_Keymod mod = SDL_KMOD_NONE, bool repeat = false)
+    const auto key = [](SDL_EventType type, SDL_Keycode code, SDL_Keymod mod = SDL_KMOD_LALT, bool repeat = false)
     {
         SDL_Event event{};
         event.type       = type;
@@ -160,16 +161,60 @@ TEST_CASE("toKeyboardInput: P, C and L are player keys, C also when let go; not 
     CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_L) == KeyboardInput{PlayerKey{Key::Load, true}});
     CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_C) == KeyboardInput{PlayerKey{Key::Cue, true}});
     CHECK(key(SDL_EVENT_KEY_UP, SDLK_C) == KeyboardInput{PlayerKey{Key::Cue, false}});
-    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_LSHIFT) == KeyboardInput{PlayerKey{Key::Play, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_LEFT) == KeyboardInput{PlayerKey{Key::Back, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_RIGHT) == KeyboardInput{PlayerKey{Key::Ahead, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_LEFT, SDL_KMOD_LALT | SDL_KMOD_LSHIFT) ==
+          KeyboardInput{PlayerKey{Key::FarBack, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_RIGHT, SDL_KMOD_LALT | SDL_KMOD_RSHIFT) ==
+          KeyboardInput{PlayerKey{Key::FarAhead, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_UP) == KeyboardInput{PlayerKey{Key::PitchUp, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_DOWN, SDL_KMOD_LALT, true) == KeyboardInput{PlayerKey{Key::PitchDown, true}});
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_RIGHT, SDL_KMOD_LALT, true) == KeyboardInput{PlayerKey{Key::Ahead, true}});
+
+    // Not repeated, not let go
     CHECK_FALSE(key(SDL_EVENT_KEY_UP, SDLK_P).has_value());
-    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_LCTRL).has_value());
-    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_C, SDL_KMOD_NONE, true).has_value());
-    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_L, SDL_KMOD_LALT).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_C, SDL_KMOD_LALT, true).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_LALT, true).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_UP, SDLK_UP).has_value());
+    // Without the left Alt, or with Ctrl, the system key or the right Alt (AltGr) as well: no player key
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_NONE).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_C, SDL_KMOD_LSHIFT).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_RALT).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_LALT | SDL_KMOD_LCTRL).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_L, SDL_KMOD_LALT | SDL_KMOD_LGUI).has_value());
+    CHECK_FALSE(key(SDL_EVENT_KEY_DOWN, SDLK_P, SDL_KMOD_LALT | SDL_KMOD_RALT).has_value());
+    // The cursor keys without Alt stay editing keys
+    CHECK(key(SDL_EVENT_KEY_DOWN, SDLK_LEFT, SDL_KMOD_NONE) == KeyboardInput{EditKey::Left});
 
     SDL_Event up{};
     up.type    = SDL_EVENT_KEY_UP;
     up.key.key = SDLK_BACKSPACE;
     CHECK_FALSE(toKeyboardInput(up).has_value());
+}
+
+TEST_CASE("strayCharacter: a key that types a character, as the layout and Shift make it; not space, not with Ctrl")
+{
+    const auto stray =
+        [](SDL_Scancode scancode, SDL_Keymod mod = SDL_KMOD_NONE, SDL_EventType type = SDL_EVENT_KEY_DOWN)
+    {
+        SDL_Event event{};
+        event.type         = type;
+        event.key.scancode = scancode;
+        event.key.key      = SDL_GetKeyFromScancode(scancode, SDL_KMOD_NONE, true);
+        event.key.mod      = mod;
+        return strayCharacter(event);
+    };
+    CHECK(stray(SDL_SCANCODE_A) == std::optional<std::string>{"a"});
+    CHECK(stray(SDL_SCANCODE_A, SDL_KMOD_LSHIFT) == std::optional<std::string>{"A"});
+    CHECK(stray(SDL_SCANCODE_5) == std::optional<std::string>{"5"});
+    CHECK_FALSE(stray(SDL_SCANCODE_SPACE).has_value());
+    CHECK_FALSE(stray(SDL_SCANCODE_RETURN).has_value());
+    CHECK_FALSE(stray(SDL_SCANCODE_LEFT).has_value());
+    CHECK_FALSE(stray(SDL_SCANCODE_F5).has_value());
+    CHECK_FALSE(stray(SDL_SCANCODE_A, SDL_KMOD_LCTRL).has_value());
+    CHECK_FALSE(stray(SDL_SCANCODE_A, SDL_KMOD_LALT).has_value());
+    CHECK_FALSE(stray(SDL_SCANCODE_A, SDL_KMOD_LGUI).has_value());
+    CHECK_FALSE(stray(SDL_SCANCODE_A, SDL_KMOD_NONE, SDL_EVENT_KEY_UP).has_value());
 }
 
 TEST_CASE("toWheelEvent: position and direction, flipped wheels turned back")

@@ -335,6 +335,14 @@ namespace djw::player_ui::sdl
         time_button.setHighlighted(show_remaining);
     }
 
+    void DeckView::stepPitch(float by)
+    {
+        const float from = keyed_pitch.value_or(pitchOf(pitch_fader.value()));
+        const float to   = std::clamp(std::round((from + by) * 10.0F) / 10.0F, -pitch_range, pitch_range);
+        keyed_pitch      = to;
+        pitch_fader.setValue(faderValueOf(to));
+    }
+
     void DeckView::choosePosition(double seconds)
     {
         if (playing())
@@ -430,7 +438,7 @@ namespace djw::player_ui::sdl
             case Action::DeckSeek:
                 for (int step = 0; step < std::abs(event.steps); ++step)
                 {
-                    keyboard(event.steps > 0 ? EditKey::Right : EditKey::Left);
+                    keyboard(PlayerKey{event.steps > 0 ? PlayerKey::Key::Ahead : PlayerKey::Key::Back, true});
                 }
                 break;
             case Action::Shift:
@@ -442,46 +450,45 @@ namespace djw::player_ui::sdl
 
     void DeckView::keyboard(const KeyboardInput &input)
     {
-        if (const auto *player_key = std::get_if<PlayerKey>(&input))
-        {
-            // Like the buttons: play and load when the frame is updated, CUE at once on press and on release
-            switch (player_key->key)
-            {
-                case PlayerKey::Key::Play:
-                    play_key = true;
-                    break;
-                case PlayerKey::Key::Load:
-                    load_key = true;
-                    break;
-                case PlayerKey::Key::Cue:
-                    cue_held = player_key->down;
-                    pending.emplace_back(core::api::DeckCue{deck, player_key->down});
-                    break;
-            }
-            return;
-        }
-        const auto *key = std::get_if<EditKey>(&input);
-        if (key == nullptr || !state.track_loaded || state.duration_seconds <= 0.0)
+        const auto *player_key = std::get_if<PlayerKey>(&input);
+        if (player_key == nullptr)
         {
             return;
         }
+        // Like the buttons: play and load when the frame is updated, CUE at once on press and on release
         double step = 0.0;
-        switch (*key)
+        switch (player_key->key)
         {
-            case EditKey::Left:
+            case PlayerKey::Key::Play:
+                play_key = true;
+                return;
+            case PlayerKey::Key::Load:
+                load_key = true;
+                return;
+            case PlayerKey::Key::Cue:
+                cue_held = player_key->down;
+                pending.emplace_back(core::api::DeckCue{deck, player_key->down});
+                return;
+            case PlayerKey::Key::PitchUp:
+            case PlayerKey::Key::PitchDown:
+                stepPitch(player_key->key == PlayerKey::Key::PitchUp ? key_pitch_step : -key_pitch_step);
+                return;
+            case PlayerKey::Key::Back:
                 step = -key_step_seconds;
                 break;
-            case EditKey::Right:
+            case PlayerKey::Key::Ahead:
                 step = key_step_seconds;
                 break;
-            case EditKey::ShiftLeft:
+            case PlayerKey::Key::FarBack:
                 step = -shift_step_seconds;
                 break;
-            case EditKey::ShiftRight:
+            case PlayerKey::Key::FarAhead:
                 step = shift_step_seconds;
                 break;
-            default:
-                return;
+        }
+        if (!state.track_loaded || state.duration_seconds <= 0.0)
+        {
+            return;
         }
         // From the position chosen last if it has not gone out yet (keys pressed quickly), else where the deck is
         double from = state.position_seconds;
@@ -523,7 +530,13 @@ namespace djw::player_ui::sdl
         {
             sent_headphone_level = level;
         }
-        const float pitch = pitchOf(pitch_fader.value());
+        // A pitch set with the keys holds while the fader stays where the keys put it (the fader's detent at 0 would
+        // turn a tenth into 0); a touch or a controller on the fader takes over
+        if (keyed_pitch && pitch_fader.value() != faderValueOf(*keyed_pitch))
+        {
+            keyed_pitch.reset();
+        }
+        const float pitch = keyed_pitch.value_or(pitchOf(pitch_fader.value()));
         shown_pitch       = pitch;
         if (pitch != sent_pitch && queue->tryPush(core::api::DeckSetPitch{deck, pitch}))
         {

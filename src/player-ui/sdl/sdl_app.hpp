@@ -103,6 +103,12 @@ namespace djw::player_ui::sdl
             void dropped(SDL_WindowID window, const std::filesystem::path &path,
                          std::optional<Point> position = std::nullopt);
 
+            /// A character typed in the window with the SDL id window while its focused view takes no typing (e.g. a
+            /// player): it goes into the library's search, which takes the focus (its window raised in the mode with
+            /// separate windows). Not while a dialog is open or the layout is edited, nor in a window that takes the
+            /// typing itself; false then. The event loop calls this; tests call it directly.
+            bool typedStray(SDL_WindowID window, const std::string &text);
+
             /// Loads a track into the first player that does not play (what Enter and a double tap do). With no
             /// player yet, one is opened for it; with all of them playing nothing is loaded and the library says so.
             void load(const core::api::LibraryTrack &track);

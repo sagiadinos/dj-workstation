@@ -217,7 +217,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | LED feedback | done | Player state → MIDI out, in the same mapping file (`[[light]]`): play while playing, headphone cue, CUE as on a CDJ (lit at the cue point and while held, blinking when paused elsewhere). The Mixxx import takes the play, cue and headphone outputs over. |
 | Mixxx import | done | Settings > Devices turns a Mixxx mapping (.midi.xml) into ours: its direct bindings to functions djw has; what its script does is left out and counted. Saved in the user's mapping folder. |
 | Reference controller | done | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. |
-| Keyboard shortcuts | done | From the original version, in the player that has the keyboard focus: P = play/pause, C = cue (acts while held), L = load. |
+| Keyboard shortcuts | done | In the player that has the keyboard focus, always with the left Alt (Option on the Mac), so typing never reaches a player: Alt+P = play/pause, Alt+C = cue (acts while held), Alt+L = load, Alt+←/→ = a step back/ahead (with Shift 10 s), Alt+↑/↓ = pitch ±0.1 %. A letter typed while no text field has the focus goes into the library's search. |
 
 The mapping format is described in [mappings/README.md](mappings/README.md).
 

@@ -108,8 +108,11 @@ namespace djw::player_ui::sdl
 
             [[nodiscard]] bool wantsTextInput() const override;
             void               keyboard(const KeyboardInput &input) override;
-            void               wheel(Point position, float dy) override;
-            void               secondaryClick(Point position) override;
+            /// Puts the focus into the search field and types text there: what was typed while a view without
+            /// typing (a player) had the focus
+            void typeIntoSearch(const std::string &text);
+            void wheel(Point position, float dy) override;
+            void secondaryClick(Point position) override;
 
             [[nodiscard]] const TextField &searchField() const noexcept { return search_field; }
             /// The filter field of filter_columns[index]

@@ -88,6 +88,10 @@ namespace djw::player_ui::sdl
             /// Window size in points
             [[nodiscard]] Rect area() const;
 
+            /// Turns text input (and an on-screen keyboard) on or off as the focused view wants; once a frame, and at
+            /// once when the focus moved into a text field between frames
+            void syncTextInput();
+
         private:
             struct WindowDeleter
             {
@@ -100,8 +104,6 @@ namespace djw::player_ui::sdl
             };
 
             SdlWindow() = default;
-
-            void syncTextInput();
 
             std::unique_ptr<SDL_Window, WindowDeleter>     window;
             std::unique_ptr<SDL_Renderer, RendererDeleter> renderer;

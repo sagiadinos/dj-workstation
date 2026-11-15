@@ -814,6 +814,44 @@ TEST_CASE("SdlApp: in the MDI mode the players, the crossfader and the library a
     CHECK(openWindows() == 1);
 }
 
+TEST_CASE("SdlApp: a letter typed while a player has the focus goes into the library's search, not to the player")
+{
+    for (const bool mdi : {false, true})
+    {
+        CAPTURE(mdi);
+        const djw::tests::TempDir folder;
+        const auto                layout = folder.path() / "layout";
+        if (mdi)
+        {
+            writeMdiLayout(layout, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+        }
+        Fixture                 fixture;
+        djw::tests::FakeLibrary library;
+        auto                    app = fixture.openApp(&library, mdi ? layout : std::filesystem::path{});
+        REQUIRE(app->runFrame());
+        if (mdi)
+        {
+            REQUIRE(app->hostViews() != nullptr);
+            REQUIRE_FALSE(app->hostViews()->wantsTextInput()); // no text field has the focus
+        }
+        CHECK(app->typedStray(app->deckWindowId(0), "p"));
+        CHECK(app->libraryView().searchField().focused());
+        CHECK(app->libraryView().searchField().text() == "p");
+        if (mdi)
+        {
+            CHECK(app->hostViews()->wantsTextInput());               // the library part has the focus now
+            CHECK_FALSE(app->typedStray(app->deckWindowId(0), "i")); // the window takes the typing itself
+        }
+        else
+        {
+            CHECK(app->typedStray(app->deckWindowId(0), "i")); // the player window still has the keys
+            CHECK(app->libraryView().searchField().text() == "pi");
+            CHECK_FALSE(app->typedStray(app->libraryWindowId(), "x")); // the library window takes it itself
+        }
+        CHECK_FALSE(app->deckPlaying(0));
+    }
+}
+
 TEST_CASE("SdlApp: in the MDI mode the close button of a player removes it, closing the window ends the program")
 {
     const djw::tests::TempDir folder;

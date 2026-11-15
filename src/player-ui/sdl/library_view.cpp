@@ -200,6 +200,20 @@ namespace djw::player_ui::sdl
         }
     }
 
+    void LibraryView::typeIntoSearch(const std::string &text)
+    {
+        if (edit)
+        {
+            commitEdit(); // the search takes over
+        }
+        search_field.setFocused(true);
+        for (TextField &filter : filters)
+        {
+            filter.setFocused(false);
+        }
+        static_cast<void>(search_field.input(text));
+    }
+
     bool LibraryView::wantsTextInput() const
     {
         return search_field.focused() || cell_editor.focused() ||

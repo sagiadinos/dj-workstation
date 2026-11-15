@@ -1123,14 +1123,30 @@ TEST_CASE("LibraryView: the cursor keys move the selection in the list, also whi
     CHECK(fixture.loaded[0].id == fixture.view.trackList().tracks()[0].id);
 }
 
-TEST_CASE("LibraryView: the player keys do nothing in the library, the letter comes as typed text")
+TEST_CASE("LibraryView: the player keys do nothing in the library")
 {
     Fixture fixture;
     fixture.view.keyboard(EditKey::Tab); // the search field takes the typing
     fixture.view.keyboard(PlayerKey{PlayerKey::Key::Play, true});
-    fixture.view.keyboard(std::string{"p"});
-    CHECK(fixture.view.searchField().text() == "p");
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Load, true});
+    CHECK(fixture.view.searchField().text().empty());
     CHECK(fixture.loaded.empty());
+}
+
+TEST_CASE("LibraryView: typed into the search: the search field takes the focus from a filter and the text")
+{
+    Fixture     fixture;
+    const Rect &area = fixture.view.filterField(0).bounds();
+    fixture.tap({area.x + (area.width / 2), area.y + (area.height / 2)});
+    fixture.view.update();
+    REQUIRE(fixture.view.filterField(0).focused());
+    fixture.view.typeIntoSearch("p");
+    fixture.view.typeIntoSearch("i");
+    CHECK(fixture.view.searchField().focused());
+    CHECK_FALSE(fixture.view.filterField(0).focused());
+    CHECK(fixture.view.searchField().text() == "pi");
+    CHECK(fixture.view.filterField(0).text().empty());
+    CHECK(fixture.view.wantsTextInput());
 }
 
 TEST_CASE("LibraryView: each filter field filters its own column; the clear button also ends Missing and the filters")

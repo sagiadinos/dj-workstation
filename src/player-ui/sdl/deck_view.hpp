@@ -81,9 +81,9 @@ namespace djw::player_ui::sdl
 
             /// Once per frame: reads the snapshot and sends what the input asked for.
             void update() override;
-            /// The cursor keys left and right jump back and ahead by key_step_seconds, with Shift by
-            /// shift_step_seconds, as a touch on the waveform there would (a playing deck jumps, a standing one
-            /// scrubs). P, C and L do what play/pause, CUE (while held) and Load do.
+            /// The player keys (see PlayerKey): play/pause, CUE (while held) and Load as the buttons; back and ahead by
+            /// key_step_seconds or shift_step_seconds, as a touch on the waveform there would (a playing deck jumps, a
+            /// standing one scrubs); the pitch up or down by key_pitch_step. Other keys do nothing here.
             void keyboard(const KeyboardInput &input) override;
             /// The player's lights on a controller: play while it plays, headphone cue, and CUE as on a CDJ: lit at the
             /// cue point, blinking (with blink_on) when paused elsewhere, dark while playing or without a track
@@ -95,6 +95,8 @@ namespace djw::player_ui::sdl
             /// One scrub loop
             static constexpr double key_step_seconds   = core::api::scrub_loop_seconds;
             static constexpr double shift_step_seconds = 10.0;
+            /// A tenth of a percent
+            static constexpr float key_pitch_step = 0.1F;
 
             void draw(Canvas &canvas) const override;
 
@@ -220,11 +222,15 @@ namespace djw::player_ui::sdl
             float                 sent_pitch = 0.0F;
             /// The pitch shown: what the fader says
             float shown_pitch = 0.0F;
+            /// The pitch the keys set, while the fader stays where they put it
+            std::optional<float> keyed_pitch;
+            /// The pitch keys: from the pitch now, in tenths, within the fader's range
+            void stepPitch(float by);
             /// Commands that go out in this order
             std::deque<core::api::Command> pending;
-            bool                           play_key = false; ///< P was pressed, handled like the play button
-            bool                           load_key = false; ///< L was pressed, handled like the Load button
-            bool                           cue_held = false; ///< CUE is held on the keyboard (C) or a controller
+            bool                           play_key = false; ///< Alt+P was pressed, handled like the play button
+            bool                           load_key = false; ///< Alt+L was pressed, handled like the Load button
+            bool                           cue_held = false; ///< CUE is held on the keyboard (Alt+C) or a controller
             /// A position chosen on the waveform or with the keys: a playing deck jumps there, a standing one scrubs
             void choosePosition(double seconds);
             /// The latest position chosen on the waveform (a jump or a scrub), sent after the list

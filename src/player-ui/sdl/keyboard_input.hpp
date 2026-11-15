@@ -42,15 +42,22 @@ namespace djw::player_ui::sdl
         CtrlShiftDown
     };
 
-    /// The keys of a player, from the original version: P play/pause, C cue, L load. Pressed without Ctrl, Alt or the
-    /// system key; C also when let go, since CUE acts while held.
+    /// The keys of a player, all with the left Alt (Option on the Mac) held, so typing never reaches a player: P
+    /// play/pause, C cue (also when let go, since CUE acts while held), L load, the cursor keys left and right a step
+    /// back and ahead (with Shift a long one), up and down the pitch by a tenth of a percent.
     struct PlayerKey
     {
             enum class Key : std::uint8_t
             {
                 Play,
                 Cue,
-                Load
+                Load,
+                Back,
+                Ahead,
+                FarBack,
+                FarAhead,
+                PitchUp,
+                PitchDown
             };
             Key  key  = Key::Play;
             bool down = true;
@@ -59,8 +66,7 @@ namespace djw::player_ui::sdl
     };
 
     /// Typed text (UTF-8, from a physical or on-screen keyboard, after input methods), an editing key or a key of a
-    /// player. A letter of a player key comes as both while a text field takes the typing; the views take what is
-    /// theirs.
+    /// player.
     using KeyboardInput = std::variant<std::string, EditKey, PlayerKey>;
 } // namespace djw::player_ui::sdl
 

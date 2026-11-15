@@ -7,6 +7,7 @@
 #include "look.hpp"
 #include "mdi_arrangement.hpp"
 #include "player_number.hpp"
+#include "sdl_events.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -1048,6 +1049,41 @@ namespace djw::player_ui::sdl
         }
     }
 
+    bool SdlApp::typedStray(SDL_WindowID window, const std::string &text)
+    {
+        const bool dialog = devices_dialog || language_dialog || sound_dialog || quit_dialog;
+        if (dialog || !library_view || arranging())
+        {
+            return false;
+        }
+        const auto typed_in =
+            std::ranges::find_if(windows, [window](const auto &open) { return open->id() == window; });
+        if (typed_in == windows.end() || (*typed_in)->views().wantsTextInput())
+        {
+            return false; // the window takes the typing itself
+        }
+        SdlWindow *search = host_window != nullptr ? host_window : library_window;
+        if (search == nullptr)
+        {
+            return false;
+        }
+        library_view->typeIntoSearch(text);
+        if (library_frame)
+        {
+            search->views().setFocus(*library_frame); // MDI mode: the library is a part
+        }
+        else
+        {
+            search->views().setFocus(*library_view);
+        }
+        if (search != typed_in->get())
+        {
+            SDL_RaiseWindow(search->handle());
+        }
+        search->syncTextInput(); // the next keys of this frame come as text
+        return true;
+    }
+
     void SdlApp::dropped(SDL_WindowID window, const std::filesystem::path &path, std::optional<Point> position)
     {
         DeckWindow *deck       = nullptr;
@@ -1677,6 +1713,10 @@ namespace djw::player_ui::sdl
                 (event.key.mod & SDL_KMOD_CTRL) != 0 && host_window != nullptr)
             {
                 setFullscreen(!host_fullscreen); // Ctrl+F: the one window between fullscreen and a normal window
+                continue;
+            }
+            if (const auto stray = strayCharacter(event); stray && typedStray(event.key.windowID, *stray))
+            {
                 continue;
             }
             if (event.type == SDL_EVENT_DROP_FILE)

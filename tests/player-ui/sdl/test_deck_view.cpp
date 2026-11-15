@@ -710,11 +710,11 @@ TEST_CASE("DeckView: a notice replaces the state for a while, then the state sho
     CHECK(view.stateText() == "playing");
 }
 
-TEST_CASE("DeckView: the cursor keys step one scrub loop, with Shift ten seconds; a standing deck scrubs there")
+TEST_CASE("DeckView: Alt with the cursor keys steps one scrub loop, with Shift ten seconds; a standing deck scrubs")
 {
     Fixture fixture;
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 50.0, .duration_seconds = 100.0});
-    fixture.view.keyboard(EditKey::Right);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Ahead, true});
     fixture.view.update();
     auto commands = fixture.drain();
     REQUIRE(find<api::DeckScrub>(commands) != nullptr);
@@ -722,8 +722,8 @@ TEST_CASE("DeckView: the cursor keys step one scrub loop, with Shift ten seconds
     CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(50.0 + api::scrub_loop_seconds));
 
     // Pressed quickly, before the deck tells the new position: the steps add up
-    fixture.view.keyboard(EditKey::ShiftLeft);
-    fixture.view.keyboard(EditKey::ShiftLeft);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarBack, true});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarBack, true});
     fixture.view.update();
     commands = fixture.drain();
     REQUIRE(find<api::DeckScrub>(commands) != nullptr);
@@ -731,23 +731,23 @@ TEST_CASE("DeckView: the cursor keys step one scrub loop, with Shift ten seconds
 
     // Not before the start or past the end
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 5.0, .duration_seconds = 100.0});
-    fixture.view.keyboard(EditKey::ShiftLeft);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarBack, true});
     fixture.view.update();
     commands = fixture.drain();
     REQUIRE(find<api::DeckScrub>(commands) != nullptr);
     CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(0.0));
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 95.0, .duration_seconds = 100.0});
-    fixture.view.keyboard(EditKey::ShiftRight);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarAhead, true});
     fixture.view.update();
     commands = fixture.drain();
     REQUIRE(find<api::DeckScrub>(commands) != nullptr);
     CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(100.0));
 }
 
-TEST_CASE("DeckView: on a playing deck the cursor keys jump; without a track or with other keys nothing happens")
+TEST_CASE("DeckView: on a playing deck the step keys jump; without a track, plain keys or text nothing happens")
 {
     Fixture fixture;
-    fixture.view.keyboard(EditKey::Right);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Ahead, true});
     fixture.view.update();
     CHECK(fixture.drain().empty()); // no track
 
@@ -756,7 +756,7 @@ TEST_CASE("DeckView: on a playing deck the cursor keys jump; without a track or 
                   .play_state       = api::PlayState::Playing,
                   .position_seconds = 50.0,
                   .duration_seconds = 100.0});
-    fixture.view.keyboard(EditKey::ShiftRight);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarAhead, true});
     fixture.view.update();
     auto commands = fixture.drain();
     CHECK(find<api::DeckScrub>(commands) == nullptr);
@@ -764,12 +764,49 @@ TEST_CASE("DeckView: on a playing deck the cursor keys jump; without a track or 
     CHECK(find<api::DeckSeek>(commands)->position_seconds == doctest::Approx(60.0));
 
     fixture.view.keyboard(EditKey::Up);
-    fixture.view.keyboard(std::string{"a"});
+    fixture.view.keyboard(EditKey::Right);
+    fixture.view.keyboard(std::string{"p"});
     fixture.view.update();
     CHECK(fixture.drain().empty());
 }
 
-TEST_CASE("DeckView: P plays and pauses, C acts as CUE while held, L loads unless the player plays")
+TEST_CASE("DeckView: Alt with up and down steps the pitch by a tenth, also near 0; the fader takes over again")
+{
+    Fixture fixture;
+    fixture.show({.deck = deck, .track_loaded = true, .duration_seconds = 100.0});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchUp, true});
+    fixture.view.update();
+    auto commands = fixture.drain();
+    REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(0.1F)); // not swallowed by the detent
+
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchDown, true});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchDown, true});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchDown, true});
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(-0.2F));
+
+    // Not past the fader's range
+    for (int step = 0; step < 200; ++step)
+    {
+        fixture.view.keyboard(PlayerKey{PlayerKey::Key::PitchUp, true});
+    }
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(12.0F));
+
+    // A controller's fader sets the pitch again
+    fixture.view.control({.action = api::ControlAction::DeckPitch, .deck = 0, .value = 0.5F});
+    fixture.view.update();
+    commands = fixture.drain();
+    REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
+    CHECK(find<api::DeckSetPitch>(commands)->percent == 0.0F);
+}
+
+TEST_CASE("DeckView: Alt+P plays and pauses, Alt+C acts as CUE while held, Alt+L loads unless the player plays")
 {
     Fixture fixture;
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 0.0, .duration_seconds = 100.0});
@@ -1127,7 +1164,7 @@ TEST_CASE("DeckView: the left key steps back, keys on a playing deck add up, a t
 {
     Fixture fixture;
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 50.0, .duration_seconds = 100.0});
-    fixture.view.keyboard(EditKey::Left);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Back, true});
     fixture.view.update();
     auto commands = fixture.drain();
     REQUIRE(find<api::DeckScrub>(commands) != nullptr);
@@ -1139,8 +1176,8 @@ TEST_CASE("DeckView: the left key steps back, keys on a playing deck add up, a t
                   .position_seconds = 50.0,
                   .duration_seconds = 100.0});
     static_cast<void>(fixture.drain());
-    fixture.view.keyboard(EditKey::ShiftRight);
-    fixture.view.keyboard(EditKey::ShiftRight);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarAhead, true});
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::FarAhead, true});
     fixture.view.update();
     commands = fixture.drain();
     REQUIRE(find<api::DeckSeek>(commands) != nullptr);
@@ -1148,7 +1185,7 @@ TEST_CASE("DeckView: the left key steps back, keys on a playing deck add up, a t
 
     fixture.show({.deck = deck, .track_loaded = true, .position_seconds = 0.0, .duration_seconds = 0.0});
     static_cast<void>(fixture.drain());
-    fixture.view.keyboard(EditKey::Right);
+    fixture.view.keyboard(PlayerKey{PlayerKey::Key::Ahead, true});
     fixture.view.update();
     CHECK(fixture.drain().empty());
 }

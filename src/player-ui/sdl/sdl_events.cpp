@@ -3,6 +3,7 @@
 
 #include "sdl_events.hpp"
 
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_touch.h>
@@ -71,12 +72,78 @@ namespace djw::player_ui::sdl
             }
             return with_shift ? shift : plain;
         }
+
+        /// The player keys: only with the left Alt, without Ctrl, the system key or the right Alt (AltGr on many
+        /// layouts types signs)
+        std::optional<PlayerKey> playerKey(const SDL_KeyboardEvent &key, bool down)
+        {
+            constexpr SDL_Keymod others = SDL_KMOD_CTRL | SDL_KMOD_GUI | SDL_KMOD_RALT | SDL_KMOD_MODE;
+            if ((key.mod & SDL_KMOD_LALT) == 0 || (key.mod & others) != 0)
+            {
+                return std::nullopt;
+            }
+            using Key        = PlayerKey::Key;
+            const bool shift = (key.mod & SDL_KMOD_SHIFT) != 0;
+            // Play and load once per press; CUE on press and release; the steps and the pitch repeat while held
+            switch (key.key)
+            {
+                case SDLK_P:
+                    return down && !key.repeat ? std::optional{PlayerKey{Key::Play, true}} : std::nullopt;
+                case SDLK_L:
+                    return down && !key.repeat ? std::optional{PlayerKey{Key::Load, true}} : std::nullopt;
+                case SDLK_C:
+                    return key.repeat ? std::nullopt : std::optional{PlayerKey{Key::Cue, down}};
+                case SDLK_LEFT:
+                    return down ? std::optional{PlayerKey{shift ? Key::FarBack : Key::Back, true}} : std::nullopt;
+                case SDLK_RIGHT:
+                    return down ? std::optional{PlayerKey{shift ? Key::FarAhead : Key::Ahead, true}} : std::nullopt;
+                case SDLK_UP:
+                    return down ? std::optional{PlayerKey{Key::PitchUp, true}} : std::nullopt;
+                case SDLK_DOWN:
+                    return down ? std::optional{PlayerKey{Key::PitchDown, true}} : std::nullopt;
+                default:
+                    return std::nullopt;
+            }
+        }
+
+        /// A code point as UTF-8
+        std::string utf8(char32_t code)
+        {
+            std::string text;
+            if (code < 0x80U)
+            {
+                text += static_cast<char>(code);
+            }
+            else if (code < 0x800U)
+            {
+                text += static_cast<char>(0xC0U | (code >> 6U));
+                text += static_cast<char>(0x80U | (code & 0x3FU));
+            }
+            else if (code < 0x10000U)
+            {
+                text += static_cast<char>(0xE0U | (code >> 12U));
+                text += static_cast<char>(0x80U | ((code >> 6U) & 0x3FU));
+                text += static_cast<char>(0x80U | (code & 0x3FU));
+            }
+            else
+            {
+                text += static_cast<char>(0xF0U | (code >> 18U));
+                text += static_cast<char>(0x80U | ((code >> 12U) & 0x3FU));
+                text += static_cast<char>(0x80U | ((code >> 6U) & 0x3FU));
+                text += static_cast<char>(0x80U | (code & 0x3FU));
+            }
+            return text;
+        }
     } // namespace
 
     std::optional<KeyboardInput> toKeyboardInput(const SDL_Event &event)
     {
         if (event.type == SDL_EVENT_TEXT_INPUT && event.text.text != nullptr)
         {
+            if ((SDL_GetModState() & SDL_KMOD_LALT) != 0)
+            {
+                return std::nullopt; // Option+letter on the Mac: a sign, not meant as typing
+            }
             return KeyboardInput{std::string{event.text.text}};
         }
         if (event.type != SDL_EVENT_KEY_DOWN && event.type != SDL_EVENT_KEY_UP)
@@ -84,25 +151,9 @@ namespace djw::player_ui::sdl
             return std::nullopt;
         }
         const bool down = event.type == SDL_EVENT_KEY_DOWN;
-        // The player keys, as long as no Ctrl, Alt or system key is held (Ctrl+F and the like are something else)
-        if ((event.key.mod & (SDL_KMOD_CTRL | SDL_KMOD_ALT | SDL_KMOD_GUI)) == 0)
+        if (const auto player = playerKey(event.key, down))
         {
-            switch (event.key.key)
-            {
-                case SDLK_P:
-                    return down && !event.key.repeat
-                               ? std::optional{KeyboardInput{PlayerKey{PlayerKey::Key::Play, true}}}
-                               : std::nullopt;
-                case SDLK_L:
-                    return down && !event.key.repeat
-                               ? std::optional{KeyboardInput{PlayerKey{PlayerKey::Key::Load, true}}}
-                               : std::nullopt;
-                case SDLK_C:
-                    return event.key.repeat ? std::nullopt
-                                            : std::optional{KeyboardInput{PlayerKey{PlayerKey::Key::Cue, down}}};
-                default:
-                    break;
-            }
+            return KeyboardInput{*player};
         }
         if (!down)
         {
@@ -138,6 +189,22 @@ namespace djw::player_ui::sdl
             default:
                 return std::nullopt;
         }
+    }
+
+    std::optional<std::string> strayCharacter(const SDL_Event &event)
+    {
+        constexpr SDL_Keymod held = SDL_KMOD_CTRL | SDL_KMOD_ALT | SDL_KMOD_GUI;
+        if (event.type != SDL_EVENT_KEY_DOWN || (event.key.mod & held) != 0)
+        {
+            return std::nullopt;
+        }
+        // The key as the layout types it with Shift and Caps Lock; printable characters are their code point
+        const SDL_Keycode code = SDL_GetKeyFromScancode(event.key.scancode, event.key.mod, false);
+        if (code <= SDLK_SPACE || code == SDLK_DELETE || (code & SDLK_SCANCODE_MASK) != 0 || code > 0x10FFFF)
+        {
+            return std::nullopt;
+        }
+        return utf8(static_cast<char32_t>(code));
     }
 
     std::optional<Point> toSecondaryClick(const SDL_Event &event)
