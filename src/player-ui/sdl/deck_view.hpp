@@ -130,7 +130,8 @@ namespace djw::player_ui::sdl
             /// The deck was playing at the last update
             [[nodiscard]] bool playing() const noexcept { return state.play_state == core::api::PlayState::Playing; }
 
-            /// The pitch the fader stands for, in percent (+ is faster); the top of the fader is the fastest
+            /// The pitch the fader stands for, in percent (+ is faster); the bottom of the fader is the fastest, as on
+            /// a turntable
             [[nodiscard]] static float pitchOf(float fader_value) noexcept;
             [[nodiscard]] static float faderValueOf(float pitch_percent) noexcept;
 

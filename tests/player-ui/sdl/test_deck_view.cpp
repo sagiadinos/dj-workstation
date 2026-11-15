@@ -205,18 +205,18 @@ TEST_CASE("DeckView: the faders start at the values of the snapshot and send not
     view.update();
     CHECK(view.fader().value() == doctest::Approx(0.4F));
     CHECK(view.headphoneFader().value() == doctest::Approx(0.7F));
-    CHECK(view.pitchFader().value() == doctest::Approx(0.75F));
+    CHECK(view.pitchFader().value() == doctest::Approx(0.25F)); // faster: below the center
     CHECK_FALSE(queue.tryPop().has_value());
 }
 
-TEST_CASE("DeckView: pitchOf maps the fader to tenths of a percent with a detent at the center")
+TEST_CASE("DeckView: pitchOf maps the fader to tenths of a percent, down is faster, with a detent at the center")
 {
     CHECK(DeckView::pitchOf(0.5F) == 0.0F);
-    CHECK(DeckView::pitchOf(1.0F) == doctest::Approx(12.0F));
-    CHECK(DeckView::pitchOf(0.0F) == doctest::Approx(-12.0F));
+    CHECK(DeckView::pitchOf(0.0F) == doctest::Approx(12.0F)); // the bottom
+    CHECK(DeckView::pitchOf(1.0F) == doctest::Approx(-12.0F));
     CHECK(DeckView::pitchOf(0.5F + 0.002F) == 0.0F); // within the detent
-    CHECK(DeckView::pitchOf(0.75F) == doctest::Approx(6.0F));
-    CHECK(DeckView::pitchOf(2.0F) == doctest::Approx(12.0F)); // clamped
+    CHECK(DeckView::pitchOf(0.25F) == doctest::Approx(6.0F));
+    CHECK(DeckView::pitchOf(-1.0F) == doctest::Approx(12.0F)); // clamped
     CHECK(DeckView::faderValueOf(DeckView::pitchOf(0.7F)) == doctest::Approx(0.7F).epsilon(0.01));
     CHECK(DeckView::faderValueOf(0.0F) == 0.5F);
 }
@@ -233,7 +233,7 @@ TEST_CASE("DeckView: the pitch fader sends the pitch once per change, Zero puts 
     auto commands = fixture.drain();
     REQUIRE(commands.size() == 1);
     REQUIRE(std::holds_alternative<api::DeckSetPitch>(commands[0]));
-    CHECK(std::get<api::DeckSetPitch>(commands[0]).percent > 10.0F);
+    CHECK(std::get<api::DeckSetPitch>(commands[0]).percent < -10.0F); // the top is the slowest
 
     // A double tap on the pitch fader sets the pitch to 0
     fixture.tapCenter(fixture.view.pitchFader().bounds());
@@ -432,7 +432,7 @@ TEST_CASE("DeckView: the display shows the pitch and the track")
     bool found = false;
     for (const auto &drawn : canvas.texts)
     {
-        found = found || (drawn.text.starts_with("Pitch: -") && drawn.text.ends_with(" %"));
+        found = found || (drawn.text.starts_with("Pitch: +") && drawn.text.ends_with(" %")); // low on the fader: faster
     }
     CHECK(found);
     CHECK(fixture.view.artist() == "Bill Withers");
@@ -946,11 +946,11 @@ TEST_CASE("DeckView: a controller's faders set the player's faders, the jog whee
     fixture.view.update();
     CHECK(fixture.view.fader().value() == doctest::Approx(0.25F));
     CHECK(fixture.view.headphoneFader().value() == doctest::Approx(0.75F));
-    CHECK(fixture.view.pitchFader().value() == doctest::Approx(1.0F));
+    CHECK(fixture.view.pitchFader().value() == doctest::Approx(0.0F)); // shown at the bottom, the fastest
     auto commands = fixture.drain();
     CHECK(find<api::MixerSetChannelVolume>(commands) != nullptr);
     REQUIRE(find<api::DeckSetPitch>(commands) != nullptr);
-    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(12.0F)); // the top: +12 %
+    CHECK(find<api::DeckSetPitch>(commands)->percent == doctest::Approx(12.0F)); // a controller's 1: +12 %
 
     fixture.view.control(controlEvent(Action::DeckSeek, true, 0.0F, 3));
     fixture.view.update();

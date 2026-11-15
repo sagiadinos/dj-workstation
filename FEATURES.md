@@ -122,7 +122,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Cue | done | Classic CDJ behavior: when stopped sets cue, while playing jumps back and stops, when held plays from cue. |
 | Stored cue point | done | Cue point per track in the database. "Cue load" option: track starts at the stored point when loaded. |
 | Time display | done | Toggle elapsed/remaining. |
-| Pitch | done | Fader with range ±12 %, display in percent. Formant correction comes later. |
+| Pitch | done | Fader with range ±12 %, down is faster as on a turntable, display in percent. Formant correction comes later. |
 | Pitch bend | done | +/- buttons for temporary nudging. |
 | Pitch zero | done | Reset fader to 0 with a double tap on the pitch fader. |
 | Keylock (master tempo) | done | Tempo change without pitch change. Settings > Sound sets the keylock quality (next start): High (Signalsmith Stretch, the default) or Standard (SoundTouch, less computing power), behind one interface (`engine::TimeStretcher`, made by `makeTimeStretcher`). |

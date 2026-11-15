@@ -57,14 +57,15 @@ namespace djw::player_ui::sdl
 
     float DeckView::pitchOf(float fader_value) noexcept
     {
-        const float percent = (std::clamp(fader_value, 0.0F, 1.0F) - 0.5F) * 2.0F * pitch_range;
+        // As on a turntable: pulled down (towards the DJ) is faster
+        const float percent = (0.5F - std::clamp(fader_value, 0.0F, 1.0F)) * 2.0F * pitch_range;
         const float rounded = std::round(percent * 10.0F) / 10.0F; // tenths of a percent
         return std::abs(rounded) < pitch_detent ? 0.0F : rounded;
     }
 
     float DeckView::faderValueOf(float pitch_percent) noexcept
     {
-        return 0.5F + (std::clamp(pitch_percent, -pitch_range, pitch_range) / (2.0F * pitch_range));
+        return 0.5F - (std::clamp(pitch_percent, -pitch_range, pitch_range) / (2.0F * pitch_range));
     }
 
     DeckView::DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot,
@@ -388,7 +389,8 @@ namespace djw::player_ui::sdl
                 break;
             }
             case Action::DeckPitch:
-                pitch_fader.setValue(event.value);
+                // A controller's 1 is the fastest, as before the screen fader turned round; its mapping can invert it
+                pitch_fader.setValue(1.0F - event.value);
                 break;
             case Action::DeckVolume:
                 volume_fader.setValue(event.value);
