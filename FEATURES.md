@@ -136,7 +136,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Sync | planned | Match tempo and phase to the master deck. |
 | Hot cues | planned | 4 to 8 per track, stored in the database. |
 | Loops | planned | Auto loop (1/4 to 32 beats), loop in/out, halve/double. |
-| Jog wheel | planned | Via controller. Turned at the edge (`deck.jog`, done): while the deck plays it bends the pitch for as long as it turns (beatmatching), while it stands it steps through the track. Touched on top it scratches: playback follows the hand at any speed, also backwards, through the varispeed path. What differs between controllers (ticks per turn, sensitivity) is set in the TOML mapping; no scripts. |
+| Jog wheel | done | Via controller. Turned at the edge (`deck.jog`): while the deck plays it bends the pitch for as long as it turns (beatmatching), while it stands it steps through the track. Touched on top (`deck.scratch_touch`) it scratches: turning the top (`deck.scratch`) moves the track at the hand's speed, also backwards and held still, a turn in 1.8 s being the normal speed (a record at 33 1/3); let go, a deck that played plays on. The steps of one turn are set in the TOML mapping (`ticks_per_turn`); no scripts. Not touched, or a track too long to be held in memory (streamed): the top works like the edge. |
 | Gain/autogain | planned | Manual, optionally automatic from loudness analysis. |
 | Slip mode | planned | |
 | Key detection | planned | |
@@ -215,7 +215,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Internal mode | planned | Deck keeps playing without vinyl (e.g. after a needle skip). |
 | Signal display | planned | Scope and quality indicator per deck. |
 | Calibration | planned | Input level, phono/line. |
-| Varispeed path | planned | Playback at any speed including reverse and standstill. Keylock only outside of scratch movements. |
+| Varispeed path | done | Scratching plays at any speed from 8 times backwards to 8 times forwards, held still included, following the hand smoothly (about 8 ms), so a jerk does not click. Only for tracks held in memory; keylock does not apply while scratching. |
 
 ### 4.7 Controllers
 
@@ -224,7 +224,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | MIDI | done | RtMidi on desktop, AMidi on Android, Web MIDI in the browser. |
 | HID | planned | hidapi, for controllers without MIDI. |
 | Hotplug | done | Connect and disconnect controllers while running: about once a second the MIDI ports are compared with the last look; a new port gets the mapping assigned to it (or matching it), one that went is closed, and one plugged in again counts as new. The controller's sound card is not taken up again: unplugged, its audio stays gone until the next start. |
-| Declarative mapping | done | TOML: note/CC → action (play, cue, load, keylock, headphones, pitch bend, pitch, volume, headphone level, seek, jog, crossfader, library browse), type (button, absolute, 14-bit, relative), deck index, shift layer, invert. In `mappings/` next to the program and in the user's folder; Settings > Devices assigns them to the MIDI ports. |
+| Declarative mapping | done | TOML: note/CC → action (play, cue, load, keylock, headphones, pitch bend, pitch, volume, headphone level, seek, jog, scratch touch, scratch, crossfader, library browse), type (button, absolute, 14-bit, relative), deck index, shift layer, invert, steps per turn of a jog wheel. In `mappings/` next to the program and in the user's folder; Settings > Devices assigns them to the MIDI ports. |
 | LED feedback | done | Player state → MIDI out, in the same mapping file (`[[light]]`): play while playing, headphone cue, CUE as on a CDJ (lit at the cue point and while held, blinking when paused elsewhere). The Mixxx import takes the play, cue and headphone outputs over. |
 | Mixxx import | done | Settings > Devices turns a Mixxx mapping (.midi.xml) into ours: its direct bindings to functions djw has; what its script does is left out and counted. Saved in the user's mapping folder. |
 | Reference controller | done | Hercules DJControl Starlight (class compliant, 4-channel audio: master 1/2, headphones 3/4, touch-sensitive jog wheels, RGB LEDs). Recognized by name; its sound card is used automatically with the headphones on 3/4. Shift + Play loads, as it has no load buttons. |

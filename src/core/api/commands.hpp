@@ -85,6 +85,23 @@ namespace djw::core::api
             bool   active;
     };
 
+    /**
+     * Scratch: while active the deck plays at rate, the speed of the hand on the jog wheel: 1 the normal speed, 0
+     * held still, negative backwards; the engine limits it to max_scratch_rate. The speed follows rate smoothly, so a
+     * jerk of the hand does not click. When the scratch ends (active false) a deck that played goes on playing from
+     * where the hand left it, one that stood stays there. Play and pause during the scratch only change that; CUE
+     * waits. Only for a track held in memory (DeckSnapshot::scratchable), otherwise ignored.
+     */
+    struct DeckScratch
+    {
+            DeckId deck;
+            float  rate;
+            bool   active;
+    };
+
+    /// The fastest a scratch plays, either way, in multiples of the normal speed
+    inline constexpr float max_scratch_rate = 8.0F;
+
     /// Channel fader of a deck, 0.0 (silent) to 1.0 (full). Values outside are clamped by the engine.
     struct MixerSetChannelVolume
     {
@@ -156,10 +173,10 @@ namespace djw::core::api
      * thread. Keep it that way: a command that needs a string or a buffer (e.g. loading a file) is handled outside
      * the audio thread.
      */
-    using Command = std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckScrub, DeckSetPitch, DeckPitchBend,
-                                 DeckSetKeylock, MixerSetChannelVolume, MixerAssignCrossfader, MixerSetCrossfader,
-                                 MixerCrossfaderMomentary, MixerSetMasterVolume, MixerSetHeadphoneCue,
-                                 MixerSetHeadphoneLevel, MixerSetCueMix, MixerSetHeadphoneVolume>;
+    using Command = std::variant<DeckPlay, DeckPause, DeckCue, DeckSeek, DeckScrub, DeckScratch, DeckSetPitch,
+                                 DeckPitchBend, DeckSetKeylock, MixerSetChannelVolume, MixerAssignCrossfader,
+                                 MixerSetCrossfader, MixerCrossfaderMomentary, MixerSetMasterVolume,
+                                 MixerSetHeadphoneCue, MixerSetHeadphoneLevel, MixerSetCueMix, MixerSetHeadphoneVolume>;
 
     static_assert(std::is_trivially_copyable_v<Command>);
 

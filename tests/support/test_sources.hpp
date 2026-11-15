@@ -61,8 +61,9 @@ namespace djw::tests
     class BufferSource final : public core::engine::AudioSource
     {
         public:
-            explicit BufferSource(std::vector<float> samples, LifeCounter life = nullptr)
-                : samples{std::move(samples)}, life{std::move(life)}
+            /// random_access: it says it can be read anywhere at once, like a track held in memory (for scratching)
+            explicit BufferSource(std::vector<float> samples, LifeCounter life = nullptr, bool random_access = false)
+                : samples{std::move(samples)}, life{std::move(life)}, random_access{random_access}
             {
                 if (this->life)
                 {
@@ -103,11 +104,13 @@ namespace djw::tests
             }
 
             bool atEnd() const noexcept override { return position >= samples.size(); }
+            bool randomAccess() const noexcept override { return random_access; }
 
         private:
             std::vector<float> samples;
             LifeCounter        life;
-            std::size_t        position = 0;
+            bool               random_access = false;
+            std::size_t        position      = 0;
     };
 
     /// frames frames where frame n has the value n * step on both channels. With a power of two as step the values

@@ -9,6 +9,8 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <cmath>
+#include <functional>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -1060,4 +1062,136 @@ TEST_CASE("Deck: the fade after CUE in a scrub runs across render calls, then th
 
     deck.cue(true); // at the cue point: plays while held
     CHECK(deck.isPlaying());
+}
+
+namespace
+{
+    using djw::tests::ramp;
+
+    /// Frame n holds n / 65536 on both channels: the interpolation of a straight line is exact, so what a scratch
+    /// plays tells where it read
+    constexpr float ramp_step = 1.0F / 65'536.0F;
+
+    /// Renders frames frames and returns the left channel
+    std::vector<float> renderLeft(Deck &deck, std::size_t frames)
+    {
+        std::vector<float> output(frames * 2);
+        deck.render(output);
+        std::vector<float> left(frames);
+        for (std::size_t frame = 0; frame < frames; ++frame)
+        {
+            left[frame] = output[frame * 2];
+        }
+        return left;
+    }
+} // namespace
+
+TEST_CASE("Deck scratch: the hand moves the track, backwards too, and what it plays is the track where it is")
+{
+    BufferSource source{ramp(48'000, ramp_step), nullptr, true};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    REQUIRE(deck.scratchable());
+    deck.seek(20'000);
+
+    deck.scratch(-2.0F, true);
+    CHECK(deck.scratching());
+    CHECK_FALSE(deck.isPlaying()); // it stood
+    const std::vector<float> backwards = renderLeft(deck, 4'800);
+    // Smoothly faster: the first steps are small, then it runs at twice the speed backwards
+    CHECK(backwards[1] - backwards[0] > -0.5F * ramp_step);
+    CHECK(backwards[4'799] - backwards[4'798] == doctest::Approx(-2.0F * ramp_step).epsilon(0.01));
+    CHECK(std::ranges::is_sorted(backwards, std::greater<>{}));
+    // The last frame played is the track at the position before the last step
+    CHECK(backwards.back() ==
+          doctest::Approx(static_cast<float>(deck.positionFrames() + 2.0) * ramp_step).epsilon(1e-4));
+    CHECK(deck.positionFrames() < 20'000 - (2 * 4'800) + 800);
+    CHECK(deck.positionFrames() > 20'000 - (2 * 4'800));
+
+    // Held still: it stays, the sound holds where it is
+    deck.scratch(0.0F, true);
+    static_cast<void>(renderLeft(deck, 4'800));
+    const double held = deck.positionFrames();
+    static_cast<void>(renderLeft(deck, 480));
+    CHECK(deck.positionFrames() == doctest::Approx(held));
+
+    // Let go: a deck that stood stays there
+    deck.scratch(0.0F, false);
+    CHECK_FALSE(deck.scratching());
+    CHECK_FALSE(deck.isPlaying());
+    CHECK(deck.positionFrames() == doctest::Approx(std::round(held)));
+}
+
+TEST_CASE("Deck scratch: a playing deck slows down under the hand and plays on from where it is let go")
+{
+    BufferSource source{ramp(48'000, ramp_step), nullptr, true};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.seek(10'000);
+    deck.play();
+    deck.scratch(0.0F, true);
+    CHECK(deck.isPlaying()); // it still counts as playing: it goes on after the scratch
+    const std::vector<float> slowing = renderLeft(deck, 4'800);
+    CHECK(slowing[1] - slowing[0] == doctest::Approx(ramp_step).epsilon(0.02)); // at first still its speed
+    CHECK(std::abs(slowing[4'799] - slowing[4'798]) < 0.01F * ramp_step);       // then held
+    const double where = deck.positionFrames();
+
+    // Pause during the scratch: it will stay; play again: it will go on
+    deck.pause();
+    CHECK_FALSE(deck.isPlaying());
+    deck.play();
+    CHECK(deck.isPlaying());
+    deck.cue(true); // CUE waits for the end of the scratch
+    CHECK(deck.scratching());
+    deck.cue(false);
+
+    deck.scratch(0.0F, false);
+    CHECK(deck.isPlaying());
+    const std::vector<float> on = renderLeft(deck, 4);
+    CHECK(on[0] == doctest::Approx(static_cast<float>(std::round(where)) * ramp_step));
+    CHECK(on[1] - on[0] == doctest::Approx(ramp_step));
+}
+
+TEST_CASE("Deck scratch: at most max_scratch_rate, never before the start or past the end; a seek moves the hand")
+{
+    BufferSource source{ramp(4'800, ramp_step), nullptr, true};
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&source);
+    deck.seek(100);
+    deck.scratch(-100.0F, true); // far too fast: limited
+    static_cast<void>(renderLeft(deck, 960));
+    CHECK(deck.positionFrames() == doctest::Approx(0.0)); // stops at the start
+    deck.scratch(100.0F, true);
+    const std::vector<float> forwards = renderLeft(deck, 4'800);
+    float                    fastest  = 0.0F;
+    for (std::size_t frame = 1; frame < forwards.size(); ++frame)
+    {
+        fastest = std::max(fastest, forwards[frame] - forwards[frame - 1]);
+    }
+    CHECK(fastest <= (djw::core::api::max_scratch_rate * ramp_step) * 1.001F);
+    CHECK(deck.positionFrames() == doctest::Approx(4'800.0)); // stops at the end
+
+    deck.seek(1'000);
+    CHECK(deck.scratching());
+    CHECK(deck.positionFrames() == doctest::Approx(1'000.0));
+}
+
+TEST_CASE("Deck scratch: a streamed track or a running scrub cannot be scratched")
+{
+    BufferSource streamed{ramp(4'800, ramp_step)}; // not random access
+    Deck         deck{DeckId{1}, 0};
+    deck.attach(&streamed);
+    CHECK_FALSE(deck.scratchable());
+    deck.scratch(1.0F, true);
+    CHECK_FALSE(deck.scratching());
+
+    BufferSource held{ramp(4'800, ramp_step), nullptr, true};
+    deck.attach(&held);
+    deck.scrub(1'000, true);
+    deck.scratch(1.0F, true);
+    CHECK_FALSE(deck.scratching());
+    CHECK(deck.scrubbing());
+
+    Deck empty{DeckId{2}, 0};
+    CHECK_FALSE(empty.scratchable());
 }

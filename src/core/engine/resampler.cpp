@@ -9,20 +9,6 @@
 
 namespace djw::core::engine
 {
-    namespace
-    {
-        /// Catmull-Rom between points[1] and points[2], shaped by points[0] and points[3]; t = 0 gives exactly
-        /// points[1]
-        float hermite(const std::array<float, 4> &points, float t) noexcept
-        {
-            const auto [previous, x0, x1, next] = points;
-            const float c1                      = 0.5F * (x1 - previous);
-            const float c2                      = previous - 2.5F * x0 + 2.0F * x1 - 0.5F * next;
-            const float c3                      = 0.5F * (next - previous) + 1.5F * (x0 - x1);
-            return ((c3 * t + c2) * t + c1) * t + x0;
-        }
-    } // namespace
-
     Resampler::Resampler() : buffer(capacity_frames * stereo_channels)
     {
         reset(0);

@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <vector>
 
 namespace djw::core::engine
 {
@@ -45,6 +46,10 @@ namespace djw::core::engine
             static constexpr double scrub_loop_seconds = api::scrub_loop_seconds;
             /// Fade at both ends of that piece, in seconds, so the loop does not click
             static constexpr double scrub_ramp_seconds = 0.004;
+            /// How fast a scratch's speed follows the hand: it gets 63 % of the way in this time
+            static constexpr double scratch_follow_seconds = 0.008;
+            /// A scratch reads the track in pieces of this many output frames
+            static constexpr std::size_t scratch_block_frames = 256;
 
             /// Sets the track; a different track than before starts stopped at its beginning with the cue point
             /// there. nullptr unloads. The pitch stays, like a fader.
@@ -52,12 +57,16 @@ namespace djw::core::engine
 
             [[nodiscard]] api::DeckId id() const noexcept { return deck_id; }
             [[nodiscard]] bool        hasTrack() const noexcept { return source != nullptr; }
-            /// Playing, also while a scrub interrupts a deck that played
+            /// Playing, also while a scrub or a scratch interrupts a deck that played
             [[nodiscard]] bool isPlaying() const noexcept
             {
                 // mull-ignore-next: cxx_eq_to_ne
-                return state == State::Playing || (state == State::Scrubbing && resume_playing);
+                return state == State::Playing ||
+                       ((state == State::Scrubbing || state == State::Scratching) && resume_playing);
             }
+            [[nodiscard]] bool scratching() const noexcept { return state == State::Scratching; }
+            /// The loaded track can be scratched: it can be read anywhere (held in memory)
+            [[nodiscard]] bool scratchable() const noexcept { return source != nullptr && source->randomAccess(); }
             [[nodiscard]] bool scrubbing() const noexcept { return state == State::Scrubbing; }
             /// A scrub interrupts a deck that played: transport commands wait until it is over
             [[nodiscard]] bool scrubOfPlayingDeck() const noexcept
@@ -89,8 +98,10 @@ namespace djw::core::engine
             /// stops there, and that becomes the cue point); a seek moves it. For a deck that played these wait until
             /// the scrub is over.
             void scrub(std::uint64_t frame, bool active) noexcept; // [audio-thread]
-            void setPitch(float percent) noexcept;                 // [audio-thread]
-            void setPitchBend(int direction) noexcept;             // [audio-thread]
+            /// Scratch at rate (see api::DeckScratch); ignored for a track that cannot be scratched or during a scrub
+            void scratch(float rate, bool active) noexcept; // [audio-thread]
+            void setPitch(float percent) noexcept;          // [audio-thread]
+            void setPitchBend(int direction) noexcept;      // [audio-thread]
             /// Keylock: the pitch fader and the bend buttons change the tempo only. The position stays.
             void setKeylock(bool on) noexcept; // [audio-thread]
 
@@ -106,7 +117,9 @@ namespace djw::core::engine
                 FadingOut,
                 Scrubbing,
                 /// The scrub loop of a deck that stood fades out after CUE, then the deck stops at the loop
-                ScrubFadingOut
+                ScrubFadingOut,
+                /// The hand on the jog wheel moves the track, see scratch()
+                Scratching
             };
 
             /// Position of the next frame, in frames of the track
@@ -126,6 +139,7 @@ namespace djw::core::engine
             std::size_t renderFadeOut(std::span<float> output) noexcept;      // [audio-thread]
             std::size_t renderScrub(std::span<float> output) noexcept;        // [audio-thread]
             std::size_t renderScrubFadeOut(std::span<float> output) noexcept; // [audio-thread]
+            void        renderScratch(std::span<float> output) noexcept;      // [audio-thread]
             /// Multiplies output with the pause fade from fade_remaining on
             void applyFadeOut(std::span<float> output) const noexcept; // [audio-thread]
 
@@ -145,10 +159,16 @@ namespace djw::core::engine
             int           bend_direction = 0;
             std::size_t   scrub_loop_frames;
             std::size_t   scrub_ramp_frames;
-            std::uint64_t scrub_target   = 0;     ///< where the loop lies, and where the deck goes on afterwards
-            std::size_t   scrub_offset   = 0;     ///< frames of the loop played so far
-            bool          scrub_moved    = false; ///< the loop must start over at scrub_target
-            bool          resume_playing = false; ///< the deck played before the scrub
+            std::uint64_t scrub_target     = 0;     ///< where the loop lies, and where the deck goes on afterwards
+            std::size_t   scrub_offset     = 0;     ///< frames of the loop played so far
+            bool          scrub_moved      = false; ///< the loop must start over at scrub_target
+            bool          resume_playing   = false; ///< the deck played before the scrub or the scratch
+            double        scratch_position = 0.0;   ///< in frames of the track, with the fraction
+            double        scratch_speed    = 0.0;   ///< the speed now, following scratch_target
+            double        scratch_target   = 0.0;   ///< the speed of the hand
+            double        scratch_follow   = 1.0;   ///< how much of the way to the target per frame
+            /// The frames a block of the scratch reads, with one before and two after; allocated with the deck
+            std::vector<float> scratch_window;
     };
 } // namespace djw::core::engine
 

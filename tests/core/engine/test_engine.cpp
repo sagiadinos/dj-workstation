@@ -241,6 +241,38 @@ TEST_CASE("Engine: DeckSeek jumps to the position in seconds")
     CHECK(engine.deckSnapshot(deck)->read().position_seconds == doctest::Approx(24'002.0 / sample_rate));
 }
 
+TEST_CASE("Engine: DeckScratch moves a track held in memory with the hand; the snapshot says which tracks can")
+{
+    engine::Engine     engine{smallBlocks()};
+    api::CommandQueue &queue = engine.addCommandQueue();
+    constexpr float    step  = 1.0F / 65'536;
+    const api::DeckId  deck =
+        playingDeck(engine, queue, std::make_unique<BufferSource>(ramp(sample_rate, step), nullptr, true));
+    std::vector<float> output(2 * 64);
+    engine.render(output);
+    CHECK(engine.deckSnapshot(deck)->read().scratchable);
+
+    REQUIRE(queue.tryPush(api::DeckSeek{deck, 0.5})); // room to go backwards
+    REQUIRE(queue.tryPush(api::DeckScratch{deck, -1.0F, true}));
+    for (int block = 0; block < 100; ++block)
+    {
+        engine.render(output);
+    }
+    // Running backwards now, and still counted as playing
+    CHECK(output[2 * 63] < output[2 * 62]);
+    CHECK(engine.deckSnapshot(deck)->read().play_state == api::PlayState::Playing);
+
+    REQUIRE(queue.tryPush(api::DeckScratch{deck, 0.0F, false}));
+    engine.render(output);
+    CHECK(output[2 * 63] > output[2 * 62]); // forwards again
+
+    // A streamed track: not scratchable
+    const api::DeckId other = engine.addDeck();
+    REQUIRE(engine.setTrack(other, constant(100, 0.25F)));
+    engine.render(output);
+    CHECK_FALSE(engine.deckSnapshot(other)->read().scratchable);
+}
+
 TEST_CASE("Engine: DeckScrub plays a loop at the position and goes on playing from the last one after it")
 {
     engine::Engine     engine{smallBlocks()};

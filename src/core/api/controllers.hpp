@@ -32,6 +32,8 @@ namespace djw::core::api
         DeckHeadphoneLevel, ///< headphone level of the deck, absolute
         DeckSeek,           ///< steps back or ahead (relative), like the cursor keys of a player
         DeckJog,            ///< jog wheel (relative): bends the pitch while the deck plays, steps while it stands
+        DeckScratchTouch,   ///< the top of the jog wheel touched (pressed) or let go: scratching while touched
+        DeckScratch,        ///< the top of the jog wheel turned (relative): scratches while touched, else like DeckJog
         Crossfader,         ///< absolute, 0 side A to 1 side B
         LibraryMove,        ///< moves the selection in the library (relative)
     };
@@ -47,6 +49,8 @@ namespace djw::core::api
             float value = 0.0F;
             /// Relative mode: steps, negative back
             int steps = 0;
+            /// DeckScratch: how far the wheel turned, in turns (steps / ticks_per_turn of the mapping)
+            float turns = 0.0F;
 
             bool operator==(const ControlEvent &) const = default;
     };

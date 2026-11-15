@@ -171,3 +171,19 @@ TEST_CASE("Controller: a relative control counts 1 to 63 up and 64 to 127 down, 
     REQUIRE(up.size() == 1);
     CHECK(up[0].steps == 63);
 }
+
+TEST_CASE("Controller: a scratch control gives its steps also as turns of the wheel")
+{
+    Mapping mapping{.name = "Test", .match = {"Test"}, .audio = {}, .controls = {}, .file = {}};
+    Control scratch        = control(MidiKind::ControlChange, 2, 10, Action::DeckScratch, 0, Mode::Relative);
+    scratch.ticks_per_turn = 200;
+    mapping.controls       = {scratch, control(MidiKind::ControlChange, 2, 9, Action::DeckJog, 0, Mode::Relative)};
+    Controller controller{mapping};
+    const auto events = controller.handle(cc(2, 10, 127)); // one step back
+    REQUIRE(events.size() == 1);
+    CHECK(events[0].steps == -1);
+    CHECK(events[0].turns == doctest::Approx(-1.0F / 200.0F));
+    const auto jog = controller.handle(cc(2, 9, 1)); // no turns without ticks_per_turn
+    REQUIRE(jog.size() == 1);
+    CHECK(jog[0].turns == 0.0F);
+}

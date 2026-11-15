@@ -109,7 +109,10 @@ namespace djw::core::control
                 {
                     return {};
                 }
-                return {ControlEvent{.action = control->action, .deck = control->deck, .steps = steps}};
+                const float turns = control->ticks_per_turn > 0
+                                        ? static_cast<float>(steps) / static_cast<float>(control->ticks_per_turn)
+                                        : 0.0F;
+                return {ControlEvent{.action = control->action, .deck = control->deck, .steps = steps, .turns = turns}};
             }
         }
         return {};

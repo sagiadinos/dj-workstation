@@ -12,7 +12,11 @@ namespace djw::core::engine
     Deck::Deck(api::DeckId id, std::size_t pause_fade_frames, std::uint32_t sample_rate)
         : deck_id{id}, stretcher{sample_rate}, pause_fade_frames{pause_fade_frames},
           scrub_loop_frames{static_cast<std::size_t>(scrub_loop_seconds * sample_rate)},
-          scrub_ramp_frames{std::max<std::size_t>(1, static_cast<std::size_t>(scrub_ramp_seconds * sample_rate))}
+          scrub_ramp_frames{std::max<std::size_t>(1, static_cast<std::size_t>(scrub_ramp_seconds * sample_rate))},
+          scratch_follow{1.0 - std::exp(-1.0 / (scratch_follow_seconds * sample_rate))},
+          // At the fastest speed a block reaches this far, plus the frames the interpolation needs around it
+          scratch_window((static_cast<std::size_t>(std::ceil(api::max_scratch_rate * 1.2)) * scratch_block_frames + 8) *
+                         stereo_channels)
     {
     }
 
@@ -50,6 +54,10 @@ namespace djw::core::engine
         {
             return static_cast<double>(scrub_target);
         }
+        if (state == State::Scratching)
+        {
+            return scratch_position;
+        }
         return keylock_on ? stretcher.position() : resampler.position();
     }
 
@@ -86,6 +94,11 @@ namespace djw::core::engine
         {
             return;
         }
+        if (state == State::Scratching)
+        {
+            resume_playing = true; // it plays on when the hand lets go
+            return;
+        }
         if (state == State::Scrubbing || state == State::ScrubFadingOut)
         {
             // The loop of a deck that stood ends, the deck plays from there
@@ -104,6 +117,11 @@ namespace djw::core::engine
         {
             return;
         }
+        if (state == State::Scratching)
+        {
+            resume_playing = false; // it stays where the hand lets go
+            return;
+        }
         cue_preview = false;
         if (state != State::Playing)
         {
@@ -115,7 +133,7 @@ namespace djw::core::engine
 
     void Deck::cue(bool pressed) noexcept // [audio-thread]
     {
-        if (source == nullptr || scrubOfPlayingDeck())
+        if (source == nullptr || scrubOfPlayingDeck() || state == State::Scratching)
         {
             return;
         }
@@ -199,6 +217,11 @@ namespace djw::core::engine
             scrub(frame, true);
             return;
         }
+        if (state == State::Scratching)
+        {
+            scratch_position = static_cast<double>(clampToTrack(frame));
+            return;
+        }
         if (state == State::ScrubFadingOut)
         {
             // The rest of the fade would go on at the loop; the deck stops at the new position instead
@@ -242,6 +265,38 @@ namespace djw::core::engine
         }
         state = resume_playing ? State::Playing : State::Stopped;
         restartAt(target);
+        resume_playing = false;
+    }
+
+    void Deck::scratch(float rate, bool active) noexcept // [audio-thread]
+    {
+        if (!scratchable() || state == State::Scrubbing || state == State::ScrubFadingOut)
+        {
+            return;
+        }
+        if (active)
+        {
+            if (state != State::Scratching)
+            {
+                // From what the deck does now: a playing record slows down under the hand, one fading out stood
+                resume_playing   = state == State::Playing;
+                scratch_position = playbackPosition();
+                scratch_speed    = resume_playing ? speed() : 0.0;
+                cue_preview      = false;
+                return_to_cue    = false;
+                fade_remaining   = 0;
+                state            = State::Scratching;
+            }
+            scratch_target = std::clamp(static_cast<double>(rate), -static_cast<double>(api::max_scratch_rate),
+                                        static_cast<double>(api::max_scratch_rate));
+            return;
+        }
+        if (state != State::Scratching)
+        {
+            return;
+        }
+        state = resume_playing ? State::Playing : State::Stopped;
+        restartAt(clampToTrack(static_cast<std::uint64_t>(std::llround(std::max(0.0, scratch_position)))));
         resume_playing = false;
     }
 
@@ -302,6 +357,11 @@ namespace djw::core::engine
         {
             produced = renderScrubFadeOut(output);
         }
+        else if (state == State::Scratching)
+        {
+            renderScratch(output);
+            produced = output.size() / stereo_channels;
+        }
         std::ranges::fill(output.subspan(produced * stereo_channels), 0.0F);
     }
 
@@ -347,6 +407,53 @@ namespace djw::core::engine
             }
         }
         return written;
+    }
+
+    void Deck::renderScratch(std::span<float> output) noexcept // [audio-thread]
+    {
+        const auto        length = static_cast<double>(source->lengthFrames());
+        const std::size_t frames = output.size() / stereo_channels;
+        const std::size_t room   = scratch_window.size() / stereo_channels;
+        for (std::size_t done = 0; done < frames;)
+        {
+            const std::size_t block = std::min(scratch_block_frames, frames - done);
+            // How far the block can reach: the speed goes from where it is towards the target
+            const double slowest = std::min(scratch_speed, scratch_target);
+            const double fastest = std::max(scratch_speed, scratch_target);
+            const auto   reach   = static_cast<double>(block);
+            const double first   = std::max(0.0, scratch_position + std::min(0.0, slowest * reach));
+            const double last    = std::min(length, scratch_position + std::max(0.0, fastest * reach));
+            // One frame before the first, two after the last, for the interpolation; nothing read is silence
+            const auto start = static_cast<std::uint64_t>(std::max(0.0, std::floor(first) - 1.0));
+            const auto count = std::min(
+                room, static_cast<std::size_t>(std::max(0.0, std::floor(last) + 3.0 - static_cast<double>(start))));
+            std::ranges::fill(scratch_window, 0.0F);
+            source->seek(start);
+            static_cast<void>(source->read(std::span{scratch_window}.first(count * stereo_channels)));
+            const auto sample = [&](double at, std::size_t channel)
+            {
+                const auto index = static_cast<long long>(at) - static_cast<long long>(start);
+                return index >= 0 && std::cmp_less(index, count)
+                           ? scratch_window[(static_cast<std::size_t>(index) * stereo_channels) + channel]
+                           : 0.0F;
+            };
+            for (std::size_t frame = 0; frame < block; ++frame)
+            {
+                scratch_speed += (scratch_target - scratch_speed) * scratch_follow;
+                const double whole = std::floor(scratch_position);
+                const auto   t     = static_cast<float>(scratch_position - whole);
+                for (std::size_t channel = 0; channel < stereo_channels; ++channel)
+                {
+                    output[((done + frame) * stereo_channels) + channel] =
+                        hermite({sample(whole - 1.0, channel), sample(whole, channel), sample(whole + 1.0, channel),
+                                 sample(whole + 2.0, channel)},
+                                t);
+                }
+                // The record stops at both ends; the hand may go on
+                scratch_position = std::clamp(scratch_position + scratch_speed, 0.0, length);
+            }
+            done += block;
+        }
     }
 
     void Deck::applyFadeOut(std::span<float> output) const noexcept // [audio-thread]

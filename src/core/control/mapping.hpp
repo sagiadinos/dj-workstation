@@ -47,6 +47,8 @@ namespace djw::core::control
             bool shift = false;
             /// Absolute modes: the value runs the other way (1 - value), e.g. a pitch fader built upside down
             bool invert = false;
+            /// deck.scratch: the steps the wheel sends for one turn, so a turn of the wheel is a turn of a record
+            int ticks_per_turn = 0;
 
             bool operator==(const Control &) const = default;
     };

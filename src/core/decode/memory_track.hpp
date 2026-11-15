@@ -49,6 +49,7 @@ namespace djw::core::decode
             [[nodiscard]] bool          atEnd() const noexcept override { return read_position >= length; }
 
             [[nodiscard]] float decodedFraction() const noexcept override;
+            [[nodiscard]] bool  randomAccess() const noexcept override { return true; }
 
             /// The audio at frame is decoded and can be read
             [[nodiscard]] bool isDecoded(std::uint64_t frame) const noexcept;

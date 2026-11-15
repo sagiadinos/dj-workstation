@@ -54,7 +54,9 @@ namespace djw::core::api
             /// Pitch fader, without a held pitch bend
             float pitch_percent = 0.0F;
             /// Keylock: the pitch fader changes the tempo only
-            bool           keylock         = false;
+            bool keylock = false;
+            /// The loaded track can be scratched: it is held in memory (a long track is streamed and cannot)
+            bool           scratchable     = false;
             CrossfaderSide crossfader_side = CrossfaderSide::None;
             /// Level before the channel fader, so a deck can be watched with the fader down
             StereoLevel level{};

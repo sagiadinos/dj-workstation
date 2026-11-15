@@ -6,6 +6,8 @@
 # Faders are 14 bit (the CC and its fine part CC + 32). Pitch fader up (away from you) is faster, as on screen.
 # The Starlight has no load buttons and no browse knob: Shift + Play loads the track selected in the library.
 # Its lights (play, cue, headphones) answer to the same notes as their buttons: 0x7F on, 0x00 off.
+# Not checked on the device yet: the note of touching the jog wheel (0x08) and the steps of one turn (248), both
+# from the Mixxx mapping. If the touch does not come, turning the top works like the edge.
 
 [device]
 name  = "Hercules DJControl Starlight"
@@ -50,11 +52,17 @@ action = "deck.pitch"
 deck   = 1
 mode   = "absolute14"
 
-[[control]] # jog wheel turned on top (while touched)
-midi   = { type = "cc", channel = 2, number = 0x0A }
-action = "deck.jog"
+[[control]] # jog wheel touched on top: scratching while the hand is on it
+midi   = { type = "note", channel = 2, number = 0x08 }
+action = "deck.scratch_touch"
 deck   = 1
-mode   = "relative"
+
+[[control]] # jog wheel turned on top: scratches while touched
+midi           = { type = "cc", channel = 2, number = 0x0A }
+action         = "deck.scratch"
+deck           = 1
+mode           = "relative"
+ticks_per_turn = 248
 
 [[control]] # jog wheel turned at the edge
 midi   = { type = "cc", channel = 2, number = 0x09 }
@@ -95,11 +103,17 @@ action = "deck.pitch"
 deck   = 2
 mode   = "absolute14"
 
-[[control]] # jog wheel turned on top (while touched)
-midi   = { type = "cc", channel = 3, number = 0x0A }
-action = "deck.jog"
+[[control]] # jog wheel touched on top: scratching while the hand is on it
+midi   = { type = "note", channel = 3, number = 0x08 }
+action = "deck.scratch_touch"
 deck   = 2
-mode   = "relative"
+
+[[control]] # jog wheel turned on top: scratches while touched
+midi           = { type = "cc", channel = 3, number = 0x0A }
+action         = "deck.scratch"
+deck           = 2
+mode           = "relative"
+ticks_per_turn = 248
 
 [[control]] # jog wheel turned at the edge
 midi   = { type = "cc", channel = 3, number = 0x09 }

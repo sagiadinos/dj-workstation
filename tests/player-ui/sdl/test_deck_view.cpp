@@ -987,6 +987,95 @@ TEST_CASE("DeckView: the jog wheel bends the pitch while the deck plays, as long
     CHECK(scrubbed);
 }
 
+TEST_CASE("DeckView: touching the jog wheel scratches at the hand's speed; untouched or not scratchable it jogs")
+{
+    using Action = djw::core::api::ControlAction;
+    api::CommandQueue                     queue;
+    api::DeckSnapshotBuffer               snapshot{api::DeckSnapshot{.deck = deck}};
+    Translator                            translator;
+    std::chrono::steady_clock::time_point now{};
+    DeckView                              view{deck, queue, snapshot, translator, [&now] { return now; }};
+    const auto                            drain = [&queue]
+    {
+        std::vector<api::Command> all;
+        while (const auto command = queue.tryPop())
+        {
+            all.push_back(*command);
+        }
+        return all;
+    };
+    const auto scratches = [&drain]
+    {
+        std::vector<api::DeckScratch> found;
+        for (const api::Command &command : drain())
+        {
+            if (const auto *scratch = std::get_if<api::DeckScratch>(&command))
+            {
+                found.push_back(*scratch);
+            }
+        }
+        return found;
+    };
+    api::DeckSnapshot playing{.deck             = deck,
+                              .track_loaded     = true,
+                              .play_state       = api::PlayState::Playing,
+                              .position_seconds = 10.0,
+                              .duration_seconds = 100.0};
+    playing.scratchable = true;
+    snapshot.write(playing);
+    view.update();
+    static_cast<void>(drain());
+
+    // Touched: the record held still
+    view.control({.action = Action::DeckScratchTouch, .deck = 0, .pressed = true});
+    view.update();
+    auto sent = scratches();
+    REQUIRE_FALSE(sent.empty());
+    CHECK(sent.front().active);
+    CHECK(sent.front().rate == 0.0F);
+
+    // A quarter turn in 0.45 s is the normal speed (a turn in 1.8 s); smoothed, it gets there over a few frames
+    for (int frame = 0; frame < 30; ++frame)
+    {
+        now += std::chrono::milliseconds{15};
+        view.control({.action = Action::DeckScratch, .deck = 0, .steps = 1, .turns = 0.25F * 15.0F / 450.0F});
+        view.update();
+    }
+    sent = scratches();
+    REQUIRE_FALSE(sent.empty());
+    CHECK(sent.back().active);
+    CHECK(sent.back().rate == doctest::Approx(1.0F).epsilon(0.02));
+    CHECK(sent.front().rate < sent.back().rate); // not at once
+
+    // Let go: the scratch ends
+    view.control({.action = Action::DeckScratchTouch, .deck = 0, .pressed = false});
+    view.update();
+    sent = scratches();
+    REQUIRE(sent.size() == 1);
+    CHECK_FALSE(sent.front().active);
+
+    // Untouched the top turns like the edge: a bend while playing
+    view.control({.action = Action::DeckScratch, .deck = 0, .steps = 2, .turns = 0.01F});
+    view.update();
+    bool bent = false;
+    for (const api::Command &command : drain())
+    {
+        CHECK_FALSE(std::holds_alternative<api::DeckScratch>(command));
+        bent = bent || std::holds_alternative<api::DeckPitchBend>(command);
+    }
+    CHECK(bent);
+
+    // A track that cannot be scratched (streamed): the touch does nothing
+    now += DeckView::jog_bend_hold * 2;
+    playing.scratchable = false;
+    snapshot.write(playing);
+    view.update();
+    static_cast<void>(drain());
+    view.control({.action = Action::DeckScratchTouch, .deck = 0, .pressed = true});
+    view.update();
+    CHECK(scratches().empty());
+}
+
 TEST_CASE("DeckView: the lights: play while playing, headphones, CUE as on a CDJ")
 {
     using Action = djw::core::api::ControlAction;

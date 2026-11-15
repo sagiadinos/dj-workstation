@@ -16,7 +16,7 @@ namespace djw::core::engine
         constexpr double pause_fade_seconds = 0.005;
 
         // Engine::apply handles every command; a new command must be added there
-        static_assert(std::variant_size_v<api::Command> == 17, "handle the new command in Engine::apply");
+        static_assert(std::variant_size_v<api::Command> == 18, "handle the new command in Engine::apply");
 
         /// The frame at a position in seconds; a negative position is the start
         std::uint64_t frameAt(double seconds, std::uint32_t sample_rate) noexcept // [audio-thread]
@@ -202,6 +202,8 @@ namespace djw::core::engine
             applyToDeck<api::DeckScrub>(list, command,
                                         [rate = config.sample_rate](DeckSlot &slot, const api::DeckScrub &scrub)
                                         { slot.deck.scrub(frameAt(scrub.position_seconds, rate), scrub.active); }) ||
+            applyToDeck<api::DeckScratch>(list, command, [](DeckSlot &slot, const api::DeckScratch &scratch)
+                                          { slot.deck.scratch(scratch.rate, scratch.active); }) ||
             applyToDeck<api::DeckSetPitch>(list, command, [](DeckSlot &slot, const api::DeckSetPitch &pitch)
                                            { slot.deck.setPitch(pitch.percent); }) ||
             applyToDeck<api::DeckPitchBend>(list, command, [](DeckSlot &slot, const api::DeckPitchBend &bend)
@@ -291,6 +293,7 @@ namespace djw::core::engine
                 .cue_set_count    = deck.cueSetCount(),
                 .pitch_percent    = deck.pitchPercent(),
                 .keylock          = deck.keylock(),
+                .scratchable      = deck.scratchable(),
                 .crossfader_side  = slot->channel.crossfaderSide(),
                 .level            = slot->channel.level(),
                 .headphone_cue    = slot->channel.headphoneCue(),

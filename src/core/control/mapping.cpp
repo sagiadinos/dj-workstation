@@ -16,7 +16,7 @@ namespace djw::core::control
 {
     namespace
     {
-        constexpr std::array<std::pair<Action, std::string_view>, 15> action_names{{
+        constexpr std::array<std::pair<Action, std::string_view>, 17> action_names{{
             {Action::Shift, "shift"},
             {Action::DeckPlay, "deck.play"},
             {Action::DeckCue, "deck.cue"},
@@ -30,6 +30,8 @@ namespace djw::core::control
             {Action::DeckHeadphoneLevel, "deck.headphone_level"},
             {Action::DeckSeek, "deck.seek"},
             {Action::DeckJog, "deck.jog"},
+            {Action::DeckScratchTouch, "deck.scratch_touch"},
+            {Action::DeckScratch, "deck.scratch"},
             {Action::Crossfader, "mixer.crossfader"},
             {Action::LibraryMove, "library.move"},
         }};
@@ -183,6 +185,17 @@ namespace djw::core::control
             }
             control.shift  = entry["shift"].value_or(false);
             control.invert = entry["invert"].value_or(false);
+            if (control.action == Action::DeckScratch)
+            {
+                const auto ticks = entry["ticks_per_turn"].value<std::int64_t>();
+                if (control.mode != Mode::Relative || !ticks || *ticks < 1 || *ticks > 100'000)
+                {
+                    return std::unexpected{where(entry) +
+                                           ": deck.scratch needs mode = \"relative\" and ticks_per_turn, the "
+                                           "steps of one turn of the wheel"};
+                }
+                control.ticks_per_turn = static_cast<int>(*ticks);
+            }
             return control;
         }
     } // namespace

@@ -47,6 +47,10 @@ namespace djw::core::engine
             /// everything at hand or does not load in parts. Counts the decoded chunks, so it need not be exact when
             /// the user jumped ahead.
             [[nodiscard]] virtual float decodedFraction() const noexcept { return 1.0F; } // [audio-thread]
+            /// A seek costs nothing and the audio there can be read at once (if it is decoded): the source can be
+            /// read anywhere, backwards too, a few frames at a time, as scratching does. False for a source that
+            /// streams from a file.
+            [[nodiscard]] virtual bool randomAccess() const noexcept { return false; } // [audio-thread]
 
             /// Where a deck starts when it takes this source and where it puts its cue point (0: the beginning), e.g.
             /// the first sound. Set before the source is handed to the engine; the engine only reads it.

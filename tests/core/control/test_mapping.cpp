@@ -72,10 +72,10 @@ TEST_CASE("Mapping: device and controls are read from TOML, players count from 1
 
 TEST_CASE("Mapping: every action has a name and back")
 {
-    for (const Action action :
-         {Action::Shift, Action::DeckPlay, Action::DeckCue, Action::DeckLoad, Action::DeckKeylock,
-          Action::DeckHeadphones, Action::DeckBendDown, Action::DeckBendUp, Action::DeckPitch, Action::DeckVolume,
-          Action::DeckHeadphoneLevel, Action::DeckSeek, Action::DeckJog, Action::Crossfader, Action::LibraryMove})
+    for (const Action action : {Action::Shift, Action::DeckPlay, Action::DeckCue, Action::DeckLoad, Action::DeckKeylock,
+                                Action::DeckHeadphones, Action::DeckBendDown, Action::DeckBendUp, Action::DeckPitch,
+                                Action::DeckVolume, Action::DeckHeadphoneLevel, Action::DeckSeek, Action::DeckJog,
+                                Action::DeckScratchTouch, Action::DeckScratch, Action::Crossfader, Action::LibraryMove})
     {
         CAPTURE(static_cast<int>(action));
         REQUIRE_FALSE(actionName(action).empty());
@@ -276,4 +276,18 @@ TEST_CASE("Mapping: a folder named like a mapping is not read as one")
     const auto               mappings = readMappings({folder.path()}, errors);
     CHECK(mappings.size() == 1);
     CHECK(errors.empty());
+}
+
+TEST_CASE("Mapping: deck.scratch is relative and needs the steps of one turn")
+{
+    const std::string head = "[device]\nname = \"Pad\"\nmatch = [\"Pad\"]\n[[control]]\n"
+                             "midi = { type = \"cc\", channel = 1, number = 10 }\naction = \"deck.scratch\"\n"
+                             "deck = 1\n";
+    const auto        good = parseMapping(head + "mode = \"relative\"\nticks_per_turn = 248\n");
+    REQUIRE_MESSAGE(good.has_value(), (good ? "" : good.error()));
+    CHECK(good->controls.front().ticks_per_turn == 248);
+    CHECK_FALSE(parseMapping(head + "mode = \"relative\"\n").has_value());
+    CHECK_FALSE(parseMapping(head + "mode = \"relative\"\nticks_per_turn = 0\n").has_value());
+    CHECK_FALSE(parseMapping(head + "mode = \"absolute\"\nticks_per_turn = 248\n").has_value());
+    CHECK_FALSE(parseMapping(head + "mode = \"relative\"\nticks_per_turn = 100001\n").has_value());
 }

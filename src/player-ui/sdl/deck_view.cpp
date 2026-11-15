@@ -381,6 +381,29 @@ namespace djw::player_ui::sdl
             case Action::DeckHeadphoneLevel:
                 headphone_fader.setValue(event.value);
                 break;
+            case Action::DeckScratchTouch:
+                if (event.pressed && state.scratchable && !scratch_touched)
+                {
+                    // The hand on the record: it holds still until it moves
+                    scratch_touched = true;
+                    scratch_turns   = 0.0F;
+                    scratch_rate    = 0.0;
+                    scratch_last    = clock();
+                    pending.emplace_back(core::api::DeckScratch{deck, 0.0F, true});
+                }
+                else if (!event.pressed && scratch_touched)
+                {
+                    scratch_touched = false;
+                    pending.emplace_back(core::api::DeckScratch{deck, 0.0F, false});
+                }
+                break;
+            case Action::DeckScratch:
+                if (scratch_touched)
+                {
+                    scratch_turns += event.turns;
+                    break;
+                }
+                [[fallthrough]]; // not touched (or no touch in the mapping): like the edge of the wheel
             case Action::DeckJog:
                 if (playing() && event.steps != 0)
                 {
@@ -524,10 +547,37 @@ namespace djw::player_ui::sdl
             pending.emplace_back(core::api::DeckPitchBend{deck, 0});
             jog_bend = 0;
         }
+        sendScratch();
         applyTranslations();
         handleButtons();
         flush();
         sendFaders();
+    }
+
+    void DeckView::sendScratch()
+    {
+        if (!scratch_touched)
+        {
+            return;
+        }
+        if (!state.scratchable)
+        {
+            // Another track came, one that cannot be scratched: the scratch ends
+            scratch_touched = false;
+            pending.emplace_back(core::api::DeckScratch{deck, 0.0F, false});
+            return;
+        }
+        const auto   now     = clock();
+        const double elapsed = std::chrono::duration<double>(now - scratch_last).count();
+        if (elapsed <= 0.0)
+        {
+            return;
+        }
+        const double hand = static_cast<double>(scratch_turns) * scratch_seconds_per_turn / elapsed;
+        scratch_rate += (hand - scratch_rate) * std::min(1.0, elapsed / scratch_smoothing_seconds);
+        scratch_turns = 0.0F;
+        scratch_last  = now;
+        pending.emplace_back(core::api::DeckScratch{deck, static_cast<float>(scratch_rate), true});
     }
 
     std::optional<double> DeckView::shownBpm() const noexcept

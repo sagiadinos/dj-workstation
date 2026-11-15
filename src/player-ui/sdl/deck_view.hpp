@@ -60,6 +60,10 @@ namespace djw::player_ui::sdl
             static constexpr float design_height = 514.0F;
             /// How long a turn of the jog wheel bends the pitch: it sends several messages a second while turning
             static constexpr std::chrono::milliseconds jog_bend_hold{100};
+            /// Scratching: one turn of the wheel in this time is the normal speed, as on a record at 33 1/3 rpm
+            static constexpr double scratch_seconds_per_turn = 1.8;
+            /// The hand's speed is smoothed over about this time, so the frames' uneven timing does not jitter
+            static constexpr double scratch_smoothing_seconds = 0.03;
 
             using Load   = std::function<void()>;
             using CueSet = std::function<void(double seconds)>;
@@ -168,10 +172,17 @@ namespace djw::player_ui::sdl
             /// The jog wheel's bend while the deck plays: its direction (0: none) and when it ends without new turns
             std::int8_t                           jog_bend = 0;
             std::chrono::steady_clock::time_point jog_bend_end;
-            core::api::DeckSnapshot               state;
-            Load                                  on_load;
-            CueSet                                on_cue_set;
-            std::uint32_t                         seen_cue_sets = 0;
+            /// The top of the jog wheel is touched: the turns scratch, see sendScratch()
+            bool                                  scratch_touched = false;
+            float                                 scratch_turns   = 0.0F; ///< since the last frame
+            double                                scratch_rate    = 0.0;  ///< the hand's speed, smoothed
+            std::chrono::steady_clock::time_point scratch_last;
+            /// While touched: the hand's speed from the turns since the last frame goes out as a scratch
+            void                    sendScratch();
+            core::api::DeckSnapshot state;
+            Load                    on_load;
+            CueSet                  on_cue_set;
+            std::uint32_t           seen_cue_sets = 0;
 
             TextButton  load_button;
             TextButton  bend_down_button{"-"};
