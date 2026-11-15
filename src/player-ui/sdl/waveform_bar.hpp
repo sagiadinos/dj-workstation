@@ -26,7 +26,9 @@ namespace djw::player_ui::sdl
     class WaveformBar final : public Widget
     {
         public:
-            /// Replaces the waveform; empty for none
+            /// Replaces the waveform (the loudness of each column, see core::analysis::TrackAnalysis); empty for none.
+            /// It is drawn pulled apart: its loudest column at the top, the bottom at the quietest but for the
+            /// quietest 5 % of the columns, at least 12 dB below the top
             void                                           setWaveform(std::vector<std::uint8_t> peaks);
             [[nodiscard]] bool                             hasWaveform() const noexcept { return !waveform.empty(); }
             [[nodiscard]] const std::vector<std::uint8_t> &peaks() const noexcept { return waveform; }
@@ -34,8 +36,10 @@ namespace djw::player_ui::sdl
             /// How much of the track is in memory (0 to 1); the rest shows in gray
             void                setLoaded(float fraction) noexcept;
             [[nodiscard]] float loaded() const noexcept { return loaded_share; }
-            /// The factor the waveform is drawn with: 255 / loudest value, 1 without a waveform or silence
-            [[nodiscard]] float gain() const noexcept { return normalize; }
+            /// The values at the bottom and the top of the bar: the waveform pulled apart over the loudness the track
+            /// has (see setWaveform); 0 and 255 without a waveform
+            [[nodiscard]] std::uint8_t shownBottom() const noexcept { return bottom; }
+            [[nodiscard]] std::uint8_t shownTop() const noexcept { return top; }
 
             /// The play position as a share of the track (0 to 1)
             void                setPosition(float fraction) noexcept;
@@ -63,7 +67,8 @@ namespace djw::player_ui::sdl
             std::vector<std::uint8_t> waveform;
             std::optional<float>      cue;
             std::optional<float>      chosen;
-            float                     normalize    = 1.0F;
+            std::uint8_t              bottom       = 0;
+            std::uint8_t              top          = 255;
             float                     loaded_share = 1.0F;
             float                     played       = 0.0F;
             bool                      is_held      = false;

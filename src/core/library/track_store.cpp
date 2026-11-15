@@ -110,6 +110,11 @@ namespace djw::core::library
             PRAGMA user_version = 6;
         )sql";
 
+        // Version 6 stored the peaks of the overview waveform, version 7 its loudness: the old waveforms go and the
+        // tracks count as not analyzed, so loading or Analyze all finds tempo and waveform again
+        constexpr std::string_view migration_to_7 =
+            "DELETE FROM waveforms; UPDATE tracks SET analyzed = 0; PRAGMA user_version = 7;";
+
         constexpr std::string_view update_keys =
             "UPDATE tracks SET artist_key = ?, title_key = ?, genre_key = ?, any_key = ? WHERE id = ?";
 
@@ -274,7 +279,14 @@ namespace djw::core::library
                 return migrated;
             }
         }
-        return database.execute(migration_to_6);
+        if (from_version < 6)
+        {
+            if (auto migrated = database.execute(migration_to_6); !migrated)
+            {
+                return migrated;
+            }
+        }
+        return database.execute(migration_to_7);
     }
 
     std::expected<void, std::string> TrackStore::migrateToVersion2(SqliteDatabase &database)

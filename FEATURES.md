@@ -127,7 +127,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Pitch zero | done | Reset fader to 0 with a double tap on the pitch fader. |
 | Keylock (master tempo) | done | Tempo change without pitch change. Settings > Sound sets the keylock quality (next start): High (Signalsmith Stretch, the default) or Standard (SoundTouch, less computing power), behind one interface (`engine::TimeStretcher`, made by `makeTimeStretcher`). |
 | Seek with audible scrub | done | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
-| Waveform overview | done | Whole track, click/touch to jump. |
+| Waveform overview | done | Whole track as its loudness (RMS), pulled apart between the quiet and the loud parts of the track, so intro, breakdown and drop show; click/touch to jump. |
 | Scrolling waveform | done | Beat waveforms: the players on crossfader sides A and B in a part of their own (View menu), 6 s of real time around a fixed playhead, the pitch taken into account, in three colours (bass red, mids green, highs blue); lanes horizontal or vertical. Zoom and beatgrid are planned. |
 | BPM display | done | From the analysis, with the pitch taken into account. |
 | Beatgrid | planned | From analysis, manually adjustable. |

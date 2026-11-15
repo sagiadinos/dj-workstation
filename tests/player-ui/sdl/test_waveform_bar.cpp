@@ -10,21 +10,33 @@
 
 using namespace djw::player_ui::sdl;
 
-TEST_CASE("WaveformBar: the waveform is scaled so that its loudest point reaches full scale")
+TEST_CASE(
+    "WaveformBar: the loudness is pulled apart, loudest at the top, the quiet 5 % below the bottom, 12 dB at least")
 {
     WaveformBar bar;
-    CHECK(bar.gain() == 1.0F);
+    CHECK(bar.shownBottom() == 0);
+    CHECK(bar.shownTop() == 255);
 
-    bar.setWaveform({10, 40, 20});
-    CHECK(bar.gain() == doctest::Approx(255.0F / 40.0F));
+    // A loud track with a breakdown: the bottom is its quiet part, not silence
+    std::vector<std::uint8_t> track(100, 230);
+    std::fill_n(track.begin() + 40, 20, 150); // the breakdown
+    track[0] = 0;                             // a moment of silence at the start
+    track[1] = 20;
+    bar.setWaveform(track);
+    CHECK(bar.shownTop() == 230);
+    CHECK(bar.shownBottom() == 150);
 
-    bar.setWaveform({255, 3});
-    CHECK(bar.gain() == doctest::Approx(1.0F));
+    // Even loudness: at least 12 dB (51 values) between bottom and top
+    bar.setWaveform(std::vector<std::uint8_t>(50, 200));
+    CHECK(bar.shownTop() == 200);
+    CHECK(bar.shownBottom() == 149);
 
-    bar.setWaveform({0, 0}); // silence: nothing to scale
-    CHECK(bar.gain() == 1.0F);
+    bar.setWaveform({0, 0}); // silence
+    CHECK(bar.shownTop() == 0);
+    CHECK(bar.shownBottom() == 0);
     bar.setWaveform({});
     CHECK_FALSE(bar.hasWaveform());
+    CHECK(bar.shownTop() == 255);
 }
 
 namespace

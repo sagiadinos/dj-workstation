@@ -22,11 +22,13 @@ namespace djw::core::analysis
     {
         for (std::size_t frame = 0; frame + 1 < stereo.size(); frame += stereo_channels)
         {
-            current = std::max({current, std::abs(stereo[frame]), std::abs(stereo[frame + 1])});
+            const auto left  = static_cast<double>(stereo[frame]);
+            const auto right = static_cast<double>(stereo[frame + 1]);
+            current += ((left * left) + (right * right)) / 2.0;
             if (++filled == block_frames)
             {
-                peaks.push_back(current);
-                current = 0.0F;
+                squares.push_back(current / static_cast<double>(block_frames));
+                current = 0.0;
                 filled  = 0;
             }
         }
@@ -34,24 +36,31 @@ namespace djw::core::analysis
 
     std::vector<std::uint8_t> WaveformBuilder::finish() const
     {
-        std::vector<float> all = peaks;
+        std::vector<double> all = squares;
         if (filled > 0)
         {
-            all.push_back(current);
+            all.push_back(current / static_cast<double>(filled));
         }
         const std::size_t         columns = std::min(waveform_columns, all.size());
         std::vector<std::uint8_t> result(columns, 0);
         for (std::size_t column = 0; column < columns; ++column)
         {
             // Block range of this column; every block belongs to exactly one column
-            const std::size_t first   = column * all.size() / columns;
-            const std::size_t last    = std::max(first + 1, (column + 1) * all.size() / columns);
-            float             loudest = 0.0F;
+            const std::size_t first = column * all.size() / columns;
+            const std::size_t last  = std::max(first + 1, (column + 1) * all.size() / columns);
+            double            sum   = 0.0;
             for (std::size_t block = first; block < last; ++block)
             {
-                loudest = std::max(loudest, all[block]);
+                sum += all[block];
             }
-            result[column] = static_cast<std::uint8_t>(std::lround(std::min(loudest, 1.0F) * 255.0F));
+            const double mean_square = sum / static_cast<double>(last - first);
+            if (mean_square <= 0.0)
+            {
+                continue; // silence: 0
+            }
+            const double decibels = 10.0 * std::log10(mean_square); // of the RMS: 20 log10 sqrt
+            const double share    = std::clamp((decibels - waveform_floor_db) / -waveform_floor_db, 0.0, 1.0);
+            result[column]        = static_cast<std::uint8_t>(std::lround(share * 255.0));
         }
         return result;
     }

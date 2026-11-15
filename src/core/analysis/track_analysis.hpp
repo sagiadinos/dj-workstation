@@ -18,19 +18,24 @@ namespace djw::core::analysis
 {
     /// Columns of the stored overview waveform, whatever the length of the track
     constexpr std::size_t waveform_columns = 1'024;
+    /// The quietest level a waveform column tells apart (value 0), in dBFS; the loudest is 0 dBFS (value 255)
+    constexpr double waveform_floor_db = -60.0;
 
     /// What the analysis finds in a track
     struct TrackAnalysis
     {
             /// nullopt if the track has no beat the analysis could find
             std::optional<double> bpm{};
-            /// waveform_columns values, 0 (silent) to 255 (full scale): the loudest sample of the track section
+            /// waveform_columns values: the loudness (RMS) of the track section in dB, 0 for waveform_floor_db or
+            /// quieter to 255 for full scale. The loudness, not the peak: a track mastered loud has peaks near full
+            /// scale everywhere, its loudness still shows intro, breakdown and drop
             std::vector<std::uint8_t> waveform{};
     };
 
     /**
-     * Collects the overview waveform while a track is decoded: the peak of every small block, folded into
-     * waveform_columns columns at the end, so the length of the track need not be known.
+     * Collects the overview waveform while a track is decoded: the mean square of every small block, folded into
+     * waveform_columns columns at the end (the RMS of the blocks of a column, in dB), so the length of the track need
+     * not be known.
      */
     class WaveformBuilder
     {
@@ -43,9 +48,9 @@ namespace djw::core::analysis
         private:
             static constexpr std::size_t block_frames = 1'024;
 
-            std::vector<float> peaks;
-            float              current = 0.0F;
-            std::size_t        filled  = 0;
+            std::vector<double> squares; ///< the mean square of every full block
+            double              current = 0.0;
+            std::size_t         filled  = 0;
     };
 
     /**

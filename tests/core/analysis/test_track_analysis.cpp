@@ -41,26 +41,58 @@ namespace
     }
 } // namespace
 
-TEST_CASE("WaveformBuilder: a short track gives one column per block, the loudest sample of the block")
+namespace
+{
+    /// The value a column with this RMS gets: its dB between waveform_floor_db (0) and full scale (255)
+    std::uint8_t valueOf(double rms)
+    {
+        const double share = std::clamp(((20.0 * std::log10(rms)) - waveform_floor_db) / -waveform_floor_db, 0.0, 1.0);
+        return static_cast<std::uint8_t>(std::lround(share * 255.0));
+    }
+
+    /// Fills the frames [from, to) of interleaved stereo with value on both channels
+    void fill(std::vector<float> &stereo, std::size_t from, std::size_t to, float value)
+    {
+        std::fill(stereo.begin() + static_cast<std::ptrdiff_t>(from * 2),
+                  stereo.begin() + static_cast<std::ptrdiff_t>(to * 2), value);
+    }
+} // namespace
+
+TEST_CASE("WaveformBuilder: a short track gives one column per block, its loudness (RMS) in dB")
 {
     WaveformBuilder    builder;
-    std::vector<float> stereo(1'024 * 2 * 3, 0.0F);
-    stereo[10]              = 0.5F;  // block 0, left
-    stereo[(1'024 * 2) + 3] = -1.0F; // block 1, right
-    builder.add(stereo);
-    CHECK(builder.finish() == std::vector<std::uint8_t>{128, 255, 0});
+    std::vector<float> stereo(block_frames * 2 * 3, 0.0F);
+    fill(stereo, 0, block_frames, 0.5F);                 // block 0: -6 dB
+    fill(stereo, block_frames, 2 * block_frames, -1.0F); // block 1: full scale
+    builder.add(stereo);                                 // block 2: silence
+    CHECK(builder.finish() == std::vector<std::uint8_t>{valueOf(0.5), 255, 0});
+    CHECK(valueOf(0.5) == 229);
 }
 
-TEST_CASE("WaveformBuilder: a long track is folded into waveform_columns columns by the loudest block")
+TEST_CASE("WaveformBuilder: a single loud sample hardly counts, the loudness does; below the floor is 0")
+{
+    WaveformBuilder    builder;
+    std::vector<float> stereo(block_frames * 2 * 2, 0.0F);
+    stereo[10] = 1.0F;                                     // block 0: one full-scale sample, else silence
+    fill(stereo, block_frames, 2 * block_frames, 0.0005F); // block 1: -66 dB, below the floor
+    builder.add(stereo);
+    const auto waveform = builder.finish();
+    REQUIRE(waveform.size() == 2);
+    CHECK(waveform[0] == valueOf(std::sqrt(1.0 / 2.0 / static_cast<double>(block_frames))));
+    CHECK(waveform[0] < 128); // about -33 dB; a peak would have been 255
+    CHECK(waveform[1] == 0);
+}
+
+TEST_CASE("WaveformBuilder: a long track is folded into waveform_columns columns, the RMS of their blocks")
 {
     WaveformBuilder    builder;
     const std::size_t  blocks = waveform_columns * 4;
-    std::vector<float> stereo(1'024 * 2 * blocks, 0.0F);
-    stereo[1'024 * 2 * 7] = 0.25F; // block 7 lies in column 1
+    std::vector<float> stereo(block_frames * 2 * blocks, 0.0F);
+    fill(stereo, block_frames * 7, block_frames * 8, 0.25F); // block 7 lies in column 1, with blocks 4 to 6 silent
     builder.add(stereo);
     const auto waveform = builder.finish();
     REQUIRE(waveform.size() == waveform_columns);
-    CHECK(waveform[1] == 64);
+    CHECK(waveform[1] == valueOf(0.125)); // the mean square over four blocks: 0.25^2 / 4
     CHECK(waveform[0] == 0);
     CHECK(waveform[2] == 0);
 }
@@ -69,8 +101,7 @@ TEST_CASE("WaveformBuilder: an incomplete last block counts, nothing gives nothi
 {
     CHECK(WaveformBuilder{}.finish().empty());
     WaveformBuilder    builder;
-    std::vector<float> stereo(100 * 2, 0.0F);
-    stereo[0] = 1.0F;
+    std::vector<float> stereo(100 * 2, 1.0F);
     builder.add(stereo);
     CHECK(builder.finish() == std::vector<std::uint8_t>{255});
 }
@@ -81,7 +112,7 @@ TEST_CASE("WaveformBuilder: the last frame counts, also when it is alone in its 
     std::vector<float> stereo((block_frames + 1) * 2, 0.0F);
     stereo.back() = -0.5F; // right channel of the very last frame
     builder.add(stereo);
-    CHECK(builder.finish() == std::vector<std::uint8_t>{0, 128});
+    CHECK(builder.finish() == std::vector<std::uint8_t>{0, valueOf(std::sqrt(0.25 / 2.0))});
 }
 
 TEST_CASE("WaveformBuilder: frames handed over in pieces count like one piece")
