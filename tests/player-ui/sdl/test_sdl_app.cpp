@@ -46,7 +46,7 @@ namespace
                                             const std::filesystem::path &layout_file = {})
             {
                 auto app = SdlApp::create(*core, deck, library, Language::English, {}, layout_file);
-                REQUIRE(app.has_value());
+                REQUIRE_MESSAGE(app.has_value(), (app ? std::string{} : app.error())); // why, if not
                 return std::move(*app);
             }
 
@@ -1174,19 +1174,20 @@ TEST_CASE("SdlApp: while a player plays it does not close, nor does the main win
 
 TEST_CASE("SdlApp: File > Quit ends the program at once, while a track plays only after the question")
 {
-    Fixture                   fixture;
     const djw::tests::TempDir folder;
     const auto                file = makeWav(folder, "one.wav");
     djw::tests::FakeLibrary   library;
     {
-        auto app = fixture.openApp(&library);
+        Fixture first; // each app with its own core: closing an app removes its decks from the core
+        auto    app = first.openApp(&library);
         REQUIRE(app->runFrame());
         app->requestQuit();
         CHECK(app->quitDialog() == nullptr); // nothing plays: no question
         CHECK_FALSE(app->runFrame());
     }
 
-    auto app = fixture.openApp(&library);
+    Fixture fixture;
+    auto    app = fixture.openApp(&library);
     REQUIRE(app->runFrame());
     app->load(trackOf(file));
     REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(0)}));
