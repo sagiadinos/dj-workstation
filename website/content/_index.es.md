@@ -15,7 +15,7 @@ features:
   title: "Qué hace"
   items:
     - title: "Reproductores"
-      text: "Tantos reproductores como quieras, cada uno en su propia ventana, que se puede mover y redimensionar libremente para pantallas táctiles."
+      text: "Tantos reproductores como quieras, cada uno en su propia ventana, que se puede mover y redimensionar libremente para pantallas táctiles. Atajos con la tecla Alt izquierda (Option en Mac): Alt+P reproducir/pausa, Alt+C cue, Alt+L cargar, Alt+←/→ saltar, Alt+↑/↓ pitch ±0,1 %. Escribir nunca detiene un reproductor: las letras van a la búsqueda."
     - title: "Mezclador"
       text: "Crossfader con fundido temporizado, escucha previa por auriculares y keylock. Formas de onda en movimiento en tres colores para cuadrar los beats a ojo."
     - title: "Biblioteca"
