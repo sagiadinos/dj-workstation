@@ -15,7 +15,7 @@ features:
   title: "Ce qu’il fait"
   items:
     - title: "Lecteurs"
-      text: "Autant de lecteurs que vous voulez, chacun dans sa propre fenêtre, librement déplaçable et redimensionnable pour les écrans tactiles. Raccourcis avec la touche Alt de gauche (Option sur Mac) : Alt+P lecture/pause, Alt+C cue, Alt+L charger, Alt+←/→ sauter, Alt+↑/↓ pitch ±0,1 %. Taper au clavier n’arrête jamais un lecteur : les lettres vont dans la recherche."
+      text: "Autant de lecteurs que vous voulez, chacun dans sa propre fenêtre, librement déplaçable et redimensionnable pour les écrans tactiles. Le fader de pitch fonctionne comme sur une platine : vers le bas, c’est plus rapide. Raccourcis avec la touche Alt de gauche (Option sur Mac) : Alt+P lecture/pause, Alt+C cue, Alt+L charger, Alt+←/→ sauter, Alt+↑/↓ pitch ±0,1 %. Taper au clavier n’arrête jamais un lecteur : les lettres vont dans la recherche."
     - title: "Table de mixage"
       text: "Crossfader avec fondu temporisé, pré-écoute au casque et keylock. Formes d’onde défilantes en trois couleurs pour caler les beats à l’œil."
     - title: "Bibliothèque"
