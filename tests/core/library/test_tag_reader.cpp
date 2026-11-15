@@ -7,9 +7,12 @@
 
 #include <doctest/doctest.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <string_view>
 
 using djw::core::library::readTags;
 using djw::core::library::TrackTags;
@@ -17,7 +20,35 @@ using djw::core::library::TrackTags;
 namespace
 {
     const std::filesystem::path audio_dir{DJW_TEST_AUDIO_DIR};
-}
+
+    /// A field of an ID3v1 tag: the text, padded with zeros to its size
+    std::string field(std::string_view text, std::size_t size)
+    {
+        std::string padded{text.substr(0, size)};
+        padded.resize(size, '\0');
+        return padded;
+    }
+
+    /// The test MP3 without its ID3v2 tag, with an ID3v1 tag (128 bytes at the end) and, if wanted, an ID3v2 tag
+    /// in front again
+    void writeId3v1Mp3(const std::filesystem::path &file, std::string_view comment, std::uint8_t genre,
+                       bool keep_id3v2 = false)
+    {
+        std::ifstream     in{audio_dir / "sine_440hz_48k_stereo.mp3", std::ios::binary};
+        const std::string mp3{std::istreambuf_iterator<char>{in}, {}};
+        REQUIRE(mp3.starts_with("ID3"));
+        // The ID3v2 size: four bytes of seven bits each, after the ten bytes of the header
+        std::size_t size = 0;
+        for (std::size_t at = 6; at < 10; ++at)
+        {
+            size = (size << 7U) | (static_cast<std::size_t>(static_cast<unsigned char>(mp3[at])) & 0x7FU);
+        }
+        const std::string frames = keep_id3v2 ? mp3 : mp3.substr(10 + size);
+        const std::string tag    = "TAG" + field("V1 Title", 30) + field("V1 Artist", 30) + field("V1 Album", 30) +
+                                   "1998" + field(comment, 30) + std::string(1, static_cast<char>(genre));
+        std::ofstream{file, std::ios::binary} << frames << tag;
+    }
+} // namespace
 
 TEST_CASE("readTags: ID3v2 tags and duration of an MP3 file")
 {
@@ -28,6 +59,31 @@ TEST_CASE("readTags: ID3v2 tags and duration of an MP3 file")
     CHECK(tags.genre == "House");
     CHECK(tags.year == 2024);
     CHECK(tags.duration_seconds == doctest::Approx(0.25).epsilon(0.2)); // MP3 frames round the length
+}
+
+TEST_CASE("readTags: an MP3 with only an ID3v1 tag takes its genre from the comment")
+{
+    const djw::tests::TempDir folder;
+    const auto                file = folder.path() / "old.mp3";
+    writeId3v1Mp3(file, "Italo Disco", 0); // genre 0: Blues
+
+    const TrackTags tags = readTags(file);
+    CHECK(tags.artist == "V1 Artist");
+    CHECK(tags.title == "V1 Title");
+    CHECK(tags.year == 1998);
+    CHECK(tags.genre == "Italo Disco");
+}
+
+TEST_CASE("readTags: an ID3v1 tag with an empty comment keeps its genre; with an ID3v2 tag the comment is no genre")
+{
+    const djw::tests::TempDir folder;
+    const auto                empty = folder.path() / "empty.mp3";
+    writeId3v1Mp3(empty, "", 35); // 35: House
+    CHECK(readTags(empty).genre == "House");
+
+    const auto both = folder.path() / "both.mp3";
+    writeId3v1Mp3(both, "Italo Disco", 0, true);
+    CHECK(readTags(both).genre != "Italo Disco"); // the ID3v2 tag decides
 }
 
 TEST_CASE("readTags: Vorbis comments of a FLAC file, in UTF-8")

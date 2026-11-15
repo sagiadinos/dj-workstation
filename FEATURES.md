@@ -175,7 +175,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 
 | Feature | Status | Description |
 |---|---|---|
-| Folder scan | done | Scan selected folders recursively, read tags. |
+| Folder scan | done | Scan selected folders recursively, read tags. An MP3 with only an ID3v1 tag takes its genre from the comment (where old collections kept it; the ID3v1 genre is only a number from a fixed list). |
 | Incremental rescan | done | Only changed files (mtime, size). |
 | Dead link check | done | From the original version: find missing files and mark/remove them. |
 | Formats | done | MP3, Ogg Vorbis, FLAC, WAV. |

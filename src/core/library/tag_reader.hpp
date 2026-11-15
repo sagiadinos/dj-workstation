@@ -12,7 +12,8 @@ namespace djw::core::library
 {
     /**
      * Reads tags and duration with TagLib (ID3v2, Vorbis comments, FLAC, RIFF INFO, ...). Missing artist or title
-     * come from the file name, see withFileNameFallback; a file TagLib cannot read gets only those.
+     * come from the file name, see withFileNameFallback; a file TagLib cannot read gets only those. An MP3 with only
+     * an ID3v1 tag takes its genre from the comment, if there is one.
      */
     TrackTags readTags(const std::filesystem::path &file);
 } // namespace djw::core::library

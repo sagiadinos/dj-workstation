@@ -7,6 +7,8 @@
 
 // Without the taglib/ prefix: the source tree of TagLib has no such directory
 #include <fileref.h>
+#include <id3v1tag.h>
+#include <mpegfile.h>
 #include <tag.h>
 #include <tdebuglistener.h>
 #include <tstring.h>
@@ -54,6 +56,16 @@ namespace djw::core::library
                 tags.album  = utf8(tag->album());
                 tags.genre  = utf8(tag->genre());
                 tags.year   = static_cast<int>(tag->year());
+            }
+            // An MP3 with nothing but an ID3v1 tag: its comment holds the genre (the old way of keeping it, the
+            // ID3v1 genre being only a number from a fixed list); an empty comment keeps that genre
+            if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(reference.file());
+                mpeg != nullptr && mpeg->hasID3v1Tag() && !mpeg->hasID3v2Tag() && !mpeg->hasAPETag())
+            {
+                if (const TagLib::String comment = mpeg->ID3v1Tag()->comment().stripWhiteSpace(); !comment.isEmpty())
+                {
+                    tags.genre = utf8(comment);
+                }
             }
             if (const TagLib::AudioProperties *properties = reference.audioProperties())
             {
