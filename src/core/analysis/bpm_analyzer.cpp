@@ -48,6 +48,70 @@ namespace djw::core::analysis
             std::ranges::nth_element(values, middle);
             return *middle;
         }
+
+        /// A beat interval within this share of the median counts as regular
+        constexpr double regular_share = 0.15;
+        /// The fewest beats a straight line is laid through
+        constexpr std::size_t fewest_fitted = 8;
+
+        /**
+         * The beat period in detection steps. The tracker gives the beats on its grid of steps only (about 11 ms),
+         * so a single interval is a whole number of steps: at 128 BPM 40 or 41 instead of 40.35, from which the
+         * median makes 129.2 or 126.1 BPM. A straight line through the positions of the longest run of regular beats
+         * (least squares, position over beat number) spreads that rounding over hundreds of beats; a breakdown where
+         * the tracker strays ends a run instead of bending the line. Too few regular beats: the median.
+         */
+        double beatPeriod(const std::vector<double> &beats)
+        {
+            std::vector<double> intervals;
+            intervals.reserve(beats.size() - 1);
+            for (std::size_t i = 1; i < beats.size(); ++i)
+            {
+                intervals.push_back(beats[i] - beats[i - 1]);
+            }
+            const double typical = median(intervals);
+
+            // The longest run of beats whose intervals are all regular: beats[first] to beats[first + count - 1]
+            std::size_t best_first = 0;
+            std::size_t best_count = 1;
+            std::size_t first      = 0;
+            for (std::size_t i = 0; i < intervals.size(); ++i)
+            {
+                if (std::abs(intervals[i] - typical) > typical * regular_share)
+                {
+                    first = i + 1; // the run breaks here
+                    continue;
+                }
+                if (const std::size_t count = i + 2 - first; count > best_count)
+                {
+                    best_first = first;
+                    best_count = count;
+                }
+            }
+            if (best_count < fewest_fitted)
+            {
+                return typical;
+            }
+
+            // Least squares: the slope of beat position over beat number
+            const auto   n      = static_cast<double>(best_count);
+            const double mean_x = (n - 1.0) / 2.0;
+            double       mean_y = 0.0;
+            for (std::size_t k = 0; k < best_count; ++k)
+            {
+                mean_y += beats[best_first + k];
+            }
+            mean_y /= n;
+            double covariance = 0.0;
+            double variance   = 0.0;
+            for (std::size_t k = 0; k < best_count; ++k)
+            {
+                const double dx = static_cast<double>(k) - mean_x;
+                covariance += dx * (beats[best_first + k] - mean_y);
+                variance += dx * dx;
+            }
+            return covariance / variance;
+        }
     } // namespace
 
     struct BpmAnalyzer::Impl
@@ -114,14 +178,8 @@ namespace djw::core::analysis
             return std::nullopt;
         }
 
-        std::vector<double> intervals;
-        intervals.reserve(beats.size() - 1);
-        for (std::size_t i = 1; i < beats.size(); ++i)
-        {
-            intervals.push_back(beats[i] - beats[i - 1]);
-        }
         const double seconds_per_step = static_cast<double>(impl->step) / impl->rate;
-        const double bpm              = 60.0 / (median(std::move(intervals)) * seconds_per_step);
+        const double bpm              = 60.0 / (beatPeriod(beats) * seconds_per_step);
         if (!std::isfinite(bpm) || bpm <= 0.0)
         {
             return std::nullopt;

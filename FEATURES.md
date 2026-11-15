@@ -129,7 +129,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Seek with audible scrub | done | Touching the waveform of a playing deck jumps there at once; on a deck that stands it plays a short loop where the finger is, which runs on until CUE sets the cue point there or play starts the deck from there. |
 | Waveform overview | done | Whole track as its loudness (RMS), pulled apart between the quiet and the loud parts of the track, so intro, breakdown and drop show; click/touch to jump. |
 | Scrolling waveform | done | Beat waveforms: the players on crossfader sides A and B in a part of their own (View menu), 6 s of real time around a fixed playhead, the pitch taken into account, in three colours (bass red, mids green, highs blue); lanes horizontal or vertical. Zoom and beatgrid are planned. |
-| BPM display | done | From the analysis, with the pitch taken into account. |
+| BPM display | done | From the analysis, exact to a few hundredths, with the pitch taken into account. |
 | Beatgrid | planned | From analysis, manually adjustable. |
 | Sync | planned | Match tempo and phase to the master deck. |
 | Hot cues | planned | 4 to 8 per track, stored in the database. |
@@ -286,7 +286,7 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 | Ogg Vorbis | stb_vorbis (with miniaudio) | Public domain / MIT |
 | Opus (planned) | libopusfile | BSD |
 | Keylock/timestretch | SoundTouch, Signalsmith Stretch (Settings > Sound) | LGPL-2.1 / MIT |
-| BPM detection | QM-DSP (onset detection, tempo tracking) | GPL-2+ |
+| BPM detection | QM-DSP (onset detection, beat tracking; the tempo from a line through the beats, exact to a few hundredths) | GPL-2+ |
 | Database | SQLite (FTS5) | Public domain |
 | Tags | TagLib | LGPL-2.1 / MPL-1.1 |
 | UI, windowing, touch | SDL3 | zlib |

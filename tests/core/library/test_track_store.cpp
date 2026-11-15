@@ -401,6 +401,26 @@ TEST_CASE("TrackStore: a changed file loses its analysis, a tag edit keeps it")
     CHECK(fixture.store.waveform(id).value().empty());
 }
 
+TEST_CASE("TrackStore: a version 7 database keeps tempo and waveform until its tracks are analyzed again")
+{
+    Fixture fixture;
+    fixture.add("a.mp3", {.title = "Kept"});
+    const auto id = fixture.store.search({}).value().front().id;
+    REQUIRE(fixture.store.setAnalysis(id, 126.1, std::vector<std::uint8_t>{1, 2, 3}).has_value());
+    djw::tests::downgradeLibrary(fixture.database(), 7);
+
+    auto migrated = TrackStore::open(fixture.database());
+    REQUIRE_MESSAGE(migrated.has_value(), migrated.error());
+    fixture.store = std::move(*migrated);
+
+    const auto tracks = fixture.store.search({}).value();
+    REQUIRE(tracks.size() == 1);
+    CHECK_FALSE(tracks.front().analyzed);
+    CHECK(tracks.front().bpm == 126.1); // shown until the new analysis
+    CHECK(fixture.store.waveform(id).value().size() == 3);
+    CHECK(fixture.store.unanalyzed().value().size() == 1);
+}
+
 TEST_CASE("TrackStore: a version 6 database loses its peak waveforms, its tracks are analyzed again")
 {
     Fixture fixture;

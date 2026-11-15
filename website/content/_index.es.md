@@ -19,7 +19,7 @@ features:
     - title: "Mezclador"
       text: "Crossfader con fundido temporizado, escucha previa por auriculares y keylock. Formas de onda en movimiento en tres colores para cuadrar los beats a ojo."
     - title: "Biblioteca"
-      text: "Búsqueda rápida, editor de etiquetas, listas de reproducción y análisis de BPM."
+      text: "Búsqueda rápida, editor de etiquetas, listas de reproducción y un análisis de BPM preciso a pocas centésimas."
     - title: "Controladores"
       text: "Controladores MIDI con mappings TOML sencillos e indicación por LED."
     - title: "Vinilo timecode"

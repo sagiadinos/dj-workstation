@@ -19,7 +19,7 @@ features:
     - title: Mixer
       text: Crossfader with timed fades, headphone cue and keylock. Scrolling beat waveforms in three colours for beatmatching by eye.
     - title: Library
-      text: Fast search, tag editor, playlists and BPM analysis.
+      text: Fast search, tag editor, playlists and a BPM analysis exact to a few hundredths.
     - title: Controllers
       text: MIDI controllers with simple TOML mappings and LED feedback.
     - title: Timecode vinyl

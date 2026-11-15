@@ -54,7 +54,7 @@ namespace djw::core::library
     {
         public:
             /// Database schema version, stored as PRAGMA user_version
-            static constexpr std::int64_t schema_version = 7;
+            static constexpr std::int64_t schema_version = 8;
 
             static std::expected<TrackStore, std::string> open(const std::filesystem::path &database_file);
 

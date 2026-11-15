@@ -19,7 +19,7 @@ features:
     - title: Mixer
       text: Crossfader mit zeitgesteuerter Überblendung, Vorhören über Kopfhörer und Keylock. Scrollende Beat-Waveforms in drei Farben zum Beatmatching nach Auge.
     - title: Bibliothek
-      text: Schnelle Suche, Tag-Editor, Playlists und BPM-Analyse.
+      text: Schnelle Suche, Tag-Editor, Playlists und eine BPM-Analyse, genau auf wenige Hundertstel.
     - title: Controller
       text: MIDI-Controller mit einfachen TOML-Mappings und LED-Rückmeldung.
     - title: Timecode-Vinyl

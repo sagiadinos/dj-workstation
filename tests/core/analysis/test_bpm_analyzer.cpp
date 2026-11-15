@@ -49,6 +49,18 @@ namespace
     }
 } // namespace
 
+TEST_CASE("BpmAnalyzer: the tempo is exact to a few hundredths, not to the tracker's grid of about 11 ms")
+{
+    // At 128 BPM a beat is 40.35 detection steps: from single intervals 126.1 or 129.2 would come out
+    for (const double bpm : {126.0, 128.0, 128.5, 133.33})
+    {
+        CAPTURE(bpm);
+        const auto found = analyze(beatTrack(bpm, 90.0));
+        REQUIRE(found.has_value());
+        CHECK(*found == doctest::Approx(bpm).epsilon(0.0004)); // 0.05 BPM at 128
+    }
+}
+
 TEST_CASE("BpmAnalyzer: finds the tempo of a steady beat")
 {
     for (const double bpm : {100.0, 140.0})

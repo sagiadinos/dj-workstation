@@ -21,7 +21,7 @@ namespace djw::tests
     inline void downgradeLibrary(const std::filesystem::path &database_file, int version)
     {
         std::string sql;
-        // Version 7 only dropped the peak waveforms (now loudness): nothing to undo
+        // Versions 7 and 8 only set the tracks to be analyzed again: nothing to undo
         if (version < 6) // analysis
         {
             sql += "DROP TABLE waveforms; ALTER TABLE tracks DROP COLUMN bpm; ALTER TABLE tracks DROP COLUMN analyzed;";

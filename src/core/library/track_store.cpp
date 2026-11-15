@@ -115,6 +115,11 @@ namespace djw::core::library
         constexpr std::string_view migration_to_7 =
             "DELETE FROM waveforms; UPDATE tracks SET analyzed = 0; PRAGMA user_version = 7;";
 
+        // Version 7 found the tempo from the median beat interval, which the tracker gives in whole steps of about
+        // 11 ms only (at 128 BPM 126.1 or 129.2); version 8 fits a line through the beats: the tracks are analyzed
+        // again, their tempo and waveform shown until then
+        constexpr std::string_view migration_to_8 = "UPDATE tracks SET analyzed = 0; PRAGMA user_version = 8;";
+
         constexpr std::string_view update_keys =
             "UPDATE tracks SET artist_key = ?, title_key = ?, genre_key = ?, any_key = ? WHERE id = ?";
 
@@ -286,7 +291,14 @@ namespace djw::core::library
                 return migrated;
             }
         }
-        return database.execute(migration_to_7);
+        if (from_version < 7)
+        {
+            if (auto migrated = database.execute(migration_to_7); !migrated)
+            {
+                return migrated;
+            }
+        }
+        return database.execute(migration_to_8);
     }
 
     std::expected<void, std::string> TrackStore::migrateToVersion2(SqliteDatabase &database)
