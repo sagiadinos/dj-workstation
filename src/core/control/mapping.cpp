@@ -16,7 +16,7 @@ namespace djw::core::control
 {
     namespace
     {
-        constexpr std::array<std::pair<Action, std::string_view>, 14> action_names{{
+        constexpr std::array<std::pair<Action, std::string_view>, 15> action_names{{
             {Action::Shift, "shift"},
             {Action::DeckPlay, "deck.play"},
             {Action::DeckCue, "deck.cue"},
@@ -29,6 +29,7 @@ namespace djw::core::control
             {Action::DeckVolume, "deck.volume"},
             {Action::DeckHeadphoneLevel, "deck.headphone_level"},
             {Action::DeckSeek, "deck.seek"},
+            {Action::DeckJog, "deck.jog"},
             {Action::Crossfader, "mixer.crossfader"},
             {Action::LibraryMove, "library.move"},
         }};

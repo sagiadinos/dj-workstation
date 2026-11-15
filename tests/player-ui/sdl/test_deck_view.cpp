@@ -914,6 +914,79 @@ TEST_CASE("DeckView: a controller's faders set the player's faders, the jog whee
     CHECK(find<api::DeckScrub>(commands)->position_seconds == doctest::Approx(10.0 + (3 * DeckView::key_step_seconds)));
 }
 
+TEST_CASE("DeckView: the jog wheel bends the pitch while the deck plays, as long as it turns; standing it steps")
+{
+    using Action = djw::core::api::ControlAction;
+    api::CommandQueue                     queue;
+    api::DeckSnapshotBuffer               snapshot{api::DeckSnapshot{.deck = deck}};
+    Translator                            translator;
+    std::chrono::steady_clock::time_point now{};
+    DeckView                              view{deck, queue, snapshot, translator, [&now] { return now; }};
+    const auto                            bends = [&queue]
+    {
+        std::vector<int> directions;
+        while (const auto command = queue.tryPop())
+        {
+            if (const auto *bend = std::get_if<api::DeckPitchBend>(&*command))
+            {
+                directions.push_back(bend->direction);
+            }
+        }
+        return directions;
+    };
+    const api::DeckSnapshot playing{.deck             = deck,
+                                    .track_loaded     = true,
+                                    .play_state       = api::PlayState::Playing,
+                                    .position_seconds = 10.0,
+                                    .duration_seconds = 100.0};
+    snapshot.write(playing);
+    view.update();
+    static_cast<void>(bends());
+
+    // Turning on: one bend in its direction, not one per message
+    view.control(controlEvent(Action::DeckJog, true, 0.0F, 2));
+    view.control(controlEvent(Action::DeckJog, true, 0.0F, 1));
+    view.update();
+    CHECK(bends() == std::vector{1});
+    // The other way: the bend turns round
+    now += DeckView::jog_bend_hold / 2;
+    view.control(controlEvent(Action::DeckJog, true, 0.0F, -1));
+    view.update();
+    CHECK(bends() == std::vector{-1});
+    // Still within the hold: nothing; after it without new turns: the bend ends
+    now += DeckView::jog_bend_hold / 2;
+    view.update();
+    CHECK(bends().empty());
+    now += DeckView::jog_bend_hold;
+    view.update();
+    CHECK(bends() == std::vector{0});
+
+    // It also ends when the deck stops
+    view.control(controlEvent(Action::DeckJog, true, 0.0F, 1));
+    view.update();
+    CHECK(bends() == std::vector{1});
+    api::DeckSnapshot stopped = playing;
+    stopped.play_state        = api::PlayState::Stopped;
+    snapshot.write(stopped);
+    view.update();
+    CHECK(bends() == std::vector{0});
+
+    // Standing: it steps through the track like the cursor keys, no bend
+    view.control(controlEvent(Action::DeckJog, true, 0.0F, 3));
+    view.update();
+    bool scrubbed = false;
+    while (const auto command = queue.tryPop())
+    {
+        CHECK_FALSE(std::holds_alternative<api::DeckPitchBend>(*command));
+        if (const auto *scrub = std::get_if<api::DeckScrub>(&*command))
+        {
+            scrubbed = true;
+            CHECK(scrub->position_seconds == doctest::Approx(10.0 + (3 * DeckView::key_step_seconds)));
+        }
+    }
+    CHECK(scrubbed);
+}
+
 TEST_CASE("DeckView: the lights: play while playing, headphones, CUE as on a CDJ")
 {
     using Action = djw::core::api::ControlAction;

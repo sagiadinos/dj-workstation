@@ -136,7 +136,7 @@ Priority: **M** = MVP, **1** = version 1.0, **L** = later/optional
 | Sync | 1 | Match tempo and phase to the master deck. |
 | Hot cues | 1 | 4 to 8 per track, stored in the database. |
 | Loops | 1 | Auto loop (1/4 to 32 beats), loop in/out, halve/double. |
-| Jog/scratch | 1 | Via controller or touch, varispeed path, reverse playback possible. |
+| Jog wheel | 1 | Via controller (`deck.jog`): while the deck plays a turn bends the pitch for as long as it turns (beatmatching), while it stands it steps through the track. No scratching. |
 | Gain/autogain | 1 | Manual, optionally automatic from loudness analysis. |
 | Slip mode | L | |
 | Key detection | L | |
@@ -344,7 +344,7 @@ Layout reference: the original version, see [djw.gif](https://dj-workstation.de/
 |---|---|
 | M0 Skeleton | CMake, core/UI separation, miniaudio output, one deck plays a file, SDL3 window with fader and button (multitouch capture) |
 | M1 MVP | N decks, mixer with crossfader and headphone cue, keylock, library with scan and fast search, tag editor, playlist, desktop; MIDI controllers through TOML mappings with the Starlight as reference, LED feedback, Mixxx import |
-| M2 Controllers | Lua scripting, MIDI learn, hotplug, jog/scratch with on-screen knob and jog wheel |
+| M2 Controllers | Lua scripting, MIDI learn, hotplug, jog wheel (bend while playing, stepping while standing; no scratching) with on-screen knob and jog wheel |
 | M3 DVS | xwax timecoder, duplex audio, absolute/relative/internal modes, signal display |
 | M4 Analysis | Beatgrid, scrolling waveform, sync, hot cues, loops, EQ, filter |
 | M5 Mobile | Android, iOS |

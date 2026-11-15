@@ -82,7 +82,7 @@ namespace djw::core::control
             {"[Mixer]", "crossfader", Action::Crossfader},
             {"[Playlist]", "SelectTrackKnob", Action::LibraryMove},
             {"[Library]", "MoveVertical", Action::LibraryMove},
-            {"[Channel]", "jog", Action::DeckSeek},
+            {"[Channel]", "jog", Action::DeckJog},
         }};
 
         bool isAbsolute(Action action)
@@ -92,7 +92,7 @@ namespace djw::core::control
 
         bool isRelative(Action action)
         {
-            return action == Action::LibraryMove || action == Action::DeckSeek;
+            return action == Action::LibraryMove || action == Action::DeckSeek || action == Action::DeckJog;
         }
 
         /// The player of a group "[ChannelN]", from 0

@@ -58,6 +58,8 @@ namespace djw::player_ui::sdl
             /// The size the layout is drawn for; the window's default size
             static constexpr float design_width  = 380.0F;
             static constexpr float design_height = 514.0F;
+            /// How long a turn of the jog wheel bends the pitch: it sends several messages a second while turning
+            static constexpr std::chrono::milliseconds jog_bend_hold{100};
 
             using Load   = std::function<void()>;
             using CueSet = std::function<void(double seconds)>;
@@ -162,10 +164,14 @@ namespace djw::player_ui::sdl
             const Translator              *translator;
             TimedNotice                    notice;
             TimedNotice                    clip_lamp; ///< lit for clip_hold after a peak at full scale
-            core::api::DeckSnapshot        state;
-            Load                           on_load;
-            CueSet                         on_cue_set;
-            std::uint32_t                  seen_cue_sets = 0;
+            Clock                          clock;
+            /// The jog wheel's bend while the deck plays: its direction (0: none) and when it ends without new turns
+            std::int8_t                           jog_bend = 0;
+            std::chrono::steady_clock::time_point jog_bend_end;
+            core::api::DeckSnapshot               state;
+            Load                                  on_load;
+            CueSet                                on_cue_set;
+            std::uint32_t                         seen_cue_sets = 0;
 
             TextButton  load_button;
             TextButton  bend_down_button{"-"};

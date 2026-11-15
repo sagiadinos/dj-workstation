@@ -31,6 +31,7 @@ namespace djw::core::api
         DeckVolume,         ///< channel fader, absolute
         DeckHeadphoneLevel, ///< headphone level of the deck, absolute
         DeckSeek,           ///< steps back or ahead (relative), like the cursor keys of a player
+        DeckJog,            ///< jog wheel (relative): bends the pitch while the deck plays, steps while it stands
         Crossfader,         ///< absolute, 0 side A to 1 side B
         LibraryMove,        ///< moves the selection in the library (relative)
     };

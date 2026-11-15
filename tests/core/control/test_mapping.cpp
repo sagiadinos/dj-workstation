@@ -75,7 +75,7 @@ TEST_CASE("Mapping: every action has a name and back")
     for (const Action action :
          {Action::Shift, Action::DeckPlay, Action::DeckCue, Action::DeckLoad, Action::DeckKeylock,
           Action::DeckHeadphones, Action::DeckBendDown, Action::DeckBendUp, Action::DeckPitch, Action::DeckVolume,
-          Action::DeckHeadphoneLevel, Action::DeckSeek, Action::Crossfader, Action::LibraryMove})
+          Action::DeckHeadphoneLevel, Action::DeckSeek, Action::DeckJog, Action::Crossfader, Action::LibraryMove})
     {
         CAPTURE(static_cast<int>(action));
         REQUIRE_FALSE(actionName(action).empty());
@@ -144,7 +144,7 @@ TEST_CASE("Mapping: the mappings that come with the program can all be read; the
     for (const std::size_t deck : {0U, 1U})
     {
         for (const Action action : {Action::DeckPlay, Action::DeckCue, Action::DeckHeadphones, Action::DeckLoad,
-                                    Action::DeckVolume, Action::DeckPitch, Action::DeckSeek})
+                                    Action::DeckVolume, Action::DeckPitch, Action::DeckJog})
         {
             CAPTURE(deck);
             CAPTURE(actionName(action));

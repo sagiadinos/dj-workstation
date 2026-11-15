@@ -71,9 +71,9 @@ namespace djw::player_ui::sdl
     DeckView::DeckView(core::api::DeckId deck, core::api::CommandQueue &queue, core::api::DeckSnapshotBuffer &snapshot,
                        const Translator &translator, Clock clock)
         : deck{deck}, queue{&queue}, snapshot{&snapshot}, translator{&translator}, notice{clock, notice_time},
-          clip_lamp{std::move(clock), clip_hold}, state{snapshot.read()}, seen_cue_sets{state.cue_set_count},
-          sent_volume{state.channel_volume}, sent_headphone_level{state.headphone_level},
-          sent_pitch{state.pitch_percent}, shown_pitch{state.pitch_percent}
+          clip_lamp{clock, clip_hold}, clock{std::move(clock)}, state{snapshot.read()},
+          seen_cue_sets{state.cue_set_count}, sent_volume{state.channel_volume},
+          sent_headphone_level{state.headphone_level}, sent_pitch{state.pitch_percent}, shown_pitch{state.pitch_percent}
     {
         volume_fader.setValue(state.channel_volume);
         headphone_fader.setValue(state.headphone_level);
@@ -381,6 +381,20 @@ namespace djw::player_ui::sdl
             case Action::DeckHeadphoneLevel:
                 headphone_fader.setValue(event.value);
                 break;
+            case Action::DeckJog:
+                if (playing() && event.steps != 0)
+                {
+                    // Turned while playing: faster or slower for as long as it turns, to bring the beats together
+                    const std::int8_t direction = event.steps > 0 ? 1 : -1;
+                    if (direction != jog_bend)
+                    {
+                        pending.emplace_back(core::api::DeckPitchBend{deck, direction});
+                        jog_bend = direction;
+                    }
+                    jog_bend_end = clock() + jog_bend_hold;
+                    break;
+                }
+                [[fallthrough]]; // standing: steps through the track like a seek
             case Action::DeckSeek:
                 for (int step = 0; step < std::abs(event.steps); ++step)
                 {
@@ -504,6 +518,12 @@ namespace djw::player_ui::sdl
             }
         }
         play_button.setPlaying(playing());
+        // The jog wheel's bend ends when it stops turning, or when the deck stops
+        if (jog_bend != 0 && (clock() >= jog_bend_end || !playing()))
+        {
+            pending.emplace_back(core::api::DeckPitchBend{deck, 0});
+            jog_bend = 0;
+        }
         applyTranslations();
         handleButtons();
         flush();

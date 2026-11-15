@@ -52,13 +52,13 @@ mode   = "absolute14"
 
 [[control]] # jog wheel turned on top (while touched)
 midi   = { type = "cc", channel = 2, number = 0x0A }
-action = "deck.seek"
+action = "deck.jog"
 deck   = 1
 mode   = "relative"
 
 [[control]] # jog wheel turned at the edge
 midi   = { type = "cc", channel = 2, number = 0x09 }
-action = "deck.seek"
+action = "deck.jog"
 deck   = 1
 mode   = "relative"
 
@@ -97,13 +97,13 @@ mode   = "absolute14"
 
 [[control]] # jog wheel turned on top (while touched)
 midi   = { type = "cc", channel = 3, number = 0x0A }
-action = "deck.seek"
+action = "deck.jog"
 deck   = 2
 mode   = "relative"
 
 [[control]] # jog wheel turned at the edge
 midi   = { type = "cc", channel = 3, number = 0x09 }
-action = "deck.seek"
+action = "deck.jog"
 deck   = 2
 mode   = "relative"
 

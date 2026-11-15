@@ -335,7 +335,7 @@ TEST_CASE("Mixxx import: buttons, faders and the jog wheel get their mode, inver
     CHECK_FALSE(play->invert);
     const auto jog = single(control("[Channel1]", "jog", "0xB0", "1"));
     REQUIRE(jog);
-    CHECK(jog->action == Action::DeckSeek);
+    CHECK(jog->action == Action::DeckJog);
     CHECK(jog->mode == Mode::Relative);
     const auto volume = single(control("[Channel1]", "volume", "0xB0", "1"));
     REQUIRE(volume);
