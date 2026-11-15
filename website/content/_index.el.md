@@ -19,7 +19,7 @@ features:
     - title: "Μίκτης"
       text: "Crossfader με χρονομετρημένη εξασθένιση, προακρόαση στα ακουστικά και keylock. Κυλιόμενες κυματομορφές beat σε τρία χρώματα για beatmatching με το μάτι."
     - title: "Βιβλιοθήκη"
-      text: "Γρήγορη αναζήτηση, επεξεργαστής tags, playlists και ανάλυση BPM με ακρίβεια λίγων εκατοστών."
+      text: "Γρήγορη αναζήτηση, επεξεργαστής tags, playlists και ανάλυση BPM με ακρίβεια λίγων εκατοστών. Παλιά MP3 μόνο με tag ID3v1 παίρνουν το είδος τους από το σχόλιο."
     - title: "Controllers"
       text: "MIDI controllers με απλά TOML mappings και ένδειξη μέσω LED."
     - title: "Βινύλιο timecode"
