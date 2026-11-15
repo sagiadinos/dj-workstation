@@ -4,22 +4,22 @@
 ![coverage](https://raw.githubusercontent.com/sagiadinos/dj-workstation/badges/coverage.svg)
 [![mutation score](https://raw.githubusercontent.com/sagiadinos/dj-workstation/badges/mutation.svg)](https://github.com/sagiadinos/dj-workstation/actions/workflows/mutation.yml)
 
-Lean, touch-first DJ software with controller and timecode vinyl support. Runs on Linux, Raspberry Pi, Windows and macOS, with Android, iOS and a web build planned. No cloud, no accounts, no telemetry.
-
-> **Status: early development, not usable yet.**
+Lean, touch-first DJ software for touchscreens and MIDI controllers. Runs on Linux, Raspberry Pi, Windows and macOS. No cloud, no accounts, no telemetry.
 
 ## What it is
 
-- Any number of decks, each in its own player window, freely movable and resizable for touchscreen use
-- Mixer with crossfader, headphone cue, keylock
-- Music library with fast search, tag editor, playlists and automix
-- MIDI controllers with simple TOML mappings
-- DVS with Serato Control Vinyl
+- Any number of players, each in its own window or all arranged in one window, for mouse and touchscreen
+- Mixer with crossfader, headphone cue, keylock and VU meters
+- Music library with fast search, column filters, tag editor, playlists and tempo analysis
+- MIDI controllers with simple TOML mappings, LED feedback and an import for Mixxx mappings
+- In English, German, French, Spanish, Greek and Russian
 - Designed to run smoothly on a Raspberry Pi
+
+Planned, among others: timecode vinyl (DVS), automix, Android, iOS and a web build.
 
 What it is not: a streaming client, a video mixer or a feature-packed all-in-one suite. The goal is to stay small and fast.
 
-The full feature list and roadmap are in [FEATURES.md](FEATURES.md).
+The full feature list, with what is done and what is planned, is in [FEATURES.md](FEATURES.md).
 
 ## History
 
