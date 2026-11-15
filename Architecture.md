@@ -124,6 +124,7 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 
 - `core/library` behind `api/library.hpp` and `api/playlists.hpp`, opened with `api::openLibrary`. One SQLite file, `library.db` in the user's data folder (e.g. `~/.local/share/djw/library.db`).
 - Threads (`LibraryService`): two connections to the file in WAL mode, so reading never waits for writing. The frontend's thread reads (search, playlists). The library thread scans and does every write: tag edits, cue points, removals and playlist changes are jobs in one queue, run in order, during a scan between two of its files. Scan requests during a scan are merged into one more scan; every scan ends with the dead link check (`checkMissingFiles`). The analysis (tempo, overview waveform) runs on a third thread and hands its result to the queue as a job; a track the user waits for goes to the front.
+- First start: while the library has no music folder, the library view opens the folder dialog at its first update, as File > Add music folder does; after a cancel it asks again at the next start, nothing is stored.
 - Scan (`scanFolders`): the folders recursively, only audio files by extension; tags are read only for new files and files whose modification time or size changed. Tags come from TagLib (`readTags`); an MP3 with only an ID3v1 tag (no ID3v2, no APE) takes its genre from the comment, if there is one. Committed in batches, so a search sees the progress.
 - Tables:
   - `folders`: the folders the library covers.

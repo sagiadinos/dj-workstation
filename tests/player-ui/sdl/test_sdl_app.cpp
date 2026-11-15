@@ -30,12 +30,14 @@ namespace api = djw::core::api;
 
 namespace
 {
-    /// The real core without sound and SDL's dummy video driver: windows exist, nothing is shown or played
+    /// The real core without sound, SDL's dummy video driver and no file dialogs: windows exist, nothing is shown,
+    /// played or asked
     struct Fixture
     {
             Fixture()
             {
                 SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+                SDL_SetHint(SDL_HINT_FILE_DIALOG_DRIVER, "none"); // the first start asks for a music folder
                 auto created = api::createCore({.silent_output = true});
                 REQUIRE(created.has_value());
                 core = std::move(*created);

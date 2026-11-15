@@ -283,9 +283,11 @@ namespace djw::player_ui::sdl
             /// Key of the message about the last edit, empty if none; translated when shown
             std::string_view edit_message;
             /// Why the last folder could not be added, as the library says
-            std::string                           folder_error;
-            core::api::LibraryColumn              sort_by    = core::api::LibraryColumn::Artist;
-            bool                                  descending = false;
+            std::string folder_error;
+            /// The first update looked whether the library has a music folder, and asked for one if not
+            bool                                  folder_offered = false;
+            core::api::LibraryColumn              sort_by        = core::api::LibraryColumn::Artist;
+            bool                                  descending     = false;
             Rect                                  status_area;
             Rect                                  clear_area; ///< where the clear button goes
             std::string                           status_text;

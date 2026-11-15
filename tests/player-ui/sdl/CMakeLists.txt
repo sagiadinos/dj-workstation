@@ -49,3 +49,6 @@ add_custom_command(TARGET djw_player_sdl_tests POST_BUILD
 )
 
 add_test(NAME player_ui.sdl COMMAND djw_player_sdl_tests)
+# Never a real dialog or window: the library asks for a music folder at the first start when it has none
+set_tests_properties(player_ui.sdl PROPERTIES ENVIRONMENT
+    "SDL_FILE_DIALOG_DRIVER=none;SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")

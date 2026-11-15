@@ -57,6 +57,8 @@ djw [--version] [--headphones] [--add-folder <folder>]... [<audio file>]
   --add-folder <folder> add a music folder to the library and scan it
 ```
 
+At the first start, while the library has no music folder, the program asks for one with the folder dialog.
+
 More on the build options and the tests in [Architecture.md](Architecture.md).
 
 ## License

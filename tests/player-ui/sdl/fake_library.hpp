@@ -33,7 +33,7 @@ namespace djw::tests
                 return {};
             }
             void                               rescan() override { ++rescans; }
-            std::vector<std::filesystem::path> folders() const override { return {}; }
+            std::vector<std::filesystem::path> folders() const override { return library_folders; }
             core::api::LibraryStatus           status() const override { return library_status; }
             core::api::Playlists              &playlists() noexcept override { return *this; }
 
@@ -190,7 +190,9 @@ namespace djw::tests
                 {.id = 2, .path = "/m/b.mp3", .artist = "B", .title = "beta"},
                 {.id = 3, .path = "/m/c.mp3", .artist = "C", .title = "gamma"},
             };
-            std::vector<std::filesystem::path>                                added_folders;
+            std::vector<std::filesystem::path> added_folders;
+            /// What folders() says; one, so a view does not ask for a music folder at its first update
+            std::vector<std::filesystem::path>                                library_folders{"/m"};
             std::string                                                       add_folder_error;
             int                                                               rescans = 0;
             std::vector<std::pair<std::int64_t, std::optional<double>>>       cue_points;

@@ -413,6 +413,16 @@ namespace djw::player_ui::sdl
     {
         applyTranslations();
         resolveFocus();
+        // The first start: a library without a music folder asks for one at once, as the menu entry does; after a
+        // cancel it asks again at the next start
+        if (!folder_offered)
+        {
+            folder_offered = true;
+            if (library->folders().empty())
+            {
+                chooseMenuEntry(menu_id::add_folder);
+            }
+        }
         if (list.takeTouched() && edit)
         {
             commitEdit();

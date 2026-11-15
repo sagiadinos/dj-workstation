@@ -527,6 +527,29 @@ TEST_CASE("LibraryView: File > Quit is off without an owner, with one it asks th
     CHECK(quits == 1);
 }
 
+TEST_CASE("LibraryView: a library without a music folder asks for one at the first update, once; with one it does not")
+{
+    FakeLibrary             library;
+    djw::tests::FakeDialogs dialogs;
+    Translator              translator;
+    library.library_folders.clear();
+    LibraryView view{library, dialogs, translator, [](const api::LibraryTrack &) {}};
+    view.layout({0, 0, 600, 400});
+    CHECK_FALSE(dialogs.folder_asked); // not before the first update
+    view.update();
+    CHECK(dialogs.folder_asked);
+    dialogs.choose("/music");
+    REQUIRE(library.added_folders.size() == 1);
+    CHECK(library.added_folders[0] == "/music");
+
+    dialogs.folder_asked = false;
+    view.update();
+    CHECK_FALSE(dialogs.folder_asked); // once per start, also after a cancel
+
+    Fixture with_folder; // its library has a folder
+    CHECK_FALSE(with_folder.dialogs.folder_asked);
+}
+
 TEST_CASE("LibraryView: Add music folder asks for a folder and adds it to the library")
 {
     Fixture fixture;
