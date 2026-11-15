@@ -10,14 +10,14 @@ djw (DJ-Workstation) is a lean, touch-first DJ application in C++23. It is a com
 
 ## Current milestone
 
-**M1 MVP** (see FEATURES.md, section 8). M0 Skeleton is done. Work milestone by milestone. Do not start features of a later milestone unless explicitly asked.
+**M2 Controllers** (see FEATURES.md, section 8). M0 Skeleton and M1 MVP are done; M2 is finished before release 1.0. Work milestone by milestone. Do not start features of a later milestone unless explicitly asked.
 
 ## Hard rules
 
 ### Architecture
 - `core/` must never include anything from `player-ui/` or SDL. The core builds and runs headless.
 - The frontends in `player-ui/` talk to the core only through `core/api/`: setup (adding decks, starting audio) through the `api::Core` interface, while running only through the command queue and state snapshots. The music library through the `api::Library` interface (`api::openLibrary`), its saved playlists through `api::Playlists` (`Library::playlists()`). No direct calls into engine or library internals.
-- Platform-specific code lives in `platform/` or behind an interface, never scattered with `#ifdef` across the core.
+- Platform-specific code stays behind an interface (e.g. `audio_io::AudioDevice`, with miniaudio as the implementation), never scattered with `#ifdef` across the core.
 
 ### Audio thread
 The audio callback and everything it calls must be real-time safe:
@@ -61,6 +61,25 @@ Mark audio-thread functions with a comment `// [audio-thread]` so they are easy 
 - Keep interfaces small. A consumer must not depend on methods it does not use.
 - No duplicated logic: extract it when it appears a second time. Code that only looks alike but changes for different reasons stays separate.
 - Exception: the audio path. Real-time safety and performance come before abstraction there, so no virtual calls per sample and no indirection inside inner loops.
+
+## Engine and audio
+
+- Layers: `audio_io` (the device), `engine` (decks and mixer), `decode` (tracks, see Track loading), `runtime` (`RuntimeCore`, the implementation of `api::Core`, wires them together). The frontend only sees `api::Core`.
+- Threads:
+  - Audio thread: the device calls `Engine::render` through `AudioCallback`. Everything there is marked `// [audio-thread]`.
+  - Control thread: the frontend's thread, calling `api::Core` (add or remove decks, load tracks). It publishes a new deck list or track to the audio thread through an atomic pointer; the audio thread picks it up at the start of its next render.
+  - Decoder thread: decodes the loaded tracks, see Track loading.
+- Commands go in through one SPSC queue per producer (`Engine::addCommandQueue`, only before rendering starts); `render` takes at most one queue capacity per call, so a producer cannot stall it. At present the frontend is the only producer: controller events are carried out by the frontend like its own buttons. State comes out once per render through a triple buffer per deck (`api::DeckSnapshot`) and one for the mixer (`api::MixerSnapshot`); decks have no fixed upper limit.
+- Freeing: the audio thread never frees anything and never waits. What it no longer sees (an old deck list, an unloaded track, a removed deck) is retired to the `Reclaimer` and freed by the control thread once a later render has started; `RuntimeCore` does that on every call.
+- Signal path per render, in blocks of at most `max_block_frames`:
+  1. `Deck`: transport (play, pause with a short fade, CUE like a CDJ, seek, scrub loop). The track goes through the `Resampler` (varispeed, 4-point Hermite, bit-exact at speed 1.0) or with keylock through the `TimeStretcher` (SoundTouch, buffers sized in its constructor so it does not allocate while rendering).
+  2. `MixerChannel`: meters the deck before the fader, applies channel volume and the crossfader gain of its side, adds the signal to the master sum and, with headphone cue on, before the fader to the cue sum. Fader changes are ramped over one block (`GainRamp`), so they do not click.
+  3. `Crossfader`: constant power curve (-3 dB per side at the center), momentary A/B acts as the end of a side without moving the fader.
+  4. `MasterBus`: master volume, `Limiter` (no look-ahead, so no added latency; the output never goes beyond full scale), master meter.
+  5. `HeadphoneBus` (only with 4 or more output channels): blends the cue sum with the master, headphone volume, its own limiter.
+  6. `routeOutput`: master on channels 1/2, headphones on 3/4, silence on any further channel.
+- Meters (`PeakMeter`): a new peak shows at once and falls back by 20 dB in 1.7 s, so a frontend that reads less often than blocks come misses none.
+- Device (`MiniaudioDevice`): the system's output or the first whose name contains the configured text, at its own sample rate; miniaudio converts to the hardware's format. With headphones it is opened with its own channel count, a device with fewer than 4 channels falls back to stereo (`MixerSnapshot::headphones_available`). A Null backend runs in real time without sound, for tests and headless runs. The engine also renders without a device, which the offline render tests use.
 
 ## Player windows
 
