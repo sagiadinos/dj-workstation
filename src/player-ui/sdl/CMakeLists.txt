@@ -83,6 +83,7 @@ add_library(djw_player_sdl_ui STATIC
         devices_dialog.cpp
         confirm_dialog.cpp
         language_dialog.cpp
+        sound_dialog.cpp
         look.cpp
         waveform_bar.cpp
         menu_bar.cpp

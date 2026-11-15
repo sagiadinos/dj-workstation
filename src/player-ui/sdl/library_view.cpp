@@ -43,6 +43,7 @@ namespace djw::player_ui::sdl
             constexpr int quit                   = 23;
             constexpr int toggle_beats_window    = 24;
             constexpr int beats_vertical         = 25;
+            constexpr int sound                  = 26;
         } // namespace menu_id
 
         constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
@@ -584,13 +585,15 @@ namespace djw::player_ui::sdl
               {.id = menu_id::playlist_import, .label = tr("menu.playlist.import"), .enabled = has_playlists},
               {.id = menu_id::playlist_export, .label = tr("menu.playlist.export"), .enabled = has_playlists},
               {.id = menu_id::playlist_add_track, .label = tr("menu.playlist.add_track"), .enabled = can_add_track}}});
-        menus.push_back({tr("menu.settings"),
-                         {{.id      = menu_id::devices,
-                           .label   = tr("menu.settings.devices"),
-                           .enabled = static_cast<bool>(devices_dialog)},
-                          {.id      = menu_id::language,
-                           .label   = tr("menu.settings.language"),
-                           .enabled = static_cast<bool>(language_dialog)}}});
+        menus.push_back(
+            {tr("menu.settings"),
+             {{.id      = menu_id::devices,
+               .label   = tr("menu.settings.devices"),
+               .enabled = static_cast<bool>(devices_dialog)},
+              {.id = menu_id::sound, .label = tr("menu.settings.sound"), .enabled = static_cast<bool>(sound_dialog)},
+              {.id      = menu_id::language,
+               .label   = tr("menu.settings.language"),
+               .enabled = static_cast<bool>(language_dialog)}}});
         menus.push_back({tr("menu.view"),
                          {{.id       = menu_id::new_deck_entry,
                            .label    = tr("menu.view.new_deck"),
@@ -689,6 +692,12 @@ namespace djw::player_ui::sdl
                 if (quit_requested)
                 {
                     quit_requested();
+                }
+                break;
+            case menu_id::sound:
+                if (sound_dialog)
+                {
+                    sound_dialog();
                 }
                 break;
             case menu_id::language:

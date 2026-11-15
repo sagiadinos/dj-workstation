@@ -573,10 +573,27 @@ TEST_CASE("LibraryView: Add selected track needs a selected track")
     CHECK(added[0] == fixture.view.trackList().tracks()[0].id);
 }
 
-TEST_CASE("LibraryView: Settings > Language is off without an owner, with one it opens the dialog")
+TEST_CASE("LibraryView: Settings > Sound is off without an owner, with one it opens the dialog")
 {
     Fixture fixture;
     chooseEntry(fixture, 2, 1);
+    CHECK(fixture.view.menuBar().isOpen()); // off
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Sound…"));
+    fixture.view.keyboard(EditKey::Escape);
+
+    int opened = 0;
+    fixture.view.setSoundDialog([&opened] { ++opened; });
+    fixture.view.update();
+    chooseEntry(fixture, 2, 1);
+    CHECK(opened == 1);
+}
+
+TEST_CASE("LibraryView: Settings > Language is off without an owner, with one it opens the dialog")
+{
+    Fixture fixture;
+    chooseEntry(fixture, 2, 2);
     CHECK(fixture.view.menuBar().isOpen()); // off
     RecordingCanvas canvas;
     fixture.view.draw(canvas);
@@ -586,7 +603,7 @@ TEST_CASE("LibraryView: Settings > Language is off without an owner, with one it
     int opened = 0;
     fixture.view.setLanguageDialog([&opened] { ++opened; });
     fixture.view.update();
-    chooseEntry(fixture, 2, 1);
+    chooseEntry(fixture, 2, 2);
     CHECK(opened == 1);
 }
 

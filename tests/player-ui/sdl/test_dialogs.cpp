@@ -3,6 +3,7 @@
 
 #include "confirm_dialog.hpp"
 #include "language_dialog.hpp"
+#include "sound_dialog.hpp"
 #include "pointer_router.hpp"
 #include "recording_canvas.hpp"
 
@@ -266,4 +267,126 @@ TEST_CASE("LanguageDialog: it is modal; it draws the window darkened, the title,
     CHECK(canvas.drew("Deutsch"));
     CHECK(canvas.drew("OK"));
     CHECK(canvas.drew("Cancel"));
+}
+
+namespace
+{
+    using djw::core::api::TimeStretch;
+
+    struct SoundFixture
+    {
+            explicit SoundFixture(Settings settings = {}, std::vector<TimeStretch> offered = {TimeStretch::SoundTouch,
+                                                                                              TimeStretch::Signalsmith})
+                : dialog{translator, std::move(settings), std::move(offered)}
+            {
+                below.setBounds({window.x + 5, window.y + 5, 60, 30});
+                router.add(below);
+                dialog.layout(window);
+                dialog.addTo(router);
+                dialog.update();
+            }
+
+            void tapAt(Point position)
+            {
+                tap(router, position);
+                dialog.update();
+            }
+
+            Translator    translator;
+            TextButton    below{"below"};
+            PointerRouter router;
+            SoundDialog   dialog;
+    };
+} // namespace
+
+TEST_CASE("SoundDialog: a panel in the middle of the window, the quality right of its label, OK and Cancel at the "
+          "bottom")
+{
+    SoundFixture fixture;
+    // Title, quality, hint, a free row and the buttons in rows of 44 with gaps of 6, 20 around them
+    const Rect panel{window.x + ((window.width - 560) / 2), window.y + ((window.height - 284) / 2), 560, 284};
+    CHECK(sameRect(fixture.dialog.panel(), panel));
+    const float label = 520 * 0.4F;
+    CHECK(sameRect(fixture.dialog.qualityList().bounds(),
+                   Rect{panel.x + 20 + label, panel.y + 20 + 50, 520 - label, 44}));
+    CHECK(sameRect(fixture.dialog.cancelButton().bounds(),
+                   Rect{panel.x + panel.width - 20 - 140, panel.y + panel.height - 20 - 44, 140, 44}));
+    CHECK(sameRect(fixture.dialog.okButton().bounds(),
+                   Rect{panel.x + panel.width - 20 - 290, panel.y + panel.height - 20 - 44, 140, 44}));
+    CHECK_FALSE(fixture.dialog.wantsTextInput());
+
+    fixture.dialog.layout({0, 0, 300, 100});
+    CHECK(sameRect(fixture.dialog.panel(), Rect{0, 0, 300, 100}));
+}
+
+TEST_CASE("SoundDialog: Standard and High in words, without the libraries' names; the one set now is chosen")
+{
+    SoundFixture fixture{Settings{.time_stretch = TimeStretch::Signalsmith}};
+    CHECK(fixture.dialog.qualityList().selectedIndex() == 1U);
+    RecordingCanvas canvas;
+    fixture.dialog.draw(canvas);
+    REQUIRE_FALSE(canvas.rects.empty());
+    CHECK(sameRect(canvas.rects.front(), window));
+    CHECK(darkening(canvas.rect_colors.front()));
+    for (const char *text : {"Sound", "Keylock quality", "High (more computing power)",
+                             "Audio settings take effect at the next start.", "OK", "Cancel"})
+    {
+        CAPTURE(text);
+        CHECK(canvas.drew(text));
+    }
+    CHECK_FALSE(canvas.drew("Signalsmith Stretch"));
+
+    SoundFixture german{Settings{}};
+    german.translator.setLanguage(Language::German);
+    german.dialog.update();
+    RecordingCanvas deutsch;
+    german.dialog.draw(deutsch);
+    CHECK(deutsch.drew("Keylock-Qualität"));
+    // The list is narrower than the text in the test canvas's wide letters: cut with "…"
+    CHECK(std::ranges::any_of(deutsch.texts,
+                              [](const auto &drawn) { return drawn.text.starts_with("Standard (wenig"); }));
+}
+
+TEST_CASE("SoundDialog: a quality picked and OK take it, the other settings stay; Cancel, Escape and Enter")
+{
+    SoundFixture fixture{Settings{.buffer_frames = 1'024}};
+    CHECK(fixture.dialog.qualityList().selectedIndex() == 0U);
+    fixture.tapAt(middle(fixture.dialog.qualityList().bounds()));
+    REQUIRE(fixture.dialog.qualityList().isOpen());
+    fixture.tapAt(middle(fixture.dialog.qualityList().itemArea(1)));
+    CHECK(fixture.dialog.chosen().time_stretch == TimeStretch::Signalsmith);
+    CHECK(fixture.dialog.chosen().buffer_frames == 1'024);
+    CHECK_FALSE(fixture.dialog.takeOutcome().has_value());
+    fixture.tapAt(middle(fixture.dialog.okButton().bounds()));
+    CHECK(fixture.dialog.takeOutcome() == SoundDialog::Outcome::Accepted);
+    fixture.tapAt(middle(fixture.dialog.cancelButton().bounds()));
+    CHECK(fixture.dialog.takeOutcome() == SoundDialog::Outcome::Cancelled);
+
+    fixture.dialog.keyboard(EditKey::Enter);
+    CHECK(fixture.dialog.takeOutcome() == SoundDialog::Outcome::Accepted);
+    fixture.dialog.keyboard(EditKey::Tab);
+    fixture.dialog.keyboard(std::string{"x"});
+    CHECK_FALSE(fixture.dialog.takeOutcome().has_value());
+    fixture.tapAt(middle(fixture.dialog.qualityList().bounds()));
+    REQUIRE(fixture.dialog.qualityList().isOpen());
+    fixture.dialog.keyboard(EditKey::Escape);
+    CHECK_FALSE(fixture.dialog.qualityList().isOpen());
+    CHECK_FALSE(fixture.dialog.takeOutcome().has_value());
+    fixture.dialog.keyboard(EditKey::Escape);
+    CHECK(fixture.dialog.takeOutcome() == SoundDialog::Outcome::Cancelled);
+}
+
+TEST_CASE("SoundDialog: it is modal; only the qualities built in are offered, a setting from another build is kept")
+{
+    SoundFixture fixture;
+    fixture.tapAt(middle(fixture.below.bounds()));
+    CHECK_FALSE(fixture.below.takePress());
+
+    SoundFixture only_standard{Settings{.time_stretch = TimeStretch::Signalsmith}, {TimeStretch::SoundTouch}};
+    CHECK_FALSE(only_standard.dialog.qualityList().selectedIndex().has_value());
+    CHECK(only_standard.dialog.chosen().time_stretch == TimeStretch::Signalsmith);
+    only_standard.tapAt(middle(only_standard.dialog.qualityList().bounds()));
+    REQUIRE(only_standard.dialog.qualityList().isOpen());
+    only_standard.tapAt(middle(only_standard.dialog.qualityList().itemArea(0)));
+    CHECK(only_standard.dialog.chosen().time_stretch == TimeStretch::SoundTouch);
 }

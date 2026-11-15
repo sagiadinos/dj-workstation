@@ -12,6 +12,7 @@
 #include "devices_dialog.hpp"
 #include "confirm_dialog.hpp"
 #include "language_dialog.hpp"
+#include "sound_dialog.hpp"
 #include "i18n/translator.hpp"
 #include "layout.hpp"
 #include "library_view.hpp"
@@ -167,6 +168,11 @@ namespace djw::player_ui::sdl
             void importMixxxMapping(const std::filesystem::path &file);
             /// Settings > Language: opens the dialog over the library window (in the MDI mode the one window)
             void openLanguageDialog();
+            /// Settings > Sound: opens the dialog over the library window (in the MDI mode the one window); OK keeps
+            /// the keylock quality for the next start
+            void openSoundDialog();
+            /// The dialog of Settings > Sound while it is open, nullptr otherwise; for tests
+            [[nodiscard]] SoundDialog *soundDialog() noexcept { return sound_dialog.get(); }
             /// The dialog of Settings > Language while it is open, nullptr otherwise; for tests
             [[nodiscard]] LanguageDialog *languageDialog() noexcept { return language_dialog.get(); }
             /// File > Quit: ends the program after this frame; while a track plays only after a question
@@ -351,6 +357,7 @@ namespace djw::player_ui::sdl
             std::unique_ptr<PaneFrame>               library_frame;          ///< MDI mode only
             std::unique_ptr<DevicesDialog>           devices_dialog;         ///< while Settings > Devices is open
             std::unique_ptr<LanguageDialog>          language_dialog;        ///< while Settings > Language is open
+            std::unique_ptr<SoundDialog>             sound_dialog;           ///< while Settings > Sound is open
             std::unique_ptr<ConfirmDialog>           quit_dialog;            ///< File > Quit while a track plays
             bool                                     quit_confirmed = false; ///< the program ends
             std::uint64_t last_port_check = 0;       ///< SDL ticks of the last look for controllers plugged in or out

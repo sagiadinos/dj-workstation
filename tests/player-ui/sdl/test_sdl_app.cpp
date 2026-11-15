@@ -1289,6 +1289,41 @@ TEST_CASE("SdlApp: Settings > Devices opens a dialog over the library window; OK
     CHECK(parseSettings(readFile(settings_file)).buffer_frames == latency_choices.back());
 }
 
+TEST_CASE("SdlApp: Settings > Sound opens a dialog; OK keeps the keylock quality for the next start, the rest stays")
+{
+    const djw::tests::TempDir folder;
+    const auto                settings_file = folder.path() / "settings";
+    std::ofstream{settings_file} << formatSettings(Settings{.buffer_frames = 512}); // set before, must stay
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library);
+    app->openSoundDialog();
+    CHECK(app->soundDialog() == nullptr); // no place to keep it: off
+
+    app->setSettingsFile(settings_file);
+    app->openSoundDialog();
+    REQUIRE(app->soundDialog() != nullptr);
+    CHECK(app->soundDialog()->chosen().time_stretch == api::TimeStretch::SoundTouch);
+    app->openDevicesDialog();
+    CHECK(app->devicesDialog() == nullptr); // one dialog at a time
+    REQUIRE(app->runFrame());
+
+    // The last quality offered (High when Signalsmith Stretch is built in) and OK
+    const auto offered = api::timeStretchers();
+    const auto middle  = [](const Rect &area) { return Point{area.x + (area.width / 2), area.y + (area.height / 2)}; };
+    click(app->libraryWindowId(), middle(app->soundDialog()->qualityList().bounds()));
+    REQUIRE(app->runFrame());
+    REQUIRE(app->soundDialog()->qualityList().isOpen());
+    click(app->libraryWindowId(), middle(app->soundDialog()->qualityList().itemArea(offered.size() - 1)));
+    REQUIRE(app->runFrame());
+    click(app->libraryWindowId(), middle(app->soundDialog()->okButton().bounds()));
+    REQUIRE(app->runFrame());
+    CHECK(app->soundDialog() == nullptr);
+    const Settings kept = parseSettings(readFile(settings_file));
+    CHECK(kept.time_stretch == offered.back());
+    CHECK(kept.buffer_frames == 512);
+}
+
 TEST_CASE("SdlApp: Settings > Language opens a dialog; OK switches the language at once, Escape keeps it")
 {
     Fixture                 fixture;

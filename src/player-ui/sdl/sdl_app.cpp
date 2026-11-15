@@ -1288,25 +1288,22 @@ namespace djw::player_ui::sdl
         if (library_view && !settings_file.empty())
         {
             library_view->setDevicesDialog([this] { openDevicesDialog(); });
+            library_view->setSoundDialog([this] { openSoundDialog(); });
         }
     }
 
     void SdlApp::openDevicesDialog()
     {
         SdlWindow *over = host_window != nullptr ? host_window : library_window;
-        if (devices_dialog || language_dialog || quit_dialog || over == nullptr || settings_file.empty())
+        if (devices_dialog || language_dialog || sound_dialog || quit_dialog || over == nullptr ||
+            settings_file.empty())
         {
             return;
         }
         const std::ifstream file{settings_file};
         std::ostringstream  text;
         text << file.rdbuf();
-        DeviceChoices choices{.outputs       = core::api::outputDevices(),
-                              .ports         = {},
-                              .mappings      = {},
-                              .port_defaults = {},
-                              .message       = {},
-                              .stretchers    = core::api::timeStretchers()};
+        DeviceChoices choices{.outputs = core::api::outputDevices(), .ports = {}, .mappings = {}, .port_defaults = {}};
         if (controllers)
         {
             choices.ports    = controllers->ports();
@@ -1327,7 +1324,7 @@ namespace djw::player_ui::sdl
     void SdlApp::openLanguageDialog()
     {
         SdlWindow *over = host_window != nullptr ? host_window : library_window;
-        if (devices_dialog || language_dialog || quit_dialog || over == nullptr)
+        if (devices_dialog || language_dialog || sound_dialog || quit_dialog || over == nullptr)
         {
             return;
         }
@@ -1335,6 +1332,24 @@ namespace djw::player_ui::sdl
         dialog_window   = over;
         over->views().add(*language_dialog, std::nullopt, true); // over everything, modal
         over->views().setFocus(*language_dialog);
+    }
+
+    void SdlApp::openSoundDialog()
+    {
+        SdlWindow *over = host_window != nullptr ? host_window : library_window;
+        if (devices_dialog || language_dialog || sound_dialog || quit_dialog || over == nullptr ||
+            settings_file.empty())
+        {
+            return;
+        }
+        const std::ifstream file{settings_file};
+        std::ostringstream  text;
+        text << file.rdbuf();
+        sound_dialog =
+            std::make_unique<SoundDialog>(translator, parseSettings(text.str()), core::api::timeStretchers());
+        dialog_window = over;
+        over->views().add(*sound_dialog, std::nullopt, true); // over everything, modal
+        over->views().setFocus(*sound_dialog);
     }
 
     void SdlApp::requestQuit()
@@ -1346,7 +1361,7 @@ namespace djw::player_ui::sdl
             return;
         }
         SdlWindow *over = host_window != nullptr ? host_window : library_window;
-        if (devices_dialog || language_dialog || quit_dialog || over == nullptr)
+        if (devices_dialog || language_dialog || sound_dialog || quit_dialog || over == nullptr)
         {
             return;
         }
@@ -1395,6 +1410,25 @@ namespace djw::player_ui::sdl
                 quit_confirmed = *outcome == ConfirmDialog::Outcome::Confirmed;
                 dialog_window->views().remove(*quit_dialog);
                 quit_dialog.reset();
+                dialog_window = nullptr;
+            }
+        }
+        if (sound_dialog)
+        {
+            if (const auto outcome = sound_dialog->takeOutcome())
+            {
+                if (*outcome == SoundDialog::Outcome::Accepted)
+                {
+                    std::ofstream file{settings_file, std::ios::trunc};
+                    file << formatSettings(
+                        sound_dialog->chosen()); // the keylock quality takes effect at the next start
+                    if (!file)
+                    {
+                        logError("cannot write the settings to " + settings_file.string());
+                    }
+                }
+                dialog_window->views().remove(*sound_dialog);
+                sound_dialog.reset();
                 dialog_window = nullptr;
             }
         }

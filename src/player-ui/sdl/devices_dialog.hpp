@@ -42,8 +42,6 @@ namespace djw::player_ui::sdl
             std::vector<std::string> port_defaults;
             /// A line shown above the buttons, e.g. what the last import made; empty for none
             std::string message{};
-            /// The keylock libraries built in, offered in this order
-            std::vector<core::api::TimeStretch> stretchers{core::api::TimeStretch::SoundTouch};
     };
 
     /**
@@ -51,8 +49,7 @@ namespace djw::player_ui::sdl
      * is open).
      *
      * Audio: the output (Automatic: the sound card of a connected controller, else the system's default), stereo or
-     * four channels (master 1/2, headphones 3/4), the latency, shown in milliseconds at the device's sample rate, and
-     * the keylock library (SoundTouch, or Signalsmith Stretch when it is built in).
+     * four channels (master 1/2, headphones 3/4), and the latency, shown in milliseconds at the device's sample rate.
      * These take effect at the next start, which it says. Controllers: one line per MIDI port with the mapping it
      * uses ("none" switches it off); the owner applies these at once.
      *
@@ -96,7 +93,6 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const DropDown &latencyList() const noexcept { return latency; }
             [[nodiscard]] const DropDown &outputList() const noexcept { return output; }
             [[nodiscard]] const DropDown &channelList() const noexcept { return channels; }
-            [[nodiscard]] const DropDown &keylockList() const noexcept { return keylock; }
             /// The mapping choice of the port at index (in choices.ports)
             [[nodiscard]] const DropDown   &mappingList(std::size_t index) const { return *mapping_lists.at(index); }
             [[nodiscard]] const TextButton &okButton() const noexcept { return ok_button; }
@@ -122,7 +118,6 @@ namespace djw::player_ui::sdl
             Rect                                   output_label;
             Rect                                   channels_label;
             Rect                                   latency_label;
-            Rect                                   keylock_label;
             Rect                                   hint_area;
             Rect                                   controllers_area;
             std::vector<Rect>                      port_labels;
@@ -130,7 +125,6 @@ namespace djw::player_ui::sdl
             DropDown                               output;
             DropDown                               channels;
             DropDown                               latency;
-            DropDown                               keylock;
             std::vector<std::unique_ptr<DropDown>> mapping_lists;
             TextButton                             ok_button;
             TextButton                             cancel_button;
