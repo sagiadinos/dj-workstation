@@ -51,6 +51,7 @@ midi   = { type = "cc", channel = 2, number = 0x08 }
 action = "deck.pitch"
 deck   = 1
 mode   = "absolute14"
+invert = true # down is faster, as on the screen and a turntable
 
 [[control]] # jog wheel touched on top: scratching while the hand is on it
 midi   = { type = "note", channel = 2, number = 0x08 }
@@ -102,6 +103,7 @@ midi   = { type = "cc", channel = 3, number = 0x08 }
 action = "deck.pitch"
 deck   = 2
 mode   = "absolute14"
+invert = true # down is faster, as on the screen and a turntable
 
 [[control]] # jog wheel touched on top: scratching while the hand is on it
 midi   = { type = "note", channel = 3, number = 0x08 }

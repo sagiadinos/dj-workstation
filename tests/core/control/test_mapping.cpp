@@ -170,6 +170,9 @@ TEST_CASE("Mapping: the mappings that come with the program can all be read; the
                                       { return control.action == action && control.deck == deck; }));
         }
     }
+    // Its pitch faders run the other way: pulled down is faster, as on the screen
+    CHECK(std::ranges::all_of(starlight->controls, [](const Control &control)
+                              { return control.action != Action::DeckPitch || control.invert; }));
 }
 
 TEST_CASE("Mapping: lights are read with their values for on and off; damaged ones say where")
