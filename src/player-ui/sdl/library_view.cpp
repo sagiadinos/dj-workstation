@@ -39,6 +39,7 @@ namespace djw::player_ui::sdl
             constexpr int one_window_mode        = 16;
             constexpr int edit_layout            = 18;
             constexpr int arrange_automatically  = 19;
+            constexpr int reset_layout           = 28;
             constexpr int fullscreen             = 20;
             constexpr int devices                = 21;
             constexpr int language               = 22;
@@ -660,7 +661,11 @@ namespace djw::player_ui::sdl
                            .checked = layout_editing && layout_editing()},
                           {.id      = menu_id::save_layout_entry,
                            .label   = tr("menu.layout.save"),
-                           .enabled = static_cast<bool>(save_layout)}}});
+                           .enabled = static_cast<bool>(save_layout)},
+                          {.id        = menu_id::reset_layout,
+                           .label     = tr("menu.layout.reset"),
+                           .enabled   = static_cast<bool>(reset_layout),
+                           .separated = true}}});
         menu.setMenus(std::move(menus));
         menu.setRightToLeft(translator->rightToLeft());
 
@@ -742,6 +747,12 @@ namespace djw::player_ui::sdl
                 if (fullscreen_toggle)
                 {
                     fullscreen_toggle();
+                }
+                break;
+            case menu_id::reset_layout:
+                if (reset_layout)
+                {
+                    reset_layout();
                 }
                 break;
             case menu_id::arrange_automatically:
@@ -840,6 +851,9 @@ namespace djw::player_ui::sdl
 
     void LibraryView::draw(Canvas &canvas) const
     {
+        // The library's own text a little smaller than the rest: more of a title fits its column; the buttons and
+        // the menus keep the common size
+        canvas.setTextScale(text_scale);
         search_field.draw(canvas);
         for (const TextField &filter : filters)
         {
@@ -862,6 +876,7 @@ namespace djw::player_ui::sdl
         }
         canvas.textElided({status_area.x, status_area.y + ((status_area.height - canvas.textHeight()) / 2)},
                           status_text, look::colors().status, std::max(0.0F, buttons_left - gap - status_area.x));
+        canvas.setTextScale(1.0F);
         missing_button.draw(canvas);
         clear_button.draw(canvas);
         remove_button.draw(canvas);

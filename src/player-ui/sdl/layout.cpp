@@ -299,6 +299,7 @@ namespace djw::player_ui::sdl
                 .player_options = {PlayerOptions{}, PlayerOptions{}},
                 .mixer_open     = true,
                 .playlist_open  = false,
+                .beats_open     = true, // vertical, between the players (Layout::beats_vertical)
                 .fullscreen     = false,
                 .maximized      = false, // a window of the default size
                 .places         = std::nullopt};
@@ -506,15 +507,23 @@ namespace djw::player_ui::sdl
         const int left  = work_area.x + std::max(0, (work_area.width - group) / 2);
         const int top   = work_area.y;
 
-        Layout          layout;
+        Layout layout;
+        // The middle column between the players, as high as they are: the beat waveforms, the crossfader below them
+        // flush with the bottom of the players
+        const int       middle_x = left + sizes.player_width + gap;
         const Placement first{left, top, sizes.player_width, sizes.player_height};
-        const Placement mixer{left + sizes.player_width + gap, top, sizes.mixer_width, sizes.mixer_height};
-        const Placement second{mixer.x + sizes.mixer_width + gap, top, sizes.player_width, sizes.player_height};
-        layout.players = {{fitInto(first, work_area), core::api::CrossfaderSide::A},
-                          {fitInto(second, work_area), core::api::CrossfaderSide::B}};
-        layout.mixer   = {.open = true, .place = fitInto(mixer, work_area)};
+        const Placement mixer{middle_x, top + sizes.player_height - sizes.mixer_height, sizes.mixer_width,
+                              sizes.mixer_height};
+        const Placement beats{middle_x, top, sizes.mixer_width,
+                              std::max(min_size, sizes.player_height - sizes.mixer_height - frame_allowance)};
+        const Placement second{middle_x + sizes.mixer_width + gap, top, sizes.player_width, sizes.player_height};
+        layout.players        = {{fitInto(first, work_area), core::api::CrossfaderSide::A},
+                                 {fitInto(second, work_area), core::api::CrossfaderSide::B}};
+        layout.beats          = {.open = true, .place = fitInto(beats, work_area)};
+        layout.beats_vertical = true;
+        layout.mixer          = {.open = true, .place = fitInto(mixer, work_area)};
 
-        // The library below the players, as wide as they are together
+        // The library below the players, as wide as they are with the middle column
         const int       library_top = top + sizes.player_height + frame_allowance;
         const int       room        = work_area.y + work_area.height - library_top - gap;
         const Placement library{left, library_top, std::min(group, work_area.width),
@@ -523,9 +532,6 @@ namespace djw::player_ui::sdl
         // The playlist window: to the right of the library, closed
         layout.playlist = {.open  = false,
                            .place = fitInto({library.x + library.width + gap, library_top, 560, 640}, work_area)};
-        // The beat waveforms: over the library, closed
-        layout.beats.place =
-            fitInto({library.x, library_top, layout.beats.place.width, layout.beats.place.height}, work_area);
         return layout;
     }
 } // namespace djw::player_ui::sdl

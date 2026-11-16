@@ -89,7 +89,9 @@ namespace djw::player_ui::sdl
             static constexpr std::chrono::milliseconds notice_time{4'000};
 
             /// Most tracks listed at once; the search narrows it down
-            static constexpr std::size_t               result_limit = 1'000;
+            static constexpr std::size_t result_limit = 1'000;
+            /// The library's text (list, header, search, filters, status) against the common size
+            static constexpr float                     text_scale = 0.85F;
             static constexpr std::chrono::milliseconds refresh_interval{1'000};
             static constexpr std::chrono::milliseconds confirm_time{3'000};
 
@@ -184,6 +186,8 @@ namespace djw::player_ui::sdl
                 fullscreen_toggle = std::move(toggle);
                 fullscreen_shown  = std::move(shown);
             }
+            /// Enables Layout > Reset (the last entry of the menu): reset goes back to the default layout
+            void setLayoutReset(Toggle reset) { reset_layout = std::move(reset); }
             void setLayoutEditing(Toggle edit, Shown editing, Toggle automatic)
             {
                 edit_layout       = std::move(edit);
@@ -250,6 +254,7 @@ namespace djw::player_ui::sdl
             Toggle                   edit_layout;
             Shown                    layout_editing;
             Toggle                   arrange_automatic;
+            Toggle                   reset_layout;
             Toggle                   fullscreen_toggle;
             Toggle                   devices_dialog;
             Toggle                   language_dialog;

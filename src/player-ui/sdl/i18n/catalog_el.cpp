@@ -59,6 +59,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.export", "Εξαγωγή λίστας…"},
             {"menu.playlist.add_track", "Προσθήκη επιλεγμένου κομματιού"},
             {"menu.layout.save", "Αποθήκευση διάταξης"},
+            {"menu.layout.reset", "Επαναφορά στην προεπιλογή"},
             {"menu.layout.edit", "Επεξεργασία διάταξης"},
             {"menu.layout.arrange_automatically", "Αυτόματη τακτοποίηση"},
             {"menu.view.fullscreen", "Πλήρης οθόνη"},

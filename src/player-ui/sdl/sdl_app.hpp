@@ -151,6 +151,11 @@ namespace djw::player_ui::sdl
             [[nodiscard]] bool fullscreen() const noexcept { return host_window != nullptr && host_fullscreen; }
             /// MDI mode: back to the automatic arrangement, the places set by hand are forgotten
             void arrangeAutomatically();
+            /// Layout > Reset: back to the default (see defaultLayout and defaultMdiLayout): the vertical beat
+            /// waveforms between player 1 and 2 with the crossfader below them, the playlist closed. In the one window
+            /// arranged automatically; in separate windows player 1 and 2, the library and the tools go to their
+            /// default places. Players stay open, as do the window and fullscreen state.
+            void resetLayout();
             /// MDI mode: the places set by hand; std::nullopt while the parts are arranged automatically; for tests
             [[nodiscard]] const std::optional<MdiPlaces> &handPlaces() const noexcept { return hand_places; }
             /// The view host of the one window of the MDI mode, nullptr in the other; for tests
@@ -295,6 +300,8 @@ namespace djw::player_ui::sdl
             bool openDeckWindow(core::api::DeckId deck, std::optional<Placement> where = std::nullopt);
             /// The saved layout, or the default one when there is none (or it is damaged)
             [[nodiscard]] Layout readLayout() const;
+            /// The default layout on the main display (defaultLayout with the sizes of the windows)
+            [[nodiscard]] Layout standardLayout() const;
             /// The layout in the layout file; std::nullopt if there is none or it is damaged
             [[nodiscard]] std::optional<Layout> readSavedLayout() const;
             [[nodiscard]] bool                  writeLayout(const Layout &layout) const;

@@ -92,7 +92,11 @@ namespace djw::tests
                 static_cast<void>(color);
             }
             /// Recorded; only the large text's sizes follow it
-            void setTextScale(float new_scale) override { scale = new_scale; }
+            void setTextScale(float new_scale) override
+            {
+                scale = new_scale;
+                scales_used.push_back(new_scale);
+            }
             // The large text grows with the text scale, as the real one does
             [[nodiscard]] float largeTextHeight() const noexcept override { return line_height * 2.0F * scale; }
             [[nodiscard]] float largeTextWidth(std::string_view text) const noexcept override
@@ -127,6 +131,7 @@ namespace djw::tests
             std::vector<player_ui::sdl::Rect>   rects;
             std::vector<player_ui::sdl::Color>  rect_colors; ///< the colors of rects
             float                               scale = 1.0F;
+            std::vector<float>                  scales_used;  ///< every text scale set, in order
             std::vector<float>                  large_scales; ///< the text scale each large text was drawn with
             std::vector<RoundedRect>            rounded;
             std::vector<DrawnTriangle>          triangles;

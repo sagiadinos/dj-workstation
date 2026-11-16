@@ -1732,6 +1732,7 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
     const auto                file   = folder.path() / "layout";
     Layout                    layout = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
     layout.mode                      = WindowMode::Mdi;
+    layout.beats_vertical            = false; // across the top first, turned below
     layout.mdi = MdiLayout{.players = {api::CrossfaderSide::None, api::CrossfaderSide::B, api::CrossfaderSide::A},
                            .player_options = std::vector<PlayerOptions>(3),
                            .mixer_open     = true,
@@ -1805,8 +1806,9 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
     CHECK(turned->x + turned->width < second->x);
     CHECK(turned->y + turned->height < mixer->y);
     CHECK(turned->x == doctest::Approx(mixer->x));
-    CHECK(turned->height == doctest::Approx(first->height)); // as high as a player
-    CHECK(turned->height > turned->width);
+    // Together with the crossfader as high as a player, flush with its bottom
+    CHECK(mixer->y + mixer->height == doctest::Approx(first->y + first->height));
+    CHECK(turned->y == doctest::Approx(first->y));
     REQUIRE(app->saveLayout());
     const auto again = parseLayout(readFile(file));
     REQUIRE(again.has_value());
@@ -1816,6 +1818,54 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
     app->requestToolWindow(SdlApp::Tool::Beats, false);
     REQUIRE(app->runFrame());
     CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Beats));
+}
+
+TEST_CASE("SdlApp: Layout > Reset goes back to the default: vertical beat waveforms, the crossfader, no playlist")
+{
+    // The one window: the parts as by default, arranged automatically
+    {
+        const djw::tests::TempDir folder;
+        const auto                file = folder.path() / "layout";
+        writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+        Fixture                 fixture;
+        djw::tests::FakeLibrary library;
+        auto                    app = fixture.openApp(&library, file);
+        app->requestToolWindow(SdlApp::Tool::Playlist, true);
+        app->requestToolWindow(SdlApp::Tool::Beats, false);
+        app->requestToolWindow(SdlApp::Tool::Mixer, false);
+        app->setBeatsVertical(false);
+        REQUIRE(app->runFrame());
+        app->resetLayout();
+        REQUIRE(app->runFrame()); // the parts open
+        REQUIRE(app->runFrame()); // and are laid out
+        CHECK(app->toolWindowOpen(SdlApp::Tool::Beats));
+        CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+        CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Playlist));
+        CHECK(app->beatView().vertical());
+        CHECK_FALSE(app->handPlaces().has_value());
+        // Between the players, the crossfader below
+        const auto beats = app->paneArea(*app->toolFrame(SdlApp::Tool::Beats));
+        const auto mixer = app->paneArea(*app->toolFrame(SdlApp::Tool::Mixer));
+        const auto first = app->paneArea(*app->deckFrame(0));
+        REQUIRE(beats.has_value());
+        REQUIRE(mixer.has_value());
+        REQUIRE(first.has_value());
+        CHECK(beats->x > first->x + first->width);
+        CHECK(mixer->y > beats->y + beats->height);
+        CHECK(app->deckCount() == 2); // the players stay
+    }
+    // Separate windows: the tools as by default
+    {
+        Fixture fixture;
+        auto    app = fixture.openApp();
+        app->resetLayout();
+        REQUIRE(app->runFrame());
+        CHECK(app->toolWindowOpen(SdlApp::Tool::Beats));
+        CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+        CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Playlist));
+        CHECK(app->beatView().vertical());
+        CHECK(app->deckCount() == 1);
+    }
 }
 
 TEST_CASE("SdlApp: in separate windows the beat waveforms open from the View menu, turned when vertical")

@@ -29,8 +29,8 @@ namespace djw::player_ui::sdl
     class TrackList final : public Widget
     {
         public:
-            static constexpr float                     row_height = 44.0F; // a comfortable touch target, at scale 1
-            static constexpr float                     tap_slop   = 8.0F;  // movement that still counts as tap
+            static constexpr float row_height = 40.0F; // still a comfortable touch target, at scale 1
+            static constexpr float tap_slop   = 8.0F;  // movement that still counts as tap
             static constexpr std::chrono::milliseconds double_tap_time{400};
             static constexpr std::chrono::milliseconds long_press_time{500};
             /// Kinetic scrolling: how fast it slows down (the speed falls to 1/e in this time), the slowest let-go

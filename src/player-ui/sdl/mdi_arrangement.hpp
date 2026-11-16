@@ -30,7 +30,7 @@ namespace djw::player_ui::sdl
             float player_width  = 0.0F;
             float player_height = 0.0F;
             float mixer_width   = 0.0F;
-            /// The crossfader's own height, used when vertical beat waveforms stand above it
+            /// The crossfader's own height, kept when vertical beat waveforms stand above it
             float mixer_height   = 0.0F;
             float playlist_width = 0.0F;
             /// The beat waveforms across their time: the height of horizontal lanes, the width of vertical ones
@@ -49,16 +49,16 @@ namespace djw::player_ui::sdl
 
     /// Space around and between the panes
     inline constexpr float mdi_gap = 6.0F;
-    /// The most of the window the row of players takes when the library is below it
-    inline constexpr float mdi_row_share = 0.6F;
+    /// The most of the window the row of players takes when the library is below it: the library gets half
+    inline constexpr float mdi_row_share = 0.5F;
 
     /**
      * The panes laid out in the window, none overlapping: the players in a row at the top with the crossfader between
      * player 1 and player 2, centered; the library below over the whole width with the playlist to its right.
      * Horizontal beat waveforms are a strip across the top, above the players (at most a third of the window);
-     * vertical ones stand between player 1 and player 2 above the crossfader, which keeps its own height there. The
-     * row keeps the proportions of the players and shrinks as a whole when it does not fit, never grows beyond the
-     * sizes it is made for.
+     * vertical ones stand between player 1 and player 2 above the crossfader, the two together as high as a player
+     * (the crossfader in its own height, flush with the bottom of the players). The row keeps the proportions of the
+     * players and shrinks as a whole when it does not fit, never grows beyond the sizes it is made for.
      */
     [[nodiscard]] MdiArrangement arrangeMdi(const Rect &window, const MdiContent &content, const MdiSizes &sizes);
 

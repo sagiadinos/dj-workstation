@@ -64,6 +64,18 @@ namespace
     };
 } // namespace
 
+TEST_CASE("LibraryView: its text is a little smaller than the rest, the scale is back to 1 for what follows")
+{
+    Fixture fixture;
+    CHECK(LibraryView::text_scale < 1.0F);
+    CHECK(TrackList::row_height == 40.0F);
+
+    RecordingCanvas canvas;
+    fixture.view.draw(canvas);
+    CHECK(canvas.scale == 1.0F); // the buttons, the menus and the next view draw in the common size
+    CHECK(std::ranges::find(canvas.scales_used, LibraryView::text_scale) != canvas.scales_used.end());
+}
+
 TEST_CASE("LibraryView: lists all tracks at first, up to the result limit")
 {
     Fixture fixture;
@@ -1038,6 +1050,32 @@ TEST_CASE("LibraryView: View > One-window mode switches the mode of the next sta
     chooseEntry(fixture, view_menu, one_window);
     fixture.view.update();
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
+}
+
+TEST_CASE("LibraryView: Layout > Reset is the last entry, set apart by a line, off without an owner")
+{
+    Fixture               fixture;
+    constexpr std::size_t layout_menu = 4;
+    constexpr std::size_t reset       = 3;
+    fixture.view.layout({0, 0, 600, 700});
+    chooseEntry(fixture, layout_menu, reset);
+    CHECK(fixture.view.menuBar().isOpen()); // off: the menu stays open
+    fixture.view.keyboard(EditKey::Escape);
+
+    int resets = 0;
+    fixture.view.setLayoutReset([&resets] { ++resets; });
+    fixture.view.update();
+    RecordingCanvas canvas;
+    const Rect      title = fixture.view.menuBar().titleArea(layout_menu);
+    fixture.tap({title.x + 10, title.y + 10});
+    fixture.view.draw(canvas);
+    CHECK(canvas.drew("Reset to default"));
+    const Rect entry = fixture.view.menuBar().itemArea(layout_menu, reset);
+    CHECK(std::ranges::any_of(canvas.rects, [&entry](const Rect &rect)
+                              { return rect.y == entry.y && rect.height == 1.0F; })); // the line above it
+    fixture.view.keyboard(EditKey::Escape);
+    chooseEntry(fixture, layout_menu, reset);
+    CHECK(resets == 1);
 }
 
 TEST_CASE(

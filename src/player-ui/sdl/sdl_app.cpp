@@ -95,9 +95,13 @@ namespace djw::player_ui::sdl
         /// in full. Not bigger than the display allows.
         WindowSize defaultHostSize()
         {
-            constexpr float row    = DeckView::design_height + PaneFrame::title_height + (2 * mdi_gap);
-            constexpr float width  = (2 * DeckView::design_width) + MixerView::design_width + (4 * mdi_gap);
-            const float     height = std::ceil(row / mdi_row_share);
+            // The height that gives a row of full-size players 60 % of it; the row gets half of it, the library the
+            // other half, so the players shrink and the window is as much narrower as they are
+            constexpr float row        = DeckView::design_height + PaneFrame::title_height + (2 * mdi_gap);
+            const float     height     = std::ceil(row / 0.6F);
+            const float     row_height = height * mdi_row_share; // as arrangeMdi gives it
+            const float     scale = std::min(1.0F, row_height / (DeckView::design_height + PaneFrame::title_height));
+            const float     width = (((2 * DeckView::design_width) + MixerView::design_width) * scale) + (4 * mdi_gap);
             WindowSize      size{static_cast<int>(std::ceil(width)), static_cast<int>(height)};
             if (const auto usable = usableBounds(SDL_GetPrimaryDisplay()))
             {
@@ -241,6 +245,7 @@ namespace djw::player_ui::sdl
                 app->library_view->setWindowMode([owner](WindowMode chosen) { return owner->chooseWindowMode(chosen); },
                                                  [owner] { return owner->nextWindowMode(); });
             }
+            app->library_view->setLayoutReset([owner] { owner->resetLayout(); });
             if (mdi)
             {
                 // No title bar: the library cannot be closed and its menu bar heads it
@@ -814,15 +819,57 @@ namespace djw::player_ui::sdl
         {
             return std::move(*saved);
         }
-        // Nothing saved, or damaged: the one window with two players and the crossfader between them; the separate
-        // windows, should the user switch to them, the same on the main display
+        // Nothing saved, or damaged: the one window; the separate windows, should the user switch to them, as the
+        // default on the main display
+        Layout first = standardLayout();
+        first.mode   = WindowMode::Mdi;
+        return first;
+    }
+
+    Layout SdlApp::standardLayout() const
+    {
         const Placement   usable = usableBounds(SDL_GetPrimaryDisplay()).value_or(Placement{0, 0, 1920, 1080});
         const ToolWindow &mixer  = tools[index(Tool::Mixer)];
-        Layout            first  = defaultLayout(
-            usable, {player_width, player_height, mixer.width > 0 ? mixer.width : mixer_size.width,
-                     mixer.height > 0 ? mixer.height : mixer_size.height, library_size.width, library_size.height});
-        first.mode = WindowMode::Mdi;
-        return first;
+        return defaultLayout(usable, {player_width, player_height, mixer.width > 0 ? mixer.width : mixer_size.width,
+                                      mixer.height > 0 ? mixer.height : mixer_size.height, library_size.width,
+                                      library_size.height});
+    }
+
+    void SdlApp::resetLayout()
+    {
+        const Layout standard = standardLayout();
+        beat_view->setVertical(standard.beats_vertical);
+        if (host_window != nullptr)
+        {
+            // The one window: the default parts, arranged automatically
+            const MdiLayout parts = defaultMdiLayout();
+            requestToolWindow(Tool::Mixer, parts.mixer_open);
+            requestToolWindow(Tool::Playlist, parts.playlist_open);
+            requestToolWindow(Tool::Beats, parts.beats_open);
+            hand_places.reset();
+            return;
+        }
+        // Separate windows: player 1 and 2, the library and the tools to their default places; the other players stay
+        for (std::size_t player = 0; player < std::min(decks.size(), standard.players.size()); ++player)
+        {
+            decks[player]->window->place(standard.players[player].place);
+        }
+        if (library_window != nullptr)
+        {
+            library_window->place(standard.library);
+        }
+        for (const auto &[tool, placement] :
+             {std::pair{Tool::Mixer, standard.mixer}, std::pair{Tool::Playlist, standard.playlist},
+              std::pair{Tool::Beats, standard.beats}})
+        {
+            ToolWindow &which = tools[index(tool)];
+            which.placement   = placement.place;
+            if (which.window != nullptr)
+            {
+                which.window->place(placement.place);
+            }
+            requestToolWindow(tool, placement.open);
+        }
     }
 
     Layout SdlApp::currentLayout() const

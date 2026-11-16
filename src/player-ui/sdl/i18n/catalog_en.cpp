@@ -59,6 +59,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.export", "Export playlist…"},
             {"menu.playlist.add_track", "Add selected track"},
             {"menu.layout.save", "Save layout"},
+            {"menu.layout.reset", "Reset to default"},
             {"menu.layout.edit", "Edit layout"},
             {"menu.layout.arrange_automatically", "Arrange automatically"},
             {"menu.view.fullscreen", "Fullscreen"},

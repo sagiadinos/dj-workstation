@@ -59,6 +59,7 @@ namespace djw::player_ui::sdl::catalogs
             {"menu.playlist.export", "Экспорт плейлиста…"},
             {"menu.playlist.add_track", "Добавить выбранный трек"},
             {"menu.layout.save", "Сохранить расположение"},
+            {"menu.layout.reset", "Сбросить к стандартному"},
             {"menu.layout.edit", "Изменить расположение"},
             {"menu.layout.arrange_automatically", "Расположить автоматически"},
             {"menu.view.fullscreen", "Полноэкранный режим"},

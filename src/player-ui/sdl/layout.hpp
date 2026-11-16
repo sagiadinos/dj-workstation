@@ -98,8 +98,9 @@ namespace djw::player_ui::sdl
             bool operator==(const MdiLayout &) const = default;
     };
 
-    /// What the MDI mode shows without a saved layout: two players on the sides A and B, the crossfader open, in a
-    /// window of the default size
+    /// What the MDI mode shows without a saved layout, and what Layout > Reset goes back to: two players on the sides
+    /// A and B, the beat waveforms open (vertical, between the players) with the crossfader below them, in a window of
+    /// the default size
     [[nodiscard]] MdiLayout defaultMdiLayout();
 
     struct ToolPlacement
@@ -158,9 +159,10 @@ namespace djw::player_ui::sdl
     };
 
     /**
-     * What the program shows without a saved layout: two players with the crossfader window between them (player 1
-     * on side A, player 2 on side B), side by side at the top of the work area and centered, the library window below.
-     * When the windows do not fit next to each other they are moved inside the work area as far as possible.
+     * What the program shows without a saved layout, and what Layout > Reset goes back to: two players (player 1 on
+     * side A, player 2 on side B) side by side at the top of the work area and centered, between them the vertical
+     * beat waveforms with the crossfader window below them, flush with the players, the library window below. When
+     * the windows do not fit next to each other they are moved inside the work area as far as possible.
      */
     [[nodiscard]] Layout defaultLayout(const Placement &work_area, const DefaultSizes &sizes);
 

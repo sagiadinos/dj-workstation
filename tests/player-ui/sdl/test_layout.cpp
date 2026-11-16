@@ -418,13 +418,17 @@ TEST_CASE("Layout: the playlist's place in the one window comes back; a player w
     CHECK(again->mdi->places->playlist == Placement{1200, 560, 600, 400});
 }
 
-TEST_CASE("Layout: the default places, to the point: 12 apart, centered, the library 48 below the players")
+TEST_CASE("Layout: the default places, to the point: 12 apart, centered, the beats between the players with the "
+          "crossfader below flush with the players, the library below")
 {
     const DefaultSizes sizes{380, 514, 440, 250, 720, 640};
     const Layout       wide = defaultLayout({0, 0, 1920, 1080}, sizes);
     // 380 + 12 + 440 + 12 + 380 = 1224, centered in 1920
     CHECK(wide.players[0].place == Placement{348, 0, 380, 514});
-    CHECK(wide.mixer.place == Placement{740, 0, 440, 250});
+    CHECK(wide.beats.open);
+    CHECK(wide.beats_vertical);
+    CHECK(wide.beats.place == Placement{740, 0, 440, 216});   // 514 - 250 - 48 for the frames
+    CHECK(wide.mixer.place == Placement{740, 264, 440, 250}); // flush with the bottom of the players
     CHECK(wide.players[1].place == Placement{1192, 0, 380, 514});
     // Below: 514 + 48, as high as the rest of the screen allows less 12, at most the size asked for
     CHECK(wide.library == Placement{348, 562, 1224, 506});
@@ -477,7 +481,7 @@ TEST_CASE("Layout: a layout without its beats lines is no layout")
     layout.mdi             = defaultMdiLayout();
     const std::string text = formatLayout(layout);
     for (const std::string_view line :
-         {std::string_view{"beats closed 0 0 760 200\n"}, std::string_view{"mdi beats closed\n"}})
+         {std::string_view{"beats closed 0 0 760 200\n"}, std::string_view{"mdi beats open\n"}})
     {
         std::string without = text;
         const auto  at      = without.find(line);
@@ -509,10 +513,10 @@ TEST_CASE("Layout: a damaged beats line, or one twice, is no layout")
     CHECK_FALSE(parseLayout(text).has_value()); // a number missing
 }
 
-TEST_CASE("Layout: by default the beat waveforms are closed, over the library")
+TEST_CASE("Layout: the one window by default shows the beat waveforms, the crossfader and no playlist")
 {
-    const Layout layout = defaultLayout({0, 0, 1920, 1080}, {380, 514, 440, 250, 720, 640});
-    CHECK_FALSE(layout.beats.open);
-    CHECK_FALSE(layout.beats_vertical);
-    CHECK(layout.beats.place == Placement{layout.library.x, layout.library.y, 760, 200});
+    const MdiLayout parts = defaultMdiLayout();
+    CHECK(parts.beats_open);
+    CHECK(parts.mixer_open);
+    CHECK_FALSE(parts.playlist_open);
 }
