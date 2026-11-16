@@ -186,6 +186,7 @@ Status: **done** = in the program, **planned** = not yet. Which planned feature 
 | Wildcard search | done | `*` and `?` in search fields. |
 | Sorting | done | By any column. |
 | Columns | done | Artist, title, genre, year, BPM (two decimals, a little wider), duration. |
+| Compact list | done | The library's text (list, header, search, filters, status) at 0.85 of the common size (about 13.5 instead of 16 points), rows of 40 points, still big enough for a finger; buttons and menus keep the common size. |
 | Tag editor | done | Table-based, writes to file and database (TagLib): ID3v2, Vorbis comments, FLAC. |
 | Missing tags | done | Derive artist/title from the file name. |
 | Saved playlists | done | In the database, import/export M3U/M3U8. |

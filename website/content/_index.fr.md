@@ -19,7 +19,7 @@ features:
     - title: "Table de mixage"
       text: "Crossfader avec fondu temporisé, pré-écoute au casque et keylock. Formes d’onde défilantes en trois couleurs pour caler les beats à l’œil."
     - title: "Bibliothèque"
-      text: "Recherche rapide, éditeur de tags, playlists et une analyse du BPM précise à quelques centièmes. Les anciens MP3 avec seulement un tag ID3v1 prennent leur genre dans le commentaire. Au premier démarrage, il demande votre dossier de musique."
+      text: "Une liste compacte au texte plus petit, aux lignes toujours assez grandes pour le doigt, recherche rapide, éditeur de tags, playlists et une analyse du BPM précise à quelques centièmes. Les anciens MP3 avec seulement un tag ID3v1 prennent leur genre dans le commentaire. Au premier démarrage, il demande votre dossier de musique."
     - title: "Contrôleurs"
       text: "Contrôleurs MIDI avec des mappings TOML simples et retour par LED."
     - title: "Vinyle timecode"

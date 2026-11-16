@@ -16,7 +16,7 @@ Lean, touch-first DJ software for touchscreens and MIDI controllers. Runs on Lin
 - Mixer with crossfader, headphone cue, keylock and VU meters
 - Scrolling beat waveforms of the two players on the crossfader, in three colours, horizontal or vertical, for beatmatching by eye
 - Keyboard shortcuts for the player in focus, all with the left Alt (Option on the Mac): Alt+P play/pause, Alt+C cue, Alt+L load, Alt+←/→ step back/ahead (Shift: 10 s), Alt+↑/↓ pitch ±0.02 % (Shift: ±0.1 %). Letters typed outside a text field go into the library search, so typing never stops a player
-- Music library with fast search, column filters, tag editor, playlists and a tempo analysis exact to a few hundredths of a BPM; old MP3s with only an ID3v1 tag take their genre from the comment
+- Music library in a compact list (smaller text, rows still big enough for a finger) with fast search, column filters, tag editor, playlists and a tempo analysis exact to a few hundredths of a BPM; old MP3s with only an ID3v1 tag take their genre from the comment
 - MIDI controllers with simple TOML mappings, LED feedback and an import for Mixxx mappings
 - In English, German, French, Spanish, Greek and Russian
 - Designed to run smoothly on a Raspberry Pi
