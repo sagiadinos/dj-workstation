@@ -51,6 +51,9 @@ namespace djw::player_ui::sdl
      *
      * In right-to-left layout the titles start at the right edge and a drop-down is aligned to the right edge of its
      * title; the check marks and labels start at the right.
+     *
+     * A note (the program's version) stands quietly at the end of the bar, right in left-to-right layout and left in
+     * right-to-left, as long as the titles leave room for it.
      */
     class MenuBar final : public Widget
     {
@@ -62,6 +65,8 @@ namespace djw::player_ui::sdl
 
             void setMenus(std::vector<Menu> new_menus);
             void setRightToLeft(bool right_to_left) noexcept { rtl = right_to_left; }
+            /// A quiet text at the far end of the bar, e.g. the program's version; left out when it would touch a title
+            void setNote(std::string text) { note = std::move(text); }
 
             /// Where the bar lies and the window it may drop down over
             void place(const Rect &bar_area, const Rect &window_area);
@@ -110,6 +115,7 @@ namespace djw::player_ui::sdl
             mutable std::vector<float> measured;
             Rect                       bar;
             Rect                       window;
+            std::string                note;
             bool                       rtl = false;
             std::optional<std::size_t> open;
             Target                     pressed;

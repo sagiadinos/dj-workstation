@@ -5,6 +5,7 @@
 #include "look.hpp"
 
 #include <algorithm>
+#include <numeric>
 
 namespace djw::player_ui::sdl
 {
@@ -203,6 +204,18 @@ namespace djw::player_ui::sdl
             canvas.textElided({title.x + ((title.width - width) / 2), bar.y + text_y}, menus[menu].title,
                               open == menu ? look::colors().highlight_text : look::colors().text,
                               title.width - (2 * padding));
+        }
+        if (!note.empty())
+        {
+            // At the end of the bar, if the titles leave room; under an open drop-down
+            const std::vector<float> widths     = titleWidths();
+            const float              titles     = std::accumulate(widths.begin(), widths.end(), 0.0F);
+            const float              note_width = canvas.textWidth(note);
+            if (titles + note_width + (2 * padding) <= bar.width)
+            {
+                const float x = rtl ? bar.x + padding : bar.x + bar.width - padding - note_width;
+                canvas.text({x, bar.y + text_y}, note, look::colors().text_dim);
+            }
         }
         if (!open)
         {

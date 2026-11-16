@@ -3,6 +3,7 @@
 
 #include "library_view.hpp"
 
+#include "api/version.hpp"
 #include "look.hpp"
 
 #include "track_columns.hpp"
@@ -107,6 +108,7 @@ namespace djw::player_ui::sdl
         : library{&library}, dialogs{&dialogs}, translator{&translator}, load{std::move(load)},
           in_use{std::move(in_use)}, clock{std::move(clock)}, list{this->clock}
     {
+        menu.setNote(std::string{core::api::version()}); // the build writes the commit count into it
     }
 
     void LibraryView::layout(const Rect &area)

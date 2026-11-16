@@ -313,3 +313,38 @@ TEST_CASE("MenuBar: an entry that is on has a check mark at its start, no colore
         }
     }
 }
+
+TEST_CASE("MenuBar: the note stands at the end of the bar while the titles leave room, else it is left out")
+{
+    const auto drawnNote = [](const RecordingCanvas &canvas) -> const RecordingCanvas::DrawnText *
+    {
+        const auto found = std::ranges::find(canvas.texts, std::string{"1.0.0-dev.42"}, &RecordingCanvas::DrawnText::text);
+        return found != canvas.texts.end() ? &*found : nullptr;
+    };
+
+    Fixture fixture;
+    fixture.bar.setNote("1.0.0-dev.42");
+    RecordingCanvas canvas;
+    fixture.bar.draw(canvas);
+    const auto *note = drawnNote(canvas);
+    REQUIRE(note != nullptr);
+    const float width = canvas.textWidth("1.0.0-dev.42");
+    CHECK(note->position.x + width <= 600.0F);
+    CHECK(note->position.x + width > 600.0F - 30.0F); // at the right end
+    CHECK(note->position.x > fixture.bar.titleArea(1).x + fixture.bar.titleArea(1).width);
+
+    Fixture rtl{true};
+    rtl.bar.setNote("1.0.0-dev.42");
+    RecordingCanvas rtl_canvas;
+    rtl.bar.draw(rtl_canvas);
+    const auto *rtl_note = drawnNote(rtl_canvas);
+    REQUIRE(rtl_note != nullptr);
+    CHECK(rtl_note->position.x < 30.0F); // at the left end
+    CHECK(rtl_note->position.x + width < rtl.bar.titleArea(1).x);
+
+    // Too narrow: the titles fill the bar, the note is left out instead of covering one
+    fixture.bar.place({0, 0, 140, MenuBar::bar_height}, {0, 0, 140, 400});
+    RecordingCanvas narrow;
+    fixture.bar.draw(narrow);
+    CHECK(drawnNote(narrow) == nullptr);
+}
