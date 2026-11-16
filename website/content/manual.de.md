@@ -116,6 +116,10 @@ rechten unteren Ecke, um seine Größe zu ändern; die Kanten rasten an den Nach
 behält die Anordnung für den nächsten Start, **Layout > Auf Standard zurücksetzen** kehrt zu zwei Playern mit
 Crossfader zurück.
 
+**Layout > Layout speichern unter…** schreibt die Anordnung in eine eigene Datei, zum Beispiel eine pro Club oder
+Bildschirm; **Layout > Layout laden…** holt sie sofort zurück und behält sie für den nächsten Start. Ein Layout aus dem
+anderen Fenstermodus erscheint ab dem nächsten Start.
+
 **Ansicht > Tageslicht-Farben** schaltet auf helle Farben für helle Räume oder Sonnenlicht.
 
 Solange ein Titel spielt, fragt **Datei > Beenden** erst nach, damit ein Set nicht aus Versehen endet.

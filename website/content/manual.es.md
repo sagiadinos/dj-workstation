@@ -115,6 +115,10 @@ En la ventana única, **Diseño > Editar la disposición** permite arrastrar una
 derecha para cambiar su tamaño; los bordes se ajustan a los vecinos. **Diseño > Guardar la disposición** la conserva
 para el próximo inicio, **Diseño > Restablecer la disposición** vuelve a dos reproductores con el crossfader.
 
+**Diseño > Guardar la disposición como…** escribe la disposición en un archivo propio, por ejemplo uno por local o por
+pantalla; **Diseño > Cargar una disposición…** la recupera al momento y la conserva para el próximo inicio. Una
+disposición hecha en el otro modo de ventanas se muestra desde el próximo inicio.
+
 **Vista > Colores para luz diurna** cambia a colores claros para salas luminosas o luz del sol.
 
 Mientras suena una pista, **Archivo > Salir** pregunta primero, para que una sesión no termine por accidente.

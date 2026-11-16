@@ -113,6 +113,10 @@ In the one window, **Layout > Edit layout** lets you drag a part to move it or d
 edges snap to their neighbours. **Layout > Save layout** keeps the arrangement for the next start, **Layout > Reset to
 default** goes back to two players with the crossfader.
 
+**Layout > Save layout as…** writes the arrangement to a file of its own, for example one per venue or screen;
+**Layout > Load layout…** brings it back at once and keeps it for the next start. A layout made in the other window
+mode shows from the next start.
+
 **View > Daylight colors** switches to light colors for bright rooms or sunlight.
 
 While a track plays, **File > Quit** asks first, so a set does not end by accident.

@@ -117,6 +117,10 @@ ou son coin inférieur droit pour la redimensionner ; les bords s’aimantent au
 disposition** la garde pour le prochain démarrage, **Disposition > Rétablir la disposition par défaut** revient à deux
 lecteurs avec le crossfader.
 
+**Disposition > Enregistrer la disposition sous…** écrit l’arrangement dans un fichier à part, par exemple un par club
+ou par écran ; **Disposition > Charger une disposition…** le rétablit aussitôt et le garde pour le prochain démarrage.
+Une disposition faite dans l’autre mode de fenêtres s’affiche au prochain démarrage.
+
 **Affichage > Couleurs pour la lumière du jour** passe à des couleurs claires pour les pièces lumineuses ou le soleil.
 
 Pendant la lecture d’une piste, **Fichier > Quitter** demande d’abord confirmation, pour qu’un set ne s’arrête pas par
