@@ -136,8 +136,10 @@ jobs:
         run: |
           mkdir -p coverage
           # The fetched dependencies are built with --coverage as well; gcov fails on some of their generated
-          # sources (harfbuzz), and they are not reported anyway
+          # sources (harfbuzz), and they are not reported anyway. Despite the atomic counters gcov 13 still reports
+          # negative counts now and then for branches in headers (GCC bug 68080): a warning, not the end of the report
           gcovr --gcov-executable gcov-13 --root . --filter 'src/' --gcov-exclude-directories '.*/_deps/.*' \
+                --gcov-ignore-parse-errors negative_hits.warn_once_per_file \
                 --html-details coverage/index.html --txt coverage/summary.txt \
                 --json-summary coverage/summary.json build/linux-debug
           python3 .github/scripts/coverage_badge.py coverage/summary.json coverage/coverage.svg

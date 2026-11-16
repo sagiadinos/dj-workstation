@@ -15,13 +15,13 @@ features:
   title: What it does
   items:
     - title: Players
-      text: "Any number of players, each in its own window, freely movable and resizable for touchscreens. The pitch fader works as on a turntable: down is faster; the BPM shows two decimals. Keyboard shortcuts with the left Alt (Option on the Mac): Alt+P play/pause, Alt+C cue, Alt+L load, Alt+←/→ step, Alt+↑/↓ pitch in steps of 0.02 % (Shift: 0.1 %). Typing never stops a player: letters go into the search."
+      text: "Any number of players, each in its own window, freely movable and resizable for touchscreens."
     - title: Mixer
-      text: Crossfader with timed fades, headphone cue and keylock. Scrolling beat waveforms in three colours for beatmatching by eye.
+      text: "Crossfader, headphone cue and keylock. Scrolling waveforms for beatmatching by eye."
     - title: Library
-      text: A compact list with smaller text and rows still big enough for a finger, fast search, tag editor, playlists and a BPM analysis exact to a few hundredths. Old MP3s with only an ID3v1 tag take their genre from the comment. At the first start it asks for your music folder.
+      text: "Fast search, playlists, tag editor and an exact BPM analysis."
     - title: Controllers
-      text: MIDI controllers with simple TOML mappings and LED feedback.
+      text: "MIDI controllers with simple mappings and LED feedback."
     - title: Timecode vinyl
       text: Control the players with Serato Control Vinyl.
       planned: true

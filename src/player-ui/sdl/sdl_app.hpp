@@ -22,6 +22,7 @@
 #include "sdl_file_dialogs.hpp"
 #include "sdl_window.hpp"
 
+#include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_video.h>
 
 #include <cstddef>
@@ -34,6 +35,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace djw::player_ui::sdl
@@ -167,6 +169,9 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const PaneFrame *toolFrame(Tool tool) const { return tools[index(tool)].frame.get(); }
             /// The controllers whose events the app carries out, taken once per frame; without it there are none
             void setControllers(std::unique_ptr<core::api::Controllers> hub);
+            /// The milliseconds the frames go by for the look for controllers and the blinking lights; SDL's ticks
+            /// unless a test sets its own clock
+            void setClock(std::function<std::uint64_t()> milliseconds) { clock = std::move(milliseconds); }
             /// Carries out one control event: a player's goes to the player with that number (counted in the order
             /// they were opened; none if there are fewer), the crossfader to the crossfader, browsing to the library
             void handleControl(const core::api::ControlEvent &event);
@@ -377,8 +382,12 @@ namespace djw::player_ui::sdl
             std::unique_ptr<SoundDialog>             sound_dialog;           ///< while Settings > Sound is open
             std::unique_ptr<ConfirmDialog>           quit_dialog;            ///< File > Quit while a track plays
             bool                                     quit_confirmed = false; ///< the program ends
-            std::uint64_t last_port_check = 0;       ///< SDL ticks of the last look for controllers plugged in or out
+            std::uint64_t last_port_check = 0;       ///< clock() of the last look for controllers plugged in or out
             SdlWindow    *dialog_window   = nullptr; ///< the window the dialog lies over
+
+            /// Milliseconds, see setClock()
+            std::function<std::uint64_t()> clock = [] { return SDL_GetTicks(); };
+
             std::unique_ptr<PlaylistView>           playlist_view;
             std::unique_ptr<MixerView>              mixer_view;
             std::unique_ptr<BeatView>               beat_view;

@@ -255,6 +255,7 @@ Tests live in `tests/<module>`, one doctest executable per module, so every modu
   - Clang with libc++ is not in the CI; it is built on the Mac
   - clang-format check and clang-tidy
   - line coverage of `src/` with gcovr; the report is attached to the run. On `main` the coverage badge (an SVG made by `.github/scripts/coverage_badge.py`, no external service) is committed to the branch `badges`, from which the README shows it
+- `tools/ci-local.sh` runs the same jobs before a commit, in a container (`tools/ci-local/Dockerfile`) with the Ubuntu, compilers and tools of the CI, on the files a commit would hold, with the dependencies fetched as in the CI (a TagLib installed on the machine lays out its headers differently). The four jobs run side by side; `tools/ci-local.sh lint` runs one of them. Tests wait for what other threads do with a deadline, not for a number of frames, and anything that goes by the clock takes a clock the test sets: under TSan on a busy runner frames and threads are slow.
 - Mutation tests with Mull run in their own workflow (`.github/workflows/mutation.yml`), once a month, see Tests: Mutation tests
 - The CI does not start the SDL player, so leaks in system graphics drivers (seen locally with Mesa/EGL) do not show up there. A LeakSanitizer suppression file is added once a CI job runs the player.
 

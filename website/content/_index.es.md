@@ -15,13 +15,13 @@ features:
   title: "Qué hace"
   items:
     - title: "Reproductores"
-      text: "Tantos reproductores como quieras, cada uno en su propia ventana, que se puede mover y redimensionar libremente para pantallas táctiles. El fader de pitch funciona como en un tocadiscos: hacia abajo es más rápido; el BPM se muestra con dos decimales. Atajos con la tecla Alt izquierda (Option en Mac): Alt+P reproducir/pausa, Alt+C cue, Alt+L cargar, Alt+←/→ saltar, Alt+↑/↓ pitch en pasos de 0,02 % (Mayús: 0,1 %). Escribir nunca detiene un reproductor: las letras van a la búsqueda."
+      text: "Tantos reproductores como quieras, cada uno en su propia ventana, que se puede mover y redimensionar libremente para pantallas táctiles."
     - title: "Mezclador"
-      text: "Crossfader con fundido temporizado, escucha previa por auriculares y keylock. Formas de onda en movimiento en tres colores para cuadrar los beats a ojo."
+      text: "Crossfader, escucha previa por auriculares y keylock. Formas de onda en movimiento para cuadrar los beats a ojo."
     - title: "Biblioteca"
-      text: "Una lista compacta con texto más pequeño y filas aún lo bastante grandes para el dedo, búsqueda rápida, editor de etiquetas, listas de reproducción y un análisis de BPM preciso a pocas centésimas. Los MP3 antiguos con solo una etiqueta ID3v1 toman su género del comentario. En el primer inicio pregunta por tu carpeta de música."
+      text: "Búsqueda rápida, listas de reproducción, editor de etiquetas y un análisis de BPM preciso."
     - title: "Controladores"
-      text: "Controladores MIDI con mappings TOML sencillos e indicación por LED."
+      text: "Controladores MIDI con mappings sencillos e indicación por LED."
     - title: "Vinilo timecode"
       text: "Controla los reproductores con Serato Control Vinyl."
       planned: true

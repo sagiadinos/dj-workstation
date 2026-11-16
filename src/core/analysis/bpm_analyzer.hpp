@@ -24,6 +24,8 @@ namespace djw::core::analysis
             static constexpr double min_bpm = 70.0;
             static constexpr double max_bpm = 180.0;
 
+            /// Best at 44.1 kHz, the rate QM-DSP is tuned for: other rates give FFT sizes that are no power of two
+            /// (slow) and shift the tempo the beat tracker expects
             explicit BpmAnalyzer(std::uint32_t sample_rate);
             BpmAnalyzer(const BpmAnalyzer &)            = delete;
             BpmAnalyzer &operator=(const BpmAnalyzer &) = delete;

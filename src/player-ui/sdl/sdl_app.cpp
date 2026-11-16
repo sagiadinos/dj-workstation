@@ -1685,7 +1685,7 @@ namespace djw::player_ui::sdl
         if (controllers)
         {
             // Hotplug: controllers plugged in or out (or a loose cable) are taken up without a restart
-            if (const std::uint64_t now = SDL_GetTicks(); now - last_port_check >= hotplug_period)
+            if (const std::uint64_t now = clock(); now - last_port_check >= hotplug_period)
             {
                 last_port_check = now;
                 for (const std::string &error : controllers->checkPorts())
@@ -1698,7 +1698,7 @@ namespace djw::player_ui::sdl
                 handleControl(event);
             }
             // The lights, as the players showed themselves at the last frame; CUE blinks twice a second
-            const bool                         blink_on = (SDL_GetTicks() / cue_blink_half_period) % 2 == 0;
+            const bool                         blink_on = (clock() / cue_blink_half_period) % 2 == 0;
             std::vector<core::api::DeckLights> lights;
             lights.reserve(decks.size());
             for (const auto &deck : decks)

@@ -17,14 +17,19 @@ FetchContent_Declare(taglib
     FIND_PACKAGE_ARGS 2.0 CONFIG
 )
 FetchContent_MakeAvailable(taglib)
-# Built from source, the target is only called tag and has include directories for installs only: the headers
-# used here lie in taglib/ and taglib/toolkit/, the generated taglib_config.h in the build directory
+# Built from source, the target is only called tag and has include directories for installs only. An install puts all
+# headers into one directory; in the source tree they lie in taglib/ and its subdirectories (toolkit/, mpeg/id3v1/,
+# ...), so every directory with headers is added, the generated taglib_config.h lies in the build directory. A system
+# TagLib is the installed layout: a header missing here fails only in the CI, not on a machine with TagLib installed.
 if(NOT TARGET TagLib::tag)
-    target_include_directories(tag SYSTEM INTERFACE
-        $<BUILD_INTERFACE:${taglib_SOURCE_DIR}/taglib>
-        $<BUILD_INTERFACE:${taglib_SOURCE_DIR}/taglib/toolkit>
-        $<BUILD_INTERFACE:${taglib_BINARY_DIR}>
-    )
+    file(GLOB_RECURSE taglib_headers LIST_DIRECTORIES false "${taglib_SOURCE_DIR}/taglib/*.h")
+    set(taglib_header_dirs "")
+    foreach(header IN LISTS taglib_headers)
+        get_filename_component(dir "${header}" DIRECTORY)
+        list(APPEND taglib_header_dirs "$<BUILD_INTERFACE:${dir}>")
+    endforeach()
+    list(REMOVE_DUPLICATES taglib_header_dirs)
+    target_include_directories(tag SYSTEM INTERFACE ${taglib_header_dirs} $<BUILD_INTERFACE:${taglib_BINARY_DIR}>)
     add_library(TagLib::tag ALIAS tag)
 endif()
 

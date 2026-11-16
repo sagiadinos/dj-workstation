@@ -15,13 +15,13 @@ features:
   title: Was es kann
   items:
     - title: Player
-      text: "Beliebig viele Player, jeder in einem eigenen Fenster, frei verschieb- und skalierbar für Touchscreens. Der Pitch-Fader arbeitet wie am Plattenspieler: nach unten ist schneller; die BPM zeigen zwei Nachkommastellen. Tastenkürzel mit der linken Alt-Taste (Option am Mac): Alt+P Play/Pause, Alt+C Cue, Alt+L Laden, Alt+←/→ springen, Alt+↑/↓ Pitch in Schritten von 0,02 % (Shift: 0,1 %). Tippen stoppt nie einen Player: Buchstaben landen in der Suche."
+      text: "Beliebig viele Player, jeder in einem eigenen Fenster, frei verschieb- und skalierbar für Touchscreens."
     - title: Mixer
-      text: Crossfader mit zeitgesteuerter Überblendung, Vorhören über Kopfhörer und Keylock. Scrollende Beat-Waveforms in drei Farben zum Beatmatching nach Auge.
+      text: "Crossfader, Vorhören über Kopfhörer und Keylock. Scrollende Waveforms zum Beatmatching nach Auge."
     - title: Bibliothek
-      text: Eine kompakte Liste mit kleinerer Schrift und Zeilen, die für den Finger groß genug bleiben, schnelle Suche, Tag-Editor, Playlists und eine BPM-Analyse, genau auf wenige Hundertstel. Alte MP3s mit nur einem ID3v1-Tag bekommen ihr Genre aus dem Kommentar. Beim ersten Start fragt es nach deinem Musikordner.
+      text: "Schnelle Suche, Playlists, Tag-Editor und eine genaue BPM-Analyse."
     - title: Controller
-      text: MIDI-Controller mit einfachen TOML-Mappings und LED-Rückmeldung.
+      text: "MIDI-Controller mit einfachen Mappings und LED-Rückmeldung."
     - title: Timecode-Vinyl
       text: Steuerung der Player mit Serato Control Vinyl.
       planned: true

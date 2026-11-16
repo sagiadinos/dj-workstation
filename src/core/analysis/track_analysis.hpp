@@ -54,9 +54,9 @@ namespace djw::core::analysis
     };
 
     /**
-     * Decodes the whole file and finds tempo and waveform. Slow (seconds per track), so it runs on an analysis
-     * thread. Stops early when stop is set; the result is then an error. An error also for a file that cannot be
-     * decoded.
+     * Decodes the whole file and finds tempo and waveform. About a second per track at 44.1 kHz, so it runs on an
+     * analysis thread. Stops early when stop is set; the result is then an error. An error also for a file that cannot
+     * be decoded.
      */
     std::expected<TrackAnalysis, std::string> analyzeFile(const std::filesystem::path &file, std::uint32_t sample_rate,
                                                           const std::atomic<bool> &stop);

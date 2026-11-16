@@ -278,8 +278,8 @@ namespace djw::core::library
                 analysis_queue.pop_front();
                 analysis_running = request.track_id;
             }
-            // 48 kHz: the rate the engine plays at; the analysis does not depend on it
-            auto analysis = analysis::analyzeFile(request.path, 48'000, stopping);
+            // 44.1 kHz: the rate QM-DSP is tuned for (step 512, frame 1024: a fast FFT, the tempo prior it expects)
+            auto analysis = analysis::analyzeFile(request.path, 44'100, stopping);
             if (analysis)
             {
                 // mull-ignore-next: cxx_remove_void_call

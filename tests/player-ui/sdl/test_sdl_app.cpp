@@ -18,6 +18,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <functional>
 #include <fstream>
 #include <sstream>
 #include <cmath>
@@ -258,19 +260,27 @@ namespace
         return file;
     }
 
-    /// Runs frames until the deck at index plays (the audio thread has to take the command first)
-    bool waitForPlaying(SdlApp &app, std::size_t index, bool playing)
+    /// Runs frames until done() holds, for what the audio or the decoder thread does in its own time; false after
+    /// ten seconds. A count of frames is not enough: under the thread sanitizer on a busy runner the threads lag far
+    bool framesUntil(SdlApp &app, const std::function<bool()> &done)
     {
-        for (int i = 0; i < 300; ++i)
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{10};
+        while (std::chrono::steady_clock::now() < deadline)
         {
             static_cast<void>(app.runFrame());
-            if (app.deckPlaying(index) == playing)
+            if (done())
             {
                 return true;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds{10});
         }
         return false;
+    }
+
+    /// Runs frames until the deck at index plays (the audio thread has to take the command first)
+    bool waitForPlaying(SdlApp &app, std::size_t index, bool playing)
+    {
+        return framesUntil(app, [&app, index, playing] { return app.deckPlaying(index) == playing; });
     }
 } // namespace
 
@@ -365,15 +375,29 @@ namespace
         return file;
     }
 
-    /// The position of the deck as the core reports it, after a few frames
+    /// The position of the deck as the core reports it, once its track is loaded and a few frames later
     double positionOf(Fixture &fixture, SdlApp &app, std::size_t index)
     {
+        const auto deck = [&fixture, &app, index] { return fixture.core->deckSnapshot(app.deckId(index))->read(); };
+        REQUIRE(framesUntil(app, [&deck] { return deck().track_loaded; }));
         for (int i = 0; i < 20; ++i)
         {
             static_cast<void>(app.runFrame());
             std::this_thread::sleep_for(std::chrono::milliseconds{5});
         }
-        return fixture.core->deckSnapshot(app.deckId(index))->read().position_seconds;
+        return deck().position_seconds;
+    }
+
+    /// Whether the deck reaches the position (where its track was put after loading) in time
+    bool reachesPosition(Fixture &fixture, SdlApp &app, std::size_t index, double seconds)
+    {
+        return framesUntil(app,
+                           [&fixture, &app, index, seconds]
+                           {
+                               const auto deck = fixture.core->deckSnapshot(app.deckId(index))->read();
+                               return deck.track_loaded &&
+                                      deck.position_seconds == doctest::Approx(seconds).epsilon(0.02);
+                           });
     }
 } // namespace
 
@@ -402,7 +426,7 @@ TEST_CASE(
     REQUIRE(waitForPlaying(*app, 0, true)); // player 1 plays, so the track goes to player 2
     app->load(track);
     CHECK(app->deckFile(1) == file);
-    CHECK(positionOf(fixture, *app, 1) == doctest::Approx(1.5));
+    CHECK(reachesPosition(fixture, *app, 1, 1.5));
 
     // Cue-Load on, no stored cue point: the first sound, half a second in
     app->setDeckCueLoad(2, true);
@@ -410,7 +434,7 @@ TEST_CASE(
     REQUIRE(waitForPlaying(*app, 1, true));
     api::LibraryTrack plain = trackOf(file);
     app->load(plain);
-    CHECK(positionOf(fixture, *app, 2) == doctest::Approx(0.5).epsilon(0.02));
+    CHECK(reachesPosition(fixture, *app, 2, 0.5));
 }
 
 TEST_CASE("SdlApp: the cue point the user sets is stored in the library for the track")
@@ -554,13 +578,13 @@ TEST_CASE("SdlApp: without a saved layout two players and the crossfader open, p
     CHECK(app->deckCount() == 2);
     CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
     CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Playlist));
-    for (int i = 0; i < 3; ++i)
-    {
-        REQUIRE(app->runFrame()); // the sides reach the decks
-        std::this_thread::sleep_for(std::chrono::milliseconds{20});
-    }
-    CHECK(app->deckView(0).crossfaderSide() == api::CrossfaderSide::A);
-    CHECK(app->deckView(1).crossfaderSide() == api::CrossfaderSide::B);
+    // the sides reach the decks
+    CHECK(framesUntil(*app,
+                      [&app]
+                      {
+                          return app->deckView(0).crossfaderSide() == api::CrossfaderSide::A &&
+                                 app->deckView(1).crossfaderSide() == api::CrossfaderSide::B;
+                      }));
 
     // In the one window: player 1, the crossfader, player 2 from left to right
     CHECK(app->windowMode() == WindowMode::Mdi);
@@ -596,13 +620,13 @@ TEST_CASE("SdlApp: a saved layout brings back the players, their sides and the c
 
     CHECK(app->deckCount() == 5);
     CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
-    for (int i = 0; i < 3; ++i)
-    {
-        REQUIRE(app->runFrame());
-        std::this_thread::sleep_for(std::chrono::milliseconds{20});
-    }
-    CHECK(app->deckView(1).crossfaderSide() == api::CrossfaderSide::B); // "player 2 and player 3 fade"
-    CHECK(app->deckView(2).crossfaderSide() == api::CrossfaderSide::A);
+    // "player 2 and player 3 fade"
+    CHECK(framesUntil(*app,
+                      [&app]
+                      {
+                          return app->deckView(1).crossfaderSide() == api::CrossfaderSide::B &&
+                                 app->deckView(2).crossfaderSide() == api::CrossfaderSide::A;
+                      }));
     CHECK(app->deckView(0).crossfaderSide() == api::CrossfaderSide::None);
     CHECK(placementOfWindow(app->deckWindowId(2)).x == 220);
 }
@@ -787,13 +811,12 @@ TEST_CASE("SdlApp: in the MDI mode the players, the crossfader and the library a
     CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
     CHECK(app->deckWindowId(0) == app->libraryWindowId());
     CHECK(app->deckWindowId(2) == app->libraryWindowId());
-    for (int i = 0; i < 3; ++i)
-    {
-        REQUIRE(app->runFrame());
-        std::this_thread::sleep_for(std::chrono::milliseconds{20});
-    }
-    CHECK(app->deckView(0).crossfaderSide() == api::CrossfaderSide::A);
-    CHECK(app->deckView(2).crossfaderSide() == api::CrossfaderSide::B);
+    CHECK(framesUntil(*app,
+                      [&app]
+                      {
+                          return app->deckView(0).crossfaderSide() == api::CrossfaderSide::A &&
+                                 app->deckView(2).crossfaderSide() == api::CrossfaderSide::B;
+                      }));
 
     // Every player has its part of the window, side by side
     std::vector<Rect> parts;
@@ -1630,23 +1653,24 @@ TEST_CASE("SdlApp: about once a second it looks for controllers plugged in or ou
     auto                    owned = std::make_unique<FakeControllers>();
     FakeControllers        &fake  = *owned;
     app->setControllers(std::move(owned));
-    // Frames until it looks for the first time; within the first second after SDL started it may not yet
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{3};
-    while (fake.port_checks == 0 && std::chrono::steady_clock::now() < deadline)
-    {
-        REQUIRE(app->runFrame());
-        std::this_thread::sleep_for(std::chrono::milliseconds{20});
-    }
-    REQUIRE(fake.port_checks == 1);
-    // More frames within the second after that look: no more looks. Counted by time, not frames: under the thread
-    // sanitizer a frame is slow.
-    const auto looked = std::chrono::steady_clock::now();
-    do
-    {
-        REQUIRE(app->runFrame());
-    } while (std::chrono::steady_clock::now() - looked < std::chrono::milliseconds{300});
+    // The test's own clock: under the sanitizers a frame can take longer than the second itself
+    std::uint64_t now = 0;
+    app->setClock([&now] { return now; });
+    REQUIRE(app->runFrame());
+    CHECK(fake.port_checks == 0); // within the first second it does not look yet
+    now = 999;
+    REQUIRE(app->runFrame());
+    CHECK(fake.port_checks == 0);
+    now = 1'000;
+    REQUIRE(app->runFrame());
     CHECK(fake.port_checks == 1);
-    std::this_thread::sleep_for(std::chrono::milliseconds{1'100});
+    // More frames within the second after that look: no more looks
+    now = 1'500;
+    REQUIRE(app->runFrame());
+    now = 1'999;
+    REQUIRE(app->runFrame());
+    CHECK(fake.port_checks == 1);
+    now = 2'000;
     REQUIRE(app->runFrame());
     CHECK(fake.port_checks == 2);
 }
@@ -1756,11 +1780,13 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
     REQUIRE(app->toolWindowOpen(SdlApp::Tool::Beats));
     REQUIRE(app->toolFrame(SdlApp::Tool::Beats) != nullptr);
     app->load(api::LibraryTrack{.path = track}); // into player 1, which is on no side yet
-    for (int i = 0; i < 3; ++i)
-    {
-        REQUIRE(app->runFrame());
-        std::this_thread::sleep_for(std::chrono::milliseconds{20});
-    }
+    CHECK(framesUntil(*app,
+                      [&app]
+                      {
+                          const BeatSides &sides = app->beatView().shown();
+                          return sides.a.has_value() && sides.a->number == 3 && sides.b.has_value() &&
+                                 sides.b->number == 2;
+                      }));
     const BeatSides &shown = app->beatView().shown();
     REQUIRE(shown.a.has_value());
     REQUIRE(shown.b.has_value());
@@ -1770,11 +1796,13 @@ TEST_CASE("SdlApp: in the MDI mode the beat waveforms show the players on the si
 
     // Player 1 on side A: its track and its fine waveform
     REQUIRE(fixture.core->commandQueue().tryPush(api::MixerAssignCrossfader{app->deckId(0), api::CrossfaderSide::A}));
-    for (int i = 0; i < 3; ++i)
-    {
-        REQUIRE(app->runFrame());
-        std::this_thread::sleep_for(std::chrono::milliseconds{20});
-    }
+    CHECK(framesUntil(*app,
+                      [&app]
+                      {
+                          const BeatSides &sides = app->beatView().shown();
+                          return sides.a.has_value() && sides.a->number == 1 && sides.a->state.track_loaded &&
+                                 sides.a->peaks != nullptr;
+                      }));
     REQUIRE(app->beatView().shown().a.has_value());
     CHECK(app->beatView().shown().a->number == 1);
     CHECK(app->beatView().shown().a->state.track_loaded);
