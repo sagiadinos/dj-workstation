@@ -9,7 +9,7 @@ hero:
   platforms: Linux · Raspberry Pi · Windows · macOS
   promise: No cloud. No accounts. No telemetry.
   status: Early development, not usable in production yet
-  screenshot_alt: Two players and the crossfader of DJ-Workstation, both players playing
+  screenshot_alt: Two players, crossfader and music library of DJ-Workstation
 
 features:
   title: What it does

@@ -9,7 +9,7 @@ hero:
   platforms: "Linux · Raspberry Pi · Windows · macOS"
   promise: "Sin nube. Sin cuentas. Sin telemetría."
   status: "En fase temprana de desarrollo, todavía no apto para uso en producción"
-  screenshot_alt: "Dos reproductores y el crossfader de DJ-Workstation, ambos reproductores sonando"
+  screenshot_alt: "Dos reproductores, crossfader y biblioteca musical de DJ-Workstation"
 
 features:
   title: "Qué hace"

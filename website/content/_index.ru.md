@@ -9,7 +9,7 @@ hero:
   platforms: "Linux · Raspberry Pi · Windows · macOS"
   promise: "Без облака. Без учётных записей. Без телеметрии."
   status: "Ранняя стадия разработки, пока не готова к рабочему использованию"
-  screenshot_alt: "Два плеера и кроссфейдер DJ-Workstation, оба плеера играют"
+  screenshot_alt: "Два плеера, кроссфейдер и музыкальная библиотека DJ-Workstation"
 
 features:
   title: "Что она умеет"

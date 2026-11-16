@@ -16,7 +16,7 @@ disableKinds = ['taxonomy', 'term', 'rss']
   downloads = '/downloads/artifacts'
 
 # A new language needs an entry here, content/_index.<code>.md, content/download.<code>.md,
-# i18n/<code>.toml and the two screenshots in static/images (taken from the app in that language).
+# i18n/<code>.toml and the screenshots static/images/players-<code>.webp and player-mobile-<code>.webp (taken from the app in that language).
 [languages]
   [languages.en]
     label = 'English'
