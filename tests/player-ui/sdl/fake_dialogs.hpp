@@ -41,6 +41,20 @@ namespace djw::tests
                 pending     = std::move(chosen);
             }
 
+            void openLayout(const std::filesystem::path &folder, Chosen chosen) override
+            {
+                layout_opened = true;
+                layout_folder = folder;
+                pending       = std::move(chosen);
+            }
+
+            void saveLayout(const std::filesystem::path &folder, Chosen chosen) override
+            {
+                layout_saved  = true;
+                layout_folder = folder;
+                pending       = std::move(chosen);
+            }
+
             void choose(const std::filesystem::path &file)
             {
                 REQUIRE(pending);
@@ -51,7 +65,10 @@ namespace djw::tests
             bool        opened       = false;
             bool        mixxx_asked  = false;
             bool        folder_asked = false;
-            std::string suggested;
+            bool                  layout_opened = false;
+            bool                  layout_saved  = false;
+            std::filesystem::path layout_folder;
+            std::string           suggested;
             Chosen      pending;
     };
 } // namespace djw::tests

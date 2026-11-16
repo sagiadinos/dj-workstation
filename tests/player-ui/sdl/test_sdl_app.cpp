@@ -984,6 +984,109 @@ TEST_CASE("SdlApp: the window mode chosen applies at the next start, each mode k
     CHECK(app->deckWindowId(0) != app->deckWindowId(1));
 }
 
+TEST_CASE("SdlApp: Layout > Load layout brings back a layout saved as, now and for the next start")
+{
+    const djw::tests::TempDir folder;
+    const auto                file  = folder.path() / "layout";
+    const auto                named = folder.path() / "club.djwlayout";
+    writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->deckCount() == 2);
+    REQUIRE(framesUntil(*app, [&app] { return app->deckView(1).crossfaderSide() == api::CrossfaderSide::B; }));
+    REQUIRE(app->saveLayoutAs(named));
+
+    // Changed since: a third player, the crossfader closed, the playlist open
+    Fixture::ctrlN();
+    app->requestToolWindow(SdlApp::Tool::Mixer, false);
+    app->requestToolWindow(SdlApp::Tool::Playlist, true);
+    REQUIRE(fixture.core->commandQueue().tryPush(api::MixerAssignCrossfader{app->deckId(1), api::CrossfaderSide::A}));
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 3);
+    REQUIRE(framesUntil(*app, [&app] { return app->deckView(1).crossfaderSide() == api::CrossfaderSide::A; }));
+
+    CHECK(app->loadLayout(named) == LibraryView::LayoutLoaded::Shown);
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 2);
+    CHECK(app->toolWindowOpen(SdlApp::Tool::Mixer));
+    CHECK_FALSE(app->toolWindowOpen(SdlApp::Tool::Playlist));
+    CHECK(framesUntil(*app, [&app] { return app->deckView(1).crossfaderSide() == api::CrossfaderSide::B; }));
+    CHECK(parseLayout(readFile(file)) == parseLayout(readFile(named))); // the next start finds it
+
+    // A layout with more players adds them
+    Fixture::ctrlN();
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->saveLayoutAs(named));
+    CHECK(app->loadLayout(named) == LibraryView::LayoutLoaded::Shown);
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 4);
+}
+
+TEST_CASE("SdlApp: Layout > Load layout of the other window mode applies at the next start, a bad file not at all")
+{
+    const djw::tests::TempDir folder;
+    const auto                file     = folder.path() / "layout";
+    const auto                separate = folder.path() / "separate.djwlayout";
+    const auto                broken   = folder.path() / "broken.djwlayout";
+    writeMdiLayout(file, {api::CrossfaderSide::A, api::CrossfaderSide::B});
+    Layout three = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
+    three.players.push_back(three.players.back());
+    std::ofstream{separate} << formatLayout(three);
+    std::ofstream{broken} << "garbage\n";
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame());
+    const std::string before = readFile(file);
+
+    CHECK(app->loadLayout(broken) == LibraryView::LayoutLoaded::Failed);
+    CHECK(app->loadLayout(folder.path() / "missing.djwlayout") == LibraryView::LayoutLoaded::Failed);
+    CHECK(readFile(file) == before);
+
+    CHECK(app->loadLayout(separate) == LibraryView::LayoutLoaded::NextStart);
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 2); // not now
+    CHECK(app->windowMode() == WindowMode::Mdi);
+    CHECK(app->nextWindowMode() == WindowMode::Separate);
+    const auto kept = parseLayout(readFile(file));
+    REQUIRE(kept.has_value());
+    CHECK(kept->mode == WindowMode::Separate);
+    CHECK(kept->players.size() == 3);
+}
+
+TEST_CASE("SdlApp: Layout > Load layout in separate windows places them and keeps a playing player")
+{
+    const djw::tests::TempDir folder;
+    const auto                file  = folder.path() / "layout";
+    const auto                named = folder.path() / "two.djwlayout";
+    const auto                track = gapWav(folder, 30); // plays on until the end of the test
+    const Layout              two   = defaultLayout({0, 0, 1024, 768}, {380, 514, 440, 250, 720, 640});
+    std::ofstream{file} << formatLayout(two);
+    std::ofstream{named} << formatLayout(two);
+
+    Fixture                 fixture;
+    djw::tests::FakeLibrary library;
+    auto                    app = fixture.openApp(&library, file);
+    REQUIRE(app->runFrame());
+    Fixture::ctrlN();
+    Fixture::ctrlN();
+    REQUIRE(app->runFrame());
+    REQUIRE(app->deckCount() == 4);
+    app->dropped(app->deckWindowId(3), track);
+    REQUIRE(fixture.core->commandQueue().tryPush(api::DeckPlay{app->deckId(3)}));
+    REQUIRE(waitForPlaying(*app, 3, true));
+
+    CHECK(app->loadLayout(named) == LibraryView::LayoutLoaded::Shown);
+    REQUIRE(app->runFrame());
+    CHECK(app->deckCount() == 3); // the third went, the fourth plays
+    CHECK(placementOfWindow(app->deckWindowId(1)) == two.players[1].place);
+    CHECK(placementOfWindow(app->libraryWindowId()) == two.library);
+}
+
 TEST_CASE("SdlApp: without a layout file the window mode cannot be kept")
 {
     Fixture fixture;

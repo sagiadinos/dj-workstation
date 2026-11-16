@@ -128,6 +128,12 @@ namespace djw::player_ui::sdl
         SDL_MaximizeWindow(window.get());
     }
 
+    void SdlWindow::resize(int width, int height)
+    {
+        SDL_RestoreWindow(window.get());
+        SDL_SetWindowSize(window.get(), width, height);
+    }
+
     bool SdlWindow::maximized() const noexcept
     {
         return (SDL_GetWindowFlags(window.get()) & SDL_WINDOW_MAXIMIZED) != 0;

@@ -1,0 +1,46 @@
+# The numbered marks on the manual's screenshots, the same in every language: the size of the picture and each mark's
+# centre in its pixels (the shortcode "callouts" turns them into percent, so the marks move with the picture).
+# The order is the number shown; the manual's numbered list under the picture explains them in the same order.
+player:
+  width: 716
+  height: 1232
+  marks:
+    - [40, 80]     # Load
+    - [395, 80]    # pitch bend - / +
+    - [610, 80]    # KEY
+    - [40, 205]    # Time
+    - [90, 420]    # BPM
+    - [40, 500]    # waveform
+    - [56, 660]    # state
+    - [210, 650]   # CUE
+    - [410, 650]   # play
+    - [640, 400]   # pitch fader
+    - [40, 820]    # Vol
+    - [150, 810]   # headphone cue
+    - [250, 1150]  # Head
+    - [690, 800]   # artist and title
+    - [470, 1004]  # Cue-Load
+mixer:
+  width: 596
+  height: 1232
+  marks:
+    - [40, 130]    # lane of side A
+    - [30, 429]    # fixed line
+    - [520, 81]    # lanes vertical / horizontal
+    - [40, 860]    # players on A and B
+    - [306, 860]   # Zero
+    - [50, 955]    # master meter
+    - [100, 1003]  # A / B
+    - [380, 1003]  # crossfader
+    - [140, 1076]  # Fade now!
+    - [390, 1147]  # Fade time
+library:
+  width: 1945
+  height: 928
+  marks:
+    - [780, 26]    # menu bar
+    - [1890, 100]  # search
+    - [930, 172]   # column filters
+    - [160, 224]   # column header
+    - [900, 486]   # track list
+    - [260, 892]   # number of tracks

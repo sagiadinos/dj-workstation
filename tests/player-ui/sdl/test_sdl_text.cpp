@@ -79,3 +79,19 @@ TEST_CASE("SdlText: every scale has its size; switching back and forth gives the
     text.setScale(2.0F);
     CHECK(text.width("00:01:23:40", SdlText::Size::Large) == doctest::Approx(2 * normal).epsilon(0.05));
 }
+
+TEST_CASE("SdlText: a text fits a width made from its own width, also at a fractional density")
+{
+    TextFixture fixture;
+    SdlText    &text = *fixture.text;
+    // 135 %: text width + margin - margin comes out a rounding error short for some widths (a menu title was cut)
+    text.setDensity(1.35F);
+    constexpr float margin = 28.0F;
+    for (const char *label : {"File", "Datei", "Fichier", "Archivo", "Αρχείο", "Файл", "Playlist", "Settings", "View",
+                              "Layout", "Einstellungen", "Ansicht", "Réglages", "Affichage", "Disposition"})
+    {
+        const float own = text.width(label);
+        CHECK_MESSAGE(text.fits(label, (own + margin) - margin), label);
+    }
+    CHECK_FALSE(text.fits("Einstellungen", text.width("Einstellungen") - 1.0F));
+}

@@ -63,6 +63,9 @@ namespace djw::player_ui::sdl
             void draw(Point position, std::string_view text, Color color, Size size = Size::Normal);
             /// Draws at most max_width points of text, cut with "…"
             void drawElided(Point position, std::string_view text, Color color, float max_width);
+            /// Whether the text fits max_width points whole. Up to half a pixel over still fits: a width computed from
+            /// the text's own width (width + margin - margin) can come out a rounding error short of it.
+            [[nodiscard]] bool fits(std::string_view text, float max_width) const;
 
             [[nodiscard]] float lineHeight(Size size = Size::Normal) const noexcept;
             [[nodiscard]] float width(std::string_view text, Size size = Size::Normal) const;

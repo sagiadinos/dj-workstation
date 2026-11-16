@@ -15,6 +15,18 @@ namespace djw::player_ui::sdl
     {
         const std::array<SDL_DialogFileFilter, 1> playlist_filters{{{"Playlists (M3U, M3U8)", "m3u;m3u8"}}};
         const std::array<SDL_DialogFileFilter, 1> mixxx_filters{{{"Mixxx controller mappings (.midi.xml)", "xml"}}};
+        const std::array<SDL_DialogFileFilter, 1> layout_filters{{{"Layouts (.djwlayout)", "djwlayout"}}};
+
+        /// The folder as SDL wants it, UTF-8 and ending in a separator so that it is taken as a folder
+        std::string dialogFolder(const std::filesystem::path &folder)
+        {
+            if (folder.empty())
+            {
+                return {};
+            }
+            const std::u8string utf8 = (folder / "").u8string();
+            return {utf8.begin(), utf8.end()};
+        }
     } // namespace
 
     SdlFileDialogs::SdlFileDialogs(SDL_Window *parent) : parent{parent} {}
@@ -65,6 +77,23 @@ namespace djw::player_ui::sdl
         auto *userdata = new std::shared_ptr<Answer>{waitFor(std::move(chosen))};
         SDL_ShowOpenFileDialog(&onAnswer, userdata, parent, mixxx_filters.data(),
                                static_cast<int>(mixxx_filters.size()), nullptr, false);
+    }
+
+    void SdlFileDialogs::openLayout(const std::filesystem::path &folder, Chosen chosen)
+    {
+        const std::string start    = dialogFolder(folder);
+        auto             *userdata = new std::shared_ptr<Answer>{waitFor(std::move(chosen))};
+        SDL_ShowOpenFileDialog(&onAnswer, userdata, parent, layout_filters.data(),
+                               static_cast<int>(layout_filters.size()), start.empty() ? nullptr : start.c_str(),
+                               false);
+    }
+
+    void SdlFileDialogs::saveLayout(const std::filesystem::path &folder, Chosen chosen)
+    {
+        const std::string start    = dialogFolder(folder);
+        auto             *userdata = new std::shared_ptr<Answer>{waitFor(std::move(chosen))};
+        SDL_ShowSaveFileDialog(&onAnswer, userdata, parent, layout_filters.data(),
+                               static_cast<int>(layout_filters.size()), start.empty() ? nullptr : start.c_str());
     }
 
     void SdlFileDialogs::deliver()

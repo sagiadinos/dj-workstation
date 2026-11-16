@@ -180,7 +180,7 @@ namespace djw::player_ui::sdl
 
     void SdlText::drawElided(Point position, std::string_view text, Color color, float max_width)
     {
-        if (width(text) <= max_width)
+        if (fits(text, max_width))
         {
             draw(position, text, color);
             return;
@@ -195,6 +195,11 @@ namespace djw::player_ui::sdl
         TTF_MeasureString(face(Size::Normal).font, text.data(), text.size(), static_cast<int>(room), &measured_width,
                           &measured_length);
         draw(position, std::string{text.substr(0, measured_length)} + std::string{ellipsis}, color);
+    }
+
+    bool SdlText::fits(std::string_view text, float max_width) const
+    {
+        return width(text) * density <= (max_width * density) + 0.5F;
     }
 
     float SdlText::lineHeight(Size size) const noexcept

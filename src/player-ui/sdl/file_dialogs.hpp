@@ -11,7 +11,7 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * The system's dialogs for playlist files and music folders. Behind this interface so views can be tested without
+     * The system's dialogs for playlist files, music folders and layout files. Behind this interface so views can be tested without
      * dialogs.
      *
      * chosen is called on the UI thread with the file or folder the user picked, and not at all when the dialog is
@@ -37,6 +37,10 @@ namespace djw::player_ui::sdl
             virtual void openFolder(Chosen chosen) = 0;
             /// Lets the user pick a Mixxx controller mapping (.midi.xml) to import
             virtual void openMixxxMapping(Chosen chosen) = 0;
+            /// Lets the user pick a layout file (.djwlayout), starting in folder
+            virtual void openLayout(const std::filesystem::path &folder, Chosen chosen) = 0;
+            /// Lets the user choose where to save a layout file (.djwlayout), starting in folder
+            virtual void saveLayout(const std::filesystem::path &folder, Chosen chosen) = 0;
     };
 } // namespace djw::player_ui::sdl
 

@@ -75,6 +75,8 @@ namespace djw::player_ui::sdl
             /// As big as the display allows next to panels, with a title bar
             void               maximize();
             [[nodiscard]] bool maximized() const noexcept;
+            /// No longer maximized, a window of width x height where it is
+            void resize(int width, int height);
 
             /// The views the window shows
             [[nodiscard]] ViewHost       &views() noexcept { return host; }

@@ -338,3 +338,22 @@ main, .topbar, .footer {
 .legal h2::before { content: "▸ "; color: var(--display); }
 .legal h3 { margin: 1.75rem 0 0.75rem; font: 600 1.1rem var(--mono); }
 .legal h4 { margin: 1.25rem 0 0.5rem; font-size: 1rem; }
+
+/* ---------- manual (shares the text styles of the legal page) ---------- */
+
+.manual figure { margin: 1.5rem auto; }
+.manual figure img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+/* The player and the crossfader are tall: at most half the column on wide screens, so the text stays in view */
+.manual figure:has(img[src*="player"]), .manual figure:has(img[src*="mixer"]) { max-width: 24rem; }
+.manual table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+.manual th, .manual td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
+.manual code { font-family: var(--mono); }
+
+/* Numbered marks over a manual screenshot: orange, a little see-through, so the control below still shows */
+.manual .callouts { position: relative; }
+.callout {
+  position: absolute; transform: translate(-50%, -50%);
+  display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  background: rgb(255 140 0 / 0.55); border: 2px solid rgb(255 255 255 / 0.45); color: #000;
+  font: 700 0.85rem/1 var(--mono);
+}

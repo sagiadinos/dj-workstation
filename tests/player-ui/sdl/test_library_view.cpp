@@ -10,7 +10,9 @@
 
 #include <doctest/doctest.h>
 
+#include <filesystem>
 #include <utility>
+#include <vector>
 
 using namespace djw::player_ui::sdl;
 namespace api = djw::core::api;
@@ -1010,6 +1012,78 @@ TEST_CASE("LibraryView: Layout > Save layout is off without a handler, with one 
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
 }
 
+TEST_CASE("LibraryView: Layout > Save layout as asks for a file in the layouts folder, adds .djwlayout, says so")
+{
+    Fixture               fixture;
+    constexpr std::size_t layout_menu = 4;
+    constexpr std::size_t save_as     = 3;
+    chooseEntry(fixture, layout_menu, save_as);
+    CHECK(fixture.view.menuBar().isOpen()); // off without an owner
+    fixture.view.keyboard(EditKey::Escape);
+    CHECK_FALSE(fixture.dialogs.layout_saved);
+
+    std::vector<std::filesystem::path> saved;
+    bool                               writes = true;
+    fixture.view.setLayoutFiles(
+        "/config/layouts",
+        [&](const std::filesystem::path &file)
+        {
+            saved.push_back(file);
+            return writes;
+        },
+        [](const std::filesystem::path &) { return LibraryView::LayoutLoaded::Failed; });
+    fixture.view.update();
+    chooseEntry(fixture, layout_menu, save_as);
+    CHECK(fixture.dialogs.layout_saved);
+    CHECK(fixture.dialogs.layout_folder == "/config/layouts");
+    fixture.dialogs.choose("/config/layouts/Club");
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("layout saved") != std::string::npos);
+
+    writes = false;
+    chooseEntry(fixture, layout_menu, save_as);
+    fixture.dialogs.choose("/elsewhere/four decks.djwlayout");
+    fixture.view.update();
+    CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
+    CHECK(saved == std::vector<std::filesystem::path>{"/config/layouts/Club.djwlayout",
+                                                      "/elsewhere/four decks.djwlayout"});
+}
+
+TEST_CASE("LibraryView: Layout > Load layout asks for a file and says what came of it")
+{
+    Fixture               fixture;
+    constexpr std::size_t layout_menu = 4;
+    constexpr std::size_t load        = 4;
+    chooseEntry(fixture, layout_menu, load);
+    CHECK(fixture.view.menuBar().isOpen()); // off without an owner
+    fixture.view.keyboard(EditKey::Escape);
+    CHECK_FALSE(fixture.dialogs.layout_opened);
+
+    std::vector<std::filesystem::path> loaded;
+    auto                               outcome = LibraryView::LayoutLoaded::Shown;
+    fixture.view.setLayoutFiles(
+        "/config/layouts", [](const std::filesystem::path &) { return true; },
+        [&](const std::filesystem::path &file)
+        {
+            loaded.push_back(file);
+            return outcome;
+        });
+    fixture.view.update();
+    for (const auto &[result, text] : {std::pair{LibraryView::LayoutLoaded::Shown, "layout loaded"},
+                                       std::pair{LibraryView::LayoutLoaded::NextStart, "applies at the next start"},
+                                       std::pair{LibraryView::LayoutLoaded::Failed, "layout could not be loaded"}})
+    {
+        outcome = result;
+        chooseEntry(fixture, layout_menu, load);
+        CHECK(fixture.dialogs.layout_opened);
+        CHECK(fixture.dialogs.layout_folder == "/config/layouts");
+        fixture.dialogs.choose("/config/layouts/Club.djwlayout");
+        fixture.view.update();
+        CHECK(fixture.view.statusText().find(text) != std::string::npos);
+    }
+    CHECK(loaded.size() == 3);
+}
+
 TEST_CASE("LibraryView: View > One-window mode switches the mode of the next start and says so")
 {
     Fixture               fixture;
@@ -1056,7 +1130,7 @@ TEST_CASE("LibraryView: Layout > Reset is the last entry, set apart by a line, o
 {
     Fixture               fixture;
     constexpr std::size_t layout_menu = 4;
-    constexpr std::size_t reset       = 3;
+    constexpr std::size_t reset       = 5;
     fixture.view.layout({0, 0, 600, 700});
     chooseEntry(fixture, layout_menu, reset);
     CHECK(fixture.view.menuBar().isOpen()); // off: the menu stays open

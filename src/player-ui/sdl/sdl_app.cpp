@@ -292,6 +292,20 @@ namespace djw::player_ui::sdl
                                                 { owner->addToPlaylist(track); });
             app->dialogs.setParent(mdi ? app->host_window->handle() : app->library_window->handle());
             app->library_view->setSaveLayout([owner] { return owner->saveLayout(); });
+            if (!app->layout_file.empty())
+            {
+                // The named layouts live next to the layout file; the dialogs may go elsewhere
+                std::filesystem::path folder = app->layout_file.parent_path() / "layouts";
+                std::error_code       error;
+                std::filesystem::create_directories(folder, error);
+                if (error)
+                {
+                    folder.clear(); // the dialogs start where the system wants
+                }
+                app->library_view->setLayoutFiles(
+                    std::move(folder), [owner](const std::filesystem::path &file) { return owner->saveLayoutAs(file); },
+                    [owner](const std::filesystem::path &file) { return owner->loadLayout(file); });
+            }
         }
 
         if (layout)
@@ -798,19 +812,32 @@ namespace djw::player_ui::sdl
         return fitInto(place, *usable);
     }
 
+    namespace
+    {
+        std::optional<Layout> readLayoutFile(const std::filesystem::path &path)
+        {
+            const std::ifstream file{path};
+            std::ostringstream  text;
+            text << file.rdbuf();
+            return parseLayout(text.str());
+        }
+
+        bool writeLayoutFile(const std::filesystem::path &path, const Layout &layout)
+        {
+            std::ofstream file{path, std::ios::trunc};
+            file << formatLayout(layout);
+            return static_cast<bool>(file);
+        }
+    } // namespace
+
     std::optional<Layout> SdlApp::readSavedLayout() const
     {
-        const std::ifstream file{layout_file};
-        std::ostringstream  text;
-        text << file.rdbuf();
-        return parseLayout(text.str());
+        return readLayoutFile(layout_file);
     }
 
     bool SdlApp::writeLayout(const Layout &layout) const
     {
-        std::ofstream file{layout_file, std::ios::trunc};
-        file << formatLayout(layout);
-        return static_cast<bool>(file);
+        return writeLayoutFile(layout_file, layout);
     }
 
     Layout SdlApp::readLayout() const
@@ -927,6 +954,126 @@ namespace djw::player_ui::sdl
     bool SdlApp::saveLayout()
     {
         return !layout_file.empty() && writeLayout(currentLayout());
+    }
+
+    bool SdlApp::saveLayoutAs(const std::filesystem::path &file)
+    {
+        return writeLayoutFile(file, currentLayout());
+    }
+
+    LibraryView::LayoutLoaded SdlApp::loadLayout(const std::filesystem::path &file)
+    {
+        using Loaded = LibraryView::LayoutLoaded;
+        std::optional<Layout> loaded = readLayoutFile(file);
+        if (!loaded || layout_file.empty() || !writeLayout(*loaded))
+        {
+            return Loaded::Failed;
+        }
+        // From now on what the file holds for the other mode is saved with the layout
+        stored_layout = loaded;
+        next_mode     = loaded->mode;
+        if (loaded->mode != mode)
+        {
+            return Loaded::NextStart;
+        }
+        layout_to_apply = std::move(loaded);
+        return Loaded::Shown;
+    }
+
+    void SdlApp::applyLayout(const Layout &wanted)
+    {
+        const bool mdi = host_window != nullptr;
+        // The players the layout has, with their sides and options; the places only for the separate windows
+        std::vector<PlayerPlacement> players;
+        const MdiLayout              parts = mdi ? wanted.mdi.value_or(defaultMdiLayout()) : MdiLayout{};
+        if (mdi)
+        {
+            for (std::size_t player = 0; player < parts.players.size(); ++player)
+            {
+                players.push_back({.place   = {},
+                                   .side    = parts.players[player],
+                                   .options = player < parts.player_options.size() ? parts.player_options[player]
+                                                                                   : PlayerOptions{}});
+            }
+        }
+        else
+        {
+            players = wanted.players;
+        }
+
+        // Players beyond those of the layout go, from the last one, unless they play
+        for (std::size_t count = decks.size(); count > players.size(); --count)
+        {
+            closeDeck(decks[count - 1]->id);
+        }
+        for (std::size_t player = 0; player < players.size() && player < decks.size(); ++player)
+        {
+            if (!mdi)
+            {
+                decks[player]->window->place(fitToDisplay(players[player].place));
+            }
+        }
+        while (decks.size() < players.size())
+        {
+            const std::size_t before = decks.size();
+            addDeck(mdi ? std::nullopt : std::optional{fitToDisplay(players[before].place)});
+            if (decks.size() == before)
+            {
+                break; // the window could not be opened, see the log
+            }
+        }
+        for (std::size_t player = 0; player < players.size() && player < decks.size(); ++player)
+        {
+            const core::api::MixerAssignCrossfader assign{decks[player]->id, players[player].side};
+            static_cast<void>(core->commandQueue().tryPush(assign));
+            decks[player]->view->setShowsRemaining(players[player].options.show_remaining);
+            decks[player]->view->setCueLoad(players[player].options.cue_load);
+        }
+
+        beat_view->setVertical(wanted.beats_vertical);
+        if (mdi)
+        {
+            requestToolWindow(Tool::Mixer, parts.mixer_open);
+            requestToolWindow(Tool::Playlist, parts.playlist_open);
+            requestToolWindow(Tool::Beats, parts.beats_open);
+            hand_places = parts.places;
+            setFullscreen(parts.fullscreen);
+            // What the window is apart from fullscreen, now or when it leaves fullscreen
+            host_maximized = parts.maximized;
+            if (parts.window_width > 0 && parts.window_height > 0)
+            {
+                host_window_width  = parts.window_width;
+                host_window_height = parts.window_height;
+            }
+            if (!parts.fullscreen)
+            {
+                if (host_maximized)
+                {
+                    host_window->maximize();
+                }
+                else
+                {
+                    host_window->resize(host_window_width, host_window_height);
+                }
+            }
+            return;
+        }
+        if (library_window != nullptr)
+        {
+            library_window->place(fitToDisplay(wanted.library));
+        }
+        for (const auto &[tool, placement] : {std::pair{Tool::Mixer, wanted.mixer},
+                                              std::pair{Tool::Playlist, wanted.playlist},
+                                              std::pair{Tool::Beats, wanted.beats}})
+        {
+            ToolWindow &which = tools[index(tool)];
+            which.placement   = fitToDisplay(placement.place);
+            if (which.window != nullptr)
+            {
+                which.window->place(*which.placement);
+            }
+            requestToolWindow(tool, placement.open);
+        }
     }
 
     bool SdlApp::chooseWindowMode(WindowMode chosen)
@@ -1583,6 +1730,12 @@ namespace djw::player_ui::sdl
         for (const core::api::DeckId deck : std::exchange(decks_to_close, {}))
         {
             closeDeck(deck);
+        }
+        if (layout_to_apply)
+        {
+            const Layout wanted = std::move(*layout_to_apply);
+            layout_to_apply.reset();
+            applyLayout(wanted);
         }
         for (const Tool tool : {Tool::Playlist, Tool::Mixer, Tool::Beats})
         {

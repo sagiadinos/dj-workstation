@@ -33,6 +33,8 @@ namespace djw::player_ui::sdl
             void savePlaylist(const std::string &suggested_name, Chosen chosen) override;
             void openFolder(Chosen chosen) override;
             void openMixxxMapping(Chosen chosen) override;
+            void openLayout(const std::filesystem::path &folder, Chosen chosen) override;
+            void saveLayout(const std::filesystem::path &folder, Chosen chosen) override;
 
             /// UI thread: calls the waiting continuation if its dialog has answered
             void deliver();

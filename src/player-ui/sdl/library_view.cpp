@@ -47,7 +47,12 @@ namespace djw::player_ui::sdl
             constexpr int toggle_beats_window    = 24;
             constexpr int sound                  = 26;
             constexpr int daylight               = 27;
+            constexpr int save_layout_as         = 29;
+            constexpr int load_layout            = 30;
         } // namespace menu_id
+
+        /// The extension of layout files
+        constexpr std::string_view layout_extension = ".djwlayout";
 
         constexpr std::array<std::string_view, 6> column_keys{"column.artist", "column.title", "column.genre",
                                                               "column.year",   "column.bpm",   "column.time"};
@@ -662,6 +667,12 @@ namespace djw::player_ui::sdl
                           {.id      = menu_id::save_layout_entry,
                            .label   = tr("menu.layout.save"),
                            .enabled = static_cast<bool>(save_layout)},
+                          {.id      = menu_id::save_layout_as,
+                           .label   = tr("menu.layout.save_as"),
+                           .enabled = static_cast<bool>(save_layout_as)},
+                          {.id      = menu_id::load_layout,
+                           .label   = tr("menu.layout.load"),
+                           .enabled = static_cast<bool>(load_layout)},
                           {.id        = menu_id::reset_layout,
                            .label     = tr("menu.layout.reset"),
                            .enabled   = static_cast<bool>(reset_layout),
@@ -697,6 +708,44 @@ namespace djw::player_ui::sdl
                 if (save_layout)
                 {
                     setNotice(save_layout() ? "library.notice.layout_saved" : "library.notice.layout_failed");
+                }
+                break;
+            case menu_id::save_layout_as:
+                if (save_layout_as)
+                {
+                    dialogs->saveLayout(layout_folder,
+                                        [this](const std::filesystem::path &chosen)
+                                        {
+                                            std::filesystem::path file = chosen;
+                                            if (file.extension() != layout_extension)
+                                            {
+                                                file += layout_extension;
+                                            }
+                                            setNotice(save_layout_as && save_layout_as(file)
+                                                          ? "library.notice.layout_saved"
+                                                          : "library.notice.layout_failed");
+                                        });
+                }
+                break;
+            case menu_id::load_layout:
+                if (load_layout)
+                {
+                    dialogs->openLayout(layout_folder,
+                                        [this](const std::filesystem::path &file)
+                                        {
+                                            switch (load_layout ? load_layout(file) : LayoutLoaded::Failed)
+                                            {
+                                                case LayoutLoaded::Shown:
+                                                    setNotice("library.notice.layout_loaded");
+                                                    break;
+                                                case LayoutLoaded::NextStart:
+                                                    setNotice("library.notice.next_start");
+                                                    break;
+                                                case LayoutLoaded::Failed:
+                                                    setNotice("library.notice.layout_load_failed");
+                                                    break;
+                                            }
+                                        });
                 }
                 break;
             case menu_id::one_window_mode:

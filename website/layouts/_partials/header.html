@@ -6,6 +6,9 @@
     {{- with site.GetPage "/download" }}
     <a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $.RelPermalink }} aria-current="page"{{ end }}>{{ .Title }}</a>
     {{- end }}
+    {{- with site.GetPage "/manual" }}
+    <a href="{{ .RelPermalink }}"{{ if eq .RelPermalink $.RelPermalink }} aria-current="page"{{ end }}>{{ T "manual" }}</a>
+    {{- end }}
     <a class="topbar__wide" href="{{ site.Params.github }}">GitHub</a>
     {{- /* A plain disclosure list instead of flags or a script, so more languages only add rows. */}}
     <details class="lang">

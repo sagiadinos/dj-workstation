@@ -239,6 +239,14 @@ namespace djw::player_ui::sdl
             [[nodiscard]] Layout currentLayout() const;
             /// Writes currentLayout() to the layout file; false without a layout file or if writing fails
             bool saveLayout();
+            /// Writes currentLayout() to file (Layout > Save layout as); false if writing fails
+            bool saveLayoutAs(const std::filesystem::path &file);
+            /**
+             * Layout > Load layout: the layout in file becomes the one of the next start (it is written to the layout
+             * file). If it is for the window mode in use, the windows are made as it says at the end of the frame:
+             * players are added, or closed unless they play, the tools open or close and go to their places.
+             */
+            LibraryView::LayoutLoaded loadLayout(const std::filesystem::path &file);
 
         private:
             /// SDL_Init and TTF_Init, undone in reverse
@@ -310,6 +318,8 @@ namespace djw::player_ui::sdl
             /// The layout in the layout file; std::nullopt if there is none or it is damaged
             [[nodiscard]] std::optional<Layout> readSavedLayout() const;
             [[nodiscard]] bool                  writeLayout(const Layout &layout) const;
+            /// The windows of the mode in use as the layout says (see loadLayout); between frames
+            void applyLayout(const Layout &wanted);
             /// MDI mode: opens the one window, on the main display: covering it, or as a maximized normal window
             /// The one window as start says: fullscreen, maximized or a window of its size
             bool openHost(const MdiLayout &start);
@@ -401,6 +411,8 @@ namespace djw::player_ui::sdl
             WindowMode                next_mode = WindowMode::Separate;
             /// The layout read at the start: what is not shown now (the other mode) is saved as it was
             std::optional<Layout> stored_layout;
+            /// A loaded layout, made at the end of the frame
+            std::optional<Layout> layout_to_apply;
             /// Players whose close button was pressed (MDI mode); they go between frames
             std::vector<core::api::DeckId> decks_to_close;
             /// MDI mode: where the user put the parts; std::nullopt: arranged automatically

@@ -1,0 +1,10 @@
+{{- /* A manual screenshot with numbered marks over it: callouts name="player" alt="..."; the picture is
+   images/manual/<name>-<language>.webp, the marks come from data/manual.yaml, placed in percent so they move with the picture. */}}
+{{- $name := .Get "name" }}
+{{- $shot := index hugo.Data.manual $name }}
+<figure class="callouts">
+  <img src="{{ printf "images/manual/%s-%s.webp" $name site.Language.Lang | relURL }}" width="{{ $shot.width }}" height="{{ $shot.height }}" alt="{{ .Get "alt" }}" loading="lazy">
+  {{- range $index, $mark := $shot.marks }}
+  <span class="callout" style="left: {{ div (mul (float (index $mark 0)) 100) $shot.width }}%; top: {{ div (mul (float (index $mark 1)) 100) $shot.height }}%" aria-hidden="true">{{ add $index 1 }}</span>
+  {{- end }}
+</figure>

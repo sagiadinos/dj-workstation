@@ -78,6 +78,17 @@ namespace djw::player_ui::sdl
             using NewDeck        = std::function<void()>;
             /// Saves the window layout; true when it was saved
             using SaveLayout = std::function<bool()>;
+            /// Saves the window layout into file; true when it was saved
+            using SaveLayoutAs = std::function<bool(const std::filesystem::path &file)>;
+            /// What loading a layout file came to
+            enum class LayoutLoaded : std::uint8_t
+            {
+                Shown,     ///< the windows are as the file says
+                NextStart, ///< the file is for the other window mode: it is shown from the next start
+                Failed     ///< not a layout, or it could not be kept
+            };
+            /// Loads the window layout from file
+            using LoadLayout = std::function<LayoutLoaded(const std::filesystem::path &file)>;
             using Toggle     = std::function<void()>;
             using Shown      = std::function<bool()>;
             /// Keeps the window mode for the next start; true when it was kept
@@ -133,6 +144,14 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton &addButton() const noexcept { return add_button; }
             /// What View > Save layout does; without it the entry is off
             void                             setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
+            /// Enables Layout > Save layout as and Load layout: the system's file dialogs start in folder, a name
+            /// without the extension .djwlayout gets it
+            void setLayoutFiles(std::filesystem::path folder, SaveLayoutAs save_as, LoadLayout load)
+            {
+                layout_folder  = std::move(folder);
+                save_layout_as = std::move(save_as);
+                load_layout    = std::move(load);
+            }
             [[nodiscard]] const MenuBar     &menuBar() const noexcept { return menu; }
             [[nodiscard]] const ContextMenu &contextMenu() const noexcept { return context_menu; }
 
@@ -251,6 +270,9 @@ namespace djw::player_ui::sdl
             MenuBar                  menu;
             ContextMenu              context_menu;
             SaveLayout               save_layout;
+            std::filesystem::path    layout_folder;
+            SaveLayoutAs             save_layout_as;
+            LoadLayout               load_layout;
             Toggle                   edit_layout;
             Shown                    layout_editing;
             Toggle                   arrange_automatic;
