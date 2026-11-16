@@ -8,7 +8,7 @@ hero:
   tagline: "Λιτό λογισμικό DJ ανοιχτού κώδικα, σχεδιασμένο για οθόνες αφής και MIDI controllers."
   platforms: "Linux · Raspberry Pi · Windows · macOS"
   promise: "Χωρίς cloud. Χωρίς λογαριασμούς. Χωρίς τηλεμετρία."
-  status: "Σε πρώιμο στάδιο ανάπτυξης, δεν είναι ακόμη έτοιμο για παραγωγική χρήση"
+  status: "Πρώτη χρησιμοποιήσιμη έκδοση, τα σχόλιά σας είναι ευπρόσδεκτα"
   screenshot_alt: "Δύο players, crossfader και μουσική βιβλιοθήκη του DJ-Workstation"
 
 features:

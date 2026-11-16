@@ -3,17 +3,17 @@ title: "Λήψη"
 description: "Λήψη των πιο πρόσφατων εκδόσεων ανάπτυξης του DJ-Workstation για Linux, Raspberry Pi, Windows και macOS."
 layout: download
 
-intro: "Εκδόσεις ανάπτυξης, που δημιουργούνται αυτόματα από τον τρέχοντα πηγαίο κώδικα. Το DJ-Workstation βρίσκεται σε πρώιμο στάδιο ανάπτυξης και δεν είναι ακόμη έτοιμο για παραγωγική χρήση."
+intro: "Δημιουργούνται αυτόματα από τον τρέχοντα πηγαίο κώδικα. Αυτή είναι η πρώτη χρησιμοποιήσιμη έκδοση του DJ-Workstation· τα σχόλιά σας είναι ευπρόσδεκτα."
 
 builds:
   - system: "Linux"
     arch: "x86 64 bit"
     file: latest_linux_x86_64.AppImage
-    hint: "Κάντε το αρχείο εκτελέσιμο και εκκινήστε το."
+    hint: "Απαιτεί glibc 2.41 ή νεότερο, π.χ. Debian 13, Ubuntu 25.04 ή Fedora 42. Κάντε το αρχείο εκτελέσιμο και εκκινήστε το."
   - system: "Linux ARM"
     arch: "ARM 64 bit, Raspberry Pi 4 και 5"
     file: latest_linux_aarch64.AppImage
-    hint: "Κάντε το αρχείο εκτελέσιμο και εκκινήστε το."
+    hint: "Απαιτεί Raspberry Pi OS ή Debian 13 (Trixie) ή νεότερο. Κάντε το αρχείο εκτελέσιμο και εκκινήστε το."
   - system: "Windows"
     arch: "x86 64 bit, Windows 10 και 11"
     file: latest_windows.exe

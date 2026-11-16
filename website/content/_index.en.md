@@ -8,7 +8,7 @@ hero:
   tagline: Lean, open-source, touch-first DJ software for touchscreens and MIDI controllers.
   platforms: Linux · Raspberry Pi · Windows · macOS
   promise: No cloud. No accounts. No telemetry.
-  status: Early development, not usable in production yet
+  status: "First usable version, feedback welcome"
   screenshot_alt: Two players, crossfader and music library of DJ-Workstation
 
 features:

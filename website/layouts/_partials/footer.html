@@ -3,5 +3,5 @@
 {{- if not $legal }}{{ $legal = hugo.Sites.Default.GetPage "/legal" }}{{ end }}
 <footer class="footer">
   <p>© {{ site.Params.since }}–{{ now.Year }} {{ site.Params.author }} · {{ T "license" }}</p>
-  <p><a href="{{ site.Params.github }}">{{ T "source_code" }}</a> · <a href="/legacy/">{{ site.Home.Params.history.title }}</a>{{ with $legal }} · <a href="{{ .RelPermalink }}">{{ T "legal" }}</a>{{ end }}</p>
+  <p><a href="{{ site.Params.github }}">{{ T "source_code" }}</a> · <a href="{{ site.Params.github }}/issues">{{ T "feedback" }}</a> · <a href="/legacy/">{{ site.Home.Params.history.title }}</a>{{ with $legal }} · <a href="{{ .RelPermalink }}">{{ T "legal" }}</a>{{ end }}</p>
 </footer>

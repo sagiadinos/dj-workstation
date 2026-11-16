@@ -16,7 +16,7 @@
     {{- end }}
     <p class="hero__platforms">{{ .Params.hero.platforms }}</p>
     <p class="hero__promise">{{ .Params.hero.promise }}{{ with .Params.hero.headline }} | {{ $.Params.hero.tagline }}{{ end }}</p>
-    <p class="status"><span class="led led--warn" aria-hidden="true"></span>{{ .Params.hero.status }}</p>
+    <p class="status"><span class="led led--on" aria-hidden="true"></span>{{ .Params.hero.status }} · <a href="{{ site.Params.github }}/issues">{{ T "feedback" }}</a></p>
     <p class="actions">
       {{- with site.GetPage "/download" }}
       <a class="btn btn--play" href="{{ .RelPermalink }}">{{ T "download" }}</a>

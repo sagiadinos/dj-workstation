@@ -3,17 +3,17 @@ title: "Descargar"
 description: "Descarga las últimas versiones de desarrollo de DJ-Workstation para Linux, Raspberry Pi, Windows y macOS."
 layout: download
 
-intro: "Versiones de desarrollo, compiladas automáticamente a partir del código fuente actual. DJ-Workstation está en fase temprana de desarrollo y todavía no es apto para uso en producción."
+intro: "Compiladas automáticamente a partir del código fuente actual. Esta es la primera versión utilizable de DJ-Workstation; se agradecen comentarios."
 
 builds:
   - system: "Linux"
     arch: "x86 64 bits"
     file: latest_linux_x86_64.AppImage
-    hint: "Haz el archivo ejecutable e inícialo."
+    hint: "Necesita glibc 2.41 o posterior, p. ej. Debian 13, Ubuntu 25.04 o Fedora 42. Haz el archivo ejecutable e inícialo."
   - system: "Linux ARM"
     arch: "ARM 64 bits, Raspberry Pi 4 y 5"
     file: latest_linux_aarch64.AppImage
-    hint: "Haz el archivo ejecutable e inícialo."
+    hint: "Necesita Raspberry Pi OS o Debian 13 (Trixie) o posterior. Haz el archivo ejecutable e inícialo."
   - system: "Windows"
     arch: "x86 64 bits, Windows 10 y 11"
     file: latest_windows.exe

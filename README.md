@@ -6,7 +6,11 @@
 
 Lean, touch-first DJ software for touchscreens and MIDI controllers. Runs on Linux, Raspberry Pi, Windows and macOS. No cloud, no accounts, no telemetry.
 
-> **Status: in development, not for production.**
+> **Status: first usable version, feedback welcome.** Bugs, questions and ideas go to the
+> [issues](https://github.com/sagiadinos/dj-workstation/issues).
+
+Downloads and the manual (in six languages) are on [dj-workstation.com](https://dj-workstation.com/). The Linux builds
+need glibc 2.41 or newer (e.g. Debian 13, Ubuntu 25.04, Fedora 42, Raspberry Pi OS on Trixie).
 
 
 ## What it is

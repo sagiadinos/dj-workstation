@@ -3,7 +3,7 @@
 {{- partial "ssi.html" `config errmsg="" sizefmt="abbrev" timefmt="%Y-%m-%d"` }}
 <section class="section">
   <h1 class="display"><span class="display__label">DJ-Workstation</span><span class="display__value">{{ .Title }}</span></h1>
-  <p class="status"><span class="led led--warn" aria-hidden="true"></span>{{ .Params.intro }}</p>
+  <p class="status"><span class="led led--on" aria-hidden="true"></span>{{ .Params.intro }} <a href="{{ site.Params.github }}/issues">{{ T "feedback" }}</a></p>
 </section>
 
 <section class="section" aria-labelledby="builds">

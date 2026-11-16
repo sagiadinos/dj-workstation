@@ -8,7 +8,7 @@ hero:
   tagline: "Software DJ ligero y de código abierto, pensado para pantallas táctiles y controladores MIDI."
   platforms: "Linux · Raspberry Pi · Windows · macOS"
   promise: "Sin nube. Sin cuentas. Sin telemetría."
-  status: "En fase temprana de desarrollo, todavía no apto para uso en producción"
+  status: "Primera versión utilizable, se agradecen comentarios"
   screenshot_alt: "Dos reproductores, crossfader y biblioteca musical de DJ-Workstation"
 
 features:

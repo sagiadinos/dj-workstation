@@ -14,6 +14,7 @@ License: **AGPLv3**
 - **Offline:** no cloud, no accounts, no telemetry, no streaming services.
 - **Core / UI separation:** the core runs headless and is testable without a UI. The UI talks to the core exclusively through commands and state snapshots.
 - **Extensible through data, not code:** controller mappings, layouts and languages are files.
+- **Arrange, not restyle:** the user decides where the parts go, how big they are and which are open; what a part shows and how it looks is fixed. Layouts, yes; skins and color files, no.
 
 ### Non-goals
 
@@ -22,6 +23,7 @@ License: **AGPLv3**
 - Sampler, stem separation, AI features
 - Effects and filters, loops, key detection, beatmatched automix
 - Telemetry of any kind
+- Skins, themes, color files
 
 ---
 
