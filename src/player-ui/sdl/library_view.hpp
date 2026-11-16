@@ -143,7 +143,7 @@ namespace djw::player_ui::sdl
             [[nodiscard]] const TextButton &removeButton() const noexcept { return remove_button; }
             [[nodiscard]] const TextButton &addButton() const noexcept { return add_button; }
             /// What View > Save layout does; without it the entry is off
-            void                             setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
+            void setSaveLayout(SaveLayout save) { save_layout = std::move(save); }
             /// Enables Layout > Save layout as and Load layout: the system's file dialogs start in folder, a name
             /// without the extension .djwlayout gets it
             void setLayoutFiles(std::filesystem::path folder, SaveLayoutAs save_as, LoadLayout load)

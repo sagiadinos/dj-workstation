@@ -318,7 +318,8 @@ TEST_CASE("MenuBar: the note stands at the end of the bar while the titles leave
 {
     const auto drawnNote = [](const RecordingCanvas &canvas) -> const RecordingCanvas::DrawnText *
     {
-        const auto found = std::ranges::find(canvas.texts, std::string{"1.0.0-dev.42"}, &RecordingCanvas::DrawnText::text);
+        const auto found =
+            std::ranges::find(canvas.texts, std::string{"1.0.0-dev.42"}, &RecordingCanvas::DrawnText::text);
         return found != canvas.texts.end() ? &*found : nullptr;
     };
 

@@ -963,7 +963,7 @@ namespace djw::player_ui::sdl
 
     LibraryView::LayoutLoaded SdlApp::loadLayout(const std::filesystem::path &file)
     {
-        using Loaded = LibraryView::LayoutLoaded;
+        using Loaded                 = LibraryView::LayoutLoaded;
         std::optional<Layout> loaded = readLayoutFile(file);
         if (!loaded || layout_file.empty() || !writeLayout(*loaded))
         {
@@ -990,10 +990,10 @@ namespace djw::player_ui::sdl
         {
             for (std::size_t player = 0; player < parts.players.size(); ++player)
             {
-                players.push_back({.place   = {},
-                                   .side    = parts.players[player],
-                                   .options = player < parts.player_options.size() ? parts.player_options[player]
-                                                                                   : PlayerOptions{}});
+                players.push_back(
+                    {.place   = {},
+                     .side    = parts.players[player],
+                     .options = player < parts.player_options.size() ? parts.player_options[player] : PlayerOptions{}});
             }
         }
         else
@@ -1062,9 +1062,9 @@ namespace djw::player_ui::sdl
         {
             library_window->place(fitToDisplay(wanted.library));
         }
-        for (const auto &[tool, placement] : {std::pair{Tool::Mixer, wanted.mixer},
-                                              std::pair{Tool::Playlist, wanted.playlist},
-                                              std::pair{Tool::Beats, wanted.beats}})
+        for (const auto &[tool, placement] :
+             {std::pair{Tool::Mixer, wanted.mixer}, std::pair{Tool::Playlist, wanted.playlist},
+              std::pair{Tool::Beats, wanted.beats}})
         {
             ToolWindow &which = tools[index(tool)];
             which.placement   = fitToDisplay(placement.place);

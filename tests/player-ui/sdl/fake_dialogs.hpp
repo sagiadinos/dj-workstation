@@ -62,14 +62,14 @@ namespace djw::tests
                 pending = nullptr;
             }
 
-            bool        opened       = false;
-            bool        mixxx_asked  = false;
-            bool        folder_asked = false;
+            bool                  opened        = false;
+            bool                  mixxx_asked   = false;
+            bool                  folder_asked  = false;
             bool                  layout_opened = false;
             bool                  layout_saved  = false;
             std::filesystem::path layout_folder;
             std::string           suggested;
-            Chosen      pending;
+            Chosen                pending;
     };
 } // namespace djw::tests
 

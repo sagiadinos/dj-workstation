@@ -84,8 +84,7 @@ namespace djw::player_ui::sdl
         const std::string start    = dialogFolder(folder);
         auto             *userdata = new std::shared_ptr<Answer>{waitFor(std::move(chosen))};
         SDL_ShowOpenFileDialog(&onAnswer, userdata, parent, layout_filters.data(),
-                               static_cast<int>(layout_filters.size()), start.empty() ? nullptr : start.c_str(),
-                               false);
+                               static_cast<int>(layout_filters.size()), start.empty() ? nullptr : start.c_str(), false);
     }
 
     void SdlFileDialogs::saveLayout(const std::filesystem::path &folder, Chosen chosen)

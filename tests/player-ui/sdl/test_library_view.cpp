@@ -1045,8 +1045,8 @@ TEST_CASE("LibraryView: Layout > Save layout as asks for a file in the layouts f
     fixture.dialogs.choose("/elsewhere/four decks.djwlayout");
     fixture.view.update();
     CHECK(fixture.view.statusText().find("layout could not be saved") != std::string::npos);
-    CHECK(saved == std::vector<std::filesystem::path>{"/config/layouts/Club.djwlayout",
-                                                      "/elsewhere/four decks.djwlayout"});
+    CHECK(saved ==
+          std::vector<std::filesystem::path>{"/config/layouts/Club.djwlayout", "/elsewhere/four decks.djwlayout"});
 }
 
 TEST_CASE("LibraryView: Layout > Load layout asks for a file and says what came of it")

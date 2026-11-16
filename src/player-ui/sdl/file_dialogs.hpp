@@ -11,8 +11,8 @@
 namespace djw::player_ui::sdl
 {
     /**
-     * The system's dialogs for playlist files, music folders and layout files. Behind this interface so views can be tested without
-     * dialogs.
+     * The system's dialogs for playlist files, music folders and layout files. Behind this interface so views can be
+     * tested without dialogs.
      *
      * chosen is called on the UI thread with the file or folder the user picked, and not at all when the dialog is
      * cancelled.
